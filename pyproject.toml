@@ -1,89 +1,30 @@
-[tool.poetry]
+[project]
 name = "QDMpy"
 version = "0.0.1"
 description = "A python package for calculating magnetic maps from ODMR spectra measured on a quantum diamond microscope"
-authors = [
-    "Michael Volk <michaelvolk1979@gmail.com>",
-]
-license = "MIT"
-readme = "README.md"
 
 documentation = "https://mikevolk.github.io/QDMpy"
 homepage = "https://mikevolk.github.io/QDMpy"
 repository = "https://github.com/mikevolk/QDMpy"
+requires-python = ">=3.12"
 
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 3.10",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Typing :: Typed",
+dependencies = [
+    "numpy<=2.1",
+    "matplotlib>=3.9.2",
+    "mkdocs>=1.6.1",
+    "tomli>=2.1.0",
+    "numba>=0.60.0",
+    "scikit-learn>=1.5.2",
+    "pandas>=2.2.3",
+    "mat73>=0.65",
+    "pygpufit"
 ]
 
-packages = [
-    { include = "QDMpy", from = "src" }
+[tool.uv.sources]
+pygpufit = [
+    { path = "src/pyGpufit/win/pyGpufit-1.2.0-py2.py3-none-any.whl", marker = "sys_platform == 'win32'" },
+    { path = "src/pyGpufit/linux/pyGpufit-1.2.0-py2.py3-none-any.whl", marker = "sys_platform != 'win32'" }
 ]
-
-[tool.poetry.dependencies]
-python = ">=3.9, <3.11"
-pandas = "^1.4.3"
-sklearn = "^0.0"
-scikit-image = "^0.19.3"
-tomli = "^2.0.1"
-wheel = "^0.37.1"
-mat73 = "^0.59"
-jupyterlab = "^3.4.5"
-numpy = "^1.22"
-PySide6 = "=6.2.0"
-numba = "^0.56.0"
-scipy = "^1.9.1"
-matplotlib = "^3.5.3"
-matplotlib-scalebar = "^0.8.1"
-coloredlogs = "^15.0.1"
-superqt = "^0.3.5"
-pygpufit = [{ path = "src/pyGpufit/win/pyGpufit-1.2.0-py2.py3-none-any.whl", markers = "sys_platform == 'win32'" },
-    { path = "src/pyGpufit/linux/pyGpufit-1.2.0-py2.py3-none-any.whl", markers = "sys_platform == 'linux'" },
-]
-
-[tool.poetry.dev-dependencies]
-autoflake = "*"
-black = "*"
-flake8 = "*"
-flake8-bugbear = "*"
-flake8-builtins = "*"
-flake8-comprehensions = "*"
-flake8-debugger = "*"
-flake8-eradicate = "*"
-flake8-logging-format = "*"
-isort = "*"
-mkdocstrings = "*"
-mkdocs-material = "*"
-mkdocstrings-python = "*"
-argparse = "^1.4.0"
-mypy = "*"
-pep8-naming = "*"
-pre-commit = "*"
-pymdown-extensions = "*"
-pytest = "*"
-pytest-github-actions-annotate-failures = "*"
-pytest-cov = "*"
-python-kacl = "*"
-pyupgrade = "*"
-tryceratops = "*"
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.isort]
-profile = "black"
-src_paths = ["src", "tests"]
-
-[tool.black]
-target-version = ["py310"]
-include = '\.pyi?$'
 
 [tool.pytest.ini_options]
 addopts = """\
@@ -111,3 +52,9 @@ warn_redundant_casts = true
 check_untyped_defs = true
 show_error_codes = true
 ignore_missing_imports = true
+
+[dependency-groups]
+dev = [
+    "mkdocs>=1.6.1",
+    "ruff>=0.7.4",
+]
