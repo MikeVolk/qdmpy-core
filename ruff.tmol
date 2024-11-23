@@ -1,0 +1,90 @@
+# ruff.toml
+
+# Specify the version of ruff to use for compatibility.
+version = "latest"
+
+# Specify the directories or files to lint.
+src = ["src", "tests"]
+
+# Define what ruff rulesets to use with strict rules enabled.
+select = [
+    "E",  # Pycodestyle errors (strict style compliance)
+    "F",  # Pyflakes (strict logical errors)
+    "W",  # Pycodestyle warnings
+    "B",  # Bug risk checks from flake8-bugbear
+    "I",  # Import order enforcement
+    "N",  # Naming conventions
+    "Q",  # Quote consistency (flake8-quotes)
+    "S",  # Security checks
+    "D",  # Docstring conventions
+    "C90" # Cyclomatic complexity rules
+]
+
+# Ignore minimal rules; focus on strict enforcement.
+ignore = []
+
+# Maximum allowed line length. Strictly enforcing 80 for PEP 8 compliance.
+line-length = 80
+
+# Exclude specific directories or files (e.g., generated or compiled files).
+exclude = [
+    ".venv",
+    "build",
+    "dist",
+    "migrations",
+    "*.pyc",
+    "*.egg-info"
+]
+
+# Automatically apply fixes for fixable rules.
+fix = true
+
+# Enforce strict cyclomatic complexity limits.
+max-complexity = 10
+
+# Naming conventions for consistency and readability.
+[naming]
+variable-names = "^[a-z_][a-z0-9_]*$"  # Enforce snake_case for variables
+function-names = "^[a-z_][a-z0-9_]*$"  # Enforce snake_case for functions
+class-names = "^[A-Z][a-zA-Z0-9]*$"    # Enforce PascalCase for classes
+method-names = "^[a-z_][a-z0-9_]*$"    # Enforce snake_case for methods
+constant-names = "^[A-Z_][A-Z0-9_]*$"  # Enforce ALL_CAPS for constants
+
+# Import sorting rules for strict organization.
+[isort]
+known_third_party = ["requests", "numpy", "pandas"]
+known_first_party = ["myproject"]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+combine_as_imports = true
+force_single_line = true
+line_length = 80
+order_by_type = true
+
+# Configure docstring checks to enforce strict documentation.
+[docstrings]
+convention = "google"  # Use Google style docstrings (strict format)
+require-docstring-on-init = true  # Enforce docstrings on `__init__`
+
+# Configure flake8-quotes for string consistency.
+[flake8_quotes]
+inline-quotes = "single"  # Enforce single quotes for strings
+multiline-quotes = "double"  # Enforce double quotes for multiline strings
+
+# Strict security checks (flake8-bandit rules).
+[bandit]
+exclude = []  # Empty to enforce all available security rules
+banned-includes = ["pickle", "eval", "exec"]  # Disallow unsafe functions
+
+# Strict per-file ignores for better control over exceptions.
+per-file-ignores = {
+    "tests/*" = ["D100", "D101"],  # Allow missing docstrings in tests
+    "migrations/*" = ["E", "W"]   # Ignore errors/warnings in migrations
+}
+
+# Strict cognitive complexity configuration.
+[cognitive_complexity]
+max_cognitive_complexity = 8  # Lower limit for strict enforcement
+
+# Enforce PEP 8 style and additional strict configurations.
+[pep8]
+max-line-length = 100
