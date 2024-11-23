@@ -703,7 +703,6 @@ class QDM:
 
 def main():
     """ """
-    from QDMpy._core import outlier
 
     d = QDM.from_qdmio("/media/mike/OS/Users/micha/Desktop/diamond_testing/FOV2")
     # d = QDM.from_qdmio(QDMpy.test_data_location())
