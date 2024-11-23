@@ -72,9 +72,7 @@ class Fit:
 
         # fit results
         self._reset_fit()
-        self._constraints = (
-            self._set_initial_constraints()
-        )  # structure is: type: [float(min), float(vmax), str(constraint_type), str(unit)]
+        self._constraints = self._set_initial_constraints()  # structure is: type: [float(min), float(vmax), str(constraint_type), str(unit)]
 
         self.estimator_id = ESTIMATOR_ID[
             QDMpy.SETTINGS["fit"]["estimator"]
@@ -366,14 +364,12 @@ class Fit:
         """
         Guess the width of the ODMR spectra.
         """
-        correct = 0
 
         # detection thresholds
         if self._model["n_peaks"] == 1:
             vmin, vmax = 0.3, 0.7
         elif self._model["n_peaks"] == 2:
             vmin, vmax = 0.4, 0.6
-            correct = -0.001
         elif self._model["n_peaks"] == 3:
             vmin, vmax = 0.35, 0.65
         else:
