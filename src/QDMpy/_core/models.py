@@ -1,11 +1,14 @@
 from abc import ABC, abstractmethod
 from typing import Tuple, Any, List
 
-import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray
+from scipy.signal import find_peaks
 
 import QDMpy
+import logging
+
+LOG = logging.getLogger(__name__)
 
 
 class Model(ABC):
@@ -240,7 +243,30 @@ IMPLEMENTED = {
 PEAK_TO_TYPE = {1: "ESRSINGLE", 2: "ESR15N", 3: "ESR14N"}
 
 
-def guess_model(data: NDArray, check: bool = False) -> Tuple[int, bool, Any]:
+def guess_model_name(data) -> str:
+    """Guess the model name from the data.
+
+    Returns:
+        str: Name of the model.
+    """
+
+    data = np.median(data, axis=3)
+    n_peaks, doubt, _ = guess_model(data)
+
+    if doubt:
+        LOG.warning(
+            "Doubt on the diamond type. Check using `guess_diamond_type('debug')` and set manually if incorrect."
+        )
+
+    model = [mdict for mdict in IMPLEMENTED.values() if mdict["n_peaks"] == n_peaks][0]
+
+    LOG.info(
+        f"Guessed diamond type: {n_peaks} peaks -> {model['func_name']} ({model['name']})"
+    )
+    return model["func_name"]
+
+
+def guess_model(data: NDArray) -> Tuple[int, bool, Any]:
     """Guess the diamond type based on the number of peaks.
 
     :return: diamond_type (int)
@@ -252,7 +278,6 @@ def guess_model(data: NDArray, check: bool = False) -> Tuple[int, bool, Any]:
     Returns:
 
     """
-    from scipy.signal import find_peaks
 
     indices = []
 
@@ -262,22 +287,9 @@ def guess_model(data: NDArray, check: bool = False) -> Tuple[int, bool, Any]:
             -data[p, f], prominence=QDMpy.SETTINGS["model"]["find_peaks"]["prominence"]
         )
         indices.append(peaks[0])
-        if check:
-            (l,) = plt.plot(data[p, f])
-            plt.plot(
-                peaks[0],
-                data[p, f][peaks[0]],
-                "x",
-                color=l.get_color(),
-                label=f"({p},{f}): {len(indices[n])}",
-            )
 
     n_peaks = int(np.round(np.mean([len(idx) for idx in indices])))
 
     doubt = np.std([len(idx) for idx in indices]) != 0
-
-    if check:
-        plt.show()
-        plt.legend()
 
     return n_peaks, doubt, peaks
