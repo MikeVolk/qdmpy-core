@@ -62,6 +62,7 @@ class ODMR:
         """
         self._raw_data = odmr_data
         self._processed_data = None
+        self.is_processed = False  # Indicates whether the data has been processed
         self.processor_manager = ODMRProcessorManager()
 
     def load_data(
@@ -97,6 +98,7 @@ class ODMR:
             raise ValueError("No raw data to reset to.")
         LOG.info("Resetting to raw data.")
         self._processed_data = None
+        self.is_processed = False
 
     def process_data(self) -> None:
         """
@@ -113,6 +115,7 @@ class ODMR:
             raise ValueError("No ODMRData loaded.")
         LOG.info("Processing data.")
         self._processed_data = self.processor_manager.process(self._raw_data)
+        self.is_processed = True
 
     @property
     def raw_data(self) -> ODMRData:
