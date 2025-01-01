@@ -46,6 +46,7 @@ LOG.info("WELCOME TO QDMpy")
 LOG.debug(f"QDMpy version {__version__} installed at {PROJECT_PATH}")
 LOG.debug(f"QDMpy config file {CONFIG_FILE}")
 
+
 ############################### configfile stuff ######################################
 def make_configfile(reset: bool = False) -> None:
     """Creates the config file if it does not exist.
@@ -80,7 +81,6 @@ def reset_config():
     """
     make_configfile(reset=True)
     LOG.info("Config file reset")
-
 
 
 make_configfile()

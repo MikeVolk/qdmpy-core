@@ -9,9 +9,9 @@ from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
 
 import QDMpy
-import QDMpy._core.fit
+import src.QDMpy._core.fit_old
 from QDMpy._core import models
-from QDMpy._core.fit import Fit
+from src.QDMpy._core.fit_old import Fit
 from QDMpy._core.odmr import ODMR
 from QDMpy.exceptions import CantImportError, WrongFileNumber
 from QDMpy.utils import get_image, idx2rc, rc2idx
@@ -699,20 +699,3 @@ class QDM:
             raise NotImplementedError("MMT dialect not implemented yet.")
         else:
             raise ValueError(f"Dialect {dialect} not supported.")
-
-
-def main():
-    """ """
-
-    d = QDM.from_qdmio("/media/mike/OS/Users/micha/Desktop/diamond_testing/FOV2")
-    # d = QDM.from_qdmio(QDMpy.test_data_location())
-    #
-    # d.fit_odmr()
-    # outl = outlier.StatisticsPercentile(d.b111[0], d.get_param('chi2'), d.get_param('width'),
-    #                                     d.get_param('mean_contrast'))
-    # d.bin_data(16)
-    d.export_MMT("/home/mike/Desktop/test.mmt")
-
-
-if __name__ == "__main__":
-    main()

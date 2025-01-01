@@ -116,9 +116,9 @@ def guess_initial_fit_parameters(
 @njit(parallel=True, fastmath=True)
 def guess_contrast(data: NDArray) -> NDArray:
     amp = np.zeros((data.shape[0],data.shape[1],data.shape[3]))
-    for polarity in prange(data.shape[0]):
+    for polarity in range(data.shape[0]):
         for freq_range in range(data.shape[1]):
-            for pixel in range(data.shape[2]):
+            for pixel in prange(data.shape[2]):
                 amp[polarity, freq_range, pixel] = guess_contrast_pixel(data[polarity, freq_range, :, pixel])
     return amp
 
@@ -141,9 +141,9 @@ def guess_center(data: NDArray, freq: NDArray) -> NDArray:
         NDArray: 3D array of center frequencies (n_polarity, n_range, n_pixels).
     """
     centers = np.zeros((data.shape[0],data.shape[1],data.shape[3]))  # Result shape: (n_polarity, n_range, n_pixels)
-    for p in prange(data.shape[0]):
+    for p in range(data.shape[0]):
         for r in range(data.shape[1]):
-            for px in range(data.shape[3]):
+            for px in prange(data.shape[3]):
                 centers[p, r, px] = guess_center_pixel(data[p, r, :, px], freq)
     return centers
 
@@ -179,9 +179,9 @@ def guess_width(data: NDArray, freq: NDArray, vmin: float, vmax: float) -> NDArr
         NDArray: 3D array of widths (n_polarity, n_range, n_pixels).
     """
     widths = np.zeros((data.shape[0],data.shape[1],data.shape[3]))  # Result shape: (n_polarity, n_range, n_pixels)
-    for p in prange(data.shape[0]):
+    for p in range(data.shape[0]):
         for r in range(data.shape[1]):
-            for px in range(data.shape[3]):
+            for px in prange(data.shape[3]):
                 widths[p, r, px] = guess_width_pixel(data[p, r, :, px], freq, vmin, vmax)
     return widths
 
@@ -260,7 +260,7 @@ if __name__ == "__main__":
         odmr.processed_data.data, freqs, model
     )
     print(f"Guessed initial fit parameters: {fit_parameters}")
-    print(fit_parameters.shape)
+    print(fit_parameters[0,0,100])
     # Step 5: Apply model-specific calculations
     calculated_data = model.func(freqs, fit_parameters[0,0,100])
     print(f"Calculated data using model {model.name}: {calculated_data}")

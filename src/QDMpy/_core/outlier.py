@@ -1,7 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Any, List, Tuple, Union
+from typing import Tuple
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -261,7 +260,7 @@ def main():
     from scipy.io import loadmat
 
     d = loadmat("/home/mike/Desktop/b111test.b111")
-    out = StatisticsPercentile(
+    StatisticsPercentile(
         d["remanent"], d["chi_squares"], d["width"], np.mean(d["contrast"], axis=2)
     )
 

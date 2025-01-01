@@ -5,7 +5,7 @@ import sys
 import time
 
 import QDMpy
-from QDMpy._core.qdm import QDM
+from src.QDMpy._core.qdm_old import QDM
 from argdoc import generate_doc
 
 
@@ -16,7 +16,9 @@ def main(argv):
     """
     tstart = time.process_time()
 
-    parser = argparse.ArgumentParser(description="Calculate the B111 field from ODMR data recorded with QDMio made QDM")
+    parser = argparse.ArgumentParser(
+        description="Calculate the B111 field from ODMR data recorded with QDMio made QDM"
+    )
     parser.add_argument(
         "-i",
         "--input",

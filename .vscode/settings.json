@@ -1,6 +1,11 @@
 {
     "python.formatting.provider": "black",
     "cSpell.words": [
+        "ascontiguousarray",
+        "fidx",
+        "franges",
+        "ODMR",
+        "pidx",
         "scalebars"
     ]
 }

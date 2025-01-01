@@ -25,7 +25,7 @@ ESTIMATOR_ID = {"LSE": 0, "MLE": 1}
 
 
 def main():
-    from QDMpy._core.qdm import QDM
+    from src.QDMpy._core.qdm_old import QDM
 
     q = QDM.from_qdmio(QDMpy.test_data_location())
     q.fit_odmr()
