@@ -18,14 +18,31 @@ from QDMpy.odmr.processors import (
 @pytest.fixture
 def sample_odmr_data():
     """Create a mock ODMRData instance for testing."""
+    # Create the mock data object
     mock_data = MagicMock()
-    # Sample data with shape (2, 3, 100, 50)
-    # (modes, reps, pixels, frequencies)
+    
+    # Set up the data with appropriate dimensions
+    # Shape (2, 3, 100, 50) - (polarities, frequency_ranges, pixels, frequencies)
     mock_data.data = np.random.random((2, 3, 100, 50))
-    mock_data.scan_dimensions = np.array([10, 10])  # 10x10 grid
+    mock_data.scan_dimensions = np.array([10, 10])  # 10x10 grid, 100 pixels total
     mock_data.frequencies = np.linspace(2.87e9, 2.89e9, 50)
     mock_data.metadata = {}
-    mock_data.__class__ = MagicMock(return_value=mock_data)
+    
+    # The key issue: when processors call data.__class__(...), we need to return a NEW mock
+    # not the same mock object
+    def create_new_instance(*args, **kwargs):
+        new_mock = MagicMock()
+        new_mock.data = kwargs.get('data', np.copy(mock_data.data))
+        new_mock.scan_dimensions = kwargs.get('scan_dimensions', np.copy(mock_data.scan_dimensions))
+        new_mock.frequencies = kwargs.get('frequencies', np.copy(mock_data.frequencies))
+        new_mock.metadata = kwargs.get('metadata', mock_data.metadata.copy())
+        return new_mock
+    
+    # Set up the class mock to return a new instance
+    mock_class = MagicMock()
+    mock_class.side_effect = create_new_instance
+    mock_data.__class__ = mock_class
+    
     return mock_data
 
 
