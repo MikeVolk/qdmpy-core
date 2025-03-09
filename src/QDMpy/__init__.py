@@ -36,7 +36,7 @@ import coloredlogs
 coloredlogs.install(
     level="DEBUG",
     fmt="%(asctime)s %(levelname)8s %(name)s.%(funcName)s >> %(message)s",
-    datefmt="%H:%M:%S",
+    datefmt="%H:%M:%S.%f",
     stream=sys.stdout,
     logger=LOG,
     isatty=True,
