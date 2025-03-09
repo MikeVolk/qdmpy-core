@@ -95,11 +95,11 @@ class MatlabLoader(BaseLoader):
 
         for file in files:
             full_path = os.path.join(self.data_folder, file)
-            mat_data = (
-                loadmat(full_path)
-                if file.endswith(".mat")
-                else mat73.loadmat(full_path)
-            )
+            # Try using mat73 for v7.3 format files first, then fall back to loadmat
+            try:
+                mat_data = mat73.loadmat(full_path)
+            except Exception:
+                mat_data = loadmat(full_path)
 
             # Process MATLAB data into raw data arrays
             stacked_data = self._process_mat_file(mat_data)
@@ -109,23 +109,31 @@ class MatlabLoader(BaseLoader):
                 else np.stack((raw_data, stacked_data), axis=0)
             )
 
-            img_shape = np.array(
-                [
-                    int(np.squeeze(mat_data["imgNumRows"])),
-                    int(np.squeeze(mat_data["imgNumCols"])),
-                ]
-            )
-            frequencies = np.squeeze(mat_data["freqList"]).astype(np.float32)
+            try:
+                img_shape = np.array(
+                    [
+                        int(np.squeeze(mat_data["imgNumRows"])),
+                        int(np.squeeze(mat_data["imgNumCols"])),
+                    ]
+                )
+            except KeyError as e:
+                raise ValueError(f"Missing required key in MATLAB file: {e}")
+                
+            try:
+                # Keep original dtype for frequencies to maintain precision
+                frequencies = np.squeeze(mat_data["freqList"])
+            except KeyError as e:
+                raise ValueError(f"Missing required key in MATLAB file: {e}")
 
         return raw_data, img_shape, frequencies
 
     @staticmethod
-    def _process_mat_file(mat_file: dict) -> NDArray:
+    def _process_mat_file(mat_file: dict[str, Any]) -> NDArray:
         """
         Process a MATLAB file to extract raw ODMR data.
 
         Args:
-            mat_file (dict): The MATLAB file content as a dictionary.
+            mat_file (dict[str, Any]): The MATLAB file content as a dictionary.
 
         Returns:
             NDArray: Processed raw data.

@@ -100,11 +100,11 @@ class ODMRData:
             raise RuntimeError(f"Data loading failed: {e}")
 
     @property
-    def shape(self) -> tuple:
+    def shape(self) -> tuple[int, ...]:
         """
         Get the shape of the raw ODMR data.
 
         Returns:
-            tuple: The shape of the raw data as a tuple (e.g., (rows, cols)).
+            tuple[int, ...]: The shape of the raw data as a tuple (e.g., (rows, cols)).
         """
         return self.data.shape

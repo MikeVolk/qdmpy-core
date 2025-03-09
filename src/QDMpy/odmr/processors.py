@@ -20,7 +20,7 @@ Imports:
 
 from abc import ABC, abstractmethod
 from numpy.typing import NDArray
-from typing import List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING, Any
 import numpy as np
 import logging
 from skimage.measure import block_reduce
@@ -39,12 +39,13 @@ class BaseProcessor(ABC):
     """
 
     @abstractmethod
-    def process(self, data: "ODMRData", **kwargs) -> "ODMRData":
+    def process(self, data: "ODMRData", **kwargs: Any) -> "ODMRData":
         """
         Process the given ODMRData instance and return a new instance.
 
         Args:
             data (ODMRData): The input data to process.
+            **kwargs: Additional keyword arguments for specific processor implementations.
 
         Returns:
             ODMRData: A new instance containing the processed data.
@@ -69,12 +70,13 @@ class NormalizationProcessor(BaseProcessor):
         """
         self.method = method
 
-    def process(self, data: "ODMRData", **kwargs) -> "ODMRData":
+    def process(self, data: "ODMRData", **kwargs: Any) -> "ODMRData":
         """
         Normalize the data based on the selected method.
 
         Args:
             data (ODMRData): The input data to normalize.
+            **kwargs: Additional keyword arguments (not used).
 
         Returns:
             ODMRData: A new instance containing the normalized data.
@@ -137,21 +139,32 @@ class BinningProcessor(BaseProcessor):
             raise ValueError("Bin factor must be greater than 0.")
         self.bin_factor = bin_factor
 
-    def process(self, data: "ODMRData", **kwargs) -> "ODMRData":
+    def process(self, data: "ODMRData", **kwargs: Any) -> "ODMRData":
         """
         Bin the data by the specified factor.
 
         Args:
             data (ODMRData): The input data to bin.
+            **kwargs: Additional keyword arguments (not used).
 
         Returns:
             ODMRData: A new instance containing the binned data.
         """
         LOG.debug(f"Binning data with factor: {self.bin_factor}")
+        # Calculate spatial dimensions, ensuring compatibility with non-square images
+        total_pixels = data.data.shape[2]
+        # Try to determine rows and cols from scan_dimensions if available
+        if hasattr(data, 'scan_dimensions') and data.scan_dimensions is not None and len(data.scan_dimensions) == 2:
+            rows, cols = data.scan_dimensions
+        else:
+            # Fallback to assuming square images if dimensions are not available
+            rows = cols = int(total_pixels ** 0.5)
+            LOG.warning("Assuming square image for binning. Using scan_dimensions is recommended.")
+            
         reshape_data = data.data.reshape(
             -1,
-            int(data.data.shape[2] ** 0.5),
-            int(data.data.shape[2] ** 0.5),
+            rows,
+            cols,
             data.data.shape[-1],
         )
         binned = block_reduce(
@@ -190,21 +203,23 @@ class OutlierProcessor(BaseProcessor):
         """
         self.threshold = threshold
 
-    def process(self, data: "ODMRData", **kwargs) -> "ODMRData":
+    def process(self, data: "ODMRData", **kwargs: Any) -> "ODMRData":
         """
         Apply an outlier mask based on the threshold.
 
         Args:
             data (ODMRData): The input data to process.
+            **kwargs: Additional keyword arguments (not used).
 
         Returns:
             ODMRData: A new instance with outliers masked.
         """
         LOG.debug(f"Masking outliers with threshold: {self.threshold}")
-        mask = (
-            np.abs(data.data - np.mean(data.data, axis=-1, keepdims=True))
-            > self.threshold
-        )
+        # Use a more robust algorithm that considers standard deviation
+        data_mean = np.mean(data.data, axis=-1, keepdims=True)
+        data_std = np.std(data.data, axis=-1, keepdims=True)
+        z_scores = np.abs((data.data - data_mean) / (data_std + 1e-10))  # Add small epsilon to avoid div by zero
+        mask = z_scores > (self.threshold * 3)  # Convert threshold to number of std deviations
         processed_data = data.data.copy()
         processed_data[mask] = np.nan
         metadata = data.metadata.copy()
@@ -221,10 +236,15 @@ class ODMRProcessorManager:
     """
     Manages multiple processors for ODMR data.
 
-    Tracks and applies processing steps sequentially.
+    Tracks and applies processing steps sequentially to transform ODMRData objects.
 
     Attributes:
         processors (List[BaseProcessor]): List of processors in the pipeline.
+
+    Methods:
+        add_processor: Add a processor to the pipeline.
+        process: Apply all processors sequentially to data.
+        list_processors: Get names of all processors in the pipeline.
     """
 
     def __init__(self) -> None:
