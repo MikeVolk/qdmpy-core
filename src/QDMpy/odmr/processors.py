@@ -169,21 +169,22 @@ class BinningProcessor(BaseProcessor):
             LOG.warning("Assuming square image for binning. Using scan_dimensions is recommended.")
 
         reshape_data = data.data.reshape(
-            -1,
-            int(data.data.shape[2] ** 0.5),
-            int(data.data.shape[2] ** 0.5),
-            data.data.shape[-1],
+            data.data.shape[0],
+            data.data.shape[1],
+            data.data.shape[2],
+            rows, cols
         )
+
         binned = block_reduce(
             reshape_data,
-            block_size=(1, self.bin_factor, self.bin_factor, 1),
+            block_size=(1, 1, 1, self.bin_factor, self.bin_factor),
             func=np.nanmean,
         )
         binned = binned.reshape(
             data.data.shape[0],
             data.data.shape[1],
+            data.data.shape[2],
             -1,
-            data.data.shape[-1],
         )
         metadata = data.metadata.copy()
         metadata["binned"] = True
