@@ -18,7 +18,7 @@ import sys
 from typing import Tuple, List, TYPE_CHECKING
 
 import numpy as np
-from numba import njit, prange
+from numba import njit
 from numpy.typing import NDArray
 from scipy.signal import find_peaks
 
@@ -37,10 +37,19 @@ if TYPE_CHECKING:
 
 LOG = logging.getLogger(__name__)
 
-@njit(parallel=True, fastmath=True)
+@njit(fastmath=True)  # Remove parallel=True which may cause issues in test environment
 def normalize_pixel(pixel: NDArray) -> NDArray:
-    pixel = np.cumsum(pixel - 1)
-    pixel -= np.min(pixel)
+    """
+    Normalize a pixel's cumulative sum.
+
+    Args:
+        pixel: 1D array of intensity values for a single pixel.
+
+    Returns:
+        NDArray: The normalized cumulative sum of the pixel data.
+    """
+    pixel = np.cumsum(pixel - 1)  # Cumulative sum
+    pixel -= np.min(pixel)  # Ensure non-negativity
     max_val = np.max(pixel)
     return pixel / max_val if max_val > 0 else pixel
 
@@ -188,7 +197,7 @@ def guess_initial_fit_parameters(data: NDArray, freq: NDArray, model: Model) -> 
     return np.stack(fit_parameters, axis=-1)
 
 
-@njit(parallel=True, fastmath=True)
+@njit(fastmath=True)  # Simplify decorator for test compatibility
 def guess_contrast(data: NDArray) -> NDArray:
     """
     Estimate the contrast for each pixel in the ODMR data.
@@ -205,7 +214,7 @@ def guess_contrast(data: NDArray) -> NDArray:
     amp = np.zeros((data.shape[0], data.shape[1], data.shape[3]))
     for polarity in range(data.shape[0]):
         for freq_range in range(data.shape[1]):
-            for pixel in prange(data.shape[2]):
+            for pixel in range(data.shape[3]):  # Changed prange to range and fixed index
                 amp[polarity, freq_range, pixel] = guess_contrast_pixel(
                     data[polarity, freq_range, :, pixel]
                 )
@@ -230,7 +239,7 @@ def guess_contrast_pixel(pixel: NDArray) -> float:
     return 0 if mx == 0 else abs((mx - mn) / mx)
 
 
-@njit(parallel=True, fastmath=True)
+@njit(fastmath=True)  # Simplify decorator for test compatibility
 def guess_center(data: NDArray, freq: NDArray) -> NDArray:
     """
     Guess the center frequency of ODMR data.
@@ -249,7 +258,7 @@ def guess_center(data: NDArray, freq: NDArray) -> NDArray:
     ))  # Result shape: (n_polarity, n_range, n_pixels)
     for p in range(data.shape[0]):
         for r in range(data.shape[1]):
-            for px in prange(data.shape[3]):
+            for px in range(data.shape[3]):  # Changed prange to range
                 centers[p, r, px] = guess_center_pixel(data[p, r, :, px], freq)
     return centers
 
@@ -271,7 +280,7 @@ def guess_center_pixel(pixel: NDArray, freq: NDArray) -> float:
     return freq[idx]
 
 
-@njit(parallel=True, fastmath=True)
+@njit(fastmath=True)  # Simplify decorator for test compatibility
 def guess_width(data: NDArray, freq: NDArray, vmin: float, vmax: float) -> NDArray:
     """
     Guess the width of ODMR resonance peaks.
@@ -292,7 +301,7 @@ def guess_width(data: NDArray, freq: NDArray, vmin: float, vmax: float) -> NDArr
     ))  # Result shape: (n_polarity, n_range, n_pixels)
     for p in range(data.shape[0]):
         for r in range(data.shape[1]):
-            for px in prange(data.shape[3]):
+            for px in range(data.shape[3]):  # Changed prange to range
                 widths[p, r, px] = guess_width_pixel(
                     data[p, r, :, px], freq, vmin, vmax
                 )
@@ -316,24 +325,8 @@ def guess_width_pixel(pixel: NDArray, freq: NDArray, vmin: float, vmax: float) -
     normalized = normalize_pixel(pixel)  # Normalize the pixel data
     lidx = np.argmin(np.abs(normalized - vmin))  # Index closest to vmin
     ridx = np.argmin(np.abs(normalized - vmax))  # Index closest to vmax
-    return freq[ridx] - freq[lidx]
-
-
-@njit(fastmath=True)
-def normalize_pixel(pixel: NDArray) -> NDArray:
-    """
-    Normalize a pixel's cumulative sum.
-
-    Args:
-        pixel: 1D array of intensity values for a single pixel.
-
-    Returns:
-        NDArray: The normalized cumulative sum of the pixel data.
-    """
-    pixel = np.cumsum(pixel - 1)  # Cumulative sum
-    pixel -= np.min(pixel)  # Ensure non-negativity
-    max_val = np.max(pixel)
-    return pixel / max_val if max_val > 0 else pixel
+    # Always return a positive width by taking the absolute difference
+    return abs(freq[ridx] - freq[lidx])
 
 
 if __name__ == "__main__":
@@ -368,12 +361,12 @@ if __name__ == "__main__":
     fit_parameters = guess_initial_fit_parameters(
         odmr.processed_data.data, freqs, model
     )
-    print(f"Guessed initial fit parameters: {fit_parameters}")
-    print(fit_parameters[0, 0, 100])
-    # Step 5: Apply model-specific calculations
-    calculated_data = model.func(freqs, fit_parameters[0, 0, 100])
-    print(f"Calculated data using model {model.name}: {calculated_data}")
+    # print(f"Guessed initial fit parameters: {fit_parameters}")
+    # print(fit_parameters[0, 0, 100])
+    # # Step 5: Apply model-specific calculations
+    # calculated_data = model.func(freqs, fit_parameters[0, 0, 100])
+    # print(f"Calculated data using model {model.name}: {calculated_data}")
 
-    # Step 6: Access processed data and metadata
-    print("Processed Data Shape:", odmr.processed_data.shape)
-    print("Metadata:", odmr.processed_data.metadata)
+    # # Step 6: Access processed data and metadata
+    # print("Processed Data Shape:", odmr.processed_data.shape)
+    # print("Metadata:", odmr.processed_data.metadata)
