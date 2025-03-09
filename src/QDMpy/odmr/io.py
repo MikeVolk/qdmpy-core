@@ -21,7 +21,7 @@ from scipy.io import loadmat
 import numpy as np
 from numpy.typing import NDArray
 from abc import ABC, abstractmethod
-from typing import Any, Tuple
+from typing import Any, Tuple, Optional
 
 
 class BaseLoader(ABC):
@@ -39,12 +39,12 @@ class BaseLoader(ABC):
     """
 
     @abstractmethod
-    def load(self, **kwargs: Any) -> Tuple[NDArray, NDArray, NDArray]:
+    def load(self, **kwargs: Any) -> Tuple[Optional[NDArray], Optional[NDArray], Optional[NDArray]]:
         """
         Load ODMR data.
 
         Returns:
-            Tuple[NDArray, NDArray, NDArray]: A tuple containing:
+            Tuple[Optional[NDArray], Optional[NDArray], Optional[NDArray]]: A tuple containing:
                 - raw_data: The raw data array with shape (polarities, frequency_ranges, pixels, frequencies).
                 - scan_dimensions: The scan dimensions (rows, cols) used to reshape pixels to 2D.
                 - frequencies: The 1D array of frequencies used in the measurements.
@@ -72,7 +72,7 @@ class MatlabLoader(BaseLoader):
         """
         self.data_folder = data_folder
 
-    def load(self, **kwargs: Any) -> Tuple[NDArray, NDArray, NDArray]:
+    def load(self, **kwargs: Any) -> Tuple[Optional[NDArray], Optional[NDArray], Optional[NDArray]]:
         """
         Load ODMR data from the specified folder.
 
@@ -80,7 +80,7 @@ class MatlabLoader(BaseLoader):
             kwargs (Any): Additional arguments for loading data (optional).
 
         Returns:
-            Tuple[NDArray, NDArray, NDArray]: A tuple containing:
+            Tuple[Optional[NDArray], Optional[NDArray], Optional[NDArray]]: A tuple containing:
                 - raw_data: The raw data array with shape (polarities, frequency_ranges, pixels, frequencies).
                   - Polarity axis (0): Contains measurements with different polarities (typically 2)
                   - Frequency ranges axis (1): Contains data from different frequency ranges
@@ -88,6 +88,7 @@ class MatlabLoader(BaseLoader):
                   - Pixels axis (3): Contains flattened spatial pixels
                 - scan_dimensions: The scan dimensions (rows, cols) used to reshape pixels to 2D.
                 - frequencies: The 1D array of frequencies used in the measurements.
+                - Note: All return values may be None if no files are processed.
 
         Raises:
             FileNotFoundError: If no valid MATLAB files are found in the folder.

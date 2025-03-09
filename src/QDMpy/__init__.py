@@ -30,7 +30,7 @@ CONFIG_INI = PROJECT_PATH / "config.ini"
 DESKTOP = Path().home() / "Desktop"
 
 SRC_PATH = PROJECT_PATH.parent
-sys.path.append(SRC_PATH)
+sys.path.append(str(SRC_PATH))
 
 ### LOGGING ###
 from logging.config import fileConfig

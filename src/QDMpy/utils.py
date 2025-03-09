@@ -28,7 +28,7 @@ def millify(n: float, sign: int = 1) -> str:
 
     Args:
         n: Number to convert.
-        sign: Number of digits after the decimal point. Default is 1.
+        sign: Number of decimal places to include in the output. Default is 1.
 
     Returns:
         Human readable string with appropriate unit prefix (e.g., "1.5K" for 1500).
@@ -71,13 +71,13 @@ def rc2idx(rc: ArrayLike, shape: Tuple[int, ...]) -> NDArray:
 
 
 def polyfit2d(
-    x: np.ndarray,
-    y: np.ndarray,
-    z: np.ndarray,
+    x: NDArray,
+    y: NDArray,
+    z: NDArray,
     kx: int = 3,
     ky: int = 3,
     order: Optional[int] = None,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[NDArray, NDArray, int, NDArray]:
     """Two dimensional polynomial fitting by least squares.
 
     Fits the functional form f(x,y) = z, performing a polynomial fit in two dimensions.

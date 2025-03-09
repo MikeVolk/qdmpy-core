@@ -1,8 +1,18 @@
 #!/usr/bin/python
+"""QDMpy Command Line Interface Module.
+
+This module provides a command-line interface for QDMpy package to process
+Optically Detected Magnetic Resonance (ODMR) data from Quantum Diamond Microscopy
+(QDM) measurements.
+
+It allows users to specify input data paths, binning factors, model types,
+and global fluorescence values through command-line arguments.
+"""
 
 import argparse
 import sys
 import time
+from typing import List
 
 import QDMpy
 from src.QDMpy._core.qdm_old import QDM
@@ -10,9 +20,17 @@ from argdoc import generate_doc
 
 
 @generate_doc
-def main(argv):
-    """
-    Main function for the QDMpy command line interface.
+def main(argv: List[str]) -> None:
+    """Main function for the QDMpy command line interface.
+    
+    Processes command line arguments to calculate B111 field from ODMR data
+    recorded with QDMio made QDM.
+    
+    Args:
+        argv: List of command line arguments.
+        
+    Returns:
+        None
     """
     tstart = time.process_time()
 
@@ -64,9 +82,9 @@ def main(argv):
     else:
         QDMpy.LOG.setLevel("INFO")
 
-    qdm_obj = QDM.from_qdmio(args.input, model_name=args.diamond)
+    qdm_obj = QDM.from_qdmio(args.input, model_name=args.model)
     qdm_obj.bin_data(bin_factor=args.binfactor)
-    qdm_obj.correct_glob_fluorescecne(glob_fluorescence=args.globalfluorescence)
+    qdm_obj.correct_glob_fluorescence(glob_fluorescence=args.globalfluorescence)
     qdm_obj.fit_odmr()
     qdm_obj.export_qdmio()
     QDMpy.LOG.info(f"QDMpy finished in {time.process_time() - tstart:.2f} seconds")

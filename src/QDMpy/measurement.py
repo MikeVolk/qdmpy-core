@@ -48,12 +48,13 @@ class Measurement:
 
     Attributes:
         odmr (ODMR): Instance managing ODMR data and processing.
-        light_image (NDArray): Light image array.
-        laser_image (NDArray): Laser image array.
+        light_image (NDArray): Light image array with shape (height, width).
+        laser_image (NDArray): Laser image array with shape (height, width).
         output_directory (Path): Path to the output directory.
         pixel_spacing (float): Spacing between pixels in meters.
         _outliers (Optional[NDArray]): Boolean mask for outlier pixels.
         _B111 (Optional[NDArray]): B111 field array, populated after fitting.
+        _fit_model (str): Name of the model used for fitting ODMR spectra.
         metadata (Dict[str, Any]): Additional metadata for the measurement.
     """
 
@@ -71,11 +72,11 @@ class Measurement:
 
         Args:
             odmr (ODMR): An initialized ODMR instance containing ODMR data.
-            light_image (NDArray): Light image array.
-            laser_image (NDArray): Laser image array.
+            light_image (NDArray): Light image array with shape (height, width).
+            laser_image (NDArray): Laser image array with shape (height, width).
             output_directory (Union[str, Path, PathLike]): Path to the output directory.
             pixel_spacing (float): Spacing between pixels in meters (pixel size). Default is 4 µm (4e-6).
-            fit_model (str): Model name for fitting. Default is "auto".
+            fit_model (str): Name of the model used for fitting ODMR spectra. Default is "auto".
                             If "auto", the model is chosen based on the mean ODMR data.
 
         Raises:
@@ -127,13 +128,21 @@ class Measurement:
         self._fit_model = fit_model
         
     def __str__(self) -> str:
-        """Return a string representation of the Measurement object."""
+        """Return a string representation of the Measurement object.
+        
+        Returns:
+            str: A human-readable string representation of the Measurement.
+        """
         return (f"Measurement(odmr={self.odmr}, "
                 f"output_directory='{self.output_directory}', "
                 f"pixel_spacing={self.pixel_spacing} m)")
     
     def __repr__(self) -> str:
-        """Return a developer string representation of the Measurement object."""
+        """Return a developer string representation of the Measurement object.
+        
+        Returns:
+            str: A detailed string representation for debugging and development.
+        """
         return (f"Measurement(odmr={self.odmr!r}, "
                 f"light_image.shape={self.light_image.shape}, "
                 f"laser_image.shape={self.laser_image.shape}, "

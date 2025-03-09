@@ -199,24 +199,29 @@ class Model(ABC):
         """
         return len(self.parameters_unique)
 
-    def get_constraint_array(self, constraint: Dict[str, Any], n_pixel: int) -> NDArray:
+    def get_constraint_array(self, constraint: Dict[str, Any], n_pixel: int = 1) -> NDArray:
         """
         Create an array of constraints for model parameters.
         
         Args:
             constraint: Dictionary of constraints.
-            n_pixel: Number of pixels to generate constraints for.
+            n_pixel: Number of pixels to generate constraints for. Default is 1.
             
         Returns:
             Array of constraint values.
         """
-        constraint_array = np.zeros(())
+        constraint_array = []
         for p in self.parameters_unique:
-            for c in constraint:
-                if c in p:
-                    constraint_array.append(constraint[c][0])
-                    constraint_array.append(constraint[c][1])
-        return constraint_array
+            base_param = p.split("_")[0]
+            if base_param in constraint:
+                constraint_array.append(constraint[base_param][0])  # Lower bound
+                constraint_array.append(constraint[base_param][1])  # Upper bound
+            else:
+                # Default constraints if not specified
+                constraint_array.append(-np.inf)  # No lower bound
+                constraint_array.append(np.inf)   # No upper bound
+                
+        return np.array(constraint_array)
 
     def __repr__(self) -> str:
         """
@@ -279,7 +284,8 @@ class ModelRegistry:
         """
         return cls._registry
 
-    def _initialize_constraints(self) -> Dict[str, List[Any]]:
+    @classmethod
+    def _initialize_constraints(cls) -> Dict[str, List[Any]]:
         """
         Initialize default constraints for model parameters.
         
@@ -313,7 +319,13 @@ class ESR14N(Model):
 
 
 class ESR15N(Model):
-    def __init__(self):
+    """
+    Model for NV centers with 15N nitrogen isotope.
+    
+    This model represents ODMR spectra with two dips due to the hyperfine
+    interaction with the 15N nucleus (I=1/2).
+    """
+    def __init__(self) -> None:
         super().__init__(
             "ESR15N", 2, ["contrast", "center", "width_0", "width_1", "offset"]
         )
@@ -324,7 +336,13 @@ class ESR15N(Model):
 
 
 class ESRSINGLE(Model):
-    def __init__(self):
+    """
+    Model for a single ODMR resonance dip.
+    
+    This model represents ODMR spectra with a single resonance dip, 
+    without any hyperfine splitting.
+    """
+    def __init__(self) -> None:
         super().__init__("ESRSINGLE", 1, ["contrast", "center", "width_0", "offset"])
 
     def func(self, x: NDArray, parameters: NDArray) -> NDArray:
@@ -338,4 +356,4 @@ ModelRegistry.register("ESRSINGLE", {"class": ESRSINGLE, "hyp": 0.0})
 
 if __name__ == "__main__":
     model = ModelRegistry.get("ESRSINGLE")
-    print(model.n_parameter)
+    print(model.n_parameters)
