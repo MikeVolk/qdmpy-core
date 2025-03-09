@@ -43,8 +43,8 @@ class ODMRData:
 
     Attributes:
         data (NDArray): The raw ODMR data, as a 4D numpy array with shape:
-            - Axis 0: Data channels (typically 2 channels representing different measurements)
-            - Axis 1: Runs or configurations (number of experimental runs)
+            - Axis 0: Different polarities of measurements (typically 2 for positive/negative)
+            - Axis 1: Different frequency ranges scanned in the experiment
             - Axis 2: Spatial pixels (flattened from a 2D image with rows x cols pixels)
             - Axis 3: Frequency points (number of frequency measurements per pixel)
         scan_dimensions (NDArray): The dimensions of the scan as (rows, cols).
@@ -65,8 +65,8 @@ class ODMRData:
 
         Args:
             data (NDArray): Raw ODMR data as a 4D numpy array with shape:
-                - Axis 0: Data channels (typically 2 channels representing different measurements)
-                - Axis 1: Runs or configurations (number of experimental runs)
+                - Axis 0: Different polarities of measurements (typically 2 for positive/negative)
+                - Axis 1: Different frequency ranges scanned in the experiment
                 - Axis 2: Spatial pixels (flattened from a 2D image with rows x cols pixels)
                 - Axis 3: Frequency points (number of frequency measurements per pixel)
             scan_dimensions (NDArray): Image scan dimensions as (rows, cols).
@@ -115,6 +115,13 @@ class ODMRData:
         Get the shape of the raw ODMR data.
 
         Returns:
-            tuple[int, ...]: The shape of the raw data as a tuple (e.g., (rows, cols)).
+            tuple[int, ...]: The shape of the raw data as a tuple with format:
+                (polarities, frequency_ranges, spatial_pixels, frequencies)
+                
+                For example: (2, 1, 10000, 501) would represent:
+                - 2 polarities (positive/negative)
+                - 1 frequency range
+                - 10000 spatial pixels (e.g., 100x100 image flattened)
+                - 501 frequency points per pixel
         """
         return self.data.shape

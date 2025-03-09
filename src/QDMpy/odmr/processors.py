@@ -57,6 +57,10 @@ class NormalizationProcessor(BaseProcessor):
     """
     Handles normalization of ODMR data.
 
+    Normalizes the frequency-dependent data (axis 3) for each pixel 
+    independently. This is typically used to normalize ODMR spectra
+    to a consistent scale across all pixels.
+
     Attributes:
         method (str): The normalization method to use (e.g., 'max').
     """
@@ -143,12 +147,18 @@ class BinningProcessor(BaseProcessor):
         """
         Bin the data by the specified factor.
 
+        This method takes the raw data with shape (channels, runs, pixels, frequencies)
+        and performs spatial binning on the pixels. It reshapes the flattened pixels 
+        into a 2D image using scan_dimensions before applying binning, then flattens
+        the result back to the original data format.
+
         Args:
-            data (ODMRData): The input data to bin.
+            data (ODMRData): The input data to bin with shape (channels, runs, pixels, frequencies).
             **kwargs: Additional keyword arguments (not used).
 
         Returns:
-            ODMRData: A new instance containing the binned data.
+            ODMRData: A new instance containing the binned data with reduced spatial resolution
+                     but the same overall shape structure.
         """
         LOG.debug(f"Binning data with factor: {self.bin_factor}")
         # Calculate spatial dimensions, ensuring compatibility with non-square images
@@ -190,8 +200,12 @@ class OutlierProcessor(BaseProcessor):
     """
     Handles masking of outliers in ODMR data.
 
+    Identifies and masks outlier values in the ODMR spectra based on 
+    z-scores computed across the frequency dimension (axis 3). Values
+    that exceed the threshold are replaced with NaN values.
+
     Attributes:
-        threshold (float): The threshold for outlier detection.
+        threshold (float): The threshold for outlier detection in standard deviations.
     """
 
     def __init__(self, threshold: float = 0.001) -> None:

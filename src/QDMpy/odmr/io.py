@@ -30,6 +30,12 @@ class BaseLoader(ABC):
 
     Subclasses should implement the `load` method to provide specific functionality
     for loading ODMR data from different file types or sources.
+    
+    The loaded data should be in a standardized format with 4 dimensions:
+    - Axis 0: Different polarities of measurements (typically 2 for positive/negative)
+    - Axis 1: Different frequency ranges scanned in the experiment
+    - Axis 2: Spatial pixels (flattened from a 2D image with rows x cols pixels)
+    - Axis 3: Frequency points (number of frequency measurements per pixel)
     """
 
     @abstractmethod
@@ -39,9 +45,9 @@ class BaseLoader(ABC):
 
         Returns:
             Tuple[NDArray, NDArray, NDArray]: A tuple containing:
-                - raw_data: The raw data array.
-                - scan_dimensions: The scan dimensions (rows, cols).
-                - frequencies: The list of frequencies.
+                - raw_data: The raw data array with shape (polarities, frequency_ranges, pixels, frequencies).
+                - scan_dimensions: The scan dimensions (rows, cols) used to reshape pixels to 2D.
+                - frequencies: The 1D array of frequencies used in the measurements.
         """
         pass
 
@@ -75,9 +81,13 @@ class MatlabLoader(BaseLoader):
 
         Returns:
             Tuple[NDArray, NDArray, NDArray]: A tuple containing:
-                - raw_data: The raw data array.
-                - scan_dimensions: The scan dimensions (rows, cols).
-                - frequencies: The list of frequencies.
+                - raw_data: The raw data array with shape (polarities, frequency_ranges, pixels, frequencies).
+                  - Polarity axis (0): Contains measurements with different polarities (typically 2)
+                  - Frequency ranges axis (1): Contains data from different frequency ranges
+                  - Pixels axis (2): Contains flattened spatial pixels
+                  - Frequencies axis (3): Contains measurements at different frequencies
+                - scan_dimensions: The scan dimensions (rows, cols) used to reshape pixels to 2D.
+                - frequencies: The 1D array of frequencies used in the measurements.
 
         Raises:
             FileNotFoundError: If no valid MATLAB files are found in the folder.
@@ -136,7 +146,11 @@ class MatlabLoader(BaseLoader):
             mat_file (dict[str, Any]): The MATLAB file content as a dictionary.
 
         Returns:
-            NDArray: Processed raw data.
+            NDArray: Processed raw data with shape (polarities, frequency_ranges, pixels, frequencies).
+                - For 2 image stacks: Returns shape (2, frequency_ranges, pixels, frequencies)
+                  where the 2 represents positive/negative polarities.
+                - For 4 image stacks: Concatenates stacks 1+2 and 3+4 along the frequency ranges
+                  axis, returning shape (2, frequency_ranges, pixels, frequencies).
 
         Raises:
             ValueError: If the MATLAB file contains an unsupported number of image stacks.
