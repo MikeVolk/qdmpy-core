@@ -8,25 +8,28 @@ license = {text = "MIT"}
 authors = [
     {name = "Mike Volk", email = "mike@example.com"}
 ]
+dependencies = [
+    "numpy<=2.1",
+    "matplotlib>=3.9.2",
+    "tomli>=2.1.0",
+    "scikit-learn>=1.5.2",
+    "pandas>=2.2.3",
+    "mat73>=0.65",
+    "pygpufit",
+    "coloredlogs>=15.0.1",
+    "scikit-image>=0.24.0",
+    "numba>=0.61.0",
+    "argparse",
+    "importlib-metadata",
+    "PySide6",
+    "pytest>=8.3.5",
+]
 
 [project.urls]
 Documentation = "https://mikevolk.github.io/QDMpy"
 Homepage = "https://mikevolk.github.io/QDMpy"
 Repository = "https://github.com/mikevolk/QDMpy"
 
-[project.dependencies]
-numpy = "<=2.1"
-matplotlib = ">=3.9.2"
-tomli = ">=2.1.0"
-scikit-learn = ">=1.5.2"
-pandas = ">=2.2.3"
-mat73 = ">=0.65"
-pygpufit = "*"
-coloredlogs = ">=15.0.1"
-scikit-image = ">=0.24.0"
-numba = ">=0.61.0"
-argparse = "*"
-importlib-metadata = "*"
 
 [tool.uv.sources]
 pygpufit = [
