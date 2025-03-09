@@ -16,11 +16,9 @@ import sys
 import numpy as np
 from numpy.typing import NDArray
 
-# Add the `src` directory to sys.path for local imports if the script is run directly
-if not __package__:
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(current_dir, ".."))
-    sys.path.insert(0, project_root)
+# Handle paths for direct script execution
+from QDMpy.utils import setup_package_paths
+setup_package_paths()
 
 from QDMpy import SETTINGS
 from QDMpy.constants import AHYP_14N, AHYP_15N
@@ -49,10 +47,7 @@ def esr14n(x: NDArray, parameter: NDArray, ahyp: float = AHYP_14N) -> NDArray:
         ahyp (float): Hyperfine splitting constant.
 
     Returns:
-        NDArray: The calculated model response, with the same shape as `x`.
-
-    Raises:
-        ValueError: If the input arrays are incompatible in size.
+        NDArray: The calculated model response.
     """
     out = []
     parameter = np.atleast_2d(parameter)
@@ -71,16 +66,16 @@ def esr14n(x: NDArray, parameter: NDArray, ahyp: float = AHYP_14N) -> NDArray:
     return np.array(out)
 
 
-def esr15n(frequencies: NDArray, parameter: NDArray, ahyp: float = AHYP_15N) -> NDArray:
+def esr15n(x: NDArray, parameter: NDArray, ahyp: float = AHYP_15N) -> NDArray:
     """
     Evaluate the ESR15N model.
 
     This function calculates the 15N Diamond model response for a given set of input
-    parameters and x-values. The model is characterized by three resonance dips
+    parameters and x-values. The model is characterized by two resonance dips
     at frequencies shifted by the hyperfine splitting constant (AHYP).
 
     Args:
-        frequencies (NDArray): The independent variable (e.g., frequencies).
+        x (NDArray): The independent variable (e.g., frequencies).
         parameter (NDArray): A 2D array of parameters for the model. Each row
             corresponds to one set of parameters with the following order:
                 - parameter[0]: Center frequency of the resonance (float).
@@ -91,20 +86,17 @@ def esr15n(frequencies: NDArray, parameter: NDArray, ahyp: float = AHYP_15N) -> 
         ahyp (float): Hyperfine splitting constant.
 
     Returns:
-        NDArray: The calculated model response, with the same shape as `x`.
-
-    Raises:
-        ValueError: If the input arrays are incompatible in size.
+        NDArray: The calculated model response.
     """
     out = []
     parameter = np.atleast_2d(parameter)
     for p in parameter:
         width_squared = p[1] * p[1]
 
-        aux1 = frequencies - p[0] + ahyp
+        aux1 = x - p[0] + ahyp
         dip1 = p[2] * width_squared / (aux1 * aux1 + width_squared)
 
-        aux2 = frequencies - p[0] - ahyp
+        aux2 = x - p[0] - ahyp
         dip2 = p[3] * width_squared / (aux2 * aux2 + width_squared)
 
         out.append(1 + p[4] - dip1 - dip2)
@@ -115,13 +107,17 @@ def esrsingle(x: NDArray, parameter: NDArray) -> NDArray:
     """
     Evaluate the ESRSINGLE model.
 
+    This function calculates the single resonance model response for a given set of input
+    parameters and x-values. The model is characterized by a single resonance dip.
+
     Args:
-        x (np.ndarray): x values
-        parameter (np.ndarray): parameters
-            parameter[0] = center
-            parameter[1] = width
-            parameter[2] = contrast
-            parameter[3] = offset
+        x (NDArray): The independent variable (e.g., frequencies).
+        parameter (NDArray): A 2D array of parameters for the model. Each row
+            corresponds to one set of parameters with the following order:
+                - parameter[0]: Center frequency of the resonance (float).
+                - parameter[1]: Width of the resonance peak (float).
+                - parameter[2]: Contrast of the dip (float).
+                - parameter[3]: Offset added to the model (float).
 
     Returns:
         NDArray: The calculated model response.
@@ -285,18 +281,22 @@ class ModelRegistry:
         return cls._registry
 
     @classmethod
-    def _initialize_constraints(cls) -> Dict[str, List[Any]]:
+    def _initialize_constraints(cls, model: 'Model') -> Dict[str, List[Any]]:
         """
         Initialize default constraints for model parameters.
         
         Uses the constraints defined in the configuration settings.
         
+        Args:
+            model: The model for which to initialize constraints.
+            
         Returns:
             Dictionary mapping parameter names to constraint lists.
         """
         settings = SETTINGS["fit"]["constraints"]
-        constraints = {}
-        for param in self.parameters_unique:
+        constraints: Dict[str, List[Any]] = {}
+        
+        for param in model.parameters_unique:
             base_param = param.split("_")[0]
             constraints[param] = [
                 settings[f"{base_param}_min"],
@@ -306,7 +306,13 @@ class ModelRegistry:
         return constraints
 
 class ESR14N(Model):
-    def __init__(self):
+    """
+    Model for NV centers with 14N nitrogen isotope.
+    
+    This model represents ODMR spectra with three dips due to the hyperfine
+    interaction with the 14N nucleus (I=1).
+    """
+    def __init__(self) -> None:
         super().__init__(
             "ESR14N",
             3,
@@ -315,6 +321,16 @@ class ESR14N(Model):
         self.ahyp = AHYP_14N
 
     def func(self, x: NDArray, parameters: NDArray) -> NDArray:
+        """
+        Calculate the model response for the given parameters.
+        
+        Args:
+            x: The independent variable (e.g., frequencies).
+            parameters: The model parameters.
+            
+        Returns:
+            The calculated model response.
+        """
         return esr14n(x, parameters, self.ahyp)
 
 
@@ -332,6 +348,16 @@ class ESR15N(Model):
         self.ahyp = AHYP_15N
 
     def func(self, x: NDArray, parameters: NDArray) -> NDArray:
+        """
+        Calculate the model response for the given parameters.
+        
+        Args:
+            x: The independent variable (e.g., frequencies).
+            parameters: The model parameters.
+            
+        Returns:
+            The calculated model response.
+        """
         return esr15n(x, parameters, self.ahyp)
 
 
@@ -346,6 +372,16 @@ class ESRSINGLE(Model):
         super().__init__("ESRSINGLE", 1, ["contrast", "center", "width_0", "offset"])
 
     def func(self, x: NDArray, parameters: NDArray) -> NDArray:
+        """
+        Calculate the model response for the given parameters.
+        
+        Args:
+            x: The independent variable (e.g., frequencies).
+            parameters: The model parameters.
+            
+        Returns:
+            The calculated model response.
+        """
         return esrsingle(x, parameters)
 
 

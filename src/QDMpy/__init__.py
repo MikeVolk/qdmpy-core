@@ -125,6 +125,9 @@ else:
     LOG.info("CUDA versions runtime: {}, driver: {}".format(*gf.get_cuda_version()))
 
 
+# Import important modules
+from . import io
+
 if __name__ == "__main__":
     LOG.info("This is a module. It is not meant to be run as a script.")
     sys.exit(0)

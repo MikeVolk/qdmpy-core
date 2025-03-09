@@ -25,11 +25,9 @@ from numpy.typing import NDArray
 if TYPE_CHECKING:
     from os import PathLike
 
-# Add the `src` directory to sys.path for local imports if the script is run directly
-if not __package__:
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(current_dir, ".."))
-    sys.path.insert(0, project_root)
+# Handle paths for direct script execution
+from QDMpy.utils import setup_package_paths
+setup_package_paths()
 
 from QDMpy.odmr.odmr import ODMR
 
@@ -84,7 +82,7 @@ class Measurement:
                        don't match the ODMR data.
         """
         LOG.info("Initializing Measurement object.")
-        LOG.info('Output directory: "%s"', output_directory)
+        LOG.info(f'Output directory: "{output_directory}"')
 
         self.output_directory = Path(output_directory)
         self.pixel_spacing = pixel_spacing
@@ -102,11 +100,11 @@ class Measurement:
             raise ValueError("ODMR instance has no raw data")
 
         # Validate ODMR instance data
-        LOG.debug("ODMR raw data shape: %s", self.odmr.raw_data.shape)
+        LOG.debug(f"ODMR raw data shape: {self.odmr.raw_data.shape}")
         
         # Check if data has been processed
         try:
-            LOG.debug("ODMR processed data shape: %s", self.odmr.processed_data.shape)
+            LOG.debug(f"ODMR processed data shape: {self.odmr.processed_data.shape}")
         except ValueError:
             LOG.warning("ODMR data has not been processed yet. Some functionality may be limited.")
         
