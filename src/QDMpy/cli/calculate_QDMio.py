@@ -1,12 +1,20 @@
 #!/usr/bin/python
-"""QDMpy Command Line Interface Module.
+"""Command-line interface for QDMpy data processing.
 
-This module provides a command-line interface for QDMpy package to process
+This module provides a comprehensive command-line interface for processing
 Optically Detected Magnetic Resonance (ODMR) data from Quantum Diamond Microscopy
-(QDM) measurements.
+(QDM) measurements. Key features include:
 
-It allows users to specify input data paths, binning factors, model types,
-and global fluorescence values through command-line arguments.
+- Batch processing: Handling multiple data files in a single command
+- Parameter specification: Setting processing parameters via command-line arguments
+- Model selection: Choosing appropriate fitting models for ODMR spectra
+- Output control: Configuring output formats and locations
+- Processing customization: Setting binning factors, fluorescence correction, etc.
+- Help system: Detailed documentation accessible through --help flags
+
+This interface makes QDMpy functionality accessible without requiring Python
+programming, allowing users to integrate QDM data processing into scripts
+and workflows.
 """
 from __future__ import annotations
 

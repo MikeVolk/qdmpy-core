@@ -1,7 +1,16 @@
 """Utility functions for the QDMpy package.
 
-This module provides various utility functions used throughout the QDMpy package,
-including data conversion, coordinate transformations, and file handling utilities.
+This module provides essential utility functions used throughout the QDMpy package:
+
+- Data processing: Functions for filtering, smoothing, and conditioning data
+- Coordinate transformations: Converting between different spatial reference systems
+- Path management: Handling file paths and ensuring correct package imports
+- Mathematical operations: Polynomial fitting and surface interpolation
+- Array manipulation: Reshaping and transforming multi-dimensional data arrays
+- Validation: Input checking and validation utilities
+
+These utilities serve as the underlying infrastructure for the higher-level
+functionality provided by other modules in the package.
 """
 from __future__ import annotations
 

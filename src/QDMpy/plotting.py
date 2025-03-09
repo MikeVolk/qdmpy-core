@@ -1,3 +1,17 @@
+"""Visualization module for QDMpy.
+
+This module provides a comprehensive set of plotting functions for visualizing data from 
+Quantum Diamond Microscopy (QDM) measurements. It includes capabilities for:
+
+- Plotting raw and processed ODMR spectra
+- Visualizing magnetic field maps
+- Creating interactive figure handlers with browsable data
+- Generating heatmaps and various other spatial visualizations
+- Comparing original data with fitting results
+
+The functions handle data in various formats, including multi-dimensional arrays
+representing spatial, spectral, and polarization dimensions.
+"""
 from __future__ import annotations
 
 import itertools

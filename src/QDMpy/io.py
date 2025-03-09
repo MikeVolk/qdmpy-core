@@ -1,12 +1,17 @@
-"""Module: QDMpy.io.
+"""File input/output operations for QDM data analysis.
 
-This module provides functions for loading and handling image files and other
-input/output operations used throughout the QDMpy package.
+This module provides a unified interface for reading and writing various data types
+used in Quantum Diamond Microscopy analysis. Key capabilities include:
 
-Functions:
-    has_csv: Check if a list of files contains a CSV file.
-    get_image_file: Get the first suitable image file from a list.
-    get_image: Load an image from a file in a specified folder.
+- Image handling: Loading and saving images in multiple formats (TIFF, PNG, JPG)
+- Metadata extraction: Reading acquisition parameters from file headers
+- Format detection: Automatically determining appropriate loaders for input files
+- Data export: Saving analyzed results in standardized formats
+- Batch processing: Handling multiple files and directories
+- Path resolution: Finding and validating data file locations
+
+This module serves as the boundary between the file system and the data structures
+used by the QDMpy analysis pipeline.
 """
 from __future__ import annotations
 

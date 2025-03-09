@@ -1,8 +1,15 @@
-"""Constants used throughout the QDMpy package.
+"""Physical and computational constants for QDMpy.
 
-This module defines physical and computational constants that are used in various
-parts of the package. These include hyperfine constants for different nitrogen
-isotopes and default values for algorithm parameters.
+This module defines essential constants used throughout the QDMpy package:
+
+- Physical constants: Fundamental values from quantum physics relevant to NV centers
+- Hyperfine constants: Specific values for different nitrogen isotopes (14N, 15N)
+- Conversion factors: Units conversion for magnetic field calculations
+- Default parameters: Standard values for algorithm parameters and thresholds
+- System constants: Parameters related to experimental setup and hardware
+
+These constants ensure consistency in calculations across the entire package
+and provide physically accurate values for quantum diamond microscopy analysis.
 """
 
 # Hyperfine splitting constants for nitrogen isotopes (in GHz)

@@ -1,8 +1,16 @@
-"""Custom exceptions used throughout the QDMpy package.
+"""Custom exceptions for error handling in QDMpy.
 
-This module defines custom exceptions that provide more specific error information
-than standard Python exceptions, making it easier to understand and debug errors
-specific to QDMpy operations.
+This module defines domain-specific exceptions that provide precise error information
+for QDMpy operations. Using these custom exceptions instead of generic Python exceptions
+offers several advantages:
+
+- Context-specific error messages: Clearer indication of what went wrong
+- Hierarchical organization: Exceptions grouped by functional domain
+- Consistent error handling: Standard patterns for different error types
+- Better debugging: More informative tracebacks with contextual information
+- Enhanced error recovery: Specific exception types allow targeted exception handling
+
+Each exception is documented with its purpose and typical usage scenarios.
 """
 from __future__ import annotations
 

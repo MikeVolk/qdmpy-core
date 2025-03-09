@@ -1,18 +1,19 @@
-"""Module: QDMpy.odmr.data.
-=======================
+"""Data structures for ODMR spectroscopy in QDM analysis.
 
-This module provides the `ODMRData` class for representing raw and processed ODMR
-(Optically Detected Magnetic Resonance) data. It supports initialization from
-raw data arrays or through a loader interface.
+This module provides the `ODMRData` class, which serves as the fundamental data structure
+for handling Optically Detected Magnetic Resonance (ODMR) spectroscopic measurements. 
+Key capabilities include:
 
-Classes:
-    ODMRData: A class to encapsulate and manage ODMR data, including its raw data,
-              scan dimensions, frequencies, and associated metadata.
+- Dimensional organization: Managing multi-dimensional data (spatial, spectral, polarization)
+- Data representation: Consistent access to raw and processed spectral measurements
+- Frequency mapping: Maintaining correspondence between data points and frequencies
+- Metadata handling: Tracking experimental parameters and processing history
+- Spatial information: Preserving the 2D spatial context of measurements
+- Initialization options: Creating instances from raw arrays or through loaders
+- Data validation: Ensuring data consistency across all dimensions
 
-Imports:
-    - Python standard library: logging, sys, os
-    - Third-party: numpy.typing (NDArray)
-    - Local: QDMpy.odmr.io (MatlabLoader)
+This class provides a unified representation of ODMR data throughout the analysis
+pipeline, from raw measurements to processed spectra ready for fitting and analysis.
 """
 
 from __future__ import annotations

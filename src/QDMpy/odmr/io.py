@@ -1,17 +1,19 @@
-"""Module: QDMpy.odmr.io.
-=====================
+"""Data loading interface for ODMR spectroscopy data.
 
-This module provides loader classes to handle the input of ODMR data from different
-sources, such as MATLAB files. It includes an abstract base class `BaseLoader` and
-a concrete implementation `MatlabLoader`.
+This module provides a modular framework for loading Optically Detected Magnetic
+Resonance (ODMR) data from various file formats through a collection of loader classes.
+Key capabilities include:
 
-Classes:
-    - BaseLoader: Abstract base class for ODMR data loaders.
-    - MatlabLoader: A loader for ODMR data from MATLAB files.
+- Format abstraction: Common interface for accessing different file formats
+- MATLAB support: Loading from .mat files with specific ODMR data structures
+- Data validation: Ensuring loaded data meets structural and formatting requirements
+- Extensibility: Abstract base class for implementing additional format loaders
+- Metadata extraction: Retrieving experiment parameters from file headers
+- Scan dimension handling: Recovering 2D spatial information from 1D pixel arrays
+- Error handling: Graceful management of missing or malformed data files
 
-Imports:
-    - Python standard library: os
-    - Third-party: mat73, scipy.io (loadmat), numpy
+This IO layer decouples the higher-level analysis code from the specifics of
+data file formats, allowing for consistent processing regardless of data source.
 """
 from __future__ import annotations
 

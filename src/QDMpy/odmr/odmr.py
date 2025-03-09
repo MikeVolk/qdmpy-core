@@ -1,18 +1,18 @@
-"""Module: QDMpy.odmr.odmr.
-=======================
+"""Core ODMR spectroscopy management for QDM analysis.
 
-This module defines the `ODMR` class, which orchestrates the management of raw and
-processed ODMR (Optically Detected Magnetic Resonance) data. It utilizes the
-`ODMRData` class for storing data and the `ODMRProcessorManager` for applying
-processing pipelines.
+This module provides the central `ODMR` class which orchestrates all aspects of 
+Optically Detected Magnetic Resonance (ODMR) data handling. Key capabilities include:
 
-Classes:
-    - ODMR: Manages raw and processed ODMR data, including data loading, processing,
-            and resetting.
+- Data lifecycle: Managing raw and processed spectral data from acquisition to analysis
+- Processing pipeline: Coordinating multiple sequential data transformations
+- Frequency mapping: Tracking frequency values across different measurement ranges
+- Polarization handling: Managing data from different microwave polarization states
+- Spectral binning: Optimizing spectral resolution vs signal-to-noise ratio
+- Outlier detection: Identifying and handling anomalous spectral data
+- Fluorescence correction: Compensating for illumination variations across samples
 
-Imports:
-    - Python standard library: logging, sys, os
-    - Local: QDMpy.odmr.data (ODMRData), QDMpy.odmr.processors
+The ODMR class integrates with ODMRData for storage and ODMRProcessorManager for 
+applying configurable processing pipelines to raw spectroscopic data.
 """
 
 from __future__ import annotations

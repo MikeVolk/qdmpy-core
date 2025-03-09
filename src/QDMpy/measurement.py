@@ -1,16 +1,17 @@
-"""Module: QDMpy.measurement.
-========================
+"""Comprehensive measurement management for Quantum Diamond Microscopy.
 
-This module provides the `Measurement` class which encapsulates all data and processing
-related to a single QDM (Quantum Diamond Microscope) measurement.
+This module provides the central `Measurement` class that serves as the primary interface
+for working with Quantum Diamond Microscope (QDM) experiments. Key capabilities include:
 
-Classes:
-    - Measurement: Manages ODMR data, associated images, and fitting operations.
+- Data integration: Combines ODMR spectral data with optical images
+- Spatial analysis: Maps spectral properties across the spatial dimensions
+- Image processing: Handles light and laser reference images
+- Metadata tracking: Maintains experiment parameters and processing history
+- Output management: Organizes results in a structured directory hierarchy
+- Statistical analysis: Identifies outliers and performs data quality assessment
 
-Imports:
-    - Python standard library: logging, sys, os, pathlib
-    - Third-party: numpy
-    - Local: QDMpy.odmr.odmr (ODMR)
+The Measurement class integrates data from the ODMR module with optical images and
+provides a unified interface for analysis and visualization of QDM experiments.
 """
 from __future__ import annotations
 

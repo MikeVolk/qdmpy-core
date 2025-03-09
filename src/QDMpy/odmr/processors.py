@@ -1,20 +1,19 @@
-"""Module: QDMpy.odmr.processors.
-=============================
+"""Data processing pipeline for ODMR spectroscopy.
 
-This module provides various processors for modifying ODMR (Optically Detected Magnetic
-Resonance) data. Each processor implements specific data processing functionality, and
-the `ODMRProcessorManager` orchestrates the application of multiple processors.
+This module implements a flexible processing framework for Optically Detected Magnetic 
+Resonance (ODMR) data through a collection of processor classes and a manager to 
+coordinate them. Key capabilities include:
 
-Classes:
-    - BaseProcessor: Abstract base class for defining data processors.
-    - NormalizationProcessor: Handles normalization of ODMR data.
-    - BinningProcessor: Handles spatial binning of ODMR data.
-    - OutlierProcessor: Masks outliers in ODMR data.
-    - ODMRProcessorManager: Manages and applies a sequence of processors.
+- Modular processing: Individual processors for specific transformations
+- Pipeline management: Sequential application of multiple processing steps
+- Normalization: Various methods for normalizing spectral data
+- Binning: Spatial and spectral data reduction techniques
+- Outlier detection: Statistical identification of anomalous data points
+- Fluorescence correction: Global and local background fluorescence compensation
+- Metadata tracking: Preserving processing history throughout the pipeline
 
-Imports:
-    - Python standard library: logging
-    - Third-party: numpy, skimage.measure.block_reduce
+The processor architecture follows a strategy pattern, allowing flexible configuration
+of data processing workflows while maintaining a consistent interface.
 """
 from __future__ import annotations
 
