@@ -171,27 +171,33 @@ class BinningProcessor(BaseProcessor):
         reshape_data = data.data.reshape(
             data.data.shape[0],
             data.data.shape[1],
-            data.data.shape[2],
-            rows, cols
+            rows, cols,
+            data.data.shape[-1],
         )
 
         binned = block_reduce(
             reshape_data,
-            block_size=(1, 1, 1, self.bin_factor, self.bin_factor),
+            block_size=(1, 1, self.bin_factor, self.bin_factor, 1),
             func=np.nanmean,
         )
         binned = binned.reshape(
             data.data.shape[0],
             data.data.shape[1],
-            data.data.shape[2],
             -1,
+            data.data.shape[-1],
         )
         metadata = data.metadata.copy()
         metadata["binned"] = True
         metadata["bin_factor"] = self.bin_factor
+
+        new_scan_dimensions = (
+            int(data.scan_dimensions[0]/self.bin_factor),
+            int(data.scan_dimensions[1]/self.bin_factor),
+                                )
+        
         return data.__class__(
             data=binned,
-            scan_dimensions=data.scan_dimensions,
+            scan_dimensions=new_scan_dimensions,
             frequencies=data.frequencies,
             metadata=metadata,
         )
