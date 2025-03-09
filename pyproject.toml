@@ -19,6 +19,8 @@ dependencies = [
     "coloredlogs>=15.0.1",
     "scikit-image>=0.24.0",
     "pre-commit>=4.0.1",
+    "numba>=0.61.0",
+    "pytest>=8.3.5",
 ]
 
 [tool.uv.sources]
