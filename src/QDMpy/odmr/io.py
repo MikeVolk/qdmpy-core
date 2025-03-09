@@ -34,8 +34,8 @@ class BaseLoader(ABC):
     The loaded data should be in a standardized format with 4 dimensions:
     - Axis 0: Different polarities of measurements (typically 2 for positive/negative)
     - Axis 1: Different frequency ranges scanned in the experiment
-    - Axis 2: Spatial pixels (flattened from a 2D image with rows x cols pixels)
-    - Axis 3: Frequency points (number of frequency measurements per pixel)
+    - Axis 2: Frequency points (number of frequency measurements per pixel)
+    - Axis 3: Spatial pixels (flattened from a 2D image with rows x cols pixels)
     """
 
     @abstractmethod
@@ -84,8 +84,8 @@ class MatlabLoader(BaseLoader):
                 - raw_data: The raw data array with shape (polarities, frequency_ranges, pixels, frequencies).
                   - Polarity axis (0): Contains measurements with different polarities (typically 2)
                   - Frequency ranges axis (1): Contains data from different frequency ranges
-                  - Pixels axis (2): Contains flattened spatial pixels
-                  - Frequencies axis (3): Contains measurements at different frequencies
+                  - Frequencies axis (2): Contains measurements at different frequencies
+                  - Pixels axis (3): Contains flattened spatial pixels
                 - scan_dimensions: The scan dimensions (rows, cols) used to reshape pixels to 2D.
                 - frequencies: The 1D array of frequencies used in the measurements.
 

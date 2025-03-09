@@ -82,8 +82,8 @@ class ODMR:
             raw_data (NDArray): Raw ODMR data as a 4D numpy array with shape:
                 - Axis 0: Different polarities of measurements (typically 2 for positive/negative)
                 - Axis 1: Different frequency ranges scanned in the experiment
-                - Axis 2: Spatial pixels (flattened from a 2D image with rows x cols pixels)
-                - Axis 3: Frequency points (number of frequency measurements per pixel)
+                - Axis 2: Frequency points (number of frequency measurements per pixel)
+                - Axis 3: Pixels (flattened from a 2D image with rows x cols pixels)
             scan_dimensions (NDArray): Image scan dimensions as (rows, cols).
                 Used to reshape the flattened spatial pixels back to a 2D image.
             frequencies (NDArray): 1D array of frequencies used in the scan.
