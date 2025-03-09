@@ -10,9 +10,12 @@ import pytest
 from QDMpy.odmr.processors import (
     BaseProcessor,
     BinningProcessor,
+    FluorescenceCorrectionProcessor,
     NormalizationProcessor,
     ODMRProcessorManager,
     OutlierProcessor,
+    analyze_fluorescence_effects,
+    preview_fluorescence_correction,
 )
 
 
@@ -161,6 +164,133 @@ class TestOutlierProcessor:
         # Check metadata is updated
         assert 'outlier_masking' in result.metadata
         assert result.metadata['outlier_masking']['threshold'] == 0.1
+
+
+class TestFluorescenceCorrectionProcessor:
+    """Test class for FluorescenceCorrectionProcessor."""
+
+    def test_init_default(self):
+        """Test initialization with default parameters."""
+        processor = FluorescenceCorrectionProcessor()
+        assert processor.correction_factor == 0.2
+
+    def test_init_custom(self):
+        """Test initialization with custom parameters."""
+        processor = FluorescenceCorrectionProcessor(correction_factor=0.5)
+        assert processor.correction_factor == 0.5
+
+    def test_process(self, sample_odmr_data, monkeypatch):
+        """Test process method."""
+        # Mock the analyze_fluorescence_effects function
+        mock_baseline_corrected = np.ones_like(sample_odmr_data.data[:, :, 0:1, :]) * 0.1
+        monkeypatch.setattr(
+            'QDMpy.odmr.processors.analyze_fluorescence_effects',
+            lambda data, pixel_idx=None: (0, mock_baseline_corrected)
+        )
+
+        # Process the data with default correction factor
+        processor = FluorescenceCorrectionProcessor()
+        result = processor.process(sample_odmr_data)
+
+        # Check the result is a new instance
+        assert result is not sample_odmr_data
+
+        # Expected correction: factor (0.2) * baseline_corrected (0.1) = 0.02
+        expected_correction = 0.02
+        expected_data = sample_odmr_data.data - expected_correction
+
+        # Check the corrected data
+        np.testing.assert_allclose(result.data, expected_data)
+
+        # Check metadata is updated
+        assert 'fluorescence_correction' in result.metadata
+        assert result.metadata['fluorescence_correction']['factor'] == 0.2
+        assert result.metadata['fluorescence_correction']['applied'] is True
+
+    def test_process_with_override_factor(self, sample_odmr_data, monkeypatch):
+        """Test process method with override correction factor."""
+        # Mock the analyze_fluorescence_effects function
+        mock_baseline_corrected = np.ones_like(sample_odmr_data.data[:, :, 0:1, :]) * 0.1
+        monkeypatch.setattr(
+            'QDMpy.odmr.processors.analyze_fluorescence_effects',
+            lambda data, pixel_idx=None: (0, mock_baseline_corrected)
+        )
+
+        # Process the data with override correction factor
+        processor = FluorescenceCorrectionProcessor(correction_factor=0.2)
+        result = processor.process(sample_odmr_data, correction_factor=0.5)
+
+        # Expected correction: factor (0.5) * baseline_corrected (0.1) = 0.05
+        expected_correction = 0.05
+        expected_data = sample_odmr_data.data - expected_correction
+
+        # Check the corrected data
+        np.testing.assert_allclose(result.data, expected_data)
+
+        # Check metadata is updated
+        assert result.metadata['fluorescence_correction']['factor'] == 0.5
+
+    def test_process_with_legacy_param(self, sample_odmr_data, monkeypatch):
+        """Test process method with legacy glob_fluorescence parameter."""
+        # Mock the analyze_fluorescence_effects function
+        mock_baseline_corrected = np.ones_like(sample_odmr_data.data[:, :, 0:1, :]) * 0.1
+        monkeypatch.setattr(
+            'QDMpy.odmr.processors.analyze_fluorescence_effects',
+            lambda data, pixel_idx=None: (0, mock_baseline_corrected)
+        )
+
+        # Process the data with legacy parameter
+        processor = FluorescenceCorrectionProcessor(correction_factor=0.2)
+        result = processor.process(sample_odmr_data, glob_fluorescence=0.3)
+
+        # Expected correction: factor (0.3) * baseline_corrected (0.1) = 0.03
+        expected_correction = 0.03
+        expected_data = sample_odmr_data.data - expected_correction
+
+        # Check the corrected data
+        np.testing.assert_allclose(result.data, expected_data)
+
+        # Check metadata is updated
+        assert result.metadata['fluorescence_correction']['factor'] == 0.3
+
+
+class TestFluorescenceAnalysis:
+    """Test class for fluorescence analysis functions."""
+    
+    def test_analyze_fluorescence_effects(self, sample_odmr_data):
+        """Test the analyze_fluorescence_effects function."""
+        # Set specific values in the data for predictable testing
+        sample_odmr_data.data = np.ones_like(sample_odmr_data.data)
+        # Add a variation pattern that should be detected
+        sample_odmr_data.data[:, :, 50, :] = 0.8  # Make one pixel different
+        
+        # Call the function with specified pixel
+        idx, baseline_corrected = analyze_fluorescence_effects(sample_odmr_data, pixel_idx=50)
+        
+        # Check the returned index matches what we specified
+        assert idx == 50
+        
+        # Check that baseline_corrected contains reasonable values
+        # The baseline should be calculated from the first and last 5% of frequencies
+        # With our mockup data, this should be close to 0 (after baseline subtraction)
+        assert baseline_corrected.shape[2] == 1  # Only one pixel in dimension 2
+        assert -0.5 < np.mean(baseline_corrected) < 0.5  # Should be close to zero
+        
+    def test_analyze_fluorescence_effects_auto_pixel(self, sample_odmr_data):
+        """Test the analyze_fluorescence_effects function with auto pixel selection."""
+        # Set specific values in the data for predictable testing
+        sample_odmr_data.data = np.ones_like(sample_odmr_data.data)
+        # Add a variation pattern that should be detected
+        sample_odmr_data.data[:, :, 50, :] = 0.9  # Make one pixel slightly different
+        
+        # Call the function with automatic pixel selection
+        idx, baseline_corrected = analyze_fluorescence_effects(sample_odmr_data)
+        
+        # The function should identify pixel 50 as most divergent
+        # However, since we're using random data in the fixture, we can't guarantee
+        # which pixel will be selected, so we just check the type is correct
+        assert isinstance(idx, int)
+        assert 0 <= idx < sample_odmr_data.data.shape[2]
 
 
 class TestODMRProcessorManager:

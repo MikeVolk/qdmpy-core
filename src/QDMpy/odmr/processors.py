@@ -1,7 +1,7 @@
 """Data processing pipeline for ODMR spectroscopy.
 
-This module implements a flexible processing framework for Optically Detected Magnetic 
-Resonance (ODMR) data through a collection of processor classes and a manager to 
+This module implements a flexible processing framework for Optically Detected Magnetic
+Resonance (ODMR) data through a collection of processor classes and a manager to
 coordinate them. Key capabilities include:
 
 - Modular processing: Individual processors for specific transformations
@@ -15,14 +15,16 @@ coordinate them. Key capabilities include:
 The processor architecture follows a strategy pattern, allowing flexible configuration
 of data processing workflows while maintaining a consistent interface.
 """
+
 from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Tuple, Optional, Union
 
 import numpy as np
 from numpy.typing import NDArray
+from matplotlib import pyplot as plt
 from skimage.measure import block_reduce
 
 if TYPE_CHECKING:
@@ -61,7 +63,7 @@ class NormalizationProcessor(BaseProcessor):
         method (str): The normalization method to use (e.g., 'max').
     """
 
-    def __init__(self, method: str = 'max') -> None:
+    def __init__(self, method: str = "max") -> None:
         """Initialize the NormalizationProcessor.
 
         Args:
@@ -82,11 +84,11 @@ class NormalizationProcessor(BaseProcessor):
         Raises:
             NotImplementedError: If the specified normalization method is not supported.
         """
-        LOG.debug(f'Normalizing data using method: {self.method}')
+        LOG.debug(f"Normalizing data using method: {self.method}")
         factors = self._get_norm_factors(data.data, self.method)
         normalized_data = data.data / factors
         metadata = data.metadata.copy()
-        metadata['normalized'] = True
+        metadata["normalized"] = True
         return data.__class__(
             data=normalized_data,
             scan_dimensions=data.scan_dimensions,
@@ -107,7 +109,7 @@ class NormalizationProcessor(BaseProcessor):
         Raises:
             NotImplementedError: If the specified method is not supported.
         """
-        if method == 'max':
+        if method == "max":
             return np.expand_dims(np.max(data, axis=-1), axis=-1)
         raise NotImplementedError(
             f"Normalization method '{method}' is not implemented.",
@@ -131,7 +133,7 @@ class BinningProcessor(BaseProcessor):
             ValueError: If the bin factor is less than or equal to 0.
         """
         if bin_factor <= 0:
-            raise ValueError('Bin factor must be greater than 0.')
+            raise ValueError("Bin factor must be greater than 0.")
         self.bin_factor = bin_factor
 
     def process(self, data: ODMRData, **kwargs: Any) -> ODMRData:
@@ -150,19 +152,21 @@ class BinningProcessor(BaseProcessor):
             ODMRData: A new instance containing the binned data with reduced spatial resolution
                      but the same overall shape structure.
         """
-        LOG.debug('Binning data with factor: %s', self.bin_factor)
+        LOG.debug("Binning data with factor: %s", self.bin_factor)
         # Calculate spatial dimensions, ensuring compatibility with non-square images
         total_pixels = data.data.shape[2]
         # Try to determine rows and cols from scan_dimensions if available
-        has_valid_dimensions = (hasattr(data, 'scan_dimensions') and
-                              data.scan_dimensions is not None and
-                              len(data.scan_dimensions) == 2)
+        has_valid_dimensions = (
+            hasattr(data, "scan_dimensions")
+            and data.scan_dimensions is not None
+            and len(data.scan_dimensions) == 2
+        )
         if has_valid_dimensions:
             rows, cols = data.scan_dimensions
         else:
             # Fallback to assuming square images if dimensions are not available
-            int(total_pixels ** 0.5)
-            LOG.warning('Assuming square image for binning. Using scan_dimensions is recommended.')
+            int(total_pixels**0.5)
+            LOG.warning("Assuming square image for binning. Using scan_dimensions is recommended.")
 
         reshape_data = data.data.reshape(
             -1,
@@ -176,11 +180,14 @@ class BinningProcessor(BaseProcessor):
             func=np.nanmean,
         )
         binned = binned.reshape(
-            data.data.shape[0], data.data.shape[1], -1, data.data.shape[-1],
+            data.data.shape[0],
+            data.data.shape[1],
+            -1,
+            data.data.shape[-1],
         )
         metadata = data.metadata.copy()
-        metadata['binned'] = True
-        metadata['bin_factor'] = self.bin_factor
+        metadata["binned"] = True
+        metadata["bin_factor"] = self.bin_factor
         return data.__class__(
             data=binned,
             scan_dimensions=data.scan_dimensions,
@@ -218,7 +225,7 @@ class OutlierProcessor(BaseProcessor):
         Returns:
             ODMRData: A new instance with outliers masked.
         """
-        LOG.debug('Masking outliers with threshold: %s', self.threshold)
+        LOG.debug("Masking outliers with threshold: %s", self.threshold)
         # Use a more robust algorithm that considers standard deviation
         data_mean = np.mean(data.data, axis=-1, keepdims=True)
         data_std = np.std(data.data, axis=-1, keepdims=True)
@@ -228,13 +235,233 @@ class OutlierProcessor(BaseProcessor):
         processed_data = data.data.copy()
         processed_data[mask] = np.nan
         metadata = data.metadata.copy()
-        metadata['outlier_masking'] = {'threshold': self.threshold}
+        metadata["outlier_masking"] = {"threshold": self.threshold}
         return data.__class__(
             data=processed_data,
             scan_dimensions=data.scan_dimensions,
             frequencies=data.frequencies,
             metadata=metadata,
         )
+
+
+class FluorescenceCorrectionProcessor(BaseProcessor):
+    """Handles global fluorescence correction for ODMR data.
+
+    The global fluorescence correction compensates for systematic fluorescence
+    variations that affect the baseline of ODMR measurements. It applies a
+    correction factor based on the difference between the mean ODMR signal and
+    its baseline.
+
+    Attributes:
+        correction_factor (float): The fluorescence correction factor.
+    """
+
+    def __init__(self, correction_factor: float = 0.2) -> None:
+        """Initialize the FluorescenceCorrectionProcessor.
+
+        Args:
+            correction_factor (float): The fluorescence correction factor.
+                Higher values apply a stronger correction. Default is 0.2.
+        """
+        self.correction_factor = correction_factor
+
+    def process(self, data: ODMRData, **kwargs: Any) -> ODMRData:
+        """Apply fluorescence correction to the ODMR data.
+
+        Args:
+            data (ODMRData): The input data to process.
+            **kwargs: Additional keyword arguments.
+                correction_factor (float, optional): Override the fluorescence
+                    correction factor. If provided, will be used instead
+                    of the instance's correction_factor.
+                glob_fluorescence (float, optional): Legacy parameter name,
+                    same as correction_factor.
+
+        Returns:
+            ODMRData: A new instance with fluorescence correction applied.
+        """
+        # Check for override correction_factor from kwargs (support both names for backward compatibility)
+        factor = kwargs.get(
+            "correction_factor", kwargs.get("glob_fluorescence", self.correction_factor)
+        )
+
+        LOG.info(f"Applying fluorescence correction with factor: {factor}")
+
+        # Get the baseline-corrected data
+        _, baseline_corrected = analyze_fluorescence_effects(data)
+
+        # Apply correction factor
+        correction = factor * baseline_corrected
+
+        # Apply correction
+        processed_data = data.data.copy() - correction
+
+        # Create new ODMRData instance with corrected data
+        metadata = data.metadata.copy()
+        if "fluorescence_correction" not in metadata:
+            metadata["fluorescence_correction"] = {}
+
+        metadata["fluorescence_correction"]["factor"] = factor
+        metadata["fluorescence_correction"]["applied"] = True
+
+        return data.__class__(
+            data=processed_data,
+            scan_dimensions=data.scan_dimensions,
+            frequencies=data.frequencies,
+            metadata=metadata,
+        )
+
+
+def analyze_fluorescence_effects(
+    data: ODMRData, pixel_idx: Optional[int] = None
+) -> Tuple[int, NDArray[np.float64]]:
+    """Analyze the global fluorescence effects in ODMR data.
+
+    This function evaluates fluorescence variations in ODMR data by identifying
+    representative pixels and calculating global correction factors. It helps identify
+    suitable correction parameters without modifying the data.
+
+    Args:
+        data (ODMRData): The input ODMR data.
+        pixel_idx (Optional[int], optional): The index of the specific pixel to analyze.
+            If None, the function will automatically select a representative pixel.
+            Default is None.
+
+    Returns:
+        Tuple[int, NDArray[np.float64]]: A tuple containing:
+            - The index of the analyzed pixel
+            - The calculated baseline-corrected mean data used for correction
+    """
+    if pixel_idx is None:
+        # Find the most divergent pixel from mean (but not extreme outliers)
+        delta = np.nansum(
+            np.square(data.data - np.nanmean(data.data, axis=2, keepdims=True)), axis=-1
+        )
+        delta_copy = delta.copy()
+        delta_copy[delta_copy > 0.001] = np.nan  # Mask high values to find a representative pixel
+        flat_idx = int(np.unravel_index(np.nanargmax(delta_copy), delta_copy.shape)[2])
+        LOG.info(f"Automatically selected pixel index: {flat_idx}")
+    else:
+        flat_idx = int(pixel_idx)
+
+    # Calculate the mean ODMR across all pixels
+    mean_data = np.nanmean(data.data, axis=2, keepdims=True)
+
+    # Calculate baseline (off-resonance regions)
+    n_freqs = mean_data.shape[-1]
+    idx_left = slice(0, max(int(n_freqs * 0.05), 1))
+    idx_right = slice(-max(int(n_freqs * 0.05), 1), None)
+
+    baseline_left_mean = np.nanmean(mean_data[..., idx_left], axis=-1)
+    baseline_right_mean = np.nanmean(mean_data[..., idx_right], axis=-1)
+    baseline_mean = (baseline_left_mean + baseline_right_mean) / 2
+
+    # Calculate correction: (mean_data - baseline)
+    baseline_corrected = mean_data - baseline_mean[..., np.newaxis]
+
+    return int(flat_idx), baseline_corrected
+
+
+def preview_fluorescence_correction(
+    data: ODMRData, correction_factor: float = 0.2, pixel_idx: Optional[int] = None
+) -> None:
+    """Preview the effect of fluorescence correction on ODMR data.
+
+    This function creates a plot showing the original data, the corrected data,
+    and the correction factor for a specific pixel. It helps users understand
+    and evaluate the impact of fluorescence correction before actually applying it.
+
+    Args:
+        data (ODMRData): The input ODMR data.
+        correction_factor (float, optional): The fluorescence correction factor
+            to visualize. Default is 0.2.
+        pixel_idx (Optional[int], optional): The index of the pixel to visualize.
+            If None, the function will automatically select a representative pixel.
+            Default is None.
+    """
+    # Get representative pixel and baseline-corrected data
+    idx_flat, baseline_corrected = analyze_fluorescence_effects(data, pixel_idx)
+
+    # Calculate correction by applying the correction factor
+    correction = correction_factor * baseline_corrected
+
+    # Create plot
+    f, ax = plt.subplots(
+        data.data.shape[0],
+        data.data.shape[1],
+        sharex=False,
+        sharey=True,
+        figsize=(4 * data.data.shape[1], 3 * data.data.shape[0]),
+    )
+
+    # Handle case with single subplot
+    if data.data.shape[0] == 1 and data.data.shape[1] == 1:
+        ax = np.array([[ax]])
+    elif data.data.shape[0] == 1:
+        ax = np.array([ax])
+    elif data.data.shape[1] == 1:
+        ax = np.array([ax]).T
+
+    # Get frequency values in GHz for plotting
+    frequencies = (
+        data.frequencies / 1e9 if hasattr(data, "frequencies") else np.arange(data.data.shape[-1])
+    )
+
+    # Plot for each polarity and frequency range
+    for p in range(data.data.shape[0]):  # polarities
+        for f in range(data.data.shape[1]):  # frequency ranges
+            # Get current data for this pixel
+            current_data = data.data[p, f, idx_flat].copy()
+
+            # Plot current data
+            (line,) = ax[p, f].plot(
+                frequencies[f]
+                if isinstance(frequencies, np.ndarray) and len(frequencies.shape) > 1
+                else frequencies,
+                current_data,
+                "k.-",
+                label="Original"
+                if "fluorescence_correction" not in data.metadata
+                else f'Current (Factor={data.metadata["fluorescence_correction"].get("factor", 0)})',
+            )
+
+            # Plot data with the new correction applied
+            ax[p, f].plot(
+                frequencies[f]
+                if isinstance(frequencies, np.ndarray) and len(frequencies.shape) > 1
+                else frequencies,
+                current_data - correction[p, f, 0],
+                "r.-",
+                label=f"Corrected (Factor={correction_factor})",
+            )
+
+            # Plot correction factor
+            ax[p, f].plot(
+                frequencies[f]
+                if isinstance(frequencies, np.ndarray) and len(frequencies.shape) > 1
+                else frequencies,
+                1 + correction[p, f, 0],
+                "r--",
+                alpha=0.5,
+                label="Correction",
+            )
+
+            # Set titles and labels
+            polarity_label = {0: "+", 1: "-"}.get(p, f"P{p}")
+            frange_label = {0: "Low", 1: "High"}.get(f, f"F{f}")
+            ax[p, f].set_title(f"Polarity: {polarity_label}, Frequency Range: {frange_label}")
+            ax[p, f].set_xlabel("Frequency [GHz]")
+            ax[p, f].set_ylabel("ODMR Contrast")
+            ax[p, f].legend()
+            ax[p, f].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.suptitle(f"Fluorescence Correction Preview (Pixel {idx_flat})", y=1.02)
+    plt.show()
+
+
+# Alias for backward compatibility
+visualize_fluorescence_correction = preview_fluorescence_correction
 
 
 class ODMRProcessorManager:
@@ -261,7 +488,7 @@ class ODMRProcessorManager:
         Args:
             processor (BaseProcessor): An instance of a processor to add.
         """
-        LOG.debug(f'Adding processor: {processor.__class__.__name__}')
+        LOG.debug(f"Adding processor: {processor.__class__.__name__}")
         self.processors.append(processor)
 
     def process(self, data: ODMRData) -> ODMRData:
@@ -273,11 +500,11 @@ class ODMRProcessorManager:
         Returns:
             ODMRData: A new ODMRData instance containing the processed data.
         """
-        LOG.info('Starting processing pipeline.')
+        LOG.info("Starting processing pipeline.")
         for processor in self.processors:
-            LOG.debug(f'Applying processor: {processor.__class__.__name__}')
+            LOG.debug(f"Applying processor: {processor.__class__.__name__}")
             data = processor.process(data)
-        LOG.info('Processing pipeline completed.')
+        LOG.info("Processing pipeline completed.")
         return data
 
     def list_processors(self) -> list[str]:
