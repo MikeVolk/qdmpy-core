@@ -163,8 +163,8 @@ class BinningProcessor(BaseProcessor):
             
         reshape_data = data.data.reshape(
             -1,
-            rows,
-            cols,
+            int(data.data.shape[2] ** 0.5),
+            int(data.data.shape[2] ** 0.5),
             data.data.shape[-1],
         )
         binned = block_reduce(

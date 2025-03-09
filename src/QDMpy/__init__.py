@@ -1,3 +1,14 @@
+"""
+QDMpy: A Python package for Quantum Diamond Microscopy data analysis.
+
+This package provides tools for processing, analyzing, and visualizing data from
+Quantum Diamond Microscopy (QDM) experiments. It includes modules for loading data,
+processing ODMR spectra, fitting spectral data to models, and creating visualizations.
+
+The package is designed to be modular and extensible, allowing users to customize
+the data processing pipeline to meet their specific experimental needs.
+"""
+
 __version__ = "0.1.0a"
 
 import logging
@@ -6,6 +17,7 @@ import sys
 import tomli
 import shutil
 from pathlib import Path
+from typing import Dict, Optional, Union, Any
 
 import matplotlib as mpl
 
@@ -61,23 +73,26 @@ def make_configfile(reset: bool = False) -> None:
         shutil.copy2(CONFIG_INI, CONFIG_FILE)
 
 
-def load_config(file=CONFIG_FILE) -> dict:
+def load_config(file: Union[str, Path] = CONFIG_FILE) -> Dict[str, Any]:
     """Loads the config file.
 
     Args:
-        file:  (Default value = CONFIG_FILE)
+        file: Path to the config file. Defaults to the standard config file location.
 
     Returns:
-        dict: Dictionary with the config file contents.
+        Dictionary with the config file contents.
     """
     LOG.info(f"Loading config file: {file}")
     with open(file, "rb") as fileObj:
         return tomli.load(fileObj)
 
 
-def reset_config():
+def reset_config() -> None:
     """
-    Resets the config file.
+    Resets the config file to default settings.
+    
+    This function overwrites the existing config file with the default settings
+    from the package's internal config.ini file.
     """
     make_configfile(reset=True)
     LOG.info("Config file reset")
@@ -115,7 +130,19 @@ if __name__ == "__main__":
     sys.exit(0)
 
 
-def test_data_location():
+def test_data_location() -> Path:
+    """
+    Returns the platform-specific path to test data.
+    
+    This function provides the default location for test data based on the
+    operating system.
+    
+    Returns:
+        Path to the test data directory.
+        
+    Raises:
+        NotImplementedError: If the current platform is not supported.
+    """
     if sys.platform == "linux":
         return Path("/media/data/Dropbox/FOV18x")
     elif sys.platform == "darwin":
@@ -123,4 +150,4 @@ def test_data_location():
     elif sys.platform == "win32":
         return Path(r"D:\Dropbox\FOV18x")
     else:
-        raise NotImplementedError
+        raise NotImplementedError(f"Platform {sys.platform} is not supported")

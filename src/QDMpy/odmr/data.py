@@ -42,9 +42,14 @@ class ODMRData:
     Represents raw and processed ODMR (Optically Detected Magnetic Resonance) data.
 
     Attributes:
-        data (NDArray): The raw ODMR data, as a numpy array.
-        scan_dimensions (NDArray): The dimensions of the scan (rows, cols).
-        frequencies (NDArray): A list of frequencies used in the scan.
+        data (NDArray): The raw ODMR data, as a 4D numpy array with shape:
+            - Axis 0: Data channels (typically 2 channels representing different measurements)
+            - Axis 1: Runs or configurations (number of experimental runs)
+            - Axis 2: Spatial pixels (flattened from a 2D image with rows x cols pixels)
+            - Axis 3: Frequency points (number of frequency measurements per pixel)
+        scan_dimensions (NDArray): The dimensions of the scan as (rows, cols).
+            Used to reshape the flattened spatial pixels back to a 2D image.
+        frequencies (NDArray): A 1D array of frequencies used in the scan.
         metadata (dict): Additional metadata associated with the data.
     """
 
@@ -59,9 +64,14 @@ class ODMRData:
         Initialize the ODMRData object.
 
         Args:
-            data (NDArray): Raw ODMR data as a numpy array.
-            scan_dimensions (NDArray): Image scan dimensions (rows, cols).
-            frequencies (NDArray): Frequency list for the scan.
+            data (NDArray): Raw ODMR data as a 4D numpy array with shape:
+                - Axis 0: Data channels (typically 2 channels representing different measurements)
+                - Axis 1: Runs or configurations (number of experimental runs)
+                - Axis 2: Spatial pixels (flattened from a 2D image with rows x cols pixels)
+                - Axis 3: Frequency points (number of frequency measurements per pixel)
+            scan_dimensions (NDArray): Image scan dimensions as (rows, cols).
+                Used to reshape the flattened spatial pixels back to a 2D image.
+            frequencies (NDArray): 1D array of frequencies used in the scan.
             metadata (Optional[Dict[str, Any]]): Additional metadata (optional).
         """
         self.data = data
