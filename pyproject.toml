@@ -2,30 +2,31 @@
 name = "QDMpy"
 version = "0.0.1"
 description = "A python package for calculating magnetic maps from ODMR spectra measured on a quantum diamond microscope"
-
-documentation = "https://mikevolk.github.io/QDMpy"
-homepage = "https://mikevolk.github.io/QDMpy"
-repository = "https://github.com/mikevolk/QDMpy"
 requires-python = ">=3.12"
-
-dependencies = [
-    "numpy<=2.1",
-    "matplotlib>=3.9.2",
-    "tomli>=2.1.0",
-    "scikit-learn>=1.5.2",
-    "pandas>=2.2.3",
-    "mat73>=0.65",
-    "pygpufit",
-    "coloredlogs>=15.0.1",
-    "scikit-image>=0.24.0",
-    "pre-commit>=4.0.1",
-    "numba>=0.61.0",
-    "pytest>=8.3.5",
-    "mypy>=1.15.0",
-    "jupyterlab>=4.3.1",
-    "pytest-cov>=6.0.0",
-    "ruff>=0.7.4",
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Mike Volk", email = "mike@example.com"}
 ]
+
+[project.urls]
+Documentation = "https://mikevolk.github.io/QDMpy"
+Homepage = "https://mikevolk.github.io/QDMpy"
+Repository = "https://github.com/mikevolk/QDMpy"
+
+[project.dependencies]
+numpy = "<=2.1"
+matplotlib = ">=3.9.2"
+tomli = ">=2.1.0"
+scikit-learn = ">=1.5.2"
+pandas = ">=2.2.3"
+mat73 = ">=0.65"
+pygpufit = "*"
+coloredlogs = ">=15.0.1"
+scikit-image = ">=0.24.0"
+numba = ">=0.61.0"
+argparse = "*"
+importlib-metadata = "*"
 
 [tool.uv.sources]
 pygpufit = [
@@ -59,3 +60,7 @@ ignore_missing_imports = true
 
 [dependency-groups]
 dev = ["jupyterlab>=4.3.1", "mkdocs>=1.6.1", "ruff>=0.7.4"]
+
+[project.scripts]
+qdmpy = "QDMpy.cli:main"
+calculate_QDMio = "QDMpy.cli.calculate_QDMio:main"

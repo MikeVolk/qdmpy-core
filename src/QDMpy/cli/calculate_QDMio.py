@@ -1,47 +1,54 @@
 #!/usr/bin/python
 """Command-line interface for QDMpy data processing.
 
-This module provides a comprehensive command-line interface for processing
+This module provides the original command-line interface for processing
 Optically Detected Magnetic Resonance (ODMR) data from Quantum Diamond Microscopy
-(QDM) measurements. Key features include:
+(QDM) measurements.
 
-- Batch processing: Handling multiple data files in a single command
-- Parameter specification: Setting processing parameters via command-line arguments
-- Model selection: Choosing appropriate fitting models for ODMR spectra
-- Output control: Configuring output formats and locations
-- Processing customization: Setting binning factors, fluorescence correction, etc.
-- Help system: Detailed documentation accessible through --help flags
-
-This interface makes QDMpy functionality accessible without requiring Python
-programming, allowing users to integrate QDM data processing into scripts
-and workflows.
+Note: This interface is maintained for backwards compatibility.
+New users should use the 'qdmpy' command-line interface instead.
 """
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 import time
-
-from argdoc import generate_doc
+from pathlib import Path
 
 import QDMpy
-from src.QDMpy._core.qdm_old import QDM
+from QDMpy._core.qdm_old import QDM
+from QDMpy.cli import CLI_LOGGER
 
 
-@generate_doc
-def main(argv: list[str]) -> None:
-    """Main function for the QDMpy command line interface.
+def setup_logging(debug: bool = False) -> None:
+    """Configure logging for the QDMpy CLI.
+    
+    Args:
+        debug: Whether to enable debug logging
+    """
+    # Configure the QDMpy root logger
+    level = logging.DEBUG if debug else logging.INFO
+    QDMpy.LOG.setLevel(level)
+    CLI_LOGGER.setLevel(level)
+
+
+def main(argv: list[str] = None) -> int:
+    """Main function for the legacy QDMpy command line interface.
 
     Processes command line arguments to calculate B111 field from ODMR data
     recorded with QDMio made QDM.
 
     Args:
-        argv: List of command line arguments.
+        argv: List of command line arguments. If None, uses sys.argv[1:].
 
     Returns:
-        None
+        int: Exit code (0 for success, non-zero for errors)
     """
-    tstart = time.process_time()
+    if argv is None:
+        argv = sys.argv[1:]
+        
+    start_time = time.time()
 
     parser = argparse.ArgumentParser(
         description='Calculate the B111 field from ODMR data recorded with QDMio made QDM',
@@ -49,8 +56,14 @@ def main(argv: list[str]) -> None:
     parser.add_argument(
         '-i',
         '--input',
-        help='input path, location of the QDM data files and LED/laser images.',
+        help='Input path, location of the QDM data files and LED/laser images.',
         required=True,
+    )
+    parser.add_argument(
+        '-o',
+        '--output',
+        help='Output directory for results (default: input_path/results)',
+        required=False,
     )
     parser.add_argument(
         '-b',
@@ -78,26 +91,80 @@ def main(argv: list[str]) -> None:
     )
     parser.add_argument(
         '--debug',
-        help='sets logging to DEBUG level',
+        help='Sets logging to DEBUG level',
+        action='store_true',
+        default=False,
+        required=False,
+    )
+    parser.add_argument(
+        '--overwrite',
+        help='Overwrite existing results',
         action='store_true',
         default=False,
         required=False,
     )
 
-    args = parser.parse_args()
-
-    if args.debug:
-        QDMpy.LOG.setLevel('DEBUG')
-    else:
-        QDMpy.LOG.setLevel('INFO')
-
-    qdm_obj = QDM.from_qdmio(args.input, model_name=args.model)
-    qdm_obj.bin_data(bin_factor=args.binfactor)
-    qdm_obj.correct_glob_fluorescence(glob_fluorescence=args.globalfluorescence)
-    qdm_obj.fit_odmr()
-    qdm_obj.export_qdmio()
-    QDMpy.LOG.info(f'QDMpy finished in {time.process_time() - tstart:.2f} seconds')
+    try:
+        args = parser.parse_args(argv)
+        setup_logging(args.debug)
+        
+        # Show warning about deprecated interface
+        CLI_LOGGER.warning(
+            "This command-line interface is deprecated. "
+            "Please use 'qdmpy process' instead."
+        )
+        
+        # Determine output directory
+        output_dir = args.output if args.output else Path(args.input) / "results"
+        output_path = Path(output_dir)
+        
+        # Check if output directory exists
+        if output_path.exists() and not args.overwrite:
+            CLI_LOGGER.error(f"Output directory {output_dir} already exists. Use --overwrite to overwrite.")
+            return 1
+        
+        # Create output directory if it doesn't exist
+        if not output_path.exists():
+            CLI_LOGGER.info(f"Creating output directory: {output_dir}")
+            output_path.mkdir(parents=True)
+        
+        # Log the command parameters
+        CLI_LOGGER.info(f"Processing data from: {args.input}")
+        CLI_LOGGER.info(f"Binning factor: {args.binfactor}")
+        CLI_LOGGER.info(f"Model: {args.model}")
+        CLI_LOGGER.info(f"Global fluorescence: {args.globalfluorescence}")
+        
+        # Create QDM object from data
+        qdm_obj = QDM.from_qdmio(args.input, model_name=args.model)
+        
+        # Apply binning if requested
+        if args.binfactor > 1:
+            CLI_LOGGER.info(f"Applying spatial binning with factor {args.binfactor}...")
+            qdm_obj.bin_data(bin_factor=args.binfactor)
+        
+        # Apply global fluorescence correction
+        CLI_LOGGER.info(f"Applying global fluorescence correction ({args.globalfluorescence})...")
+        qdm_obj.correct_glob_fluorescence(glob_fluorescence=args.globalfluorescence)
+        
+        # Fit ODMR data
+        CLI_LOGGER.info("Fitting ODMR spectra...")
+        qdm_obj.fit_odmr()
+        
+        # Export results
+        CLI_LOGGER.info(f"Exporting results to {output_dir}...")
+        qdm_obj.export_qdmio(output_path=output_dir)
+        
+        elapsed_time = time.time() - start_time
+        CLI_LOGGER.info(f"Processing completed successfully in {elapsed_time:.2f} seconds")
+        return 0
+        
+    except Exception as e:
+        CLI_LOGGER.error(f"Error processing data: {str(e)}")
+        if getattr(args, 'debug', False):
+            import traceback
+            traceback.print_exc()
+        return 1
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    sys.exit(main())
