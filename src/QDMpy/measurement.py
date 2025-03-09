@@ -16,7 +16,7 @@ provides a unified interface for analysis and visualization of QDM experiments.
 from __future__ import annotations
 
 import logging
-import os
+import os, sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -26,11 +26,16 @@ from numpy.typing import NDArray
 if TYPE_CHECKING:
     from os import PathLike
 
-# Handle paths for direct script execution
-from QDMpy.utils import setup_package_paths
+if not __package__:
+    # Get the current file's directory
+    current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# setup must run before the import below
-setup_package_paths()
+    # Go one level up to the package root
+    package_root = os.path.abspath(os.path.join(current_dir, '..'))
+    # Add to path if not already there
+    if package_root not in sys.path:
+        sys.path.insert(0, package_root)
+
 
 # Following import must be after setup_package_paths
 from QDMpy.odmr.odmr import ODMR  # noqa: E402
@@ -156,14 +161,17 @@ if __name__ == '__main__':
 
     from QDMpy.odmr.data import ODMRData
     from QDMpy.odmr.io import MatlabLoader
-    from QDMpy.odmr.processors import BinningProcessor
+    from QDMpy.odmr.processors import BinningProcessor, FluorescenceCorrectionProcessor
 
+    LOG.setLevel(logging.DEBUG)
     # User-friendly initialization with proper paths
     data_folder = os.path.join(os.path.dirname(__file__), '..', '..', 'tests', 'data')
     loader = MatlabLoader(data_folder=data_folder)
     odmr_data = ODMRData.from_loader(loader=loader)
     odmr = ODMR(odmr_data)
     odmr.processor_manager.add_processor(BinningProcessor(bin_factor=2))
+    odmr.processor_manager.add_processor(FluorescenceCorrectionProcessor())
+    print(odmr.processor_manager.list_processors())
     odmr.process_data()
 
     # Create dummy image data for testing
