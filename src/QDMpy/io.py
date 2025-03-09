@@ -83,7 +83,12 @@ def get_image(
         file_path = os.path.join(folder_str, image_file)
         
         if image_file.lower().endswith('.csv'):
-            img = np.loadtxt(file_path)
+            # Try different delimiters for CSV files
+            try:
+                img = np.loadtxt(file_path, delimiter=',')
+            except ValueError:
+                # Fall back to default delimiter (whitespace)
+                img = np.loadtxt(file_path)
         else:  # Assume it's an image format matplotlib can read
             img = mpimg.imread(file_path)
             
