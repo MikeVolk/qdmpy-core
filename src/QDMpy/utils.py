@@ -1,15 +1,13 @@
-"""
-Utility functions for the QDMpy package.
+"""Utility functions for the QDMpy package.
 
 This module provides various utility functions used throughout the QDMpy package,
 including data conversion, coordinate transformations, and file handling utilities.
 """
+from __future__ import annotations
 
 import logging
 import os
 import sys
-from pathlib import Path
-from typing import Union, Tuple, Optional, Sequence, Any, List
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -18,9 +16,8 @@ LOG = logging.getLogger(__name__)
 
 
 def setup_package_paths() -> None:
-    """
-    Add package paths to sys.path for local imports.
-    
+    """Add package paths to sys.path for local imports.
+
     This function should be called when a module is run directly to ensure
     that imports from the package will work correctly.
     """
@@ -28,16 +25,16 @@ def setup_package_paths() -> None:
     if not __package__:
         # Get the current file's directory
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        
+
         # Go one level up to the package root
-        package_root = os.path.abspath(os.path.join(current_dir, ".."))
-        
+        package_root = os.path.abspath(os.path.join(current_dir, '..'))
+
         # Add to path if not already there
         if package_root not in sys.path:
             sys.path.insert(0, package_root)
 
 # Unit prefixes for millify function
-MILLNAMES = ["n", "μ", "m", "", " K", " M", " B", " T"]
+MILLNAMES = ['n', 'μ', 'm', '', ' K', ' M', ' B', ' T']
 
 
 def millify(n: float, sign: int = 1) -> str:
@@ -52,13 +49,13 @@ def millify(n: float, sign: int = 1) -> str:
     """
     # Calculate the appropriate unit index
     millidx = max(
-        0, min(len(MILLNAMES) - 1, int(np.floor(0 if n == 0 else np.log10(abs(n)) / 3)))
+        0, min(len(MILLNAMES) - 1, int(np.floor(0 if n == 0 else np.log10(abs(n)) / 3))),
     )
 
-    return f"{n / 10 ** (3 * millidx):.{sign}f}{MILLNAMES[millidx + 3]}"
+    return f'{n / 10 ** (3 * millidx):.{sign}f}{MILLNAMES[millidx + 3]}'
 
 
-def idx2rc(idx: ArrayLike, shape: Tuple[int, ...]) -> Tuple[NDArray, NDArray]:
+def idx2rc(idx: ArrayLike, shape: tuple[int, ...]) -> tuple[NDArray, NDArray]:
     """Convert a linear index to row-column (yx) coordinates.
 
     Args:
@@ -73,7 +70,7 @@ def idx2rc(idx: ArrayLike, shape: Tuple[int, ...]) -> Tuple[NDArray, NDArray]:
     return np.unravel_index(idx, shape)  # type: ignore[return-value]
 
 
-def rc2idx(rc: ArrayLike, shape: Tuple[int, ...]) -> NDArray:
+def rc2idx(rc: ArrayLike, shape: tuple[int, ...]) -> NDArray:
     """Convert row-column (yx) coordinates to linear indices.
 
     Args:
@@ -93,8 +90,8 @@ def polyfit2d(
     z: NDArray,
     kx: int = 3,
     ky: int = 3,
-    order: Optional[int] = None,
-) -> Tuple[NDArray, NDArray, int, NDArray]:
+    order: int | None = None,
+) -> tuple[NDArray, NDArray, int, NDArray]:
     """Two dimensional polynomial fitting by least squares.
 
     Fits the functional form f(x,y) = z, performing a polynomial fit in two dimensions.
@@ -124,7 +121,7 @@ def polyfit2d(
     """
     # Create grid coordinates
     x_mesh, y_mesh = np.meshgrid(x, y)
-    
+
     # Create coefficient array, up to x^kx, y^ky
     coeffs = np.ones(shape=(kx + 1, ky + 1))
 
@@ -160,7 +157,7 @@ def rms(data: NDArray) -> float:
 # Image-related functions have been moved to io.py
 
 
-def double_norm(data: NDArray, axis: Optional[int] = None) -> NDArray:
+def double_norm(data: NDArray, axis: int | None = None) -> NDArray:
     """Normalize data to range [0, 1] by subtracting minimum and dividing by maximum.
 
     Args:
@@ -172,38 +169,31 @@ def double_norm(data: NDArray, axis: Optional[int] = None) -> NDArray:
     """
     # Create a copy to avoid modifying the input array
     result = data.copy()
-    
+
     # Calculate min along the specified axis and expand dimensions to match data
     mn = np.expand_dims(np.min(result, axis=axis), data.ndim - 1)
     result -= mn
-    
+
     # Calculate max along the specified axis and expand dimensions
     mx = np.expand_dims(np.max(result, axis=axis), data.ndim - 1)
-    
+
     # Avoid division by zero
     mx = np.where(mx == 0, 1.0, mx)
     result /= mx
-    
+
     return result
 
 
 def main() -> None:
-    """
-    Main function for demonstration purposes.
-    
+    """Main function for demonstration purposes.
+
     This shows examples of using the utility functions in this module.
     """
     # Example of millify function
-    print("Examples of millify:")
-    print(f"0.001 -> {millify(0.001, 2)}")
-    print(f"1500 -> {millify(1500, 1)}")
-    print(f"1.2e6 -> {millify(1.2e6, 1)}")
-    
+
     # Example of double_norm
-    data = np.array([1, 2, 5, 10])
-    print(f"\nOriginal data: {data}")
-    print(f"Normalized data: {double_norm(data)}")
+    np.array([1, 2, 5, 10])
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

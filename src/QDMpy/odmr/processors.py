@@ -1,5 +1,4 @@
-"""
-Module: QDMpy.odmr.processors
+"""Module: QDMpy.odmr.processors.
 =============================
 
 This module provides various processors for modifying ODMR (Optically Detected Magnetic
@@ -17,12 +16,14 @@ Imports:
     - Python standard library: logging
     - Third-party: numpy, skimage.measure.block_reduce
 """
+from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from numpy.typing import NDArray
-from typing import List, TYPE_CHECKING, Any
-import numpy as np
 import logging
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any
+
+import numpy as np
+from numpy.typing import NDArray
 from skimage.measure import block_reduce
 
 if TYPE_CHECKING:
@@ -32,16 +33,14 @@ LOG = logging.getLogger(__name__)
 
 
 class BaseProcessor(ABC):
-    """
-    Abstract base class for ODMR processors.
+    """Abstract base class for ODMR processors.
 
     Each processor modifies an ODMRData instance and returns a new instance.
     """
 
     @abstractmethod
-    def process(self, data: "ODMRData", **kwargs: Any) -> "ODMRData":
-        """
-        Process the given ODMRData instance and return a new instance.
+    def process(self, data: ODMRData, **kwargs: Any) -> ODMRData:
+        """Process the given ODMRData instance and return a new instance.
 
         Args:
             data (ODMRData): The input data to process.
@@ -50,14 +49,12 @@ class BaseProcessor(ABC):
         Returns:
             ODMRData: A new instance containing the processed data.
         """
-        pass
 
 
 class NormalizationProcessor(BaseProcessor):
-    """
-    Handles normalization of ODMR data.
+    """Handles normalization of ODMR data.
 
-    Normalizes the frequency-dependent data (axis 3) for each pixel 
+    Normalizes the frequency-dependent data (axis 3) for each pixel
     independently. This is typically used to normalize ODMR spectra
     to a consistent scale across all pixels.
 
@@ -65,18 +62,16 @@ class NormalizationProcessor(BaseProcessor):
         method (str): The normalization method to use (e.g., 'max').
     """
 
-    def __init__(self, method: str = "max") -> None:
-        """
-        Initialize the NormalizationProcessor.
+    def __init__(self, method: str = 'max') -> None:
+        """Initialize the NormalizationProcessor.
 
         Args:
             method (str): Normalization method. Default is 'max'.
         """
         self.method = method
 
-    def process(self, data: "ODMRData", **kwargs: Any) -> "ODMRData":
-        """
-        Normalize the data based on the selected method.
+    def process(self, data: ODMRData, **kwargs: Any) -> ODMRData:
+        """Normalize the data based on the selected method.
 
         Args:
             data (ODMRData): The input data to normalize.
@@ -88,11 +83,11 @@ class NormalizationProcessor(BaseProcessor):
         Raises:
             NotImplementedError: If the specified normalization method is not supported.
         """
-        LOG.debug(f"Normalizing data using method: {self.method}")
+        LOG.debug(f'Normalizing data using method: {self.method}')
         factors = self._get_norm_factors(data.data, self.method)
         normalized_data = data.data / factors
         metadata = data.metadata.copy()
-        metadata["normalized"] = True
+        metadata['normalized'] = True
         return data.__class__(
             data=normalized_data,
             scan_dimensions=data.scan_dimensions,
@@ -101,8 +96,7 @@ class NormalizationProcessor(BaseProcessor):
         )
 
     def _get_norm_factors(self, data: NDArray, method: str) -> NDArray:
-        """
-        Calculate normalization factors based on the selected method.
+        """Calculate normalization factors based on the selected method.
 
         Args:
             data (NDArray): The data to normalize.
@@ -114,24 +108,22 @@ class NormalizationProcessor(BaseProcessor):
         Raises:
             NotImplementedError: If the specified method is not supported.
         """
-        if method == "max":
+        if method == 'max':
             return np.expand_dims(np.max(data, axis=-1), axis=-1)
         raise NotImplementedError(
-            f"Normalization method '{method}' is not implemented."
+            f"Normalization method '{method}' is not implemented.",
         )
 
 
 class BinningProcessor(BaseProcessor):
-    """
-    Handles spatial binning of ODMR data.
+    """Handles spatial binning of ODMR data.
 
     Attributes:
         bin_factor (int): The factor by which to bin the data spatially.
     """
 
     def __init__(self, bin_factor: int) -> None:
-        """
-        Initialize the BinningProcessor.
+        """Initialize the BinningProcessor.
 
         Args:
             bin_factor (int): The spatial binning factor. Must be > 0.
@@ -140,15 +132,14 @@ class BinningProcessor(BaseProcessor):
             ValueError: If the bin factor is less than or equal to 0.
         """
         if bin_factor <= 0:
-            raise ValueError("Bin factor must be greater than 0.")
+            raise ValueError('Bin factor must be greater than 0.')
         self.bin_factor = bin_factor
 
-    def process(self, data: "ODMRData", **kwargs: Any) -> "ODMRData":
-        """
-        Bin the data by the specified factor.
+    def process(self, data: ODMRData, **kwargs: Any) -> ODMRData:
+        """Bin the data by the specified factor.
 
         This method takes the raw data with shape (channels, runs, pixels, frequencies)
-        and performs spatial binning on the pixels. It reshapes the flattened pixels 
+        and performs spatial binning on the pixels. It reshapes the flattened pixels
         into a 2D image using scan_dimensions before applying binning, then flattens
         the result back to the original data format.
 
@@ -160,17 +151,20 @@ class BinningProcessor(BaseProcessor):
             ODMRData: A new instance containing the binned data with reduced spatial resolution
                      but the same overall shape structure.
         """
-        LOG.debug(f"Binning data with factor: {self.bin_factor}")
+        LOG.debug('Binning data with factor: %s', self.bin_factor)
         # Calculate spatial dimensions, ensuring compatibility with non-square images
         total_pixels = data.data.shape[2]
         # Try to determine rows and cols from scan_dimensions if available
-        if hasattr(data, 'scan_dimensions') and data.scan_dimensions is not None and len(data.scan_dimensions) == 2:
+        has_valid_dimensions = (hasattr(data, 'scan_dimensions') and
+                              data.scan_dimensions is not None and
+                              len(data.scan_dimensions) == 2)
+        if has_valid_dimensions:
             rows, cols = data.scan_dimensions
         else:
             # Fallback to assuming square images if dimensions are not available
-            rows = cols = int(total_pixels ** 0.5)
-            LOG.warning("Assuming square image for binning. Using scan_dimensions is recommended.")
-            
+            int(total_pixels ** 0.5)
+            LOG.warning('Assuming square image for binning. Using scan_dimensions is recommended.')
+
         reshape_data = data.data.reshape(
             -1,
             int(data.data.shape[2] ** 0.5),
@@ -183,11 +177,11 @@ class BinningProcessor(BaseProcessor):
             func=np.nanmean,
         )
         binned = binned.reshape(
-            data.data.shape[0], data.data.shape[1], -1, data.data.shape[-1]
+            data.data.shape[0], data.data.shape[1], -1, data.data.shape[-1],
         )
         metadata = data.metadata.copy()
-        metadata["binned"] = True
-        metadata["bin_factor"] = self.bin_factor
+        metadata['binned'] = True
+        metadata['bin_factor'] = self.bin_factor
         return data.__class__(
             data=binned,
             scan_dimensions=data.scan_dimensions,
@@ -197,10 +191,9 @@ class BinningProcessor(BaseProcessor):
 
 
 class OutlierProcessor(BaseProcessor):
-    """
-    Handles masking of outliers in ODMR data.
+    """Handles masking of outliers in ODMR data.
 
-    Identifies and masks outlier values in the ODMR spectra based on 
+    Identifies and masks outlier values in the ODMR spectra based on
     z-scores computed across the frequency dimension (axis 3). Values
     that exceed the threshold are replaced with NaN values.
 
@@ -209,17 +202,15 @@ class OutlierProcessor(BaseProcessor):
     """
 
     def __init__(self, threshold: float = 0.001) -> None:
-        """
-        Initialize the OutlierProcessor.
+        """Initialize the OutlierProcessor.
 
         Args:
             threshold (float): Threshold for masking outliers.
         """
         self.threshold = threshold
 
-    def process(self, data: "ODMRData", **kwargs: Any) -> "ODMRData":
-        """
-        Apply an outlier mask based on the threshold.
+    def process(self, data: ODMRData, **kwargs: Any) -> ODMRData:
+        """Apply an outlier mask based on the threshold.
 
         Args:
             data (ODMRData): The input data to process.
@@ -228,16 +219,17 @@ class OutlierProcessor(BaseProcessor):
         Returns:
             ODMRData: A new instance with outliers masked.
         """
-        LOG.debug(f"Masking outliers with threshold: {self.threshold}")
+        LOG.debug('Masking outliers with threshold: %s', self.threshold)
         # Use a more robust algorithm that considers standard deviation
         data_mean = np.mean(data.data, axis=-1, keepdims=True)
         data_std = np.std(data.data, axis=-1, keepdims=True)
-        z_scores = np.abs((data.data - data_mean) / (data_std + 1e-10))  # Add small epsilon to avoid div by zero
+        # Add small epsilon to avoid division by zero
+        z_scores = np.abs((data.data - data_mean) / (data_std + 1e-10))
         mask = z_scores > (self.threshold * 3)  # Convert threshold to number of std deviations
         processed_data = data.data.copy()
         processed_data[mask] = np.nan
         metadata = data.metadata.copy()
-        metadata["outlier_masking"] = {"threshold": self.threshold}
+        metadata['outlier_masking'] = {'threshold': self.threshold}
         return data.__class__(
             data=processed_data,
             scan_dimensions=data.scan_dimensions,
@@ -247,8 +239,7 @@ class OutlierProcessor(BaseProcessor):
 
 
 class ODMRProcessorManager:
-    """
-    Manages multiple processors for ODMR data.
+    """Manages multiple processors for ODMR data.
 
     Tracks and applies processing steps sequentially to transform ODMRData objects.
 
@@ -263,21 +254,19 @@ class ODMRProcessorManager:
 
     def __init__(self) -> None:
         """Initialize an empty processor manager."""
-        self.processors: List[BaseProcessor] = []
+        self.processors: list[BaseProcessor] = []
 
     def add_processor(self, processor: BaseProcessor) -> None:
-        """
-        Add a processor to the processing pipeline.
+        """Add a processor to the processing pipeline.
 
         Args:
             processor (BaseProcessor): An instance of a processor to add.
         """
-        LOG.debug(f"Adding processor: {processor.__class__.__name__}")
+        LOG.debug(f'Adding processor: {processor.__class__.__name__}')
         self.processors.append(processor)
 
-    def process(self, data: "ODMRData") -> "ODMRData":
-        """
-        Apply all processors sequentially to the given ODMRData instance.
+    def process(self, data: ODMRData) -> ODMRData:
+        """Apply all processors sequentially to the given ODMRData instance.
 
         Args:
             data (ODMRData): The input data to process.
@@ -285,16 +274,15 @@ class ODMRProcessorManager:
         Returns:
             ODMRData: A new ODMRData instance containing the processed data.
         """
-        LOG.info("Starting processing pipeline.")
+        LOG.info('Starting processing pipeline.')
         for processor in self.processors:
-            LOG.debug(f"Applying processor: {processor.__class__.__name__}")
+            LOG.debug(f'Applying processor: {processor.__class__.__name__}')
             data = processor.process(data)
-        LOG.info("Processing pipeline completed.")
+        LOG.info('Processing pipeline completed.')
         return data
 
-    def list_processors(self) -> List[str]:
-        """
-        List the names of processors in the pipeline.
+    def list_processors(self) -> list[str]:
+        """List the names of processors in the pipeline.
 
         Returns:
             List[str]: A list of processor class names in the order they were added.

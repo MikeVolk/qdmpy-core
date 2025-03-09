@@ -1,34 +1,32 @@
-"""
-Model definitions for fitting ODMR spectra.
+"""Model definitions for fitting ODMR spectra.
 
 This module provides models for fitting Optically Detected Magnetic Resonance (ODMR)
 spectra from Nitrogen-Vacancy (NV) centers in diamond. It includes models for different
 nitrogen isotopes (14N and 15N) and different configurations, along with a registry
 system for managing and retrieving models.
 """
+from __future__ import annotations
 
-from typing import Dict, List, Any, Tuple, Optional, Union
-from abc import ABC, abstractmethod
 import logging
-import os
-import sys
+from abc import ABC, abstractmethod
+from typing import Any, ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
 
 # Handle paths for direct script execution
 from QDMpy.utils import setup_package_paths
+
 setup_package_paths()
 
-from QDMpy import SETTINGS
-from QDMpy.constants import AHYP_14N, AHYP_15N
+from QDMpy import SETTINGS  # noqa: E402
+from QDMpy.constants import AHYP_14N, AHYP_15N  # noqa: E402
 
 LOG = logging.getLogger(__name__)
 
 
 def esr14n(x: NDArray, parameter: NDArray, ahyp: float = AHYP_14N) -> NDArray:
-    """
-    Evaluate the ESR14N model.
+    """Evaluate the ESR14N model.
 
     This function calculates the ESR14N model response for a given set of input
     parameters and x-values. The model is characterized by three resonance dips
@@ -67,8 +65,7 @@ def esr14n(x: NDArray, parameter: NDArray, ahyp: float = AHYP_14N) -> NDArray:
 
 
 def esr15n(x: NDArray, parameter: NDArray, ahyp: float = AHYP_15N) -> NDArray:
-    """
-    Evaluate the ESR15N model.
+    """Evaluate the ESR15N model.
 
     This function calculates the 15N Diamond model response for a given set of input
     parameters and x-values. The model is characterized by two resonance dips
@@ -104,8 +101,7 @@ def esr15n(x: NDArray, parameter: NDArray, ahyp: float = AHYP_15N) -> NDArray:
 
 
 def esrsingle(x: NDArray, parameter: NDArray) -> NDArray:
-    """
-    Evaluate the ESRSINGLE model.
+    """Evaluate the ESRSINGLE model.
 
     This function calculates the single resonance model response for a given set of input
     parameters and x-values. The model is characterized by a single resonance dip.
@@ -135,23 +131,21 @@ def esrsingle(x: NDArray, parameter: NDArray) -> NDArray:
 
 
 class Model(ABC):
-    """
-    Abstract base class for ODMR spectral models.
-    
+    """Abstract base class for ODMR spectral models.
+
     This class defines the interface for all models used to fit ODMR spectra.
     Each concrete model implementation must provide a function that evaluates
     the model given a set of parameters.
-    
+
     Attributes:
         name: Unique identifier for the model.
         parameters_unique: List of parameter names, with unique identifiers for duplicates.
         n_peaks: Number of resonance peaks in the model.
     """
-    
-    def __init__(self, name: str, n_peaks: int, parameters_unique: List[str]):
-        """
-        Initialize a model with basic properties.
-        
+
+    def __init__(self: Model, name: str, n_peaks: int, parameters_unique: list[str]) -> None:
+        """Initialize a model with basic properties.
+
         Args:
             name: Unique identifier for the model.
             n_peaks: Number of resonance peaks in the model.
@@ -162,53 +156,48 @@ class Model(ABC):
         self.n_peaks = n_peaks
 
     @property
-    def parameter(self) -> List[str]:
-        """
-        Get the base parameter names without unique identifiers.
-        
+    def parameter(self: Model) -> list[str]:
+        """Get the base parameter names without unique identifiers.
+
         Returns:
             List of base parameter names (e.g., 'width' from 'width_0').
         """
-        return [i.split("_")[0] for i in self.parameters_unique]
+        return [i.split('_')[0] for i in self.parameters_unique]
 
     @abstractmethod
-    def func(self, x: NDArray, parameters: NDArray) -> NDArray:
-        """
-        Evaluate the model for given frequency values and parameters.
-        
+    def func(self: Model, x: NDArray, parameters: NDArray) -> NDArray:
+        """Evaluate the model for given frequency values and parameters.
+
         Args:
             x: Array of frequency values.
             parameters: Array of model parameters.
-            
+
         Returns:
             Model prediction for the given frequency values and parameters.
         """
         raise NotImplementedError
 
     @property
-    def n_parameters(self) -> int:
-        """
-        Get the number of parameters in the model.
-        
+    def n_parameters(self: Model) -> int:
+        """Get the number of parameters in the model.
+
         Returns:
             Number of parameters.
         """
         return len(self.parameters_unique)
 
-    def get_constraint_array(self, constraint: Dict[str, Any], n_pixel: int = 1) -> NDArray:
-        """
-        Create an array of constraints for model parameters.
-        
+    def get_constraint_array(self: Model, constraint: dict[str, Any]) -> NDArray:
+        """Create an array of constraints for model parameters.
+
         Args:
             constraint: Dictionary of constraints.
-            n_pixel: Number of pixels to generate constraints for. Default is 1.
-            
+
         Returns:
             Array of constraint values.
         """
         constraint_array = []
         for p in self.parameters_unique:
-            base_param = p.split("_")[0]
+            base_param = p.split('_')[0]
             if base_param in constraint:
                 constraint_array.append(constraint[base_param][0])  # Lower bound
                 constraint_array.append(constraint[base_param][1])  # Upper bound
@@ -216,118 +205,113 @@ class Model(ABC):
                 # Default constraints if not specified
                 constraint_array.append(-np.inf)  # No lower bound
                 constraint_array.append(np.inf)   # No upper bound
-                
+
         return np.array(constraint_array)
 
-    def __repr__(self) -> str:
-        """
-        Get a string representation of the model.
-        
+    def __repr__(self: Model) -> str:
+        """Get a string representation of the model.
+
         Returns:
             String describing the model's key properties.
         """
-        return f"Model({self.name}, n_parameters: {self.n_parameters}, n_peaks: {self.n_peaks})"
+        return f'Model({self.name}, n_parameters: {self.n_parameters}, n_peaks: {self.n_peaks})'
 
 
 class ModelRegistry:
-    """
-    Registry for managing ODMR spectral models.
-    
+    """Registry for managing ODMR spectral models.
+
     This class provides a central registry for all available models,
     allowing models to be registered, retrieved, and listed.
     """
-    
-    _registry: Dict[str, Dict[str, Any]] = {}
+
+    _registry: ClassVar[dict[str, dict[str, Any]]] = {}
 
     @classmethod
-    def register(cls, name: str, model: Dict[str, Any]) -> None:
-        """
-        Register a model in the registry.
-        
+    def register(cls: type[ModelRegistry], name: str, model: dict[str, Any]) -> None:
+        """Register a model in the registry.
+
         Args:
             name: Unique name for the model.
             model: Dictionary containing model information, including
                   the model class and hyperfine splitting constant.
         """
         cls._registry[name] = model
-        LOG.info(f"Registered model: {name}")
+        LOG.info('Registered model: %s', name)
 
     @classmethod
-    def get(cls, name: str) -> Model:
-        """
-        Get a model instance by name.
-        
+    def get(cls: type[ModelRegistry], name: str) -> Model:
+        """Get a model instance by name.
+
         Args:
             name: Name of the model to retrieve.
-            
+
         Returns:
             Instance of the requested model.
-            
+
         Raises:
             KeyError: If the model name is not found in the registry.
         """
         if name not in cls._registry:
-            raise KeyError(f"Model '{name}' not found in registry")
-        return cls._registry[name]["class"]()
+            # Model not found
+            error_msg = f"Model '{name}' not found in registry"
+            raise KeyError(error_msg)
+        return cls._registry[name]['class']()
 
     @classmethod
-    def all(cls) -> Dict[str, Dict[str, Any]]:
-        """
-        Get all registered models.
-        
+    def all(cls: type[ModelRegistry]) -> dict[str, dict[str, Any]]:
+        """Get all registered models.
+
         Returns:
             Dictionary mapping model names to model information.
         """
         return cls._registry
 
     @classmethod
-    def _initialize_constraints(cls, model: 'Model') -> Dict[str, List[Any]]:
-        """
-        Initialize default constraints for model parameters.
-        
+    def _initialize_constraints(cls: type[ModelRegistry], model: Model) -> dict[str, list[Any]]:
+        """Initialize default constraints for model parameters.
+
         Uses the constraints defined in the configuration settings.
-        
+
         Args:
             model: The model for which to initialize constraints.
-            
+
         Returns:
             Dictionary mapping parameter names to constraint lists.
         """
-        settings = SETTINGS["fit"]["constraints"]
-        constraints: Dict[str, List[Any]] = {}
-        
+        settings = SETTINGS['fit']['constraints']
+        constraints: dict[str, list[Any]] = {}
+
         for param in model.parameters_unique:
-            base_param = param.split("_")[0]
+            base_param = param.split('_')[0]
             constraints[param] = [
-                settings[f"{base_param}_min"],
-                settings[f"{base_param}_max"],
-                settings[f"{base_param}_type"]
+                settings[f'{base_param}_min'],
+                settings[f'{base_param}_max'],
+                settings[f'{base_param}_type'],
             ]
         return constraints
 
 class ESR14N(Model):
-    """
-    Model for NV centers with 14N nitrogen isotope.
-    
+    """Model for NV centers with 14N nitrogen isotope.
+
     This model represents ODMR spectra with three dips due to the hyperfine
     interaction with the 14N nucleus (I=1).
     """
-    def __init__(self) -> None:
+    def __init__(self: ESR14N) -> None:
+        """Initialize ESR14N model with default parameters."""
         super().__init__(
-            "ESR14N",
+            'ESR14N',
             3,
-            ["contrast", "center", "width_0", "width_1", "width_2", "offset"],
+            ['contrast', 'center', 'width_0', 'width_1', 'width_2', 'offset'],
         )
         self.ahyp = AHYP_14N
 
-    def func(self, x: NDArray, parameters: NDArray) -> NDArray:
-        """
-        Calculate the model response for the given parameters.
-        
+    def func(self: ESR14N, x: NDArray, parameters: NDArray) -> NDArray:
+        """Calculate the model response for the given parameters.
+
         Args:
             x: The independent variable (e.g., frequencies).
             parameters: The model parameters.
-            
+
         Returns:
             The calculated model response.
         """
@@ -335,26 +319,25 @@ class ESR14N(Model):
 
 
 class ESR15N(Model):
-    """
-    Model for NV centers with 15N nitrogen isotope.
-    
+    """Model for NV centers with 15N nitrogen isotope.
+
     This model represents ODMR spectra with two dips due to the hyperfine
     interaction with the 15N nucleus (I=1/2).
     """
-    def __init__(self) -> None:
+    def __init__(self: ESR15N) -> None:
+        """Initialize ESR15N model with default parameters."""
         super().__init__(
-            "ESR15N", 2, ["contrast", "center", "width_0", "width_1", "offset"]
+            'ESR15N', 2, ['contrast', 'center', 'width_0', 'width_1', 'offset'],
         )
         self.ahyp = AHYP_15N
 
-    def func(self, x: NDArray, parameters: NDArray) -> NDArray:
-        """
-        Calculate the model response for the given parameters.
-        
+    def func(self: ESR15N, x: NDArray, parameters: NDArray) -> NDArray:
+        """Calculate the model response for the given parameters.
+
         Args:
             x: The independent variable (e.g., frequencies).
             parameters: The model parameters.
-            
+
         Returns:
             The calculated model response.
         """
@@ -362,23 +345,22 @@ class ESR15N(Model):
 
 
 class ESRSINGLE(Model):
-    """
-    Model for a single ODMR resonance dip.
-    
-    This model represents ODMR spectra with a single resonance dip, 
+    """Model for a single ODMR resonance dip.
+
+    This model represents ODMR spectra with a single resonance dip,
     without any hyperfine splitting.
     """
-    def __init__(self) -> None:
-        super().__init__("ESRSINGLE", 1, ["contrast", "center", "width_0", "offset"])
+    def __init__(self: ESRSINGLE) -> None:
+        """Initialize ESRSINGLE model with default parameters."""
+        super().__init__('ESRSINGLE', 1, ['contrast', 'center', 'width_0', 'offset'])
 
-    def func(self, x: NDArray, parameters: NDArray) -> NDArray:
-        """
-        Calculate the model response for the given parameters.
-        
+    def func(self: ESRSINGLE, x: NDArray, parameters: NDArray) -> NDArray:
+        """Calculate the model response for the given parameters.
+
         Args:
             x: The independent variable (e.g., frequencies).
             parameters: The model parameters.
-            
+
         Returns:
             The calculated model response.
         """
@@ -386,10 +368,12 @@ class ESRSINGLE(Model):
 
 
 # Register models
-ModelRegistry.register("ESR14N", {"class": ESR14N, "hyp": AHYP_14N})
-ModelRegistry.register("ESR15N", {"class": ESR15N, "hyp": AHYP_15N})
-ModelRegistry.register("ESRSINGLE", {"class": ESRSINGLE, "hyp": 0.0})
+ModelRegistry.register('ESR14N', {'class': ESR14N, 'hyp': AHYP_14N})
+ModelRegistry.register('ESR15N', {'class': ESR15N, 'hyp': AHYP_15N})
+ModelRegistry.register('ESRSINGLE', {'class': ESRSINGLE, 'hyp': 0.0})
 
-if __name__ == "__main__":
-    model = ModelRegistry.get("ESRSINGLE")
-    print(model.n_parameters)
+if __name__ == '__main__':
+    model = ModelRegistry.get('ESRSINGLE')
+    # Print model parameters
+    import sys
+    sys.stdout.write(f'{model.n_parameters}\n')

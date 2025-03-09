@@ -1,5 +1,4 @@
-"""
-Module: QDMpy.odmr.io
+"""Module: QDMpy.odmr.io.
 =====================
 
 This module provides loader classes to handle the input of ODMR data from different
@@ -14,23 +13,24 @@ Imports:
     - Python standard library: os
     - Third-party: mat73, scipy.io (loadmat), numpy
 """
+from __future__ import annotations
 
 import os
+from abc import ABC, abstractmethod
+from typing import Any
+
 import mat73
-from scipy.io import loadmat
 import numpy as np
 from numpy.typing import NDArray
-from abc import ABC, abstractmethod
-from typing import Any, Tuple, Optional
+from scipy.io import loadmat
 
 
 class BaseLoader(ABC):
-    """
-    Abstract base class for ODMR data loaders.
+    """Abstract base class for ODMR data loaders.
 
     Subclasses should implement the `load` method to provide specific functionality
     for loading ODMR data from different file types or sources.
-    
+
     The loaded data should be in a standardized format with 4 dimensions:
     - Axis 0: Different polarities of measurements (typically 2 for positive/negative)
     - Axis 1: Different frequency ranges scanned in the experiment
@@ -39,9 +39,8 @@ class BaseLoader(ABC):
     """
 
     @abstractmethod
-    def load(self, **kwargs: Any) -> Tuple[Optional[NDArray], Optional[NDArray], Optional[NDArray]]:
-        """
-        Load ODMR data.
+    def load(self, **kwargs: Any) -> tuple[NDArray | None, NDArray | None, NDArray | None]:
+        """Load ODMR data.
 
         Returns:
             Tuple[Optional[NDArray], Optional[NDArray], Optional[NDArray]]: A tuple containing:
@@ -49,12 +48,10 @@ class BaseLoader(ABC):
                 - scan_dimensions: The scan dimensions (rows, cols) used to reshape pixels to 2D.
                 - frequencies: The 1D array of frequencies used in the measurements.
         """
-        pass
 
 
 class MatlabLoader(BaseLoader):
-    """
-    Loader for ODMR data from MATLAB files.
+    """Loader for ODMR data from MATLAB files.
 
     This loader supports both `.mat` files handled by `scipy.io.loadmat` and
     `.mat` files with modern structures handled by `mat73.loadmat`.
@@ -64,17 +61,15 @@ class MatlabLoader(BaseLoader):
     """
 
     def __init__(self, data_folder: str) -> None:
-        """
-        Initialize the MatlabLoader.
+        """Initialize the MatlabLoader.
 
         Args:
             data_folder (str): Path to the folder containing MATLAB files.
         """
         self.data_folder = data_folder
 
-    def load(self, **kwargs: Any) -> Tuple[Optional[NDArray], Optional[NDArray], Optional[NDArray]]:
-        """
-        Load ODMR data from the specified folder.
+    def load(self, **kwargs: Any) -> tuple[NDArray | None, NDArray | None, NDArray | None]:
+        """Load ODMR data from the specified folder.
 
         Args:
             kwargs (Any): Additional arguments for loading data (optional).
@@ -97,10 +92,10 @@ class MatlabLoader(BaseLoader):
         files = [
             f
             for f in os.listdir(self.data_folder)
-            if f.endswith(".mat") and "run_" in f
+            if f.endswith('.mat') and 'run_' in f
         ]
         if not files:
-            raise FileNotFoundError("No valid MATLAB files found in the folder.")
+            raise FileNotFoundError('No valid MATLAB files found in the folder.')
 
         raw_data, img_shape, frequencies = None, None, None
 
@@ -123,25 +118,24 @@ class MatlabLoader(BaseLoader):
             try:
                 img_shape = np.array(
                     [
-                        int(np.squeeze(mat_data["imgNumRows"])),
-                        int(np.squeeze(mat_data["imgNumCols"])),
-                    ]
+                        int(np.squeeze(mat_data['imgNumRows'])),
+                        int(np.squeeze(mat_data['imgNumCols'])),
+                    ],
                 )
             except KeyError as e:
-                raise ValueError(f"Missing required key in MATLAB file: {e}")
-                
+                raise ValueError(f'Missing required key in MATLAB file: {e}')
+
             try:
                 # Keep original dtype for frequencies to maintain precision
-                frequencies = np.squeeze(mat_data["freqList"])
+                frequencies = np.squeeze(mat_data['freqList'])
             except KeyError as e:
-                raise ValueError(f"Missing required key in MATLAB file: {e}")
+                raise ValueError(f'Missing required key in MATLAB file: {e}')
 
         return raw_data, img_shape, frequencies
 
     @staticmethod
     def _process_mat_file(mat_file: dict[str, Any]) -> NDArray:
-        """
-        Process a MATLAB file to extract raw ODMR data.
+        """Process a MATLAB file to extract raw ODMR data.
 
         Args:
             mat_file (dict[str, Any]): The MATLAB file content as a dictionary.
@@ -156,19 +150,19 @@ class MatlabLoader(BaseLoader):
         Raises:
             ValueError: If the MATLAB file contains an unsupported number of image stacks.
         """
-        n_img_stacks = len([k for k in mat_file.keys() if "imgStack" in k])
+        n_img_stacks = len([k for k in mat_file if 'imgStack' in k])
         if n_img_stacks == 2:
-            return np.stack([mat_file["imgStack1"].T, mat_file["imgStack2"].T], axis=0)
-        elif n_img_stacks == 4:
+            return np.stack([mat_file['imgStack1'].T, mat_file['imgStack2'].T], axis=0)
+        if n_img_stacks == 4:
             return np.stack(
                 [
                     np.concatenate(
-                        [mat_file["imgStack1"].T, mat_file["imgStack2"].T], axis=0
+                        [mat_file['imgStack1'].T, mat_file['imgStack2'].T], axis=0,
                     ),
                     np.concatenate(
-                        [mat_file["imgStack3"].T, mat_file["imgStack4"].T], axis=0
+                        [mat_file['imgStack3'].T, mat_file['imgStack4'].T], axis=0,
                     ),
                 ],
                 axis=0,
             )
-        raise ValueError("Unsupported number of image stacks in MATLAB file.")
+        raise ValueError('Unsupported number of image stacks in MATLAB file.')

@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import itertools
-from typing import Any, Optional, Tuple, Union
+from typing import Any
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -10,19 +12,17 @@ from QDMpy._core import models
 from QDMpy._core.qdm import QDM
 from QDMpy.utils import double_norm
 
-FREQ_LABEL = "f [GHz]"
-CONTRAST_LABEL = "c [%]"
+FREQ_LABEL = 'f [GHz]'
+CONTRAST_LABEL = 'c [%]'
 
 
 def plot_light_img(
     ax: plt.Axes,
     data: np.ndarray,
-    img: Optional[mpl.image.AxesImage] = None,
-    **plt_props: Optional[Any],
+    img: mpl.image.AxesImage | None = None,
+    **plt_props: Any | None,
 ) -> mpl.image.AxesImage:
-    """
-
-    Args:
+    """Args:
       ax:
       data:
       img:  (Default value = None)
@@ -31,29 +31,26 @@ def plot_light_img(
     Returns:
 
     """
-    img = update_img(
+    return update_img(
         ax,
         img,
         data,
-        cmap="bone",
-        interpolation="none",
-        origin="lower",
-        aspect="equal",
+        cmap='bone',
+        interpolation='none',
+        origin='lower',
+        aspect='equal',
         zorder=0,
         **plt_props,
     )
-    return img
 
 
 def plot_fluorescence(
     ax: plt.Axes,
     data: np.ndarray,
-    img: Optional[mpl.image.AxesImage] = None,
-    **plt_props: Optional[Any],
+    img: mpl.image.AxesImage | None = None,
+    **plt_props: Any | None,
 ) -> mpl.image.AxesImage:
-    """
-
-    Args:
+    """Args:
       ax:
       data:
       img:  (Default value = None)
@@ -62,29 +59,26 @@ def plot_fluorescence(
     Returns:
 
     """
-    img = update_img(
+    return update_img(
         ax,
         img,
         data,
-        cmap="inferno",
-        interpolation="none",
-        origin="lower",
-        aspect="equal",
+        cmap='inferno',
+        interpolation='none',
+        origin='lower',
+        aspect='equal',
         zorder=0,
         **plt_props,
     )
-    return img
 
 
 def plot_laser_img(
     ax: plt.Axes,
     data: np.ndarray,
-    img: Optional[mpl.image.AxesImage] = None,
+    img: mpl.image.AxesImage | None = None,
     **plt_props: Any,
 ) -> mpl.image.AxesImage:
-    """
-
-    Args:
+    """Args:
       ax: plt.Axes:
       data:
       img:  (Default value = None)
@@ -93,30 +87,27 @@ def plot_laser_img(
     Returns:
 
     """
-    img = update_img(
+    return update_img(
         ax,
         img,
         data,
-        cmap="magma",
-        interpolation="none",
-        origin="lower",
-        aspect="equal",
+        cmap='magma',
+        interpolation='none',
+        origin='lower',
+        aspect='equal',
         zorder=0,
         **plt_props,
     )
-    return img
 
 
 def update_line(
     ax: plt.Axes,
     x: np.ndarray,
-    y: Optional[Union[np.ndarray, None]] = None,
+    y: np.ndarray | None | None = None,
     line: plt.Line2D = None,
     **plt_props: Any,
 ) -> plt.Line2D:
-    """
-
-    Args:
+    """Args:
       ax: plt.Axes:
       x:np.ndarray[float]:
       y:np.ndarray[float]:  (Default value = None)
@@ -127,7 +118,7 @@ def update_line(
 
     """
     if y is None:
-        return
+        return None
     if line is None:
         (line,) = ax.plot(x, y, **plt_props)
     elif all(y == line.get_ydata()):
@@ -144,9 +135,7 @@ def update_marker(
     line: plt.Line2D = None,
     **plt_props: Any,
 ) -> plt.Line2D:
-    """
-
-    Args:
+    """Args:
       ax: plt.Axes:
       x:
       y:
@@ -167,12 +156,10 @@ def update_marker(
 def plot_quality_data(
     ax: plt.Axes,
     data: np.ndarray,
-    img: Optional[mpl.image.AxesImage] = None,
+    img: mpl.image.AxesImage | None = None,
     **plt_props: Any,
 ) -> mpl.image.AxesImage:
-    """
-
-    Args:
+    """Args:
       ax: plt.Axes:
       data:
       img:  (Default value = None)
@@ -182,21 +169,18 @@ def plot_quality_data(
 
     """
     norm = get_color_norm(data.min(), data.max())
-    plt_props["norm"] = norm
-    plt_props["cmap"] = "inferno"
-    img = update_img(ax, img, data, **plt_props)
-    return img
+    plt_props['norm'] = norm
+    plt_props['cmap'] = 'inferno'
+    return update_img(ax, img, data, **plt_props)
 
 
 def plot_data(
     ax: plt.Axes,
     data: np.ndarray,
-    img: Optional[mpl.image.AxesImage] = None,
+    img: mpl.image.AxesImage | None = None,
     **plt_props: Any,
 ) -> mpl.image.AxesImage:
-    """
-
-    Args:
+    """Args:
       ax: plt.Axes:
       data:
       img:  (Default value = None)
@@ -205,18 +189,16 @@ def plot_data(
     Returns:
 
     """
-
     norm = get_color_norm(data.min(), data.max())
     # plt_props["cmap"] = ""
-    plt_props["norm"] = norm
-    img = update_img(ax, img, data, **plt_props)
-    return img
+    plt_props['norm'] = norm
+    return update_img(ax, img, data, **plt_props)
 
 
 def get_vmin_vmax(
-    img: mpl.image.AxesImage, percentile: float, use_percentile: bool
-) -> Tuple[float, float]:
-    """Get the vmin and vmax for the colorbar of the image
+    img: mpl.image.AxesImage, percentile: float, use_percentile: bool,
+) -> tuple[float, float]:
+    """Get the vmin and vmax for the colorbar of the image.
 
     Args:
       img: mpl.image.AxesImage: The image to get the vmin and vmax from
@@ -243,9 +225,7 @@ def get_vmin_vmax(
 
 
 def get_color_norm(vmin: float, vmax: float) -> colors.Normalize:
-    """
-
-    Args:
+    """Args:
       vmin:
       vmax:
 
@@ -254,20 +234,17 @@ def get_color_norm(vmin: float, vmax: float) -> colors.Normalize:
     """
     if vmin < 0 < vmax:
         return colors.CenteredNorm(halfrange=vmax, vcenter=0)
-    else:
-        return colors.Normalize(vmin=vmin, vmax=vmax)
+    return colors.Normalize(vmin=vmin, vmax=vmax)
 
 
 def plot_overlay(
     ax: plt.Axes,
     data: np.ndarray,
-    img: Optional[Union[mpl.image.AxesImage, None]] = None,
-    normtype: str = "simple",
+    img: mpl.image.AxesImage | None | None = None,
+    normtype: str = 'simple',
     **plt_props: Any,
 ) -> mpl.image.AxesImage:
-    """
-
-    Args:
+    """Args:
       ax: plt.Axes:
       data:
       img:  (Default value = None)
@@ -277,23 +254,20 @@ def plot_overlay(
     Returns:
 
     """
-    if normtype == "simple":
-        plt_props["alpha"] = double_norm(data)
+    if normtype == 'simple':
+        plt_props['alpha'] = double_norm(data)
     else:
-        raise NotImplementedError(f"Normalization type {normtype} not implemented.")
-    img = update_img(ax, img, data, **plt_props)
-    return img
+        raise NotImplementedError(f'Normalization type {normtype} not implemented.')
+    return update_img(ax, img, data, **plt_props)
 
 
 def plot_outlier(
     ax: plt.Axes,
     data: np.ndarray,
-    img: Optional[mpl.image.AxesImage] = None,
+    img: mpl.image.AxesImage | None = None,
     **plt_props: Any,
 ) -> mpl.image.AxesImage:
-    """
-
-    Args:
+    """Args:
       ax: plt.Axes:
       data:
       img:  (Default value = None)
@@ -303,17 +277,16 @@ def plot_outlier(
 
     """
     data = data.astype(float)
-    plt_props["cmap"] = "gist_rainbow"
-    plt_props["alpha"] = data
-    plt_props["zorder"] = 3
-    img = update_img(ax, img, data, **plt_props)
-    return img
+    plt_props['cmap'] = 'gist_rainbow'
+    plt_props['alpha'] = data
+    plt_props['zorder'] = 3
+    return update_img(ax, img, data, **plt_props)
 
 
 def update_clim(
-    img: mpl.image.AxesImage, vmin: float, vmax: float
+    img: mpl.image.AxesImage, vmin: float, vmax: float,
 ) -> mpl.image.AxesImage:
-    """Update the colorbar limits of the image
+    """Update the colorbar limits of the image.
 
     Args:
       img: mpl.image.AxesImage: The image to update
@@ -334,9 +307,7 @@ def update_cbar(
     original_cax_locator: plt.Locator,
     **plt_props: dict,
 ) -> None:
-    """
-
-    Args:
+    """Args:
       img:
       cax:
       vmin:
@@ -347,7 +318,7 @@ def update_cbar(
 
     """
     extent = detect_extent(
-        vmin=vmin, vmax=vmax, mn=img.get_array().min(), mx=img.get_array().max()
+        vmin=vmin, vmax=vmax, mn=img.get_array().min(), mx=img.get_array().max(),
     )
 
     label = cax.get_ylabel()
@@ -357,7 +328,7 @@ def update_cbar(
 
 
 def detect_extent(vmin: float, vmax: float, mn: float, mx: float) -> str:
-    """Detects the extend of the colorbar
+    """Detects the extend of the colorbar.
 
     Args:
       vmin: float: minimum value of the colorbar
@@ -368,21 +339,18 @@ def detect_extent(vmin: float, vmax: float, mn: float, mx: float) -> str:
     Returns: str: "neither", "min", "max", "both"
     """
     if vmin == mn and vmax == mx:
-        return "neither"
-    elif vmin > mn and vmax < mx:
-        return "both"
-    elif vmin > mn:
-        return "min"
-    else:
-        return "max"
+        return 'neither'
+    if vmin > mn and vmax < mx:
+        return 'both'
+    if vmin > mn:
+        return 'min'
+    return 'max'
 
 
 def update_img(
-    ax: plt.Axes, img: mpl.image.AxesImage, data: np.ndarray, **plt_props: Any
+    ax: plt.Axes, img: mpl.image.AxesImage, data: np.ndarray, **plt_props: Any,
 ) -> mpl.image.AxesImage:
-    """
-
-    Args:
+    """Args:
       ax: plt.Axes:
       img:
       data:
@@ -391,38 +359,33 @@ def update_img(
     Returns:
 
     """
-    data_dimensions = plt_props.pop("data_dimensions", data.shape)
-    plt_props["extent"] = [0, data_dimensions[1], 0, data_dimensions[0]]
-    plt_props["origin"] = "lower"
-    plt_props["aspect"] = "equal"
+    data_dimensions = plt_props.pop('data_dimensions', data.shape)
+    plt_props['extent'] = [0, data_dimensions[1], 0, data_dimensions[0]]
+    plt_props['origin'] = 'lower'
+    plt_props['aspect'] = 'equal'
     if img is None:
         img = ax.imshow(data, **plt_props)
     else:
-        if "alpha" in plt_props:
-            img.set_alpha(plt_props["alpha"])
+        if 'alpha' in plt_props:
+            img.set_alpha(plt_props['alpha'])
         img.set_data(data)
     return img
 
 
-def toggle_img(img: Optional[mpl.image.AxesImage] = None) -> None:
-    """
-
-    Args:
-      img:  (Default value = None)
+def toggle_img(img: mpl.image.AxesImage | None = None) -> None:
+    """Args:
+      img:  (Default value = None).
 
     Returns:
 
     """
     if img is None:
         return
-    else:
-        img.set_visibility(~img.visibility)
+    img.set_visibility(~img.visibility)
 
 
-def check_fit_pixel(qdm_obj: QDM, idx: int) -> Tuple[plt.Figure, plt.Axes]:
-    """
-
-    Args:
+def check_fit_pixel(qdm_obj: QDM, idx: int) -> tuple[plt.Figure, plt.Axes]:
+    """Args:
       qdm_obj:
       idx:
 
@@ -431,16 +394,13 @@ def check_fit_pixel(qdm_obj: QDM, idx: int) -> Tuple[plt.Figure, plt.Axes]:
     """
     # noinspection PyTypeChecker
     f, ax = plt.subplots(1, 2, figsize=(10, 4), sharex=False, sharey=True)
-    polarities = ["+", "-"]
+    polarities = ['+', '-']
     model = [None, models.esrsingle, models.esr15n, models.esr14n][qdm_obj.model_name]
-    print(f"IDX: {idx}, Model: {model.__name__}")
-    lst = ["pol/side"] + qdm_obj.fit.model_params + ["chi2"]
-    header = " ".join([f"{i:>8s}" for i in lst])
-    print(f"{header}")
-    print("-" * 100)
+    lst = ['pol/side', *qdm_obj.fit.model_params, 'chi2']
+    ' '.join([f'{i:>8s}' for i in lst])
 
     for p, f in itertools.product(
-        range(qdm_obj.odmr.n_pol), range(qdm_obj.odmr.n_frange)
+        range(qdm_obj.odmr.n_pol), range(qdm_obj.odmr.n_frange),
     ):
         f_new = np.linspace(min(qdm_obj.odmr.f_ghz[f]), max(qdm_obj.odmr.f_ghz[f]), 200)
 
@@ -450,68 +410,65 @@ def check_fit_pixel(qdm_obj: QDM, idx: int) -> Tuple[plt.Figure, plt.Axes]:
         ax[f].plot(
             qdm_obj.odmr.f_ghz[f],
             qdm_obj.odmr.data[p, f, [idx]][0],
-            "k",
-            marker=["o", "^"][p],
+            'k',
+            marker=['o', '^'][p],
             markersize=5,
-            mfc="w",
-            label=f"data: {polarities[p]}",
-            ls="",
+            mfc='w',
+            label=f'data: {polarities[p]}',
+            ls='',
         )
-        (l,) = ax[f].plot(f_new, m_initial[0], label="initial guess", alpha=0.5, ls=":")
-        ax[f].plot(f_new, m_fit[0], color=l.get_color(), label="fit")
+        (line,) = ax[f].plot(f_new, m_initial[0], label='initial guess', alpha=0.5, ls=':')
+        ax[f].plot(f_new, m_fit[0], color=line.get_color(), label='fit')
         ax[f].legend(
             ncol=2,
             bbox_to_anchor=(0.0, 1.02, 1.0, 0.102),
-            loc="lower left",
-            mode="expand",
+            loc='lower left',
+            mode='expand',
             borderaxespad=0.0,
         )
 
-        line = " ".join([f"{v:>8.5f}" for v in qdm_obj.fit.model_params[p, f, idx]])
-        line += f" {qdm_obj.fit._chi_squares[p, f, idx]:>8.2e}"
-        print(f'{["+", "-"][p]},{["<", ">"][p]}:     {line}')
+        line = ' '.join([f'{v:>8.5f}' for v in qdm_obj.fit.model_params[p, f, idx]])
+        line += f' {qdm_obj.fit._chi_squares[p, f, idx]:>8.2e}'
 
     for a in ax.flat:
-        a.set(xlabel=FREQ_LABEL, ylabel="ODMR contrast [a.u.]")
+        a.set(xlabel=FREQ_LABEL, ylabel='ODMR contrast [a.u.]')
     return f, ax
 
 
 def plot_fit_params(
-    qdm_obj: QDM, param: str, save: Optional[bool] = False
+    qdm_obj: QDM, param: str, save: bool | None = False,
 ) -> plt.Figure:
-    """
-
-    Args:
+    """Args:
       qdm_obj:
       param:
-      save:  (Default value = False)
+      save:  (Default value = False).
 
     Returns:
 
     """
     data = qdm_obj.get_param(param)
 
-    if param == "contrast":
+    if param == 'contrast':
         data = data.mean(axis=2)
-    if "contrast" in param:
+    if 'contrast' in param:
         data *= 100
-    if param == "width":
+    if param == 'width':
         data *= 1000
 
     labels = {
-        "center": FREQ_LABEL,
-        "resonance": FREQ_LABEL,
-        "width": "f [MHz]",
-        "contrast": "mean(c) [%]",
-        "contrast_0": CONTRAST_LABEL,
-        "contrast_1": CONTRAST_LABEL,
-        "contrast_2": CONTRAST_LABEL,
-        "chi2": "chi$^2$",
+        'center': FREQ_LABEL,
+        'resonance': FREQ_LABEL,
+        'width': 'f [MHz]',
+        'contrast': 'mean(c) [%]',
+        'contrast_0': CONTRAST_LABEL,
+        'contrast_1': CONTRAST_LABEL,
+        'contrast_2': CONTRAST_LABEL,
+        'chi2': 'chi$^2$',
     }
 
     # noinspection PyTypeChecker
     f, ax = plt.subplots(2, 2, figsize=(15, 8), sharex=True, sharey=True)
-    f.suptitle(f"{param}")
+    f.suptitle(f'{param}')
 
     # determine min and max of the plot
     vminl = np.min(np.sort(data[:, 0].flat)[50:-50])
@@ -520,24 +477,24 @@ def plot_fit_params(
     vmaxr = np.max(np.sort(data[:, 1].flat)[50:-50])
 
     # positive field direction
-    ax[0, 0].set_title(r"B$^+_\mathrm{lf}$")
-    ax[0, 0].imshow(data[0, 0], origin="lower", vmin=vminl, vmax=vmaxl)
-    ax[0, 1].set_title(r"B$^+_\mathrm{hf}$")
-    ax[0, 1].imshow(data[0, 1], origin="lower", vmin=vminr, vmax=vmaxr)
+    ax[0, 0].set_title(r'B$^+_\mathrm{lf}$')
+    ax[0, 0].imshow(data[0, 0], origin='lower', vmin=vminl, vmax=vmaxl)
+    ax[0, 1].set_title(r'B$^+_\mathrm{hf}$')
+    ax[0, 1].imshow(data[0, 1], origin='lower', vmin=vminr, vmax=vmaxr)
 
     # negative field direction
-    ax[1, 0].set_title(r"B$^-_\mathrm{lf}$")
-    c = ax[1, 0].imshow(data[1, 0], origin="lower", vmin=vminl, vmax=vmaxl)
+    ax[1, 0].set_title(r'B$^-_\mathrm{lf}$')
+    c = ax[1, 0].imshow(data[1, 0], origin='lower', vmin=vminl, vmax=vmaxl)
     cb = plt.colorbar(c, ax=ax[:, 0], shrink=0.9)
     cb.ax.set_ylabel(labels[param])
 
-    ax[1, 1].set_title(r"B$^-_\mathrm{hf}$")
-    c = ax[1, 1].imshow(data[1, 1], origin="lower", vmin=vminr, vmax=vmaxr)
+    ax[1, 1].set_title(r'B$^-_\mathrm{hf}$')
+    c = ax[1, 1].imshow(data[1, 1], origin='lower', vmin=vminr, vmax=vmaxr)
     cb = plt.colorbar(c, ax=ax[:, 1], shrink=0.9)
     cb.ax.set_ylabel(labels[param])
 
     for a in ax.flat:
-        a.set(xlabel="px", ylabel="px")
+        a.set(xlabel='px', ylabel='px')
 
     if save:
         f.savefig(save)

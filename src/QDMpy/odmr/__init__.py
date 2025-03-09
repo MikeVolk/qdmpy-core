@@ -1,5 +1,4 @@
-"""
-QDMpy.odmr
+"""QDMpy.odmr.
 ==========
 
 The `QDMpy.odmr` module provides a comprehensive framework for handling, processing,

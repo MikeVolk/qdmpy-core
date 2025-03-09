@@ -1,5 +1,4 @@
-"""
-Module: QDMpy.odmr.data
+"""Module: QDMpy.odmr.data.
 =======================
 
 This module provides the `ODMRData` class for representing raw and processed ODMR
@@ -18,16 +17,17 @@ Imports:
 
 from __future__ import annotations
 
-from typing import Optional, Any, Dict, TYPE_CHECKING
-from numpy.typing import NDArray
 import logging
-import sys
 import os
+import sys
+from typing import TYPE_CHECKING, Any
+
+from numpy.typing import NDArray
 
 # Add the `src` directory to sys.path for local imports if the script is run directly
 if not __package__:
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(current_dir, "../.."))
+    project_root = os.path.abspath(os.path.join(current_dir, '../..'))
     sys.path.insert(0, project_root)
 
 
@@ -38,8 +38,7 @@ LOG = logging.getLogger(__name__)
 
 
 class ODMRData:
-    """
-    Represents raw and processed ODMR (Optically Detected Magnetic Resonance) data.
+    """Represents raw and processed ODMR (Optically Detected Magnetic Resonance) data.
 
     Attributes:
         data (NDArray): The raw ODMR data, as a 4D numpy array with shape:
@@ -58,10 +57,9 @@ class ODMRData:
         data: NDArray,
         scan_dimensions: NDArray,
         frequencies: NDArray,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
-        """
-        Initialize the ODMRData object.
+        """Initialize the ODMRData object.
 
         Args:
             data (NDArray): Raw ODMR data as a 4D numpy array with shape:
@@ -82,11 +80,10 @@ class ODMRData:
     @classmethod
     def from_loader(
         cls,
-        loader: "BaseLoader",
-        loader_args: Optional[Dict[str, Any]] = None,
-    ) -> "ODMRData":
-        """
-        Create an ODMRData instance using a loader.
+        loader: BaseLoader,
+        loader_args: dict[str, Any] | None = None,
+    ) -> ODMRData:
+        """Create an ODMRData instance using a loader.
 
         Args:
             loader (BaseLoader): An instantiated loader to fetch data dynamically.
@@ -99,25 +96,24 @@ class ODMRData:
         Raises:
             RuntimeError: If the loader fails to fetch data.
         """
-        LOG.info(f"Loading ODMR data using loader: {loader.__class__.__name__}")
+        LOG.info(f'Loading ODMR data using loader: {loader.__class__.__name__}')
         try:
             raw_data, scan_dimensions, frequencies = loader.load(**(loader_args or {}))
             return cls(raw_data, scan_dimensions, frequencies)
         except Exception as e:
-            LOG.error(
-                f"Failed to load data using loader {loader.__class__.__name__}: {e}"
+            LOG.exception(
+                f'Failed to load data using loader {loader.__class__.__name__}: {e}',
             )
-            raise RuntimeError(f"Data loading failed: {e}")
+            raise RuntimeError(f'Data loading failed: {e}')
 
     @property
     def shape(self) -> tuple[int, ...]:
-        """
-        Get the shape of the raw ODMR data.
+        """Get the shape of the raw ODMR data.
 
         Returns:
             tuple[int, ...]: The shape of the raw data as a tuple with format:
                 (polarities, frequency_ranges, spatial_pixels, frequencies)
-                
+
                 For example: (2, 1, 10000, 501) would represent:
                 - 2 polarities (positive/negative)
                 - 1 frequency range

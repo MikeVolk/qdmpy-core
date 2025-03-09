@@ -1,5 +1,4 @@
-"""
-Module: QDMpy.odmr.odmr
+"""Module: QDMpy.odmr.odmr.
 =======================
 
 This module defines the `ODMR` class, which orchestrates the management of raw and
@@ -17,11 +16,11 @@ Imports:
 """
 
 from __future__ import annotations
-import sys
-import os
 
-from typing import Optional, TYPE_CHECKING
 import logging
+import os
+import sys
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -29,7 +28,7 @@ if TYPE_CHECKING:
 # Add the `src` directory to sys.path for local imports if the script is run directly
 if not __package__:
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(current_dir, "../.."))
+    project_root = os.path.abspath(os.path.join(current_dir, '../..'))
     sys.path.insert(0, project_root)
 
 from QDMpy.odmr.data import ODMRData
@@ -39,8 +38,7 @@ LOG = logging.getLogger(__name__)
 
 
 class ODMR:
-    """
-    Manages raw and processed ODMR data.
+    """Manages raw and processed ODMR data.
 
     The `ODMR` class provides functionality for loading raw data, applying a
     processing pipeline, and resetting data to its original state. It leverages
@@ -53,13 +51,12 @@ class ODMR:
                                                   transformations to the data.
     """
 
-    def __init__(self, odmr_data: Optional[ODMRData] = None) -> None:
-        """
-        Initialize the ODMR instance.
+    def __init__(self, odmr_data: ODMRData | None = None) -> None:
+        """Initialize the ODMR instance.
 
         Args:
             odmr_data (Optional[ODMRData]): An initial ODMRData instance to load.
-        
+
         Attributes:
             _raw_data (Optional[ODMRData]): The original raw data.
             _processed_data (Optional[ODMRData]): The processed data.
@@ -73,10 +70,9 @@ class ODMR:
         self.processor_manager = ODMRProcessorManager()
 
     def load_data(
-        self, raw_data: NDArray, scan_dimensions: NDArray, frequencies: NDArray
-    ) -> "ODMR":
-        """
-        Load raw ODMR data into the instance.
+        self, raw_data: NDArray, scan_dimensions: NDArray, frequencies: NDArray,
+    ) -> ODMR:
+        """Load raw ODMR data into the instance.
 
         Args:
             raw_data (NDArray): Raw ODMR data as a 4D numpy array with shape:
@@ -96,15 +92,14 @@ class ODMR:
             _processed_data: Resets to None.
             is_processed: Resets to False.
         """
-        LOG.info("Loading data into ODMR instance.")
+        LOG.info('Loading data into ODMR instance.')
         self._raw_data = ODMRData(raw_data, scan_dimensions, frequencies)
         self._processed_data = None
         self.is_processed = False
         return self
 
-    def reset(self) -> "ODMR":
-        """
-        Reset to the raw data.
+    def reset(self) -> ODMR:
+        """Reset to the raw data.
 
         Discards any processing and reverts the instance to the original raw data.
 
@@ -115,16 +110,15 @@ class ODMR:
             ValueError: If no raw data is loaded.
         """
         if self._raw_data is None:
-            LOG.error("No raw data loaded. Cannot reset.")
-            raise ValueError("No raw data to reset to.")
-        LOG.info("Resetting to raw data.")
+            LOG.error('No raw data loaded. Cannot reset.')
+            raise ValueError('No raw data to reset to.')
+        LOG.info('Resetting to raw data.')
         self._processed_data = None
         self.is_processed = False
         return self
 
-    def process_data(self) -> "ODMR":
-        """
-        Apply the processing pipeline to the raw data.
+    def process_data(self) -> ODMR:
+        """Apply the processing pipeline to the raw data.
 
         Uses the `ODMRProcessorManager` to process the raw data and stores the result
         in `_processed_data`.
@@ -136,17 +130,16 @@ class ODMR:
             ValueError: If no raw data is loaded.
         """
         if self._raw_data is None:
-            LOG.error("No data loaded.")
-            raise ValueError("No ODMRData loaded.")
-        LOG.info("Processing data.")
+            LOG.error('No data loaded.')
+            raise ValueError('No ODMRData loaded.')
+        LOG.info('Processing data.')
         self._processed_data = self.processor_manager.process(self._raw_data)
         self.is_processed = True
         return self
 
     @property
     def raw_data(self) -> ODMRData:
-        """
-        Access the raw ODMRData.
+        """Access the raw ODMRData.
 
         Returns:
             ODMRData: The original raw data instance.
@@ -155,14 +148,13 @@ class ODMR:
             ValueError: If no raw data is loaded.
         """
         if self._raw_data is None:
-            LOG.error("No raw data loaded.")
-            raise ValueError("No raw data available.")
+            LOG.error('No raw data loaded.')
+            raise ValueError('No raw data available.')
         return self._raw_data
 
     @property
     def processed_data(self) -> ODMRData:
-        """
-        Access the processed ODMRData.
+        """Access the processed ODMRData.
 
         Returns:
             ODMRData: The processed data instance.
@@ -171,8 +163,8 @@ class ODMR:
             ValueError: If no processing has been performed yet.
         """
         if self._processed_data is None:
-            LOG.error("No data has been processed yet.")
-            raise ValueError("No processed data available.")
+            LOG.error('No data has been processed yet.')
+            raise ValueError('No processed data available.')
         return self._processed_data
 
 
@@ -181,14 +173,14 @@ class ODMR:
 #     from QDMpy.odmr.data import ODMRData
 #     from QDMpy.odmr.io import MatlabLoader
 #     from QDMpy.odmr.processors import BinningProcessor
-# 
+#
 #     # User-friendly initialization
 #     loader = MatlabLoader(data_folder="/path/to/data")
 #     odmr_data = ODMRData.from_loader(loader=loader)
 #     odmr = ODMR(odmr_data)
 #     odmr.processor_manager.add_processor(BinningProcessor(bin_factor=2))
 #     odmr.process_data()
-#     
+#
 #     # Access data
 #     print(odmr.raw_data.shape)
 #     print(odmr.processed_data.shape)

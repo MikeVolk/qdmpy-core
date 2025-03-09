@@ -1,5 +1,4 @@
-"""
-Constants used throughout the QDMpy package.
+"""Constants used throughout the QDMpy package.
 
 This module defines physical and computational constants that are used in various
 parts of the package. These include hyperfine constants for different nitrogen
@@ -7,6 +6,8 @@ isotopes and default values for algorithm parameters.
 """
 
 # Hyperfine splitting constants for nitrogen isotopes (in GHz)
+from __future__ import annotations
+
 AHYP_14N = 0.002158  # Hyperfine splitting constant for 14N (in GHz)
 AHYP_15N = 0.0015    # Hyperfine splitting constant for 15N (in GHz)
 

@@ -8,69 +8,70 @@ Optically Detected Magnetic Resonance (ODMR) data from Quantum Diamond Microscop
 It allows users to specify input data paths, binning factors, model types,
 and global fluorescence values through command-line arguments.
 """
+from __future__ import annotations
 
 import argparse
 import sys
 import time
-from typing import List
+
+from argdoc import generate_doc
 
 import QDMpy
 from src.QDMpy._core.qdm_old import QDM
-from argdoc import generate_doc
 
 
 @generate_doc
-def main(argv: List[str]) -> None:
+def main(argv: list[str]) -> None:
     """Main function for the QDMpy command line interface.
-    
+
     Processes command line arguments to calculate B111 field from ODMR data
     recorded with QDMio made QDM.
-    
+
     Args:
         argv: List of command line arguments.
-        
+
     Returns:
         None
     """
     tstart = time.process_time()
 
     parser = argparse.ArgumentParser(
-        description="Calculate the B111 field from ODMR data recorded with QDMio made QDM"
+        description='Calculate the B111 field from ODMR data recorded with QDMio made QDM',
     )
     parser.add_argument(
-        "-i",
-        "--input",
-        help="input path, location of the QDM data files and LED/laser images.",
+        '-i',
+        '--input',
+        help='input path, location of the QDM data files and LED/laser images.',
         required=True,
     )
     parser.add_argument(
-        "-b",
-        "--binfactor",
+        '-b',
+        '--binfactor',
         type=int,
-        help="Binning factor of the ODMR data. Default: 1",
+        help='Binning factor of the ODMR data. Default: 1',
         default=1,
         required=False,
     )
     parser.add_argument(
-        "-m",
-        "--model",
+        '-m',
+        '--model',
         type=str,
         help="Type of model used in the experiment. Default: 'auto'",
-        default="auto",
+        default='auto',
         required=False,
     )
     parser.add_argument(
-        "-gf",
-        "--globalfluorescence",
+        '-gf',
+        '--globalfluorescence',
         type=float,
-        help="Global fluorescence of the sample. Default: 0.2",
+        help='Global fluorescence of the sample. Default: 0.2',
         default=0.2,
         required=False,
     )
     parser.add_argument(
-        "--debug",
-        help="sets logging to DEBUG level",
-        action="store_true",
+        '--debug',
+        help='sets logging to DEBUG level',
+        action='store_true',
         default=False,
         required=False,
     )
@@ -78,17 +79,17 @@ def main(argv: List[str]) -> None:
     args = parser.parse_args()
 
     if args.debug:
-        QDMpy.LOG.setLevel("DEBUG")
+        QDMpy.LOG.setLevel('DEBUG')
     else:
-        QDMpy.LOG.setLevel("INFO")
+        QDMpy.LOG.setLevel('INFO')
 
     qdm_obj = QDM.from_qdmio(args.input, model_name=args.model)
     qdm_obj.bin_data(bin_factor=args.binfactor)
     qdm_obj.correct_glob_fluorescence(glob_fluorescence=args.globalfluorescence)
     qdm_obj.fit_odmr()
     qdm_obj.export_qdmio()
-    QDMpy.LOG.info(f"QDMpy finished in {time.process_time() - tstart:.2f} seconds")
+    QDMpy.LOG.info(f'QDMpy finished in {time.process_time() - tstart:.2f} seconds')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main(sys.argv[1:])
