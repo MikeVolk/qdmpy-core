@@ -4,3 +4,7 @@ class CantImportError(Exception):
 
 class WrongFileNumber(Exception):
     """Base class for other exceptions"""
+
+
+class ModelGuessNotPossible(Exception):
+    """Base class for other exceptions"""
