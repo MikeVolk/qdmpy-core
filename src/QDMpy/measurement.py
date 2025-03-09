@@ -165,13 +165,12 @@ if __name__ == '__main__':
 
     LOG.setLevel(logging.DEBUG)
     # User-friendly initialization with proper paths
-    data_folder = os.path.join(os.path.dirname(__file__), '..', '..', 'tests', 'data')
+    data_folder = "/media/mike/data/Dropbox/FOV18x"
     loader = MatlabLoader(data_folder=data_folder)
     odmr_data = ODMRData.from_loader(loader=loader)
     odmr = ODMR(odmr_data)
     odmr.processor_manager.add_processor(BinningProcessor(bin_factor=2))
     odmr.processor_manager.add_processor(FluorescenceCorrectionProcessor())
-    print(odmr.processor_manager.list_processors())
     odmr.process_data()
 
     # Create dummy image data for testing
@@ -188,3 +187,9 @@ if __name__ == '__main__':
         dummy_laser,
         output_dir,
     )
+
+    import matplotlib.pyplot as plt
+    import matplotlib
+    matplotlib.use('QtAgg')
+    plt.imshow(measure.odmr.processed_data.data[0,0,:,0].reshape(measure.odmr.processed_data.scan_dimensions))
+    plt.show()
