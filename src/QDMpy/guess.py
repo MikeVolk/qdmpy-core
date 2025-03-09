@@ -1,14 +1,26 @@
+"""
+Module for guessing models and initial fit parameters for ODMR data.
+
+This module provides functionality to automatically determine the appropriate model
+for ODMR data and estimate initial fit parameters based on statistical analysis of
+the data. It includes methods to guess the number of peaks, peak centers, widths,
+contrasts, and other model parameters.
+
+The module operates primarily on 4D numpy arrays containing ODMR data with dimensions:
+(n_polarity, n_freq_range, n_frequencies, n_pixels).
+"""
+
 from __future__ import annotations
 
-from numba import njit, prange
-from numpy.typing import NDArray
-from typing import Any, TYPE_CHECKING
-import numpy as np
-from scipy.signal import find_peaks
 import logging
-
 import os
 import sys
+from typing import Tuple, List, TYPE_CHECKING
+
+import numpy as np
+from numba import njit, prange
+from numpy.typing import NDArray
+from scipy.signal import find_peaks
 
 # Add the `src` directory to sys.path for local imports if the script is run directly
 if not __package__:
@@ -25,7 +37,6 @@ if TYPE_CHECKING:
 
 LOG = logging.getLogger(__name__)
 
-
 @njit(parallel=True, fastmath=True)
 def normalize_pixel(pixel: NDArray) -> NDArray:
     pixel = np.cumsum(pixel - 1)
@@ -34,7 +45,18 @@ def normalize_pixel(pixel: NDArray) -> NDArray:
     return pixel / max_val if max_val > 0 else pixel
 
 
-def validate_array(data: NDArray, expected_dim: int, name: str):
+def validate_array(data: NDArray, expected_dim: int, name: str) -> None:
+    """
+    Validate that an array has the expected number of dimensions.
+
+    Args:
+        data: The array to validate.
+        expected_dim: The expected number of dimensions.
+        name: The name of the array for error messages.
+
+    Raises:
+        ValueError: If the array does not have the expected number of dimensions.
+    """
     if data.ndim != expected_dim:
         raise ValueError(
             f"{name} must have {expected_dim} dimensions. Got {data.ndim}."
@@ -42,12 +64,27 @@ def validate_array(data: NDArray, expected_dim: int, name: str):
 
 
 def guess_model(data: NDArray) -> Model:
+    """
+    Automatically determine the best fitting model for ODMR data.
+
+    This function analyzes the number of peaks in the ODMR data and selects
+    an appropriate model (ESR14N, ESR15N, or ESRSINGLE) based on the results.
+
+    Args:
+        data: 4D ODMR data array (n_polarity, n_range, n_frequencies, n_pixels).
+
+    Returns:
+        Model: An instance of the appropriate model.
+
+    Raises:
+        ModelGuessNotPossible: If the model cannot be reliably determined.
+    """
     LOG.info("Trying to detect best fitting model for ODMR data.")
     n_peaks, doubt, _ = guess_n_peaks(data)
 
     if not doubt:
         model = get_model_by_peaks(n_peaks)
-        LOG.info("Detected model: {model.name}")
+        LOG.info(f"Detected model: {model.name}")
         return model
     else:
         raise ModelGuessNotPossible(
@@ -55,7 +92,26 @@ def guess_model(data: NDArray) -> Model:
         )
 
 
-def guess_n_peaks(data: NDArray) -> tuple[int, bool, Any]:
+def guess_n_peaks(data: NDArray) -> Tuple[int, bool, List[NDArray]]:
+    """
+    Estimate the number of peaks in ODMR data.
+
+    This function analyzes the ODMR data to determine the number of resonance peaks
+    by finding the negative peaks in the median value across pixels. It also assesses
+    confidence in the peak count by checking the standard deviation of peak counts.
+
+    Args:
+        data: 4D ODMR data array (n_polarity, n_range, n_frequencies, n_pixels).
+
+    Returns:
+        Tuple containing:
+            - int: Estimated number of peaks.
+            - bool: Whether there is doubt in the estimate (True if uncertain).
+            - List[NDArray]: Indices of detected peaks for each (polarity, frequency range) combination.
+
+    Raises:
+        ValueError: If the data array does not have 4 dimensions.
+    """
     validate_array(data, 4, "data")
     median_data = np.median(data, axis=3)
     indices = [
@@ -67,12 +123,12 @@ def guess_n_peaks(data: NDArray) -> tuple[int, bool, Any]:
     return n_peaks, doubt, indices
 
 
-def get_model_by_peaks(n_peaks: int):
+def get_model_by_peaks(n_peaks: int) -> Model:
     """
     Retrieve the model instance dynamically based on the number of peaks.
 
     Args:
-        n_peaks (int): Number of peaks detected in the data.
+        n_peaks: Number of peaks detected in the data.
 
     Returns:
         Model: The corresponding model instance.
@@ -93,13 +149,16 @@ def guess_initial_fit_parameters(data: NDArray, freq: NDArray, model: Model) -> 
     Guess initial fit parameters based on the selected model.
 
     Args:
-        data (NDArray): 4D array of the data to fit (e.g., ODMR data).
-        freq (NDArray): 1D array of the frequencies corresponding to the data.
-        model (Model): An instance of the selected model.
+        data: 4D array of the data to fit (e.g., ODMR data).
+        freq: 1D array of the frequencies corresponding to the data.
+        model: An instance of the selected model.
 
     Returns:
-        NDArray: Initial fit parameters as a 4D array of shape
-                 (n_pol, n_freq_range, n_pixel, n_params).
+        NDArray: Initial fit parameters as a 3D array of shape
+                 (n_pol, n_freq_range, n_params).
+
+    Raises:
+        ValueError: If a parameter type has no defined guess method.
     """
     # Define parameter guessers for each parameter type
     parameter_guessers = {
@@ -131,6 +190,18 @@ def guess_initial_fit_parameters(data: NDArray, freq: NDArray, model: Model) -> 
 
 @njit(parallel=True, fastmath=True)
 def guess_contrast(data: NDArray) -> NDArray:
+    """
+    Estimate the contrast for each pixel in the ODMR data.
+
+    This function calculates the contrast (amplitude) of the ODMR signal
+    for each pixel by finding the difference between maximum and minimum values.
+
+    Args:
+        data: 4D ODMR data array (n_polarity, n_range, n_frequencies, n_pixels).
+
+    Returns:
+        NDArray: 3D array of contrast values (n_polarity, n_range, n_pixels).
+    """
     amp = np.zeros((data.shape[0], data.shape[1], data.shape[3]))
     for polarity in range(data.shape[0]):
         for freq_range in range(data.shape[1]):
@@ -143,6 +214,18 @@ def guess_contrast(data: NDArray) -> NDArray:
 
 @njit(fastmath=True)
 def guess_contrast_pixel(pixel: NDArray) -> float:
+    """
+    Estimate the contrast for a single pixel.
+
+    This function calculates the contrast as the absolute fractional difference
+    between the maximum and minimum values in the pixel data.
+
+    Args:
+        pixel: 1D array of intensity values for a single pixel.
+
+    Returns:
+        float: Estimated contrast value.
+    """
     mx, mn = np.nanmax(pixel), np.nanmin(pixel)
     return 0 if mx == 0 else abs((mx - mn) / mx)
 
@@ -153,8 +236,8 @@ def guess_center(data: NDArray, freq: NDArray) -> NDArray:
     Guess the center frequency of ODMR data.
 
     Args:
-        data (NDArray): 4D ODMR data (n_polarity, n_range, n_frequencies, n_pixels).
-        freq (NDArray): 1D frequency range corresponding to the data.
+        data: 4D ODMR data (n_polarity, n_range, n_frequencies, n_pixels).
+        freq: 1D frequency range corresponding to the data.
 
     Returns:
         NDArray: 3D array of center frequencies (n_polarity, n_range, n_pixels).
@@ -177,8 +260,8 @@ def guess_center_pixel(pixel: NDArray, freq: NDArray) -> float:
     Guess the center frequency of a single pixel.
 
     Args:
-        pixel (NDArray): 1D array of intensity values for a single pixel.
-        freq (NDArray): 1D array of frequency values.
+        pixel: 1D array of intensity values for a single pixel.
+        freq: 1D array of frequency values.
 
     Returns:
         float: Guessed center frequency.
@@ -194,10 +277,10 @@ def guess_width(data: NDArray, freq: NDArray, vmin: float, vmax: float) -> NDArr
     Guess the width of ODMR resonance peaks.
 
     Args:
-        data (NDArray): 4D ODMR data (n_polarity, n_range, n_frequencies, n_pixels).
-        freq (NDArray): 1D frequency range corresponding to the data.
-        vmin (float): Minimum normalized cumsum value.
-        vmax (float): Maximum normalized cumsum value.
+        data: 4D ODMR data (n_polarity, n_range, n_frequencies, n_pixels).
+        freq: 1D frequency range corresponding to the data.
+        vmin: Minimum normalized cumsum value.
+        vmax: Maximum normalized cumsum value.
 
     Returns:
         NDArray: 3D array of widths (n_polarity, n_range, n_pixels).
@@ -222,10 +305,10 @@ def guess_width_pixel(pixel: NDArray, freq: NDArray, vmin: float, vmax: float) -
     Guess the width of a single pixel.
 
     Args:
-        pixel (NDArray): 1D array of intensity values for a single pixel.
-        freq (NDArray): 1D array of frequency values.
-        vmin (float): Minimum normalized cumsum value.
-        vmax (float): Maximum normalized cumsum value.
+        pixel: 1D array of intensity values for a single pixel.
+        freq: 1D array of frequency values.
+        vmin: Minimum normalized cumsum value.
+        vmax: Maximum normalized cumsum value.
 
     Returns:
         float: Estimated width of the resonance peak.
@@ -242,7 +325,7 @@ def normalize_pixel(pixel: NDArray) -> NDArray:
     Normalize a pixel's cumulative sum.
 
     Args:
-        pixel (NDArray): 1D array of intensity values for a single pixel.
+        pixel: 1D array of intensity values for a single pixel.
 
     Returns:
         NDArray: The normalized cumulative sum of the pixel data.
@@ -258,12 +341,10 @@ if __name__ == "__main__":
     from QDMpy.odmr.io import MatlabLoader
     from QDMpy.odmr.processors import (
         ODMRProcessorManager,
-        NormalizationProcessor,
         BinningProcessor,
     )
     from QDMpy.odmr.odmr import ODMR
     from QDMpy.models import ModelRegistry
-    from QDMpy.guess import guess_n_peaks, guess_initial_fit_parameters
 
     # Step 1: Load ODMR data
     loader = MatlabLoader(data_folder="/home/mike/git/QDMpy/tests/data")
