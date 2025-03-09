@@ -333,14 +333,26 @@ def analyze_fluorescence_effects(
             - The calculated baseline-corrected mean data used for correction
     """
     if pixel_idx is None:
-        # Find the most divergent pixel from mean (but not extreme outliers)
-        delta = np.nansum(
-            np.square(data.data - np.nanmean(data.data, axis=2, keepdims=True)), axis=-1
-        )
-        delta_copy = delta.copy()
-        delta_copy[delta_copy > 0.001] = np.nan  # Mask high values to find a representative pixel
-        flat_idx = int(np.unravel_index(np.nanargmax(delta_copy), delta_copy.shape)[2])
-        LOG.info(f"Automatically selected pixel index: {flat_idx}")
+        try:
+            # Find the most divergent pixel from mean (but not extreme outliers)
+            delta = np.nansum(
+                np.square(data.data - np.nanmean(data.data, axis=2, keepdims=True)), axis=-1
+            )
+            delta_copy = delta.copy()
+            delta_copy[delta_copy > 0.001] = np.nan  # Mask high values to find a representative pixel
+            
+            # Check if all values are NaN
+            if np.all(np.isnan(delta_copy)):
+                LOG.warning("All values in delta_copy are NaN. Using middle pixel instead.")
+                flat_idx = data.data.shape[2] // 2  # Use middle pixel as fallback
+            else:
+                flat_idx = int(np.unravel_index(np.nanargmax(delta_copy), delta_copy.shape)[2])
+                
+            LOG.info(f"Automatically selected pixel index: {flat_idx}")
+        except ValueError:
+            # Fallback to middle pixel if any error occurs
+            LOG.warning("Error finding representative pixel. Using middle pixel instead.")
+            flat_idx = data.data.shape[2] // 2
     else:
         flat_idx = int(pixel_idx)
 
