@@ -11,7 +11,6 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy<=2.1",
     "matplotlib>=3.9.2",
-    "mkdocs>=1.6.1",
     "tomli>=2.1.0",
     "numba>=0.60.0",
     "scikit-learn>=1.5.2",
@@ -21,13 +20,12 @@ dependencies = [
     "coloredlogs>=15.0.1",
     "scikit-image>=0.24.0",
     "pre-commit>=4.0.1",
-    "pyside6>=6.8.0.2",
 ]
 
 [tool.uv.sources]
 pygpufit = [
     { path = "src/pyGpufit/win/pyGpufit-1.2.0-py2.py3-none-any.whl", marker = "sys_platform == 'win32'" },
-    { path = "src/pyGpufit/linux/pyGpufit-1.2.0-py2.py3-none-any.whl", marker = "sys_platform != 'win32'" }
+    { path = "src/pyGpufit/linux/pyGpufit-1.2.0-py2.py3-none-any.whl", marker = "sys_platform != 'win32'" },
 ]
 
 [tool.pytest.ini_options]
@@ -40,10 +38,7 @@ addopts = """\
 
 [tool.coverage.report]
 fail_under = 100
-exclude_lines = [
-    'if TYPE_CHECKING:',
-    'pragma: no cover'
-]
+exclude_lines = ['if TYPE_CHECKING:', 'pragma: no cover']
 
 [tool.mypy]
 #disallow_any_unimported = true
@@ -58,8 +53,4 @@ show_error_codes = true
 ignore_missing_imports = true
 
 [dependency-groups]
-dev = [
-    "jupyterlab>=4.3.1",
-    "mkdocs>=1.6.1",
-    "ruff>=0.7.4",
-]
+dev = ["jupyterlab>=4.3.1", "mkdocs>=1.6.1", "ruff>=0.7.4"]
