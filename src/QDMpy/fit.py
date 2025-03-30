@@ -40,6 +40,65 @@ CONSTRAINT_TYPES = ['FREE', 'LOWER', 'UPPER', 'LOWER_UPPER']
 # Estimator IDs for least squares (LSE) or maximum likelihood (MLE)
 ESTIMATOR_ID = {'LSE': 0, 'MLE': 1}
 
+class ConstraintManager:
+    """Manages parameter constraints for fitting."""
+
+    def __init__(self, model_params: list[str], settings: dict, units: dict[str, str]) -> None:
+        """Initialize constraints from configuration settings.
+
+        Args:
+            model_params: List of unique model parameters.
+            settings: Configuration settings for constraints.
+            units: Units for each parameter type.
+        """
+        self._constraints = {}
+        self._units = units
+        self._initialize_constraints(model_params, settings)
+
+    def _initialize_constraints(self, model_params: list[str], settings: dict) -> None:
+        """Initialize constraints based on model parameters and settings."""
+        for param in model_params:
+            base_param = param.split('_')[0]
+            self._constraints[param] = [
+                settings[f'{base_param}_min'],
+                settings[f'{base_param}_max'],
+                settings[f'{base_param}_type'],
+                self._units[base_param],
+            ]
+
+    def set_constraint(
+        self, param: str, vmin: Optional[float] = None, vmax: Optional[float] = None, constraint_type: Optional[str] = None
+    ) -> None:
+        """Set or update constraints for a specific parameter."""
+        if param not in self._constraints:
+            raise ValueError(f"Unknown parameter: {param}")
+
+        current = self._constraints[param]
+        if vmin is not None:
+            current[0] = vmin
+        if vmax is not None:
+            current[1] = vmax
+        if constraint_type is not None:
+            if constraint_type not in CONSTRAINT_TYPES:
+                raise ValueError(f"Invalid constraint type: {constraint_type}")
+            current[2] = constraint_type
+
+    def get_constraints(self) -> dict[str, list[Any]]:
+        """Get the current constraints."""
+        return self._constraints
+
+    def to_array(self, n_pixel: int, model_params: list[str]) -> NDArray:
+        """Convert constraints to array format for external libraries."""
+        constraints_list = []
+        for param in model_params:
+            constraints_list.extend((self._constraints[param][0], self._constraints[param][1]))
+        return np.tile(constraints_list, (n_pixel, 1))
+
+    def get_constraint_types(self, model_params: list[str]) -> NDArray:
+        """Get constraint types as integer array."""
+        return np.array(
+            [CONSTRAINT_TYPES.index(self._constraints[param][2]) for param in model_params], dtype=np.int32
+        )
 
 class Fit:
     """Manages fitting operations for ODMR spectral data.
