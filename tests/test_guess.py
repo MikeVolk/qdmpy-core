@@ -103,51 +103,56 @@ class TestValidateArray:
 class TestGuessNPeaks:
     """Test cases for guess_n_peaks function."""
 
-    @pytest.mark.skip(reason='Issues with find_peaks in test environment')
-    def test_guess_n_peaks_double(self, sample_odmr_data):
-        """Test guessing the number of peaks with double peak data."""
-        # The sample data has two distinct peaks
-        n_peaks, doubt, indices = guess_n_peaks(sample_odmr_data)
-        assert n_peaks == 2
-        assert isinstance(doubt, bool)
-        assert len(indices) == sample_odmr_data.shape[0] * sample_odmr_data.shape[1]
-
-    @pytest.mark.skip(reason='Issues with find_peaks in test environment')
-    def test_guess_n_peaks_single(self):
-        """Test guessing the number of peaks with single peak data."""
-        # Create data with just one peak
-        data = np.random.random((2, 3, 100, 10))
-
-        # Add a single peak
-        for pol in range(2):
-            for freq_range in range(3):
-                center_idx = 50
-                for pixel in range(10):
-                    for i in range(-5, 6):
-                        if 0 <= center_idx + i < 100:
-                            data[pol, freq_range, center_idx + i, pixel] = 0.5 - 0.4 * np.exp(-0.5 * (i / 2)**2)
-
-        n_peaks, doubt, indices = guess_n_peaks(data)
-        assert n_peaks == 1
-
-    @pytest.mark.skip(reason='Issues with find_peaks in test environment')
-    def test_guess_n_peaks_three(self):
-        """Test guessing the number of peaks with triple peak data."""
-        # Create data with three peaks
-        data = np.random.random((2, 3, 100, 10))
-
-        for pol in range(2):
-            for freq_range in range(3):
-                centers = [25, 50, 75]
-                for center_idx in centers:
-                    for pixel in range(10):
-                        for i in range(-5, 6):
-                            if 0 <= center_idx + i < 100:
-                                data[pol, freq_range, center_idx + i, pixel] = 0.5 - 0.4 * np.exp(-0.5 * (i / 2)**2)
-
-        n_peaks, doubt, indices = guess_n_peaks(data)
-        assert n_peaks == 3
-
+    def test_guess_n_peaks_mock(self):
+        """Test guessing the number of peaks with mocked find_peaks function."""
+        # Create a mock data array
+        mock_data = np.random.random((2, 3, 100, 10))
+        
+        # Mock the find_peaks function to return consistent results
+        with patch('QDMpy.guess.find_peaks') as mock_find_peaks:
+            # Set up the mock to return 2 peaks for every call
+            mock_find_peaks.return_value = (np.array([30, 70]), {})
+            
+            # Call guess_n_peaks with the mock in place
+            n_peaks, doubt, indices = guess_n_peaks(mock_data)
+            
+            # Since we're returning 2 peaks consistently, doubt should be False
+            assert n_peaks == 2
+            assert bool(doubt) is False
+            assert len(indices) == mock_data.shape[0] * mock_data.shape[1]
+    
+    def test_guess_n_peaks_doubt(self):
+        """Test guessing the number of peaks when there's doubt (inconsistent peak counts)."""
+        # Create a mock data array
+        mock_data = np.random.random((2, 3, 100, 10))
+        
+        # Mock the find_peaks function to return inconsistent results
+        with patch('QDMpy.guess.find_peaks') as mock_find_peaks:
+            # Set up the mock to return different numbers of peaks
+            # First polarity, first freq range: 2 peaks
+            # First polarity, second freq range: 2 peaks
+            # First polarity, third freq range: 3 peaks (different!)
+            # Second polarity, all freq ranges: 2 peaks
+            def side_effect_fn(data, prominence):
+                # Get the current indices based on mock_find_peaks.call_count
+                call_count = mock_find_peaks.call_count - 1  # 0-indexed
+                
+                if call_count == 2:  # First polarity, third freq range
+                    return np.array([25, 50, 75]), {}
+                else:
+                    return np.array([30, 70]), {}
+            
+            mock_find_peaks.side_effect = side_effect_fn
+            
+            # Call guess_n_peaks with the mock in place
+            n_peaks, doubt, indices = guess_n_peaks(mock_data)
+            
+            # The average should be close to 2, but doubt should be True
+            # The function should still return a rounded integer
+            assert n_peaks in (2, 3)  # Depending on rounding
+            assert bool(doubt) is True  # There should be doubt due to inconsistency
+            assert len(indices) == mock_data.shape[0] * mock_data.shape[1]
+    
     def test_incorrect_dimensions(self):
         """Test with incorrect dimensions."""
         data = np.zeros((2, 3, 4))  # 3D array instead of 4D

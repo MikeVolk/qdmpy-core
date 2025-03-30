@@ -238,3 +238,68 @@ class TestMeasurement:
         assert any('Setting ODMR data' in call.args[0] for call in mock_debug.call_args_list)
         assert any('Initializing outlier mask' in call.args[0] for call in mock_debug.call_args_list)
         assert any('Storing light and laser images' in call.args[0] for call in mock_debug.call_args_list)
+        
+    def test_outliers_property(self, sample_odmr, sample_images, temp_output_dir):
+        """Test the _outliers attribute."""
+        light_image, laser_image = sample_images
+        
+        # Create a measurement object
+        measurement = Measurement(
+            odmr=sample_odmr,
+            light_image=light_image,
+            laser_image=laser_image,
+            output_directory=temp_output_dir,
+        )
+        
+        # Check the outliers attribute
+        assert measurement._outliers is not None
+        assert isinstance(measurement._outliers, np.ndarray)
+        assert measurement._outliers.shape == sample_odmr.raw_data.shape
+        assert measurement._outliers.dtype == bool
+        
+    def test_B111_property(self, sample_odmr, sample_images, temp_output_dir):
+        """Test the _B111 attribute."""
+        light_image, laser_image = sample_images
+        
+        # Create a measurement object
+        measurement = Measurement(
+            odmr=sample_odmr,
+            light_image=light_image,
+            laser_image=laser_image,
+            output_directory=temp_output_dir,
+        )
+        
+        # Check the B111 attribute
+        assert measurement._B111 is None
+        
+        # We should be able to set it
+        test_data = np.ones((5, 5))
+        measurement._B111 = test_data
+        assert measurement._B111 is test_data
+        
+    def test_fit_model_attribute(self, sample_odmr, sample_images, temp_output_dir):
+        """Test the _fit_model attribute."""
+        light_image, laser_image = sample_images
+        
+        # Create a measurement object with default fit_model
+        measurement = Measurement(
+            odmr=sample_odmr,
+            light_image=light_image,
+            laser_image=laser_image,
+            output_directory=temp_output_dir,
+        )
+        
+        # Check the default value
+        assert measurement._fit_model == 'auto'
+        
+        # Create another measurement with a different fit_model
+        measurement2 = Measurement(
+            odmr=sample_odmr,
+            light_image=light_image,
+            laser_image=laser_image,
+            output_directory=temp_output_dir,
+            fit_model='ESR14N',
+        )
+        
+        # Check the custom value
+        assert measurement2._fit_model == 'ESR14N'
