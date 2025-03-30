@@ -1,3 +1,4 @@
+[lint]
 select = [
     "E",    # pycodestyle errors
     "F",    # pyflakes
@@ -20,7 +21,6 @@ select = [
     "ARG",  # flake8-unused-arguments
     "PL",   # Pylint
     "A",    # flake8-builtins
-    "COM",  # flake8-commas
     "G",    # flake8-logging-format
     "PIE",  # flake8-pie
     "T20",  # flake8-print
@@ -29,10 +29,10 @@ select = [
 ignore = [
     "D203",  # one-blank-line-before-class (conflicts with no-blank-line-before-class)
     "D213",  # multi-line-summary-second-line (conflicts with multi-line-summary-first-line)
+    "COM812", # Avoid conflicts with formatter
+    "Q000",   # Avoid conflicts with formatter quote style
+    "Q003"    # Avoid conflicts with formatter quote style
 ]
-
-line-length = 100
-target-version = "py312"
 
 [lint.per-file-ignores]
 "tests/*" = ["D100", "D101", "D103", "ANN101", "S101", "PT015", "B011"]  # Allow missing docstrings and test assertions in tests
@@ -48,7 +48,7 @@ required-imports = ["from __future__ import annotations"]
 
 [lint.flake8-quotes]
 docstring-quotes = "double"
-inline-quotes = "single"
+inline-quotes = "double"
 
 [lint.mccabe]
 max-complexity = 10
