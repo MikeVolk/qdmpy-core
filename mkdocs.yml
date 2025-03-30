@@ -1,36 +1,108 @@
 site_name: QDMpy
 repo_url: https://github.com/mikevolk/QDMpy
+site_description: Quantum Diamond Microscopy Data Analysis in Python
+site_author: Michael Volk
 
 theme:
   name: material
   palette:
     - scheme: default
+      primary: indigo
+      accent: indigo
       toggle:
         icon: material/toggle-switch-off-outline
         name: Switch to dark mode
     - scheme: slate
+      primary: indigo
+      accent: indigo
       toggle:
         icon: material/toggle-switch
         name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - navigation.indexes
+    - content.code.copy
+    - content.code.annotate
 
 nav:
-  - Introduction: 'index.md'
-  - quickstart.md
-  - cli.md
-  - api_docs.md
-  - changelog.md
+  - Home: index.md
+  - Getting Started:
+    - Installation: installation.md
+    - Quick Start: quickstart.md
+    - CLI Usage: cli.md
+  - Tutorials:
+    - tutorials/index.md
+    - Basic Tutorial: tutorials/basic.md
+    - ODMR Processors: tutorials/processors.md
+    - Model Fitting: tutorials/fitting.md
+    - Custom Models: tutorials/models.md
+  - API Reference:
+    - api/index.md
+    - Core:
+      - api/core/fit.md
+      - api/core/models.md
+      - api/core/measurement.md
+    - ODMR:
+      - api/odmr/odmr.md
+      - api/odmr/processors.md
+      - api/odmr/data.md
+      - api/odmr/io.md
+    - Utilities:
+      - api/utils.md
+      - api/constants.md
+      - api/exceptions.md
+  - Changelog: changelog.md
 
 markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
   - pymdownx.snippets:
       check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - tables
+  - footnotes
+  - pymdownx.arithmatex:
+      generic: true
+  - toc:
+      permalink: true
 
 plugins:
-  - search:
+  - search
   - mkdocstrings:
       handlers:
         python:
-          rendering:
-            show_signature_annotations: true
+          paths: [src]
+          options:
+            docstring_style: google
             show_source: true
-      watch:
-        - src/QDMpy
+            show_signature_annotations: true
+            separate_signature: true
+            show_root_heading: true
+            merge_init_into_class: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+  - mkdocs-jupyter:
+      include_source: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mikevolk/QDMpy
+      name: QDMpy on GitHub
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
