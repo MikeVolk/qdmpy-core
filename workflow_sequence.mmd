@@ -1,0 +1,90 @@
+---
+title: QDMpy Typical Workflow Sequence
+---
+sequenceDiagram
+    participant User
+    participant MatlabLoader
+    participant ODMRData
+    participant ODMR
+    participant ProcessorManager
+    participant BinningProcessor
+    participant NormalizationProcessor
+    participant ModelRegistry
+    participant FitManager
+    participant ConstraintManager
+    participant PyGpufit
+
+    %% Data Loading Phase
+    User->>MatlabLoader: new MatlabLoader(data_folder)
+    User->>MatlabLoader: load()
+    MatlabLoader->>MatlabLoader: _process_mat_file()
+    MatlabLoader-->>User: (raw_data, scan_dims, frequencies)
+    
+    User->>ODMRData: from_loader(loader)
+    ODMRData->>MatlabLoader: load()
+    MatlabLoader-->>ODMRData: (raw_data, scan_dims, frequencies)
+    ODMRData-->>User: ODMRData instance
+
+    %% ODMR Setup Phase
+    User->>ODMR: new ODMR(odmr_data)
+    ODMR->>ProcessorManager: new ODMRProcessorManager()
+    ProcessorManager-->>ODMR: processor_manager
+
+    %% Processing Setup Phase
+    User->>BinningProcessor: new BinningProcessor(bin_factor=2)
+    BinningProcessor-->>User: processor
+    User->>ODMR: processor_manager.add_processor(processor)
+    ODMR->>ProcessorManager: add_processor(processor)
+
+    User->>NormalizationProcessor: new NormalizationProcessor(method="max")
+    NormalizationProcessor-->>User: processor
+    User->>ODMR: processor_manager.add_processor(processor)
+    ODMR->>ProcessorManager: add_processor(processor)
+
+    %% Data Processing Phase
+    User->>ODMR: process_data()
+    ODMR->>ProcessorManager: process(raw_data)
+    ProcessorManager->>BinningProcessor: process(data)
+    BinningProcessor-->>ProcessorManager: binned_data
+    ProcessorManager->>NormalizationProcessor: process(binned_data)
+    NormalizationProcessor-->>ProcessorManager: normalized_data
+    ProcessorManager-->>ODMR: processed_data
+    ODMR-->>User: self (method chaining)
+
+    %% Model Selection Phase
+    User->>ModelRegistry: get('ESR15N')
+    ModelRegistry-->>User: ESR15N model
+
+    %% Fitting Setup Phase
+    User->>FitManager: new FitManager(data, frequencies, model_name='ESR15N')
+    FitManager->>ModelRegistry: get('ESR15N')
+    ModelRegistry-->>FitManager: model
+    FitManager->>ConstraintManager: new ConstraintManager(model_params, settings, units)
+    ConstraintManager-->>FitManager: constraint_manager
+    FitManager-->>User: fit_manager
+
+    %% Fitting Execution Phase
+    User->>FitManager: fit_odmr()
+    FitManager->>FitManager: get_initial_parameter()
+    FitManager->>FitManager: get_constraints_array()
+    FitManager->>ConstraintManager: to_array()
+    ConstraintManager-->>FitManager: constraints
+    FitManager->>FitManager: get_constraint_types()
+    FitManager->>ConstraintManager: get_constraint_types()
+    ConstraintManager-->>FitManager: constraint_types
+    FitManager->>PyGpufit: fit_constrained(data, frequencies, constraints, ...)
+    PyGpufit-->>FitManager: fit_results
+    FitManager-->>User: fitted parameters
+
+    %% Results Access Phase
+    User->>FitManager: get_param('center')
+    FitManager-->>User: center_frequencies
+    User->>FitManager: get_param('contrast')
+    FitManager-->>User: contrast_values
+
+    %% Notes
+    note over User, PyGpufit: Complete ODMR Data Processing and Fitting Workflow
+    note over MatlabLoader, ODMRData: Data Loading Layer
+    note over ODMR, NormalizationProcessor: Processing Pipeline Layer  
+    note over ModelRegistry, ConstraintManager: Fitting Layer
+    note over PyGpufit: GPU Acceleration Layer

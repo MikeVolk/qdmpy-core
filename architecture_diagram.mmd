@@ -1,0 +1,214 @@
+---
+title: QDMpy Architecture - Class and Function Interactions
+---
+classDiagram
+    %% Core Data Classes
+    class ODMRData {
+        +NDArray data
+        +NDArray scan_dimensions
+        +NDArray frequencies
+        +dict metadata
+        +from_loader(loader) ODMRData
+        +shape() tuple
+        +__init__(data, scan_dimensions, frequencies, metadata)
+    }
+
+    %% Data Loading Classes
+    class BaseLoader {
+        <<abstract>>
+        +load(**kwargs) tuple~NDArray, NDArray, NDArray~
+    }
+
+    class MatlabLoader {
+        +str data_folder
+        +load(**kwargs) tuple~NDArray, NDArray, NDArray~
+        -_process_mat_file(mat_file) NDArray
+        +__init__(data_folder)
+    }
+
+    %% Processing Classes
+    class BaseProcessor {
+        <<abstract>>
+        +process(data, **kwargs) ODMRData
+    }
+
+    class BinningProcessor {
+        +int bin_factor
+        +process(data, **kwargs) ODMRData
+        +__init__(bin_factor)
+    }
+
+    class NormalizationProcessor {
+        +str method
+        +process(data, **kwargs) ODMRData
+        -_get_norm_factors(data, method) NDArray
+        +__init__(method)
+    }
+
+    class OutlierProcessor {
+        +float threshold
+        +process(data, **kwargs) ODMRData
+        +__init__(threshold)
+    }
+
+    class FluorescenceCorrectionProcessor {
+        +float correction_factor
+        +process(data, **kwargs) ODMRData
+        +__init__(correction_factor)
+    }
+
+    class ODMRProcessorManager {
+        +list~BaseProcessor~ processors
+        +add_processor(processor) void
+        +process(data) ODMRData
+        +list_processors() list~str~
+    }
+
+    %% Core ODMR Management
+    class ODMR {
+        -ODMRData _raw_data
+        -ODMRData _processed_data
+        +ODMRProcessorManager processor_manager
+        +bool is_processed
+        +load_data(raw_data, scan_dimensions, frequencies) ODMR
+        +process_data() ODMR
+        +reset() ODMR
+        +raw_data() ODMRData
+        +processed_data() ODMRData
+    }
+
+    %% Model Classes
+    class Model {
+        <<abstract>>
+        +str name
+        +list~str~ parameters_unique
+        +int n_peaks
+        +func(x, parameter) NDArray
+    }
+
+    class ESR14N {
+        +int n_parameters
+        +list~str~ parameter
+        +func(x, parameter) NDArray
+        +__init__()
+    }
+
+    class ESR15N {
+        +int n_parameters
+        +list~str~ parameter
+        +func(x, parameter) NDArray
+        +__init__()
+    }
+
+    class ESRSINGLE {
+        +int n_parameters
+        +list~str~ parameter
+        +func(x, parameter) NDArray
+        +__init__()
+    }
+
+    class ModelRegistry {
+        -dict _registry
+        +register(name, model) void
+        +get(name) Model
+        +all() dict
+        +list_models() list~str~
+    }
+
+    %% Fitting Classes
+    class ConstraintManager {
+        -dict~str, list~ _constraints
+        -dict _units
+        +set_constraint(param, vmin, vmax, constraint_type) void
+        +get_constraints() dict
+        +to_array(n_pixel, model_params) NDArray
+        +get_constraint_types(model_params) NDArray
+        +__init__(model_params, settings, units)
+    }
+
+    class FitManager {
+        -NDArray _data
+        +NDArray f_ghz
+        -Model _model
+        -NDArray _initial_parameter
+        -NDArray _fit_results
+        -NDArray _chi_squares
+        -NDArray _states
+        -ConstraintManager _constraint_manager
+        +bool _fitted
+        +int estimator_id
+        +fit_odmr(refit) void
+        +fit_frange(data, freq, initial_parameters) list~NDArray~
+        +get_initial_parameter() NDArray
+        +set_constraints(param, vmin, vmax, constraint_type, reset_fit) void
+        +get_param(param) NDArray
+        +__init__(data, frequencies, model_name, constraints)
+    }
+
+    %% Utility Functions
+    class GuessModule {
+        +guess_model(data) Model
+        +guess_center(data, frequencies) NDArray
+        +guess_width(data, frequencies, vmin, vmax) NDArray
+        +guess_contrast(data) NDArray
+    }
+
+    class AnalysisFunctions {
+        +analyze_fluorescence_effects(data, pixel_idx) tuple~int, NDArray~
+        +preview_fluorescence_correction(data, correction_factor, pixel_idx) void
+    }
+
+    %% Model Functions
+    class ModelFunctions {
+        +esr14n(x, parameter, ahyp) NDArray
+        +esr15n(x, parameter, ahyp) NDArray
+        +esrsingle(x, parameter) NDArray
+    }
+
+    %% CLI Classes
+    class CLI {
+        +create_parser(version) ArgumentParser
+        +process_command(args) int
+        +process_command_handler(args) int
+        +models_command_handler(args) int
+        +info_command_handler(args) int
+    }
+
+    %% Relationships - Inheritance
+    BaseLoader <|-- MatlabLoader
+    BaseProcessor <|-- BinningProcessor
+    BaseProcessor <|-- NormalizationProcessor
+    BaseProcessor <|-- OutlierProcessor
+    BaseProcessor <|-- FluorescenceCorrectionProcessor
+    Model <|-- ESR14N
+    Model <|-- ESR15N
+    Model <|-- ESRSINGLE
+
+    %% Relationships - Composition
+    ODMR *-- ODMRProcessorManager : contains
+    ODMR *-- ODMRData : manages
+    ODMRProcessorManager *-- BaseProcessor : manages multiple
+    FitManager *-- ConstraintManager : uses
+    FitManager *-- Model : uses
+
+    %% Relationships - Usage/Dependencies
+    ODMRData ..> BaseLoader : created from
+    MatlabLoader ..> ODMRData : creates
+    ODMR ..> MatlabLoader : loads data from
+    BaseProcessor ..> ODMRData : processes
+    FitManager ..> GuessModule : uses for initial parameters
+    FitManager ..> ModelFunctions : calls model functions
+    ModelRegistry ..> Model : registers and retrieves
+    ESR14N ..> ModelFunctions : uses esr14n()
+    ESR15N ..> ModelFunctions : uses esr15n()
+    ESRSINGLE ..> ModelFunctions : uses esrsingle()
+    FluorescenceCorrectionProcessor ..> AnalysisFunctions : uses analysis functions
+    CLI ..> ODMR : orchestrates
+    CLI ..> FitManager : creates and uses
+
+    %% Annotations
+    note for ODMRData "Central data container\n4D array: (polarities, freq_ranges, pixels, frequencies)"
+    note for ODMR "Main orchestrator class\nManages data lifecycle and processing"
+    note for FitManager "Handles all fitting operations\nIntegrates with pyGpufit for GPU acceleration"
+    note for ModelRegistry "Singleton pattern\nCentral model factory"
+    note for ODMRProcessorManager "Pipeline pattern\nSequential processing steps"
