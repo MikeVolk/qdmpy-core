@@ -46,3 +46,6 @@ Usage Example:
 This module is designed for researchers and practitioners working with ODMR data,
 offering a robust and extensible solution for their data management and analysis needs.
 """
+
+from QDMpy.odmr.odmr import ODMR
+from QDMpy.odmr.data import ODMRData
