@@ -1,147 +1,229 @@
-# Custom Models Tutorial
+# ODMR Spectral Models Tutorial
 
-This tutorial explains how to create and use custom spectral models in QDMpy.
+This tutorial explains how to understand and use the ODMR spectral models in QDMpy for fitting nitrogen-vacancy (NV) center data.
 
 [View the full tutorial notebook](../tutorial_models.ipynb)
 
-## Model Architecture in QDMpy
+## Overview of ODMR Models
 
-QDMpy provides a flexible framework for defining spectral models:
+QDMpy provides three built-in spectral models for fitting ODMR data from nitrogen-vacancy centers:
 
-1. The `Model` base class defines the interface for all models
-2. The `ModelRegistry` manages model registration and retrieval
-3. Concrete model classes (like `ESR14N`, `ESR15N`, `ESRSINGLE`) implement specific spectral shapes
+1. **ESR14N** - For NV centers with ¹⁴N isotope (3 dips)
+2. **ESR15N** - For NV centers with ¹⁵N isotope (2 dips)  
+3. **ESRSINGLE** - For single resonance systems (1 dip)
 
-## Creating a Custom Model
+These models are implemented using Lorentzian lineshapes and are optimized for GPU-accelerated fitting.
 
-You can create a custom model by subclassing `Model` and implementing its abstract methods:
+## Model Architecture
+
+The model system in QDMpy consists of:
+
+- **Model Functions**: Core mathematical functions (`esr14n`, `esr15n`, `esrsingle`)
+- **Model Classes**: Object-oriented wrappers (`ESR14N`, `ESR15N`, `ESRSINGLE`)
+- **ModelRegistry**: Central registry for model management and retrieval
+
+## Understanding the Models
+
+### ESR14N Model
+
+The ESR14N model represents ODMR spectra from NV centers with ¹⁴N nitrogen isotope (nuclear spin I=1):
+
+```python
+from QDMpy.models import ModelRegistry
+import numpy as np
+
+# Get the 14N model
+model_14n = ModelRegistry.get('ESR14N')
+print(f"Model: {model_14n.name}")
+print(f"Number of parameters: {model_14n.n_parameters}")
+print(f"Number of peaks: {model_14n.n_peaks}")
+print(f"Parameters: {model_14n.parameters_unique}")
+```
+
+**Physics**: The ¹⁴N nucleus has three nuclear spin states (mI = -1, 0, +1), creating three hyperfine-split resonance lines.
+
+**Parameters** (6 total):
+- `center`: Center frequency of the resonance (Hz)
+- `width_0`, `width_1`, `width_2`: Linewidth for each of the three dips (Hz)
+- `contrast`: Overall contrast level (0-1)
+- `offset`: Baseline offset (0-1)
+
+### ESR15N Model
+
+The ESR15N model represents ODMR spectra from NV centers with ¹⁵N nitrogen isotope (nuclear spin I=1/2):
+
+```python
+# Get the 15N model
+model_15n = ModelRegistry.get('ESR15N')
+print(f"Model: {model_15n.name}")
+print(f"Number of parameters: {model_15n.n_parameters}")
+print(f"Number of peaks: {model_15n.n_peaks}")
+```
+
+**Physics**: The ¹⁵N nucleus has two nuclear spin states (mI = -1/2, +1/2), creating two hyperfine-split resonance lines.
+
+**Parameters** (5 total):
+- `center`: Center frequency of the resonance (Hz)
+- `width_0`, `width_1`: Linewidth for each of the two dips (Hz)
+- `contrast`: Overall contrast level (0-1)
+- `offset`: Baseline offset (0-1)
+
+### ESRSINGLE Model
+
+The ESRSINGLE model represents systems with a single resonance dip:
+
+```python
+# Get the single resonance model
+model_single = ModelRegistry.get('ESRSINGLE')
+print(f"Model: {model_single.name}")
+print(f"Number of parameters: {model_single.n_parameters}")
+print(f"Number of peaks: {model_single.n_peaks}")
+```
+
+**Use Cases**:
+- Isotopically pure samples without hyperfine interaction
+- Broadened spectra where hyperfine structure is not resolved
+- Individual component fitting of complex spectra
+- Initial parameter estimation
+
+**Parameters** (4 total):
+- `center`: Center frequency of the resonance (Hz)
+- `width_0`: Linewidth of the dip (Hz)
+- `contrast`: Contrast level (0-1)
+- `offset`: Baseline offset (0-1)
+
+## Using Models for Evaluation
+
+You can evaluate any model directly with parameters:
 
 ```python
 import numpy as np
-from QDMpy.models import Model, ModelRegistry
-
-class DoubleLorentzian(Model):
-    """Model with two Lorentzian dips of equal contrast."""
-    
-    def __init__(self):
-        """Initialize the double Lorentzian model."""
-        super().__init__(name='DOUBLELORENTZIAN')
-        self.parameter = ['contrast', 'center_1', 'center_2', 'width', 'offset']
-        self.parameters_unique = ['contrast', 'center_1', 'center_2', 'width_0', 'offset']
-        self.n_parameters = len(self.parameter)
-        self.n_peaks = 2
-        self.model_id = 5  # Choose a unique ID not used by existing models
-    
-    def evaluate(self, params, x):
-        """Evaluate the model with the given parameters at the given x values."""
-        # Unpack parameters
-        contrast = params[0]
-        center_1 = params[1]
-        center_2 = params[2]
-        width = params[3]
-        offset = params[4]
-        
-        # Calculate the spectrum
-        spectrum = offset
-        spectrum -= contrast * (width**2 / ((x - center_1)**2 + width**2))
-        spectrum -= contrast * (width**2 / ((x - center_2)**2 + width**2))
-        
-        return spectrum
-
-# Register the model
-ModelRegistry.register('DOUBLELORENTZIAN', {'class': DoubleLorentzian})
-```
-
-## Using a Custom Model
-
-Once registered, you can use your custom model like any built-in model:
-
-```python
 import matplotlib.pyplot as plt
 
-# Get the registered model
-double_lorentzian = ModelRegistry.get('DOUBLELORENTZIAN')
+# Create frequency array
+frequencies = np.linspace(2.87e9, 2.88e9, 1000)  # 2.87-2.88 GHz
 
-# Create some test data
-frequencies = np.linspace(2.85e9, 2.90e9, 1000)
-params = np.array([0.1, 2.87e9, 2.88e9, 3e6, 1.0])
+# Example parameters for ESR14N
+# [center, width, contrast_-1, contrast_0, contrast_+1, offset]
+params_14n = np.array([2.875e9, 3e6, 0.1, 0.2, 0.1, 0.0])
 
 # Evaluate the model
-spectrum = double_lorentzian.evaluate(params, frequencies)
+model_14n = ModelRegistry.get('ESR14N')
+spectrum = model_14n.func(frequencies, params_14n)
 
 # Plot the result
 plt.figure(figsize=(10, 6))
-plt.plot(frequencies/1e9, spectrum)
+plt.plot(frequencies/1e9, spectrum[0])
 plt.xlabel('Frequency (GHz)')
-plt.ylabel('Signal (a.u.)')
-plt.title('Double Lorentzian Model')
+plt.ylabel('Normalized Fluorescence')
+plt.title('ESR14N Model Response')
 plt.grid(True, alpha=0.3)
 plt.show()
-
-# Use with FitManager
-from QDMpy.fit import FitManager
-
-fit_manager = FitManager(data, frequencies, model_name='DOUBLELORENTZIAN')
-fit_manager.fit_odmr()
 ```
 
-## Advanced Model Features
+## Model Selection Guidelines
+
+### When to use ESR14N:
+- Working with natural diamond (99% ¹⁴N isotope)
+- Well-resolved hyperfine structure visible
+- Need to fit all three hyperfine components independently
+
+### When to use ESR15N:
+- Working with isotopically enriched ¹⁵N diamond
+- Two-peak structure is clearly visible
+- Smaller hyperfine splitting than ¹⁴N
+
+### When to use ESRSINGLE:
+- Highly broadened spectra (e.g., due to strain or high temperature)
+- Proof-of-concept measurements
+- When hyperfine structure is not resolved
+- Fitting individual components of complex multi-NV spectra
+
+## Model Registry Operations
+
+The ModelRegistry provides convenient access to all available models:
+
+```python
+from QDMpy.models import ModelRegistry
+
+# List all available models
+all_models = ModelRegistry.all()
+print("Available models:")
+for name, info in all_models.items():
+    print(f"  {name}: {info['class'].__name__}")
+
+# Get model information
+for model_name in ['ESR14N', 'ESR15N', 'ESRSINGLE']:
+    model = ModelRegistry.get(model_name)
+    print(f"\n{model_name}:")
+    print(f"  Parameters: {model.n_parameters}")
+    print(f"  Peaks: {model.n_peaks}")
+    print(f"  Hyperfine constant: {all_models[model_name]['hyp']} Hz")
+```
+
+## Advanced Usage
 
 ### Parameter Constraints
 
-You can define custom constraints for your model:
+When using models with fitting routines, you can specify constraints:
 
 ```python
-# Set constraints specific to your model
-fit_manager.set_constraints('center_1', vmin=2.86e9, vmax=2.88e9, constraint_type='LOWER_UPPER')
-fit_manager.set_constraints('center_2', vmin=2.87e9, vmax=2.89e9, constraint_type='LOWER_UPPER')
-fit_manager.set_constraints('width_0', vmin=1e6, constraint_type='LOWER')
+# Example constraint dictionary for ESR14N
+constraints = {
+    'center': [2.8e9, 2.9e9],      # Center frequency bounds
+    'width': [1e6, 1e7],           # Linewidth bounds  
+    'contrast': [0.0, 1.0],        # Contrast bounds
+    'offset': [-0.1, 0.1],         # Offset bounds
+}
+
+# Convert to constraint array for fitting
+model = ModelRegistry.get('ESR14N')
+constraint_array = model.get_constraint_array(constraints)
 ```
 
-### Initial Parameter Estimation
+### Mathematical Formulation
 
-For better fitting results, you can implement custom parameter estimation:
+All models implement Lorentzian absorption lines:
+
+**Single Lorentzian**:
+```
+f(x) = 1 + offset - (contrast × width² / ((x - center)² + width²))
+```
+
+**Multi-peak models** sum multiple Lorentzians at hyperfine-shifted positions.
+
+### Performance Considerations
+
+- Models are optimized for GPU acceleration via pyGpufit
+- Use appropriate model complexity for your data quality
+- Start with ESRSINGLE for initial parameter estimation
+- Use vectorized parameter arrays for batch processing
+
+## Integration with QDMpy Workflow
+
+Models integrate seamlessly with the QDMpy fitting and measurement infrastructure:
 
 ```python
-def guess_double_lorentzian_params(data, frequencies):
-    """Estimate initial parameters for double Lorentzian model."""
-    # Find the two largest dips in the spectrum
-    mean_spectrum = np.mean(data, axis=(0, 1, 3))
-    smoothed = np.convolve(mean_spectrum, np.ones(5)/5, mode='same')
-    baseline = np.percentile(smoothed, 90)
-    
-    # Find dips as points below a threshold
-    dips = smoothed < (baseline - 0.05)
-    dip_indices = np.where(dips)[0]
-    
-    # Group adjacent indices into dip regions
-    regions = []
-    current_region = []
-    for i in dip_indices:
-        if not current_region or i == current_region[-1] + 1:
-            current_region.append(i)
-        else:
-            regions.append(current_region)
-            current_region = [i]
-    if current_region:
-        regions.append(current_region)
-    
-    # Get center of each region (up to 2)
-    centers = []
-    for region in regions[:2]:
-        min_idx = region[np.argmin(smoothed[region])]
-        centers.append(frequencies[min_idx])
-    
-    # If we found fewer than 2 dips, estimate the second one
-    while len(centers) < 2:
-        centers.append(centers[0] + 10e6)  # 10 MHz away
-    
-    # Estimate other parameters
-    contrast = baseline - np.min(smoothed)
-    width = 5e6  # 5 MHz initial guess
-    offset = baseline
-    
-    return [contrast, centers[0], centers[1], width, offset]
+from QDMpy import Measurement
+from QDMpy.models import ModelRegistry
+
+# In a typical workflow:
+# 1. Load ODMR data
+# 2. Select appropriate model
+model = ModelRegistry.get('ESR14N')  # or 'ESR15N', 'ESRSINGLE'
+
+# 3. The model is automatically used by fitting routines
+# measurement.fit_odmr(model=model)
 ```
 
-For the full tutorial with detailed explanations and examples, please see [the complete Jupyter notebook](../tutorial_models.ipynb).
+For complete examples and detailed usage, see the [full tutorial notebook](../tutorial_models.ipynb).
+
+## Summary
+
+QDMpy's model system provides:
+- **Three robust models** covering common NV center configurations
+- **Physics-based implementations** with proper hyperfine splitting
+- **Flexible parameter management** with constraint support
+- **GPU-optimized performance** for large-scale fitting
+
+Choose the model that best matches your experimental system and data quality. The models are designed to work seamlessly with QDMpy's fitting infrastructure while providing the flexibility needed for diverse ODMR applications.
