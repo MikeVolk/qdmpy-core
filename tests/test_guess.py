@@ -99,6 +99,23 @@ class TestValidateArray:
         assert 'must have 4 dimensions' in str(excinfo.value)
         assert 'Got 3' in str(excinfo.value)
 
+    def test_none_array(self):
+        """Test validation with None."""
+        with pytest.raises(ValueError):
+            validate_array(None, 4, 'test_data')
+
+    def test_non_numeric_array(self):
+        """Test validation with a non-numeric array."""
+        data = np.array([['a', 'b'], ['c', 'd']])
+        with pytest.raises(ValueError):
+            validate_array(data, 2, 'test_data')
+
+    def test_unexpected_dimensions(self):
+        """Test validation with unexpected dimensions."""
+        data = np.zeros((2, 3, 4))
+        with pytest.raises(ValueError):
+            validate_array(data, 5, 'test_data')
+
 
 class TestGuessNPeaks:
     """Test cases for guess_n_peaks function."""
@@ -264,6 +281,25 @@ class TestNormalizePixel:
         assert normalized.min() == 0.0
         assert normalized.max() == 1.0
         assert normalized.shape == pixel.shape
+
+    def test_empty_pixel(self):
+        """Test normalizing an empty pixel."""
+        pixel = np.array([])
+        normalized = normalize_pixel(pixel)
+        assert normalized.size == 0
+
+    def test_all_zeros(self):
+        """Test normalizing a pixel with all zeros."""
+        pixel = np.zeros(10)
+        normalized = normalize_pixel(pixel)
+        assert np.all(normalized == 0.0)
+
+    def test_negative_values(self):
+        """Test normalizing a pixel with negative values."""
+        pixel = np.array([-1, -2, -3, -4])
+        normalized = normalize_pixel(pixel)
+        assert np.isclose(normalized.min(), 0.0)
+        assert np.isclose(normalized.max(), 1.0)
 
 
 class TestGuessContrastPixel:

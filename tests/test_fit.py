@@ -493,6 +493,136 @@ class TestFitting:
         assert reshaped[3].shape == (n_pol, n_pixels)
         assert reshaped[4] == mock_time  # Time should not be reshaped
 
+@patch('QDMpy.fit.SETTINGS', MOCK_SETTINGS)
+def test_fit_odmr_refit(self, sample_data, sample_frequencies):
+    """Test fit_odmr with refit=True."""
+    fit = FitManager(sample_data, sample_frequencies)
 
+    # Mock the fit_frange method to avoid actual fitting
+    with patch.object(fit, 'fit_frange', return_value=[None, None, None, None, 0.5]) as mock_fit_frange:
+        fit.fit_odmr()
+        assert fit.fitted is True
+
+        # Call fit_odmr again with refit=True
+        fit.fit_odmr(refit=True)
+        assert mock_fit_frange.call_count == 2  # Ensure it was called twice
+@patch('QDMpy.fit.SETTINGS', MOCK_SETTINGS)
+def test_reshape_results_invalid_input(self, sample_data, sample_frequencies):
+    """Test reshape_results with invalid input."""
+    fit = FitManager(sample_data, sample_frequencies)
+
+    # Pass invalid results (e.g., wrong shape)
+    invalid_results = [np.random.random((10, 10))]  # Invalid shape
+    with pytest.raises(ValueError):
+        fit.reshape_results(invalid_results)
+@patch('QDMpy.fit.SETTINGS', MOCK_SETTINGS)
+def test_set_constraints_missing_param(self, sample_data, sample_frequencies):
+    """Test set_constraints with a missing parameter."""
+    fit = FitManager(sample_data, sample_frequencies)
+
+    # Try setting constraints for a non-existent parameter
+    with pytest.raises(ValueError) as excinfo:
+        fit.set_constraints('non_existent_param', vmin=0, vmax=1)
+    assert 'Unknown parameter' in str(excinfo.value)
+
+@patch('QDMpy.fit.SETTINGS', MOCK_SETTINGS)
+def test_get_param_invalid(self, sample_data, sample_frequencies):
+    """Test get_param with an invalid parameter."""
+    fit = FitManager(sample_data, sample_frequencies)
+
+    # Try to get a parameter that doesn't exist
+    with pytest.raises(ValueError) as excinfo:
+        fit.get_param('invalid_param')
+    assert 'Unknown parameter' in str(excinfo.value)
+
+def test_constraint_manager_missing_settings(self):
+    """Test ConstraintManager initialization with missing settings."""
+    model_params = ['center', 'width_0', 'contrast', 'offset']
+    incomplete_settings = {
+        'center_min': 2.8e9,  # Missing 'center_max' and 'center_type'
+    }
+    units = {'center': 'GHz', 'width': 'GHz', 'contrast': 'a.u.', 'offset': 'a.u.'}
+
+    with pytest.raises(KeyError):
+        ConstraintManager(model_params, incomplete_settings, units)
+
+def test_to_array_zero_pixels(self):
+    """Test ConstraintManager.to_array with zero pixels."""
+    model_params = ['center', 'width_0', 'contrast', 'offset']
+    settings = {
+        'center_min': 2.8e9,
+        'center_max': 2.9e9,
+        'center_type': 'FREE',
+        'width_min': 1e6,
+        'width_max': 1e7,
+        'width_type': 'FREE',
+        'contrast_min': 0.0,
+        'contrast_max': 1.0,
+        'contrast_type': 'FREE',
+        'offset_min': -0.1,
+        'offset_max': 0.1,
+        'offset_type': 'FREE',
+    }
+    units = {'center': 'GHz', 'width': 'GHz', 'contrast': 'a.u.', 'offset': 'a.u.'}
+    constraint_manager = ConstraintManager(model_params, settings, units)
+
+    # Generate constraints array for zero pixels
+    constraints_array = constraint_manager.to_array(0, model_params)
+    assert constraints_array.shape == (0, len(model_params) * 2)
+
+@patch('QDMpy.fit.SETTINGS', MOCK_SETTINGS)
+def test_fit_manager_empty_data(self):
+    """Test FitManager initialization with empty data."""
+    empty_data = np.empty((0, 0, 0, 0))
+    frequencies = np.linspace(2.87e9, 2.88e9, 10)
+
+    with pytest.raises(ValueError) as excinfo:
+        FitManager(empty_data, frequencies)
+    assert 'Data cannot be empty' in str(excinfo.value)
+
+@patch('QDMpy.fit.SETTINGS', MOCK_SETTINGS)
+def test_get_initial_parameter_edge_cases(self, sample_frequencies):
+    """Test get_initial_parameter with edge cases."""
+    zero_data = np.zeros((2, 1, 10, 4))  # All zeros
+    fit = FitManager(zero_data, sample_frequencies)
+
+    initial_params = fit.get_initial_parameter()
+    assert np.all(initial_params == 0)  # Ensure all initial parameters are zero
+
+@patch('QDMpy.fit.SETTINGS', MOCK_SETTINGS)
+@patch('QDMpy.fit.gf.fit_constrained')
+def test_fit_frange_mocked(self, mock_fit_constrained, sample_data, sample_frequencies):
+    """Test fit_frange with mocked pyGpufit."""
+    fit = FitManager(sample_data, sample_frequencies)
+
+    # Mock the return value of fit_constrained
+    mock_fit_constrained.return_value = [
+        np.random.random((8, fit.n_parameter)),  # Fitted parameters
+        np.zeros(8, dtype=int),  # Fit states
+        np.random.random(8),  # Chi-squares
+        np.ones(8, dtype=int) * 10,  # Iterations
+        0.5,  # Execution time
+    ]
+
+    results = fit.fit_frange(sample_data[:, 0], sample_frequencies, fit.initial_parameter[:, 0])
+    assert len(results) == 5
+    assert results[0].shape == (8, fit.n_parameter)  # Check fitted parameters shape
+
+@patch('QDMpy.fit.SETTINGS', MOCK_SETTINGS)
+def test_set_free_constraints_complex_model(self, sample_data, sample_frequencies):
+    """Test set_free_constraints with a complex model."""
+    fit = FitManager(sample_data, sample_frequencies, model_name='ESR14N')
+
+    # Set some constraints first
+    fit.set_constraints('center', vmin=2.85e9, vmax=2.90e9, constraint_type='LOWER_UPPER')
+
+    # Set all constraints to FREE
+    fit.set_free_constraints()
+
+    # Check that all constraints are now FREE
+    for param in fit.model_params_unique:
+        assert fit.constraints[param][2] == 'FREE'
+
+        
 if __name__ == '__main__':
     pytest.main(['-v', 'tests/test_fit.py'])

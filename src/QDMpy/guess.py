@@ -63,6 +63,10 @@ def validate_array(data: NDArray, expected_dim: int, name: str) -> None:
     Raises:
         ValueError: If the array does not have the expected number of dimensions.
     """
+    if data is None:
+        raise ValueError(f"{name} cannot be None.")
+    if not np.issubdtype(data.dtype, np.number):
+        raise ValueError(f"{name} must be a numeric array.")
     if data.ndim != expected_dim:
         raise ValueError(
             f'{name} must have {expected_dim} dimensions. Got {data.ndim}.',

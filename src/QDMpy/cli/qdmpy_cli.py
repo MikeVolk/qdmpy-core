@@ -13,19 +13,10 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-import coloredlogs
 
 import QDMpy
 from QDMpy.cli import CLI_LOGGER
 from QDMpy.models import ModelRegistry
-
-# Configure coloredlogs for the CLI
-coloredlogs.install(
-    level="INFO",
-    logger=CLI_LOGGER,
-    fmt="%(asctime)s %(levelname)s %(message)s",
-    datefmt="%H:%M:%S",
-)
 
 
 def setup_logging(debug: bool = False) -> None:

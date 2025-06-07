@@ -19,7 +19,6 @@ from logging.config import fileConfig
 from pathlib import Path
 from typing import Any
 
-import coloredlogs
 import matplotlib as mpl
 import tomli
 
@@ -43,14 +42,16 @@ fileConfig(logging_conf)
 
 LOG = logging.getLogger('QDMpy')
 
-coloredlogs.install(
-    level='DEBUG',
+# Configure logging without coloredlogs
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter(
     fmt='%(asctime)s %(levelname)8s %(name)s.%(funcName)s >> %(message)s',
     datefmt='%H:%M:%S.%f',
-    stream=sys.stdout,
-    logger=LOG,
-    isatty=True,
 )
+console_handler.setFormatter(formatter)
+LOG.addHandler(console_handler)
+LOG.setLevel(logging.DEBUG)
 
 LOG.info('WELCOME TO QDMpy')
 LOG.debug('QDMpy version %s installed at %s', __version__, PROJECT_PATH)
