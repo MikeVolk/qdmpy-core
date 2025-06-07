@@ -4,59 +4,76 @@ This tutorial introduces the fundamental concepts of QDMpy for analyzing ODMR da
 
 [View the full tutorial notebook](../tutorial.ipynb)
 
-```{jupyter-execute}
-import QDMpy
-print(f"QDMpy version: {QDMpy.__version__}")
-```
+## Quick Start
+
+QDMpy provides a complete workflow for ODMR analysis:
+
+1. **Load** data from various formats (.mat, .csv)
+2. **Process** data with built-in processors  
+3. **Fit** spectra using physics-based models
+4. **Visualize** results with built-in plotting
+5. **Export** processed data and results
 
 ## Loading Data
 
-QDMpy can load ODMR data from various file formats:
-
 ```python
-# Load data from a .mat file
-odmr = QDMpy.ODMR.from_files(['data.mat'])
+from QDMpy.odmr.io import MatlabLoader
+from QDMpy.odmr import ODMRData
 
-# Print information about the loaded data
-print(odmr)
+# Load data from MATLAB files
+loader = MatlabLoader(data_folder="./data")
+raw_data, scan_dimensions, frequencies = loader.load()
+
+# Create ODMRData object
+odmr_data = ODMRData(raw_data, scan_dimensions, frequencies)
 ```
 
 ## Processing Data
 
-ODMR data typically requires processing steps such as normalization, binning, and outlier removal:
+QDMpy uses a modular processing pipeline:
 
 ```python
-# Process the data with default parameters
+from QDMpy.odmr import ODMR
+from QDMpy.odmr.processors import BinningProcessor, NormalizationProcessor
+
+# Create ODMR manager
+odmr = ODMR(odmr_data)
+
+# Add processing steps
+odmr.processor_manager.add_processor(BinningProcessor(bin_factor=2))
+odmr.processor_manager.add_processor(NormalizationProcessor(method='max'))
+
+# Process the data
 odmr.process_data()
-
-# Configure specific processing steps
-odmr.normalize_data(method='max')
-odmr.bin_data(bin_factor=2)
-odmr.remove_outliers(threshold=3.0)
 ```
 
-## Visualizing Data
-
-QDMpy provides various visualization options:
+## Automatic Model Selection & Fitting
 
 ```python
-import matplotlib.pyplot as plt
+from QDMpy.guess import guess_n_peaks, guess_model
+from QDMpy.fit import Fit
 
-# Plot the mean ODMR spectrum
-plt.figure(figsize=(10, 6))
-plt.plot(odmr.f_ghz, odmr.mean_odmr)
-plt.xlabel('Frequency (GHz)')
-plt.ylabel('Signal (a.u.)')
-plt.title('Mean ODMR Spectrum')
-plt.grid(True, alpha=0.3)
-plt.show()
+# Detect peaks and select model
+n_peaks, doubt, _ = guess_n_peaks(odmr.processed_data.data)
+model = guess_model(n_peaks)
 
-# Plot a spatial map of contrast values
-plt.figure(figsize=(8, 8))
-plt.imshow(odmr.contrast.reshape(odmr.img_shape), cmap='viridis')
-plt.colorbar(label='Contrast (a.u.)')
-plt.title('ODMR Contrast Map')
-plt.show()
+# Fit the data
+fit_obj = Fit(odmr.processed_data.data, odmr.processed_data.frequencies, model.name)
+fit_obj.fit_odmr()
 ```
 
-For the full tutorial with detailed explanations and examples, please see [the complete Jupyter notebook](../tutorial.ipynb).
+## Creating Measurements
+
+```python
+from QDMpy.measurement import Measurement
+
+# Combine ODMR data with optical images
+measurement = Measurement(
+    odmr=odmr,
+    light_image=light_image,
+    laser_image=laser_image,
+    pixel_spacing=4e-6
+)
+```
+
+For the complete tutorial with detailed explanations and examples, see [the full Jupyter notebook](../tutorial.ipynb).
