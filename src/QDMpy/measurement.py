@@ -16,7 +16,8 @@ provides a unified interface for analysis and visualization of QDM experiments.
 from __future__ import annotations
 
 import logging
-import os, sys
+import os
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -38,7 +39,7 @@ if not __package__:
 
 
 # Following import must be after setup_package_paths
-from QDMpy.odmr.odmr import ODMR  # noqa: E402
+from QDMpy.odmr.odmr import ODMR
 
 LOG = logging.getLogger(__name__)
 
@@ -165,7 +166,7 @@ if __name__ == '__main__':
 
     LOG.setLevel(logging.DEBUG)
     # User-friendly initialization with proper paths
-    data_folder = "/media/mike/data/Dropbox/FOV18x"
+    data_folder = "/home/mike/git/QDMpy/tests/data/FOV18x"
     loader = MatlabLoader(data_folder=data_folder)
     odmr_data = ODMRData.from_loader(loader=loader)
     odmr = ODMR(odmr_data)
@@ -188,8 +189,7 @@ if __name__ == '__main__':
         output_dir,
     )
 
-    import matplotlib.pyplot as plt
     import matplotlib
-    matplotlib.use('QtAgg')
+    import matplotlib.pyplot as plt
     plt.imshow(measure.odmr.processed_data.data[0,0,:,0].reshape(measure.odmr.processed_data.scan_dimensions))
     plt.show()

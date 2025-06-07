@@ -23,24 +23,24 @@ def main() -> int:
         int: Exit code (0 for success, non-zero for errors)
     """
     from .qdmpy_cli import create_parser, process_command
-    
+
     # Get QDMpy version
     try:
         qdmpy_version = get_version("QDMpy")
     except Exception:
         qdmpy_version = "unknown"
-    
+
     # Create the argument parser
     parser = create_parser(qdmpy_version)
-    
+
     # Parse arguments
     args = parser.parse_args()
-    
+
     # Show help if no command provided
     if not hasattr(args, 'func'):
         parser.print_help()
         return 2
-    
+
     # Process the command
     try:
         return process_command(args)
@@ -48,7 +48,7 @@ def main() -> int:
         CLI_LOGGER.warning("Operation cancelled by user")
         return 130
     except Exception as e:
-        CLI_LOGGER.error(f"Error: {str(e)}")
+        CLI_LOGGER.error(f"Error: {e!s}")
         if args.debug:
             # Print full traceback in debug mode
             import traceback

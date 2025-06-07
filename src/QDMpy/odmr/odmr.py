@@ -169,18 +169,25 @@ class ODMR:
 
 
 # Example usage (uncomment to run)
-# if __name__ == "__main__":
-#     from QDMpy.odmr.data import ODMRData
-#     from QDMpy.odmr.io import MatlabLoader
-#     from QDMpy.odmr.processors import BinningProcessor
-#
-#     # User-friendly initialization
-#     loader = MatlabLoader(data_folder="/path/to/data")
-#     odmr_data = ODMRData.from_loader(loader=loader)
-#     odmr = ODMR(odmr_data)
-#     odmr.processor_manager.add_processor(BinningProcessor(bin_factor=2))
-#     odmr.process_data()
-#
-#     # Access data
-#     print(odmr.raw_data.shape)
-#     print(odmr.processed_data.shape)
+if __name__ == "__main__":
+    from QDMpy.odmr.data import ODMRData
+    from QDMpy.odmr.io import MatlabLoader
+    from QDMpy.odmr.processors import BinningProcessor
+    import matplotlib.pyplot as plt
+
+    # User-friendly initialization
+    loader = MatlabLoader(data_folder="/home/mike/git/QDMpy/tests/data/FOV18x")
+    odmr_data = ODMRData.from_loader(loader=loader)
+    odmr = ODMR(odmr_data)
+    odmr.processor_manager.add_processor(BinningProcessor(bin_factor=2))
+    odmr.process_data()
+
+    # Access data
+    print(odmr.raw_data.shape)
+    print(odmr.processed_data.shape)
+
+    plt.plot(odmr.processed_data.frequencies, odmr.processed_data.data[0, 0, 0, :])
+    plt.xlabel('Frequency (GHz)')
+    plt.ylabel('Signal (a.u.)')
+    plt.title('Processed ODMR Signal')
+    plt.show()

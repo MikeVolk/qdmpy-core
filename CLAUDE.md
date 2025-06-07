@@ -5,19 +5,21 @@
 - Create venv: `uv venv`
 - Activate venv: `source .venv/bin/activate`
 
+## running
+- Run python commands: `uv run python`
 ## Testing
-- Run all tests: `pytest`
-- Run single test: `pytest tests/test_file.py::test_function -v`
-- Run with coverage: `pytest --cov=QDMpy --cov-report=term-missing`
+- Run all tests: `uv run pytest`
+- Run single test: `uv run pytest tests/test_file.py::test_function -v`
+- Run with coverage: `uv run pytest --cov=QDMpy --cov-report=term-missing`
 
 ## Linting
 - Run all checks: `pre-commit run --all-files`
-- Run ruff: `ruff check .`
-- Run mypy: `mypy src/QDMpy`
+- Run ruff: `uv run ruff check .`
+- Run mypy: `uv run mypy src/QDMpy`
 
 ## Code Style
 - Python >=3.12
-- 80 char line length (strict PEP8)
+- 100 char line length (strict PEP8)
 - Google style docstrings
 - Type annotations required for all functions
 - Snake_case for variables/functions, PascalCase for classes

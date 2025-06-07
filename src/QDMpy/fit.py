@@ -148,7 +148,7 @@ class FitManager:
     """
 
     def __init__(
-        self: "FitManager",
+        self: FitManager,
         data: NDArray,
         frequencies: NDArray,
         model_name: str = "auto",
@@ -196,7 +196,7 @@ class FitManager:
         self._reset_fit()
         # Set up constraint manager
         self._constraint_manager = ConstraintManager(
-            self.model_params_unique, SETTINGS["fit"]["constraints"], UNITS
+            self.model_params_unique, SETTINGS["model"]["constraints"], UNITS
         )
 
         # Apply custom constraints if provided

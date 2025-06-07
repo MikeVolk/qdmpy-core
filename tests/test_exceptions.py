@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from QDMpy.exceptions import CantImportError, WrongFileNumber, ModelGuessNotPossible
+from QDMpy.exceptions import CantImportError, ModelGuessNotPossible, WrongFileNumber
 
 
 class TestExceptions(unittest.TestCase):
@@ -14,10 +14,10 @@ class TestExceptions(unittest.TestCase):
         error_message = "Could not import required module 'test_module'"
         with self.assertRaises(CantImportError) as context:
             raise CantImportError(error_message)
-        
+
         # Verify the error message
         self.assertEqual(str(context.exception), error_message)
-        
+
         # Verify inheritance
         self.assertIsInstance(context.exception, Exception)
 
@@ -27,10 +27,10 @@ class TestExceptions(unittest.TestCase):
         error_message = "Expected 2 files, got 1"
         with self.assertRaises(WrongFileNumber) as context:
             raise WrongFileNumber(error_message)
-        
+
         # Verify the error message
         self.assertEqual(str(context.exception), error_message)
-        
+
         # Verify inheritance
         self.assertIsInstance(context.exception, Exception)
 
@@ -40,10 +40,10 @@ class TestExceptions(unittest.TestCase):
         error_message = "Could not automatically determine model for data"
         with self.assertRaises(ModelGuessNotPossible) as context:
             raise ModelGuessNotPossible(error_message)
-        
+
         # Verify the error message
         self.assertEqual(str(context.exception), error_message)
-        
+
         # Verify inheritance
         self.assertIsInstance(context.exception, Exception)
 

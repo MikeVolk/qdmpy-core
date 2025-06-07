@@ -124,25 +124,25 @@ class TestGuessNPeaks:
         """Test guessing the number of peaks with mocked find_peaks function."""
         # Create a mock data array
         mock_data = np.random.random((2, 3, 100, 10))
-        
+
         # Mock the find_peaks function to return consistent results
         with patch('QDMpy.guess.find_peaks') as mock_find_peaks:
             # Set up the mock to return 2 peaks for every call
             mock_find_peaks.return_value = (np.array([30, 70]), {})
-            
+
             # Call guess_n_peaks with the mock in place
             n_peaks, doubt, indices = guess_n_peaks(mock_data)
-            
+
             # Since we're returning 2 peaks consistently, doubt should be False
             assert n_peaks == 2
             assert bool(doubt) is False
             assert len(indices) == mock_data.shape[0] * mock_data.shape[1]
-    
+
     def test_guess_n_peaks_doubt(self):
         """Test guessing the number of peaks when there's doubt (inconsistent peak counts)."""
         # Create a mock data array
         mock_data = np.random.random((2, 3, 100, 10))
-        
+
         # Mock the find_peaks function to return inconsistent results
         with patch('QDMpy.guess.find_peaks') as mock_find_peaks:
             # Set up the mock to return different numbers of peaks
@@ -153,23 +153,22 @@ class TestGuessNPeaks:
             def side_effect_fn(data, prominence):
                 # Get the current indices based on mock_find_peaks.call_count
                 call_count = mock_find_peaks.call_count - 1  # 0-indexed
-                
+
                 if call_count == 2:  # First polarity, third freq range
                     return np.array([25, 50, 75]), {}
-                else:
-                    return np.array([30, 70]), {}
-            
+                return np.array([30, 70]), {}
+
             mock_find_peaks.side_effect = side_effect_fn
-            
+
             # Call guess_n_peaks with the mock in place
             n_peaks, doubt, indices = guess_n_peaks(mock_data)
-            
+
             # The average should be close to 2, but doubt should be True
             # The function should still return a rounded integer
             assert n_peaks in (2, 3)  # Depending on rounding
             assert bool(doubt) is True  # There should be doubt due to inconsistency
             assert len(indices) == mock_data.shape[0] * mock_data.shape[1]
-    
+
     def test_incorrect_dimensions(self):
         """Test with incorrect dimensions."""
         data = np.zeros((2, 3, 4))  # 3D array instead of 4D

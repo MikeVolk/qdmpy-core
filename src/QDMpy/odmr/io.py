@@ -81,8 +81,8 @@ class MatlabLoader(BaseLoader):
                 - raw_data: The raw data array with shape (polarities, frequency_ranges, pixels, frequencies).
                   - Polarity axis (0): Contains measurements with different polarities (typically 2)
                   - Frequency ranges axis (1): Contains data from different frequency ranges
-                  - Frequencies axis (2): Contains measurements at different frequencies
-                  - Pixels axis (3): Contains flattened spatial pixels
+                  - Pixels axis (2): Contains flattened spatial pixels
+                  - Frequencies axis (3): Contains measurements at different frequencies
                 - scan_dimensions: The scan dimensions (rows, cols) used to reshape pixels to 2D.
                 - frequencies: The 1D array of frequencies used in the measurements.
                 - Note: All return values may be None if no files are processed.

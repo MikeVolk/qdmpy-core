@@ -47,7 +47,7 @@ def main(argv: list[str] = None) -> int:
     """
     if argv is None:
         argv = sys.argv[1:]
-        
+
     start_time = time.time()
 
     parser = argparse.ArgumentParser(
@@ -107,59 +107,59 @@ def main(argv: list[str] = None) -> int:
     try:
         args = parser.parse_args(argv)
         setup_logging(args.debug)
-        
+
         # Show warning about deprecated interface
         CLI_LOGGER.warning(
             "This command-line interface is deprecated. "
             "Please use 'qdmpy process' instead."
         )
-        
+
         # Determine output directory
         output_dir = args.output if args.output else Path(args.input) / "results"
         output_path = Path(output_dir)
-        
+
         # Check if output directory exists
         if output_path.exists() and not args.overwrite:
             CLI_LOGGER.error(f"Output directory {output_dir} already exists. Use --overwrite to overwrite.")
             return 1
-        
+
         # Create output directory if it doesn't exist
         if not output_path.exists():
             CLI_LOGGER.info(f"Creating output directory: {output_dir}")
             output_path.mkdir(parents=True)
-        
+
         # Log the command parameters
         CLI_LOGGER.info(f"Processing data from: {args.input}")
         CLI_LOGGER.info(f"Binning factor: {args.binfactor}")
         CLI_LOGGER.info(f"Model: {args.model}")
         CLI_LOGGER.info(f"Global fluorescence: {args.globalfluorescence}")
-        
+
         # Create QDM object from data
         qdm_obj = QDM.from_qdmio(args.input, model_name=args.model)
-        
+
         # Apply binning if requested
         if args.binfactor > 1:
             CLI_LOGGER.info(f"Applying spatial binning with factor {args.binfactor}...")
             qdm_obj.bin_data(bin_factor=args.binfactor)
-        
+
         # Apply global fluorescence correction
         CLI_LOGGER.info(f"Applying global fluorescence correction ({args.globalfluorescence})...")
         qdm_obj.correct_glob_fluorescence(glob_fluorescence=args.globalfluorescence)
-        
+
         # Fit ODMR data
         CLI_LOGGER.info("Fitting ODMR spectra...")
         qdm_obj.fit_odmr()
-        
+
         # Export results
         CLI_LOGGER.info(f"Exporting results to {output_dir}...")
         qdm_obj.export_qdmio(output_path=output_dir)
-        
+
         elapsed_time = time.time() - start_time
         CLI_LOGGER.info(f"Processing completed successfully in {elapsed_time:.2f} seconds")
         return 0
-        
+
     except Exception as e:
-        CLI_LOGGER.error(f"Error processing data: {str(e)}")
+        CLI_LOGGER.error(f"Error processing data: {e!s}")
         if getattr(args, 'debug', False):
             import traceback
             traceback.print_exc()

@@ -1,0 +1,32 @@
+classDiagram
+            class FitManager {
+                +data: NDArray
+                +f_ghz: NDArray
+                +model: Model
+                +fit()
+            }
+
+            class ConstraintManager {
+                +set_constraint(param: str, vmin: float, vmax: float, constraint_type: str)
+                +get_constraints() -> dict
+                +to_array(n_pixel: int, model_params: list)
+            }
+
+            class Model {
+                +evaluate(x: NDArray, parameters: NDArray)
+            }
+
+            class ModelRegistry {
+                +get(name: str) -> Model
+            }
+
+            class Guess {
+                +guess_model(data: NDArray) -> Model
+                +guess_center(data: NDArray, freq: NDArray) -> NDArray
+            }
+
+            FitManager --> ConstraintManager : uses
+            FitManager --> Model : uses
+            FitManager --> ModelRegistry : retrieves
+            ModelRegistry --> Model : stores
+            Guess --> Model : retrieves

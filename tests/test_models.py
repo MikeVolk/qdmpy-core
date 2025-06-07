@@ -12,7 +12,16 @@ import pytest
 from numpy.testing import assert_array_equal
 
 from QDMpy.constants import AHYP_14N, AHYP_15N
-from QDMpy.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry, esr14n, esr15n, esrsingle
+from QDMpy.models import (
+    ESR14N,
+    ESR15N,
+    ESRSINGLE,
+    Model,
+    ModelRegistry,
+    esr14n,
+    esr15n,
+    esrsingle,
+)
 
 
 class TestModelFunctions:
@@ -531,16 +540,16 @@ def test_direct_import_handling():
 def test_main_demo_function():
     """Test the _main_demo function that shows model usage."""
     import io
-    import sys
     from unittest.mock import patch
+
     from QDMpy.models import _main_demo
-    
+
     # Capture stdout to verify the output
     captured_output = io.StringIO()
-    
+
     with patch('sys.stdout', captured_output):
         _main_demo()
-    
+
     # Verify the output matches what we expect
     output = captured_output.getvalue()
     assert output == '4\n'

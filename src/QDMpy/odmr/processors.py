@@ -20,11 +20,11 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Tuple, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 import numpy as np
-from numpy.typing import NDArray
 from matplotlib import pyplot as plt
+from numpy.typing import NDArray
 from skimage.measure import block_reduce
 
 if TYPE_CHECKING:
@@ -194,7 +194,7 @@ class BinningProcessor(BaseProcessor):
             int(data.scan_dimensions[0]/self.bin_factor),
             int(data.scan_dimensions[1]/self.bin_factor),
                                 )
-        
+
         return data.__class__(
             data=binned,
             scan_dimensions=new_scan_dimensions,
@@ -347,14 +347,14 @@ def analyze_fluorescence_effects(
             )
             delta_copy = delta.copy()
             delta_copy[delta_copy > 0.001] = np.nan  # Mask high values to find a representative pixel
-            
+
             # Check if all values are NaN
             if np.all(np.isnan(delta_copy)):
                 LOG.warning("All values in delta_copy are NaN. Using middle pixel instead.")
                 flat_idx = data.data.shape[2] // 2  # Use middle pixel as fallback
             else:
                 flat_idx = int(np.unravel_index(np.nanargmax(delta_copy), delta_copy.shape)[2])
-                
+
             LOG.info(f"Automatically selected pixel index: {flat_idx}")
         except ValueError:
             # Fallback to middle pixel if any error occurs

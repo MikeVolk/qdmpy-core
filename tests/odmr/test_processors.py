@@ -15,7 +15,6 @@ from QDMpy.odmr.processors import (
     ODMRProcessorManager,
     OutlierProcessor,
     analyze_fluorescence_effects,
-    preview_fluorescence_correction,
 )
 
 
@@ -256,36 +255,36 @@ class TestFluorescenceCorrectionProcessor:
 
 class TestFluorescenceAnalysis:
     """Test class for fluorescence analysis functions."""
-    
+
     def test_analyze_fluorescence_effects(self, sample_odmr_data):
         """Test the analyze_fluorescence_effects function."""
         # Set specific values in the data for predictable testing
         sample_odmr_data.data = np.ones_like(sample_odmr_data.data)
         # Add a variation pattern that should be detected
         sample_odmr_data.data[:, :, 50, :] = 0.8  # Make one pixel different
-        
+
         # Call the function with specified pixel
         idx, baseline_corrected = analyze_fluorescence_effects(sample_odmr_data, pixel_idx=50)
-        
+
         # Check the returned index matches what we specified
         assert idx == 50
-        
+
         # Check that baseline_corrected contains reasonable values
         # The baseline should be calculated from the first and last 5% of frequencies
         # With our mockup data, this should be close to 0 (after baseline subtraction)
         assert baseline_corrected.shape[2] == 1  # Only one pixel in dimension 2
         assert -0.5 < np.mean(baseline_corrected) < 0.5  # Should be close to zero
-        
+
     def test_analyze_fluorescence_effects_auto_pixel(self, sample_odmr_data):
         """Test the analyze_fluorescence_effects function with auto pixel selection."""
         # Set specific values in the data for predictable testing
         sample_odmr_data.data = np.ones_like(sample_odmr_data.data)
         # Add a variation pattern that should be detected
         sample_odmr_data.data[:, :, 50, :] = 0.9  # Make one pixel slightly different
-        
+
         # Call the function with automatic pixel selection
         idx, baseline_corrected = analyze_fluorescence_effects(sample_odmr_data)
-        
+
         # The function should identify pixel 50 as most divergent
         # However, since we're using random data in the fixture, we can't guarantee
         # which pixel will be selected, so we just check the type is correct
