@@ -35,8 +35,8 @@ flowchart TD
     I --> J
     
     %% Model Selection
-    K[ModelRegistry] --> L[ESR14N Model<br/>3 dips (mI = -1, 0, +1)<br/>6 parameters]
-    K --> M[ESR15N Model<br/>2 dips (mI = ±1/2)<br/>5 parameters]
+    K[ModelRegistry] --> L[ESR14N Model<br/>3 dips: mI = -1, 0, +1<br/>6 parameters]
+    K --> M[ESR15N Model<br/>2 dips: mI = ±1/2<br/>5 parameters]
     K --> N[ESRSINGLE Model<br/>1 dip<br/>4 parameters]
     
     %% Fitting Setup
@@ -46,21 +46,21 @@ flowchart TD
     N --> O
     
     %% Parameter Estimation
-    O --> P[Initial Parameter Guess<br/>guess_center(): peak detection<br/>guess_width(): spectral analysis<br/>guess_contrast(): amplitude estimation]
+    O --> P[Initial Parameter Guess<br/>guess_center: peak detection<br/>guess_width: spectral analysis<br/>guess_contrast: amplitude estimation]
     
     %% Constraint Management
     Q[Settings Config<br/>model.constraints<br/>center_min/max<br/>width_min/max<br/>contrast_min/max] --> R[ConstraintManager<br/>Parameter bounds<br/>Constraint types<br/>LOWER_UPPER, FREE, etc.]
     R --> O
     
     %% GPU Fitting
-    P --> S[PyGpufit Interface<br/>fit_constrained()<br/>GPU-accelerated<br/>Levenberg-Marquardt]
+    P --> S[PyGpufit Interface<br/>fit_constrained function<br/>GPU-accelerated<br/>Levenberg-Marquardt]
     O --> S
     
     %% Fit Results
     S --> T[Fit Results<br/>fitted_parameters: NDArray<br/>chi_squares: NDArray<br/>states: convergence status<br/>execution_time: float]
     
     %% Result Access
-    T --> U[Parameter Extraction<br/>get_param('center'): resonance frequencies<br/>get_param('width'): linewidths<br/>get_param('contrast'): signal amplitudes]
+    T --> U[Parameter Extraction<br/>get_param center: resonance frequencies<br/>get_param width: linewidths<br/>get_param contrast: signal amplitudes]
     
     %% Visualization/Export
     U --> V[Analysis Outputs<br/>Spatial maps<br/>Spectral plots<br/>Statistical summaries]
