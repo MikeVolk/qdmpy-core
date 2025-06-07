@@ -527,36 +527,25 @@ def test_direct_import_handling():
         test_path_with_insert = [project_root] + original_path
         assert project_root == test_path_with_insert[0]
 
-# Test the main execution block of models.py (lines 345-346)
-def test_main_execution():
-    """Test the code that runs when models.py is executed directly as a script."""
-    from QDMpy.models import ModelRegistry
+# Test the main demo function (lines 375-380)
+def test_main_demo_function():
+    """Test the _main_demo function that shows model usage."""
+    import io
+    import sys
+    from unittest.mock import patch
+    from QDMpy.models import _main_demo
+    
+    # Capture stdout to verify the output
+    captured_output = io.StringIO()
+    
+    with patch('sys.stdout', captured_output):
+        _main_demo()
+    
+    # Verify the output matches what we expect
+    output = captured_output.getvalue()
+    assert output == '4\n'
 
-    # Create a test module that simulates the __main__ block
-    # This allows us to directly test the code that runs in the __main__ block
-    main_code = """
-# Import the model registry
-from QDMpy.models import ModelRegistry
 
-# This is the code that runs in __name__ == "__main__" block
-model = ModelRegistry.get("ESRSINGLE")
-print(model.n_parameter)  # This line specifically tests accessing n_parameter
-    """
-
-    # Create a mock for ModelRegistry.get that will be used inside our exec
-    with patch.object(ModelRegistry, 'get') as mock_get:
-        # Set up the mock's return value
-        mock_model = MagicMock()
-        # Make n_parameter accessible as a property (important for line 346 coverage)
-        mock_model.n_parameter = 4
-        mock_get.return_value = mock_model
-
-        # Execute the code with stdout captured to avoid test output
-        with patch('sys.stdout'):
-            exec(main_code)
-
-        # Verify that ModelRegistry.get was called with "ESRSINGLE"
-        mock_get.assert_called_once_with('ESRSINGLE')
 
 
 if __name__ == '__main__':
