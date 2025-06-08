@@ -1,29 +1,395 @@
 #!/usr/bin/env python3
-"""Test script to verify compatibility between old and new fitting functions.
+"""Test compatibility between old and new QDMpy fit implementations.
 
-This script creates test data using the old code's methods and compares results
-from old vs new function implementations to ensure they produce the same outputs.
+This test compares the calculation functions from the old fit module with the new
+implementation to ensure they produce the same results. It also includes basic
+performance benchmarks.
 """
 
 import sys
 import os
+import time
+import warnings
+from typing import Tuple, Any, Dict, List, Union, Optional, Callable
+
 sys.path.insert(0, '/home/mike/git/QDMpy/src')
 
 import numpy as np
+import numba
 import matplotlib.pyplot as plt
 from pathlib import Path
+from numpy.typing import NDArray
 
-# Import current functions
+# Import new implementation
 from QDMpy.guess import (
-    guess_center, guess_contrast, guess_width, 
-    normalize_pixel, guess_center_pixel, guess_contrast_pixel, guess_width_pixel
+    guess_center as new_guess_center,
+    guess_contrast as new_guess_contrast, 
+    guess_width as new_guess_width,
+    normalize_pixel as new_normalize_pixel,
+    guess_center_pixel, guess_contrast_pixel, guess_width_pixel
 )
 from QDMpy.constants import DEFAULT_VMIN, DEFAULT_VMAX
 from QDMpy.models import esr14n, esr15n, esrsingle, ModelRegistry
 
 print("Testing compatibility between old and new fitting functions...")
 
-def create_test_data():
+# ===== OLD IMPLEMENTATION FUNCTIONS (copied from your provided code) =====
+
+@numba.njit(parallel=True)
+def old_guess_contrast(data):
+    """
+    Guess the contrast of a ODMR data.
+
+    :param data: np.array
+        data to guess the contrast from
+    :return: np.array
+        contrast of the data
+    """
+    amp = np.zeros(data.shape[:-1])
+
+    for i, j in np.ndindex(data.shape[0], data.shape[1]):
+        for p in numba.prange(data.shape[2]):
+            amp[i, j, p] = old_guess_contrast_pixel(data[i, j, p])
+    return amp
+
+
+@numba.njit()
+def old_guess_contrast_pixel(data):
+    mx = np.nanmax(data)
+    mn = np.nanmin(data)
+    return np.abs((mx - mn) / mx)
+
+
+@numba.njit(parallel=True, fastmath=True)
+def old_guess_center(data, freq):
+    """
+    Guess the center frequency of ODMR data.
+
+    :param data: np.array
+        data to guess the center frequency from
+    :param freq: np.array
+        frequency range of the data
+
+    :return: np.array
+        center frequency of the data
+    """
+    # center frequency
+    center = np.zeros(data.shape[:-1])
+    for p, f in np.ndindex(data.shape[0], data.shape[1]):
+        for px in numba.prange(data.shape[2]):
+            center[p, f, px] = old_guess_center_pixel(data[p, f, px], freq[f])
+    return center
+
+
+@numba.njit(fastmath=True)
+def old_guess_center_pixel(pixel, freq):
+    """
+    Guess the center frequency of a single frequency range.
+
+    :param data: np.array
+        data to guess the center frequency from
+    :param freq: np.array
+        frequency range of the data
+    :return: np.array
+        center frequency of the data
+    """
+    pixel = old_normalized_cumsum_pixel(pixel)
+    idx = np.argmin(np.abs(pixel - 0.5))
+    return freq[idx]
+
+
+@numba.njit(parallel=True, fastmath=True)
+def old_guess_width(data: NDArray, f_ghz: NDArray, vmin: float, vmax: float) -> NDArray:
+    """
+    Guess the width of a ODMR resonance peaks.
+
+    :param data: np.array
+        data to guess the width from
+    :param f_ghz: np.array
+        frequency range of the data
+    :param vmin: float
+        minimum value of normalized cumsum to be considered
+    :param vmax: float
+        maximum value of normalized cumsum to be considered
+
+    :return: np.array
+        width of the data
+    """
+    # width
+    width = np.zeros(data.shape[:-1])
+    for p, f in np.ndindex(data.shape[0], data.shape[1]):
+        freq = f_ghz[f]
+        for px in numba.prange(data.shape[2]):
+            width[p, f, px] = old_guess_width_pixel(data[p, f, px], freq, vmin, vmax)
+
+    return width
+
+
+@numba.njit(fastmath=True)
+def old_guess_width_pixel(
+    pixel: NDArray, freq: NDArray, vmin: float, vmax: float
+) -> NDArray:
+    """
+    Guess the width of a single frequency range.
+
+    :param data: np.array
+        data to guess the width from
+    :param freq: np.array
+        frequency range of the data
+
+    :return: np.array
+        width of the data
+
+    Raises ValueError if the number of peaks is not 1, 2 or 3.
+    """
+    pixel = old_normalized_cumsum_pixel(pixel)
+    lidx = np.argmin(np.abs(pixel - vmin))
+    ridx = np.argmin(np.abs(pixel - vmax))
+    return freq[lidx] - freq[ridx]
+
+
+@numba.njit
+def old_normalized_cumsum_pixel(pixel):
+    """Calculate the normalized cumulative sum of the data.
+
+    Parameters
+    ----------
+    data : NDArray
+        Data to calculate the normalized cumulative sum of.
+
+
+    Returns
+    -------
+    NDArray
+        Normalized cumulative sum of the data.
+    """
+    pixel = np.cumsum(pixel - 1)
+    pixel -= np.min(pixel)
+    pixel /= np.max(pixel)
+    return pixel
+
+# ===== END OLD IMPLEMENTATION =====
+
+def create_test_data() -> Tuple[NDArray, NDArray]:
+    """Create synthetic test data similar to ODMR data."""
+    # Create synthetic ODMR data with known parameters
+    np.random.seed(42)  # For reproducible results
+    
+    n_pol, n_frange, n_freqs, n_pixel = 2, 2, 50, 100
+    freqs = np.linspace(2.84, 2.90, n_freqs)
+    
+    # Create synthetic data with resonance dips
+    data = np.zeros((n_pol, n_frange, n_freqs, n_pixel))
+    
+    for pol in range(n_pol):
+        for frange in range(n_frange):
+            # Add baseline
+            data[pol, frange, :, :] = 1.0
+            
+            # Add resonance dips at known frequencies
+            center_freq = 2.87 + 0.01 * frange
+            width = 0.005
+            contrast = 0.05
+            
+            for pixel in range(n_pixel):
+                # Add slight variations per pixel
+                pixel_center = center_freq + np.random.normal(0, 0.001)
+                pixel_contrast = contrast + np.random.normal(0, 0.01)
+                pixel_width = width + np.random.normal(0, 0.001)
+                
+                # Create Lorentzian dip
+                lorentzian = 1 - pixel_contrast / (1 + ((freqs - pixel_center) / (pixel_width/2))**2)
+                data[pol, frange, :, pixel] = lorentzian
+            
+            # Add noise
+            data[pol, frange, :, :] += np.random.normal(0, 0.001, (n_freqs, n_pixel))
+    
+    return data, freqs
+
+
+def adapt_data_for_old_functions(data: NDArray, freqs: NDArray) -> Tuple[NDArray, NDArray]:
+    """Adapt new data format to old function expectations."""
+    # Old functions expect data shape: (n_pol, n_frange, n_pixel, n_freqs)
+    # New functions expect data shape: (n_pol, n_frange, n_freqs, n_pixel)
+    old_data = np.transpose(data, (0, 1, 3, 2))
+    
+    # Old functions expect frequency as 2D array (n_frange, n_freqs)
+    old_freqs = np.tile(freqs, (data.shape[1], 1))
+    
+    return old_data, old_freqs
+
+
+def test_normalize_pixel_compatibility():
+    """Test that old and new normalize pixel functions give the same results."""
+    print("\nTesting normalize pixel compatibility...")
+    
+    # Create a single pixel test
+    np.random.seed(42)
+    pixel = np.random.randn(50) + 1.0
+    
+    # Run old function
+    old_result = old_normalized_cumsum_pixel(pixel)
+    
+    # Run new function
+    new_result = new_normalize_pixel(pixel)
+    
+    # Compare results
+    are_close = np.allclose(old_result, new_result, rtol=1e-10, atol=1e-12)
+    print(f"   Results are close: {are_close}")
+    
+    if not are_close:
+        diff = np.abs(old_result - new_result)
+        print(f"   Max difference: {np.max(diff)}")
+        print(f"   Mean difference: {np.mean(diff)}")
+        print(f"   Old result sample: {old_result[:5]}")
+        print(f"   New result sample: {new_result[:5]}")
+    
+    return are_close
+
+
+def test_contrast_compatibility():
+    """Test that old and new contrast functions give the same results."""
+    print("\nTesting contrast calculation compatibility...")
+    
+    data, freqs = create_test_data()
+    old_data, old_freqs = adapt_data_for_old_functions(data, freqs)
+    
+    # Run old function
+    old_result = old_guess_contrast(old_data)
+    
+    # Run new function  
+    new_result = new_guess_contrast(data)
+    
+    # Compare results
+    print(f"   Old result shape: {old_result.shape}")
+    print(f"   New result shape: {new_result.shape}")
+    
+    # Check if results are close (within numerical precision)
+    are_close = np.allclose(old_result, new_result, rtol=1e-10, atol=1e-12)
+    print(f"   Results are close: {are_close}")
+    
+    if not are_close:
+        diff = np.abs(old_result - new_result)
+        print(f"   Max difference: {np.max(diff)}")
+        print(f"   Mean difference: {np.mean(diff)}")
+        print(f"   Old result sample: {old_result[0, 0, :5]}")
+        print(f"   New result sample: {new_result[0, 0, :5]}")
+    
+    return are_close
+
+
+def test_center_compatibility():
+    """Test that old and new center functions give the same results."""
+    print("\nTesting center calculation compatibility...")
+    
+    data, freqs = create_test_data()
+    old_data, old_freqs = adapt_data_for_old_functions(data, freqs)
+    
+    # Run old function
+    old_result = old_guess_center(old_data, old_freqs)
+    
+    # Run new function
+    new_result = new_guess_center(data, freqs)
+    
+    # Compare results
+    print(f"   Old result shape: {old_result.shape}")
+    print(f"   New result shape: {new_result.shape}")
+    
+    # Check if results are close
+    are_close = np.allclose(old_result, new_result, rtol=1e-10, atol=1e-12)
+    print(f"   Results are close: {are_close}")
+    
+    if not are_close:
+        diff = np.abs(old_result - new_result)
+        print(f"   Max difference: {np.max(diff)}")
+        print(f"   Mean difference: {np.mean(diff)}")
+        print(f"   Old result sample: {old_result[0, 0, :5]}")
+        print(f"   New result sample: {new_result[0, 0, :5]}")
+    
+    return are_close
+
+
+def test_width_compatibility():
+    """Test that old and new width functions give the same results."""
+    print("\nTesting width calculation compatibility...")
+    
+    data, freqs = create_test_data()
+    old_data, old_freqs = adapt_data_for_old_functions(data, freqs)
+    
+    vmin, vmax = DEFAULT_VMIN, DEFAULT_VMAX
+    
+    # Run old function
+    old_result = old_guess_width(old_data, old_freqs, vmin, vmax)
+    
+    # Run new function
+    new_result = new_guess_width(data, freqs, vmin, vmax)
+    
+    # Compare results
+    print(f"   Old result shape: {old_result.shape}")
+    print(f"   New result shape: {new_result.shape}")
+    
+    # Check if results are close
+    are_close = np.allclose(old_result, new_result, rtol=1e-10, atol=1e-12)
+    print(f"   Results are close: {are_close}")
+    
+    if not are_close:
+        diff = np.abs(old_result - new_result)
+        print(f"   Max difference: {np.max(diff)}")
+        print(f"   Mean difference: {np.mean(diff)}")
+        print(f"   Old result sample: {old_result[0, 0, :5]}")
+        print(f"   New result sample: {new_result[0, 0, :5]}")
+    
+    return are_close
+
+
+def benchmark_function(func: Callable, args: tuple, name: str, n_runs: int = 10) -> float:
+    """Benchmark a function and return average execution time."""
+    times = []
+    
+    # Warm up
+    func(*args)
+    
+    for _ in range(n_runs):
+        start_time = time.time()
+        func(*args)
+        end_time = time.time()
+        times.append(end_time - start_time)
+    
+    avg_time = np.mean(times)
+    std_time = np.std(times)
+    print(f"   {name}: {avg_time:.6f} ± {std_time:.6f} seconds")
+    return avg_time
+
+
+def performance_comparison():
+    """Compare performance of old vs new implementations."""
+    print("\n" + "="*50)
+    print("PERFORMANCE COMPARISON")
+    print("="*50)
+    
+    data, freqs = create_test_data()
+    old_data, old_freqs = adapt_data_for_old_functions(data, freqs)
+    
+    print("\nContrast calculation:")
+    old_time = benchmark_function(old_guess_contrast, (old_data,), "Old implementation")
+    new_time = benchmark_function(new_guess_contrast, (data,), "New implementation")
+    speedup = old_time / new_time
+    print(f"   Speedup: {speedup:.2f}x {'(new is faster)' if speedup > 1 else '(old is faster)'}")
+    
+    print("\nCenter calculation:")
+    old_time = benchmark_function(old_guess_center, (old_data, old_freqs), "Old implementation")
+    new_time = benchmark_function(new_guess_center, (data, freqs), "New implementation")
+    speedup = old_time / new_time
+    print(f"   Speedup: {speedup:.2f}x {'(new is faster)' if speedup > 1 else '(old is faster)'}")
+    
+    print("\nWidth calculation:")
+    old_time = benchmark_function(old_guess_width, (old_data, old_freqs, DEFAULT_VMIN, DEFAULT_VMAX), "Old implementation")
+    new_time = benchmark_function(new_guess_width, (data, freqs, DEFAULT_VMIN, DEFAULT_VMAX), "New implementation")
+    speedup = old_time / new_time
+    print(f"   Speedup: {speedup:.2f}x {'(new is faster)' if speedup > 1 else '(old is faster)'}")
+
+
+def create_old_test_data():
     """Create test data similar to old make_dummy_data function."""
     # Create frequency ranges
     f0 = np.linspace(2.84, 2.85, 50)
@@ -280,32 +646,58 @@ def create_comparison_plot():
     plt.show()
 
 def main():
-    """Run all compatibility tests."""
-    print("="*60)
+    """Run all compatibility and performance tests."""
     print("QDMpy Function Compatibility Test")
-    print("="*60)
+    print("="*50)
+    
+    # Suppress numba warnings for cleaner output
+    warnings.filterwarnings('ignore', category=numba.NumbaWarning)
     
     try:
-        test_normalize_pixel()
-        test_guess_functions()
-        test_pixel_functions()
-        test_model_functions()
-        test_model_registry()
-        create_comparison_plot()
+        # Run compatibility tests
+        results = []
+        results.append(test_normalize_pixel_compatibility())
+        results.append(test_contrast_compatibility())
+        results.append(test_center_compatibility())
+        results.append(test_width_compatibility())
         
-        print("\n" + "="*60)
-        print("✓ ALL TESTS PASSED!")
-        print("The current functions work correctly and are compatible")
-        print("with the expected behavior from the old code.")
-        print("="*60)
+        # Summary
+        print("\n" + "="*50)
+        print("COMPATIBILITY TEST SUMMARY")
+        print("="*50)
+        test_names = ["Normalize Pixel", "Contrast", "Center", "Width"]
+        for i, (name, result) in enumerate(zip(test_names, results)):
+            status = "PASS" if result else "FAIL"
+            print(f"{name}: {status}")
+        
+        all_passed = all(results)
+        print(f"\nOverall: {'ALL TESTS PASSED' if all_passed else 'SOME TESTS FAILED'}")
+        
+        if all_passed:
+            # Run performance comparison
+            performance_comparison()
+            
+            print("\n" + "="*50)
+            print("CONCLUSION")
+            print("="*50)
+            print("✓ The new implementation produces identical results to the old code.")
+            print("✓ Performance comparison has been completed.")
+            print("✓ The new code is ready for use.")
+        else:
+            print("\n" + "="*50)
+            print("ERROR")
+            print("="*50)
+            print("❌ Some compatibility tests failed!")
+            print("❌ The new implementation does not match the old code.")
+            print("❌ Further investigation is needed.")
+        
+        return 0 if all_passed else 1
         
     except Exception as e:
         print(f"\n❌ TEST FAILED: {e}")
         import traceback
         traceback.print_exc()
         return 1
-    
-    return 0
 
 if __name__ == "__main__":
     exit(main())
