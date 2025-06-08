@@ -170,10 +170,11 @@ class ODMR:
 
 # Example usage (uncomment to run)
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
     from QDMpy.odmr.data import ODMRData
     from QDMpy.odmr.io import MatlabLoader
     from QDMpy.odmr.processors import BinningProcessor
-    import matplotlib.pyplot as plt
 
     # User-friendly initialization
     loader = MatlabLoader(data_folder="/home/mike/git/QDMpy/tests/data/FOV18x")
