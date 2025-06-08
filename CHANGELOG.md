@@ -45,3 +45,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Type annotations**: Corrected self parameter annotations and return type specifications
 - **Data serialization**: Fixed np.savez_compressed compatibility issues with numpy type conversion
 - **Docstring consistency**: Standardized parameter documentation and Google-style format compliance
+
+### Testing
+- **Comprehensive test suite for new architecture**: Added 38+ tests covering FitResult, Measurement.fit_odmr, and new plotting functions
+- **FitResult test coverage**: 27 test methods with 100% code coverage including initialization, properties, B-field calculations, quality metrics, and file I/O
+- **Measurement integration tests**: 10 test methods covering auto model detection, parameter extraction, error handling, and result creation
+- **Plotting function tests**: 11 test methods for new plotting functions with mock and real FitResult objects, save functionality, and error handling
+- **Architecture validation**: Tests confirm clean separation of concerns, type safety, error handling, extensibility, and persistence capabilities
+- **Bug fixes in tests**: Corrected matplotlib axes handling in subplot logic and proper import path mocking patterns

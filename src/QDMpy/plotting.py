@@ -196,7 +196,8 @@ def plot_fit_result_overview(
     nrows = (n_plots + ncols - 1) // ncols
 
     fig, axes = plt.subplots(nrows, ncols, figsize=(4*ncols, 4*nrows))
-    if n_plots == 1 or nrows == 1:
+    # Ensure axes is always a list for consistent indexing
+    if nrows == 1 and ncols == 1:
         axes = [axes]
     else:
         axes = axes.flatten()
