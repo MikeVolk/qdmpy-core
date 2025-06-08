@@ -53,3 +53,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Plotting function tests**: 11 test methods for new plotting functions with mock and real FitResult objects, save functionality, and error handling
 - **Architecture validation**: Tests confirm clean separation of concerns, type safety, error handling, extensibility, and persistence capabilities
 - **Bug fixes in tests**: Corrected matplotlib axes handling in subplot logic and proper import path mocking patterns
+
+### Documentation
+- **Updated architecture diagrams**: Comprehensive updates to all Mermaid diagrams reflecting the new FitResult and Measurement integration
+- **Enhanced class diagram**: Added FitResult, Measurement, and PlottingFunctions with proper relationships
+- **Improved data flow diagram**: Shows complete workflow from data loading through FitResult creation to visualization
+- **Updated workflow sequence**: Demonstrates new high-level integration layer with auto model detection and clean separation of concerns
+- **Architecture validation**: Diagrams confirm the clean separation between data management, fitting execution, and results analysis

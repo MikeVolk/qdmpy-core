@@ -3,7 +3,9 @@ classDiagram
                 +data: NDArray
                 +f_ghz: NDArray
                 +model: Model
-                +fit()
+                +fitted: bool
+                +fit_odmr()
+                +get_param(param: str) -> NDArray
             }
 
             class ConstraintManager {
@@ -13,11 +15,14 @@ classDiagram
             }
 
             class Model {
+                +name: str
+                +parameters_unique: list
                 +evaluate(x: NDArray, parameters: NDArray)
             }
 
             class ModelRegistry {
                 +get(name: str) -> Model
+                +register(name: str, model: Model)
             }
 
             class Guess {
@@ -25,8 +30,49 @@ classDiagram
                 +guess_center(data: NDArray, freq: NDArray) -> NDArray
             }
 
+            class FitResult {
+                +parameters: dict
+                +scan_dimensions: tuple
+                +pixel_spacing: float
+                +model_name: str
+                +metadata: dict
+                +centers() -> NDArray
+                +linewidths() -> NDArray
+                +contrasts() -> NDArray
+                +calculate_b_field() -> NDArray
+                +get_parameter_map(param: str) -> NDArray
+                +save_results(filepath: str)
+                +load_results(filepath: str) -> dict
+            }
+
+            class Measurement {
+                +odmr: ODMR
+                +light_image: NDArray
+                +laser_image: NDArray
+                +pixel_spacing: float
+                +metadata: dict
+                +fit_odmr(model_name: str) -> FitResult
+            }
+
+            class ODMR {
+                +raw_data: ODMRData
+                +processed_data: ODMRData
+                +process_data()
+            }
+
+            class PlottingFunctions {
+                +plot_fit_result_field_map(result: FitResult)
+                +plot_fit_result_parameter_map(result: FitResult, param: str)
+                +plot_fit_result_overview(result: FitResult)
+            }
+
             FitManager --> ConstraintManager : uses
             FitManager --> Model : uses
             FitManager --> ModelRegistry : retrieves
             ModelRegistry --> Model : stores
             Guess --> Model : retrieves
+            Measurement --> ODMR : contains
+            Measurement --> FitManager : creates
+            Measurement --> Guess : uses for auto-detection
+            Measurement --> FitResult : creates
+            PlottingFunctions --> FitResult : takes as input

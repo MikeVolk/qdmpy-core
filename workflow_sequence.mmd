@@ -9,10 +9,14 @@ sequenceDiagram
     participant ProcessorManager
     participant BinningProcessor
     participant NormalizationProcessor
+    participant Measurement
+    participant GuessModule
     participant ModelRegistry
     participant FitManager
     participant ConstraintManager
     participant PyGpufit
+    participant FitResult
+    participant PlottingFunctions
 
     %% Data Loading Phase
     User->>MatlabLoader: new MatlabLoader(data_folder)
@@ -51,40 +55,73 @@ sequenceDiagram
     ProcessorManager-->>ODMR: processed_data
     ODMR-->>User: self (method chaining)
 
-    %% Model Selection Phase
-    User->>ModelRegistry: get('ESR15N')
-    ModelRegistry-->>User: ESR15N model
+    %% High-Level Integration Phase
+    User->>Measurement: new Measurement(odmr, light_image, laser_image, output_dir)
+    Measurement-->>User: measurement instance
 
-    %% Fitting Setup Phase
-    User->>FitManager: new FitManager(data, frequencies, model_name='ESR15N')
-    FitManager->>ModelRegistry: get('ESR15N')
+    %% Unified Fitting Interface
+    User->>Measurement: fit_odmr(model_name=None)
+    
+    %% Auto Model Detection (when model_name=None)
+    Measurement->>GuessModule: guess_model(processed_data)
+    GuessModule-->>Measurement: detected_model
+    
+    %% FitManager Creation and Execution
+    Measurement->>FitManager: new FitManager(data, frequencies, model_name)
+    FitManager->>ModelRegistry: get(model_name)
     ModelRegistry-->>FitManager: model
     FitManager->>ConstraintManager: new ConstraintManager(model_params, settings, units)
     ConstraintManager-->>FitManager: constraint_manager
-    FitManager-->>User: fit_manager
-
-    %% Fitting Execution Phase
-    User->>FitManager: fit_odmr()
+    
+    Measurement->>FitManager: fit_odmr()
     FitManager->>FitManager: get_initial_parameter()
-    FitManager->>FitManager: get_constraints_array()
-    FitManager->>ConstraintManager: to_array()
+    FitManager->>ConstraintManager: get_constraints_array()
     ConstraintManager-->>FitManager: constraints
-    FitManager->>FitManager: get_constraint_types()
-    FitManager->>ConstraintManager: get_constraint_types()
-    ConstraintManager-->>FitManager: constraint_types
     FitManager->>PyGpufit: fit_constrained(data, frequencies, constraints, ...)
-    PyGpufit-->>FitManager: fit_results
-    FitManager-->>User: fitted parameters
+    PyGpufit-->>FitManager: raw_fit_results
+    
+    %% Parameter Extraction and FitResult Creation
+    Measurement->>FitManager: get_param('center')
+    FitManager-->>Measurement: centers
+    Measurement->>FitManager: get_param('width_0')
+    FitManager-->>Measurement: linewidths
+    Measurement->>FitManager: get_param('contrast')
+    FitManager-->>Measurement: contrasts
+    Measurement->>FitManager: get_param('chi2')
+    FitManager-->>Measurement: quality_metrics
+    
+    Measurement->>FitResult: new FitResult(parameters, scan_dims, pixel_spacing, model_name, metadata)
+    FitResult-->>Measurement: fit_result
+    Measurement-->>User: FitResult object
 
-    %% Results Access Phase
-    User->>FitManager: get_param('center')
-    FitManager-->>User: center_frequencies
-    User->>FitManager: get_param('contrast')
-    FitManager-->>User: contrast_values
+    %% Analysis and Visualization Phase
+    User->>FitResult: calculate_b_field()
+    FitResult-->>User: magnetic_field_map
+    
+    User->>FitResult: get_parameter_map('center')
+    FitResult-->>User: center_frequencies_map
+    
+    User->>PlottingFunctions: plot_fit_result_field_map(fit_result)
+    PlottingFunctions->>FitResult: calculate_b_field()
+    FitResult-->>PlottingFunctions: b_field_data
+    PlottingFunctions-->>User: magnetic_field_plot
+    
+    User->>PlottingFunctions: plot_fit_result_overview(fit_result)
+    PlottingFunctions->>FitResult: get_parameter_map('center')
+    FitResult-->>PlottingFunctions: center_map
+    PlottingFunctions->>FitResult: get_parameter_map('contrast')
+    FitResult-->>PlottingFunctions: contrast_map
+    PlottingFunctions-->>User: overview_plots
+
+    %% Persistence Phase
+    User->>FitResult: save_results('results.npz')
+    FitResult-->>User: saved_to_file
 
     %% Notes
-    note over User, PyGpufit: Complete ODMR Data Processing and Fitting Workflow
+    note over User, PlottingFunctions: Complete ODMR Data Processing and Analysis Workflow
     note over MatlabLoader, ODMRData: Data Loading Layer
-    note over ODMR, NormalizationProcessor: Processing Pipeline Layer  
-    note over ModelRegistry, ConstraintManager: Fitting Layer
+    note over ODMR, NormalizationProcessor: Processing Pipeline Layer
+    note over Measurement, GuessModule: High-Level Integration Layer
+    note over ModelRegistry, ConstraintManager: Fitting Configuration Layer
     note over PyGpufit: GPU Acceleration Layer
+    note over FitResult, PlottingFunctions: Results Analysis and Visualization Layer

@@ -145,6 +145,44 @@ classDiagram
         +__init__(data, frequencies, model_name, constraints)
     }
 
+    %% Results Management Classes
+    class FitResult {
+        +dict~str, NDArray~ parameters
+        +tuple~int, int~ scan_dimensions
+        +float pixel_spacing
+        +str model_name
+        +dict metadata
+        -NDArray _b_field_cache
+        +centers() NDArray
+        +linewidths() NDArray
+        +contrasts() NDArray
+        +offsets() NDArray
+        +chi2() NDArray
+        +fit_states() NDArray
+        +get_parameter(param_name) NDArray
+        +get_parameter_map(param_name) NDArray
+        +calculate_b_field(force_recalculate) NDArray
+        +get_fit_quality_metrics() dict
+        +save_results(filepath) void
+        +load_results(filepath) dict
+        +__init__(parameters, scan_dimensions, pixel_spacing, model_name, metadata)
+    }
+
+    %% High-Level Integration Classes
+    class Measurement {
+        +ODMR odmr
+        +NDArray light_image
+        +NDArray laser_image
+        +Path output_directory
+        +float pixel_spacing
+        +str _fit_model
+        +dict metadata
+        -NDArray _outliers
+        -NDArray _B111
+        +fit_odmr(model_name, **kwargs) FitResult
+        +__init__(odmr, light_image, laser_image, output_directory, pixel_spacing, fit_model)
+    }
+
     %% Utility Functions
     class GuessModule {
         +guess_model(data) Model
@@ -163,6 +201,18 @@ classDiagram
         +esr14n(x, parameter, ahyp) NDArray
         +esr15n(x, parameter, ahyp) NDArray
         +esrsingle(x, parameter) NDArray
+    }
+
+    %% Visualization Functions
+    class PlottingFunctions {
+        +plot_fit_result_field_map(result, save, filename, **kwargs) void
+        +plot_fit_result_parameter_map(result, param_name, save, filename, **kwargs) void
+        +plot_fit_result_overview(result, save, filename, **kwargs) void
+        +plot_light_img(ax, data, img, **plt_props) AxesImage
+        +plot_fluorescence(ax, data, img, **plt_props) AxesImage
+        +plot_laser_img(ax, data, img, **plt_props) AxesImage
+        +update_line(ax, x, y, line, **plt_props) Line2D
+        +update_marker(ax, x, y, line, **plt_props) Line2D
     }
 
     %% CLI Classes
@@ -190,6 +240,7 @@ classDiagram
     ODMRProcessorManager *-- BaseProcessor : manages multiple
     FitManager *-- ConstraintManager : uses
     FitManager *-- Model : uses
+    Measurement *-- ODMR : contains
 
     %% Relationships - Usage/Dependencies
     ODMRData ..> BaseLoader : created from
@@ -206,9 +257,19 @@ classDiagram
     CLI ..> ODMR : orchestrates
     CLI ..> FitManager : creates and uses
 
+    %% New Architecture Relationships
+    Measurement ..> FitManager : creates and uses
+    Measurement ..> GuessModule : uses for auto-detection
+    Measurement ..> FitResult : creates
+    FitResult ..> PlottingFunctions : used by
+    PlottingFunctions ..> FitResult : takes as input
+
     %% Annotations
     note for ODMRData "Central data container\n4D array: (polarities, freq_ranges, pixels, frequencies)"
     note for ODMR "Main orchestrator class\nManages data lifecycle and processing"
     note for FitManager "Handles all fitting operations\nIntegrates with pyGpufit for GPU acceleration"
     note for ModelRegistry "Singleton pattern\nCentral model factory"
     note for ODMRProcessorManager "Pipeline pattern\nSequential processing steps"
+    note for FitResult "Lightweight data-only container\nNo heavy object dependencies\nEasily serializable"
+    note for Measurement "High-level integration class\nCombines ODMR data with optical images\nProvides user-friendly fit_odmr() interface"
+    note for PlottingFunctions "Visualization functions\nTake FitResult as input\nSeparated from data classes"

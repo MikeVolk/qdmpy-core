@@ -57,22 +57,40 @@ flowchart TD
     O --> S
     
     %% Fit Results
-    S --> T[Fit Results<br/>fitted_parameters: NDArray<br/>chi_squares: NDArray<br/>states: convergence status<br/>execution_time: float]
+    S --> T[Raw Fit Results<br/>fitted_parameters: NDArray<br/>chi_squares: NDArray<br/>states: convergence status<br/>execution_time: float]
     
-    %% Result Access
-    T --> U[Parameter Extraction<br/>get_param center: resonance frequencies<br/>get_param width: linewidths<br/>get_param contrast: signal amplitudes]
+    %% High-Level Integration
+    W[Measurement Class<br/>odmr: ODMR instance<br/>light_image: NDArray<br/>laser_image: NDArray<br/>pixel_spacing: float] --> X[fit_odmr method<br/>Auto model detection<br/>Parameter extraction<br/>Metadata management]
     
-    %% Visualization/Export
-    U --> V[Analysis Outputs<br/>Spatial maps<br/>Spectral plots<br/>Statistical summaries]
-    J --> V
+    J --> W
+    T --> X
+    O --> X
+    
+    %% FitResult Creation
+    X --> Y[FitResult Object<br/>parameters: dict of NDArrays<br/>scan_dimensions: tuple<br/>pixel_spacing: float<br/>model_name: str<br/>metadata: dict]
+    
+    %% FitResult Analysis Methods
+    Y --> Z[Analysis Interface<br/>centers: resonance frequencies<br/>linewidths: spectral widths<br/>contrasts: signal amplitudes<br/>calculate_b_field: magnetic field map<br/>get_fit_quality_metrics: statistics]
+    
+    %% Visualization via Plotting Functions
+    Z --> AA[Plotting Functions<br/>plot_fit_result_field_map<br/>plot_fit_result_parameter_map<br/>plot_fit_result_overview]
+    
+    %% Result Persistence
+    Y --> BB[Save/Load Interface<br/>save_results: NPZ format<br/>load_results: data reconstruction<br/>Lightweight serialization]
+    
+    %% Final Outputs
+    AA --> V[Analysis Outputs<br/>Magnetic field maps<br/>Parameter maps<br/>Quality metrics<br/>Visualization plots]
+    BB --> V
     
     %% Styling
     classDef dataClass fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     classDef processClass fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
     classDef modelClass fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
     classDef resultClass fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef integrationClass fill:#fce4ec,stroke:#880e4f,stroke-width:2px
     
     class A,A1,C,D,G,H,I,J dataClass
     class B,B1,E,F,F1,F2,F3,F4,O,P,R,S processClass
     class K,L,M,N,Q modelClass
-    class T,U,V resultClass
+    class T,V,BB resultClass
+    class W,X,Y,Z,AA integrationClass
