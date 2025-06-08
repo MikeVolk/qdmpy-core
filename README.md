@@ -30,45 +30,57 @@ QDMpy is a comprehensive Python package for analyzing and visualizing Optically 
 
 ## Installation
 
+### Using uv (recommended)
+```sh
+uv pip install QDMpy
+```
+
+### Using pip
 ```sh
 pip install QDMpy
 ```
 
-For GPU acceleration (recommended for large datasets):
-```sh
-pip install QDMpy[gpu]
-```
+### GPU Acceleration
+GPU acceleration is automatically available when CUDA 11.5+ is installed on your system. The package includes bundled pyGpufit wheels for Windows and Linux platforms.
 
 ## Quick Start
 
 ```python
-from QDMpy import ODMR, Measurement
+from QDMpy.odmr.data import ODMRData
 from QDMpy.odmr.io import MatlabLoader
+from QDMpy.odmr.odmr import ODMR
+from QDMpy.odmr.processors import BinningProcessor, NormalizationProcessor
+from QDMpy.measurement import Measurement
+from QDMpy.models import ModelRegistry
 
 # Load ODMR data from MATLAB files
 loader = MatlabLoader(data_folder="path/to/data")
-odmr_data = loader.load()
+odmr_data = ODMRData.from_loader(loader=loader)
 
-# Create ODMR instance and process data
+# Create ODMR instance and setup processing pipeline
 odmr = ODMR(odmr_data)
-odmr.process_data()  # Apply default processing pipeline
+odmr.processor_manager.add_processor(BinningProcessor(bin_factor=2))
+odmr.processor_manager.add_processor(NormalizationProcessor(method="max"))
+
+# Process the data
+odmr.process_data()
 
 # Create a measurement with reference images
 measurement = Measurement(
     odmr=odmr,
-    light_image=light_img,
-    laser_image=laser_img,
-    output_directory="results"
+    light_image=light_array,
+    laser_image=laser_array,
+    output_directory="results",
+    pixel_spacing=4e-6  # 4 micrometers
 )
 
-# Fit ODMR spectra with appropriate model
-from QDMpy.models import ModelRegistry
-model = ModelRegistry.get("ESR14N")  # For 14N isotope
-fit_parameters = measurement.fit_odmr(model)
+# Access available models
+model_15n = ModelRegistry.get("ESR15N")  # For 15N isotope
+model_14n = ModelRegistry.get("ESR14N")  # For 14N isotope
 
-# Generate and save magnetic field map
-b_field = measurement.calculate_b_field()
-measurement.plot_field_map(b_field, save=True)
+# View processed data information
+print(f"Data shape: {odmr.processed_data.shape}")
+print(f"Frequency range: {odmr.processed_data.frequencies.min():.1e} - {odmr.processed_data.frequencies.max():.1e} Hz")
 ```
 
 ## Command Line Usage
@@ -76,17 +88,41 @@ measurement.plot_field_map(b_field, save=True)
 QDMpy includes a command-line interface for processing data without writing code:
 
 ```sh
-qdmpy process path/to/data --binning 2 --model auto --output results
+# Process ODMR data with spatial binning
+qdmpy process path/to/data --bin-factor 2 --model auto --output results
+
+# Available options:
+qdmpy process input_path \
+  --output OUTPUT_DIR \
+  --bin-factor 2 \
+  --model {ESR14N,ESR15N,ESRSINGLE,auto} \
+  --global-fluorescence 0.2 \
+  --overwrite \
+  --no-plots
+
+# List available models
+qdmpy models
+
+# Get detailed model information
+qdmpy models ESR15N --detailed
+
+# Examine data file structure
+qdmpy info path/to/data --summary
 ```
 
 ## Core Modules
 
-- **odmr**: Management of ODMR spectral data and processing pipeline
-- **models**: Physics-based models for fitting ODMR spectra
-- **measurement**: Integration of ODMR data with optical images
-- **io**: Data loading and saving from various file formats
-- **plotting**: Visualization tools for QDM data analysis
-- **utils**: Utility functions for data processing and manipulation
+- **odmr**: Complete ODMR data management and processing framework
+  - `data`: ODMRData class for data encapsulation and metadata
+  - `io`: Data loaders for MATLAB files and other formats
+  - `processors`: Modular processing pipeline (binning, normalization, outlier detection)
+  - `odmr`: Main ODMR orchestrator class
+- **models**: Physics-based models with registry system (ESR14N, ESR15N, ESRSINGLE)
+- **measurement**: Integration of ODMR data with optical reference images
+- **fit**: GPU-accelerated fitting engine with constraint management
+- **plotting**: Visualization tools for spectra and spatial maps
+- **utils**: Utility functions for data processing and coordinate transformations
+- **cli**: Command-line interface for batch processing workflows
 
 ## Development
 
@@ -107,16 +143,22 @@ source .venv/bin/activate
 
 # Install in development mode
 uv pip install -e .
+
+# Verify GPU acceleration (if CUDA available)
+uv run python -c "import QDMpy; print('GPU available:', QDMpy.PYGPUFIT_PRESENT)"
 ```
 
 ### Testing
 
 ```sh
 # Run all tests
-pytest
+uv run pytest
 
 # Run tests with coverage report
-pytest --cov=QDMpy --cov-report=term-missing
+uv run pytest --cov=QDMpy --cov-report=term-missing
+
+# Run single test
+uv run pytest tests/test_file.py::test_function -v
 ```
 
 ### Linting and Type Checking
@@ -126,13 +168,13 @@ pytest --cov=QDMpy --cov-report=term-missing
 pre-commit run --all-files
 
 # Run individual checks
-ruff check .
-mypy src/QDMpy
+uv run ruff check .
+uv run mypy src/QDMpy
 ```
 
 ## License
 
-QDMpy is distributed under the [MIT License](LICENSE).
+QDMpy is distributed under the [MIT License](LICENCE).
 
 ## Citation
 
