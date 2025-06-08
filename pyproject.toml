@@ -27,6 +27,7 @@ dependencies = [
     "mkdocstrings-python>=1.16.8",
     "mkdocs-jupyter>=0.25.1",
     "pytest-cov>=6.0.0",
+    "setuptools-scm>=8.3.1",
 ]
 
 [project.urls]

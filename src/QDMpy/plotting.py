@@ -25,7 +25,12 @@ from matplotlib import colors
 from QDMpy.utils import double_norm
 
 if TYPE_CHECKING:
+    from QDMpy.measurement import Measurement
+    from QDMpy.models import Model
     from QDMpy.result import FitResult
+
+# Import for runtime usage
+from QDMpy import models
 
 FREQ_LABEL = 'f [GHz]'
 CONTRAST_LABEL = 'c [%]'
@@ -336,10 +341,10 @@ def plot_laser_img(
 def update_line(
     ax: plt.Axes,
     x: np.ndarray,
-    y: np.ndarray | None | None = None,
-    line: plt.Line2D = None,
+    y: np.ndarray | None = None,
+    line: plt.Line2D | None = None,
     **plt_props: Any,
-) -> plt.Line2D:
+) -> plt.Line2D | None:
     """Args:
       ax: plt.Axes:
       x:np.ndarray[float]:
@@ -365,7 +370,7 @@ def update_marker(
     ax: plt.Axes,
     x: np.ndarray,
     y: np.ndarray,
-    line: plt.Line2D = None,
+    line: plt.Line2D | None = None,
     **plt_props: Any,
 ) -> plt.Line2D:
     """Args:
@@ -444,15 +449,19 @@ def get_vmin_vmax(
     if img is None:
         return 0, 1
 
+    data = img.get_array()
+    if data is None:
+        return 0, 1
+
     if percentile and use_percentile:
         vmin, vmax = np.percentile(
-            img.get_array(),
+            data,
             [(100 - percentile) / 2, 100 - (100 - percentile) / 2],
         )
     else:
         vmin, vmax = (
-            img.get_array().min(),
-            img.get_array().max(),
+            data.min(),
+            data.max(),
         )
     return vmin, vmax
 
@@ -530,6 +539,7 @@ def update_clim(
     """
     norm = get_color_norm(vmin, vmax)
     img.set(norm=norm)
+    return img
 
 
 def update_cbar(
@@ -537,7 +547,7 @@ def update_cbar(
     cax: plt.Axes,
     vmin: float,
     vmax: float,
-    original_cax_locator: plt.Locator,
+    original_cax_locator: Any,
     **plt_props: dict,
 ) -> None:
     """Args:
@@ -550,8 +560,14 @@ def update_cbar(
     Returns:
 
     """
+    data = img.get_array()
+    if data is None:
+        mn, mx = 0, 1
+    else:
+        mn, mx = data.min(), data.max()
+    
     extent = detect_extent(
-        vmin=vmin, vmax=vmax, mn=img.get_array().min(), mx=img.get_array().max(),
+        vmin=vmin, vmax=vmax, mn=mn, mx=mx,
     )
 
     label = cax.get_ylabel()
@@ -581,7 +597,7 @@ def detect_extent(vmin: float, vmax: float, mn: float, mx: float) -> str:
 
 
 def update_img(
-    ax: plt.Axes, img: mpl.image.AxesImage, data: np.ndarray, **plt_props: Any,
+    ax: plt.Axes, img: mpl.image.AxesImage | None, data: np.ndarray, **plt_props: Any,
 ) -> mpl.image.AxesImage:
     """Args:
       ax: plt.Axes:
@@ -614,10 +630,10 @@ def toggle_img(img: mpl.image.AxesImage | None = None) -> None:
     """
     if img is None:
         return
-    img.set_visibility(~img.visibility)
+    img.set_visible(not img.get_visible())
 
 
-def check_fit_pixel(qdm_obj: QDM, idx: int) -> tuple[plt.Figure, plt.Axes]:
+def check_fit_pixel(qdm_obj: Measurement, idx: int) -> tuple[plt.Figure, plt.Axes]:
     """Args:
       qdm_obj:
       idx:
@@ -630,19 +646,18 @@ def check_fit_pixel(qdm_obj: QDM, idx: int) -> tuple[plt.Figure, plt.Axes]:
     polarities = ['+', '-']
     model = [None, models.esrsingle, models.esr15n, models.esr14n][qdm_obj.model_name]
     lst = ['pol/side', *qdm_obj.fit.model_params, 'chi2']
-    ' '.join([f'{i:>8s}' for i in lst])
 
-    for p, f in itertools.product(
+    for p, frange in itertools.product(
         range(qdm_obj.odmr.n_pol), range(qdm_obj.odmr.n_frange),
     ):
-        f_new = np.linspace(min(qdm_obj.odmr.f_ghz[f]), max(qdm_obj.odmr.f_ghz[f]), 200)
+        f_new = np.linspace(min(qdm_obj.odmr.f_ghz[frange]), max(qdm_obj.odmr.f_ghz[frange]), 200)
 
-        m_initial = model(parameter=qdm_obj.fit.initial_parameter[p, f, [idx]], x=f_new)
-        m_fit = model(parameter=qdm_obj.fit.model_params[p, f, [idx]], x=f_new)
+        m_initial = model(parameter=qdm_obj.fit.initial_parameter[p, frange, [idx]], x=f_new)
+        m_fit = model(parameter=qdm_obj.fit.model_params[p, frange, [idx]], x=f_new)
 
-        ax[f].plot(
-            qdm_obj.odmr.f_ghz[f],
-            qdm_obj.odmr.data[p, f, [idx]][0],
+        ax[frange].plot(
+            qdm_obj.odmr.f_ghz[frange],
+            qdm_obj.odmr.data[p, frange, [idx]][0],
             'k',
             marker=['o', '^'][p],
             markersize=5,
@@ -650,9 +665,9 @@ def check_fit_pixel(qdm_obj: QDM, idx: int) -> tuple[plt.Figure, plt.Axes]:
             label=f'data: {polarities[p]}',
             ls='',
         )
-        (line,) = ax[f].plot(f_new, m_initial[0], label='initial guess', alpha=0.5, ls=':')
-        ax[f].plot(f_new, m_fit[0], color=line.get_color(), label='fit')
-        ax[f].legend(
+        (line,) = ax[frange].plot(f_new, m_initial[0], label='initial guess', alpha=0.5, ls=':')
+        ax[frange].plot(f_new, m_fit[0], color=line.get_color(), label='fit')
+        ax[frange].legend(
             ncol=2,
             bbox_to_anchor=(0.0, 1.02, 1.0, 0.102),
             loc='lower left',
@@ -660,8 +675,8 @@ def check_fit_pixel(qdm_obj: QDM, idx: int) -> tuple[plt.Figure, plt.Axes]:
             borderaxespad=0.0,
         )
 
-        line = ' '.join([f'{v:>8.5f}' for v in qdm_obj.fit.model_params[p, f, idx]])
-        line += f' {qdm_obj.fit._chi_squares[p, f, idx]:>8.2e}'
+        line = ' '.join([f'{v:>8.5f}' for v in qdm_obj.fit.model_params[p, frange, idx]])
+        line += f' {qdm_obj.fit._chi_squares[p, frange, idx]:>8.2e}'
 
     for a in ax.flat:
         a.set(xlabel=FREQ_LABEL, ylabel='ODMR contrast [a.u.]')
@@ -669,7 +684,7 @@ def check_fit_pixel(qdm_obj: QDM, idx: int) -> tuple[plt.Figure, plt.Axes]:
 
 
 def plot_fit_params(
-    qdm_obj: QDM, param: str, save: bool | None = False,
+    qdm_obj: Measurement, param: str, save: str | bool = False,
 ) -> plt.Figure:
     """Args:
       qdm_obj:

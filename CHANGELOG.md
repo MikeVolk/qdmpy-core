@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## Unreleased
 
 ### Fixed
+- **Critical test fixes**: Resolved failing tests in test_fit.py by removing incorrect `self` parameters from standalone test functions
+- **Type safety improvements**: Fixed mypy type errors in plotting.py including Optional type annotations, missing imports, and None handling
+- **Logging best practices**: Converted f-string logging statements to proper % formatting to follow security guidelines
+- **Hardcoded path removal**: Replaced platform-specific hardcoded paths with environment variable support and sensible defaults
 - Updated README.md to match current codebase implementation
 - Fixed import examples to use correct module paths (`QDMpy.odmr.odmr.ODMR` instead of `QDMpy.ODMR`)
 - Corrected CLI parameter names (`--bin-factor` instead of `--binning`)
@@ -13,6 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Removed non-functional code examples that referenced missing methods
 
 ### Changed  
+- **Code quality improvements**: Standardized line length to 100 characters across all configuration files
+- **Enhanced portability**: Improved test_data_location() function to use environment variables instead of hardcoded paths
 - Updated Quick Start guide with working code examples based on actual functionality
 - Replaced invalid installation option `pip install QDMpy[gpu]` with proper GPU setup documentation
 - Updated development setup instructions to use `uv run` commands consistently

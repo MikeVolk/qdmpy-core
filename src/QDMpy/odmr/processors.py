@@ -84,7 +84,7 @@ class NormalizationProcessor(BaseProcessor):
         Raises:
             NotImplementedError: If the specified normalization method is not supported.
         """
-        LOG.debug(f"Normalizing data using method: {self.method}")
+        LOG.debug("Normalizing data using method: %s", self.method)
         factors = self._get_norm_factors(data.data, self.method)
         normalized_data = data.data / factors
         metadata = data.metadata.copy()
@@ -292,7 +292,7 @@ class FluorescenceCorrectionProcessor(BaseProcessor):
             "correction_factor", kwargs.get("glob_fluorescence", self.correction_factor)
         )
 
-        LOG.info(f"Applying fluorescence correction with factor: {factor}")
+        LOG.info("Applying fluorescence correction with factor: %s", factor)
 
         # Get the baseline-corrected data
         _, baseline_corrected = analyze_fluorescence_effects(data)
@@ -355,7 +355,7 @@ def analyze_fluorescence_effects(
             else:
                 flat_idx = int(np.unravel_index(np.nanargmax(delta_copy), delta_copy.shape)[2])
 
-            LOG.info(f"Automatically selected pixel index: {flat_idx}")
+            LOG.info("Automatically selected pixel index: %s", flat_idx)
         except ValueError:
             # Fallback to middle pixel if any error occurs
             LOG.warning("Error finding representative pixel. Using middle pixel instead.")
@@ -507,7 +507,7 @@ class ODMRProcessorManager:
         Args:
             processor (BaseProcessor): An instance of a processor to add.
         """
-        LOG.debug(f"Adding processor: {processor.__class__.__name__}")
+        LOG.debug("Adding processor: %s", processor.__class__.__name__)
         self.processors.append(processor)
 
     def process(self, data: ODMRData) -> ODMRData:
@@ -521,7 +521,7 @@ class ODMRProcessorManager:
         """
         LOG.info("Starting processing pipeline.")
         for processor in self.processors:
-            LOG.debug(f"Applying processor: {processor.__class__.__name__}")
+            LOG.debug("Applying processor: %s", processor.__class__.__name__)
             data = processor.process(data)
         LOG.info("Processing pipeline completed.")
         return data

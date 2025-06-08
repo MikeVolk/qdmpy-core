@@ -170,7 +170,8 @@ class FitManager:
         self._data = data
         self.f_ghz = frequencies
         LOG.debug(
-            f"Initializing FitManager instance with data: {self.data.shape} at {frequencies.shape} frequencies.",
+            "Initializing FitManager instance with data: %s at %s frequencies.",
+            self.data.shape, frequencies.shape,
         )
 
         # Determine and set the model
@@ -178,10 +179,10 @@ class FitManager:
             try:
                 self._model = guess_model(data)
             except ModelGuessNotPossible as e:
-                LOG.warning(f"Could not auto-detect model: {e}")
+                LOG.warning("Could not auto-detect model: %s", e)
                 # Default to ESRSINGLE if auto-detection fails
                 self._model = ModelRegistry.get("ESRSINGLE")
-                LOG.info(f"Defaulting to {self._model.name} model")
+                LOG.info("Defaulting to %s model", self._model.name)
         else:
             try:
                 self._model = ModelRegistry.get(model_name.upper())
@@ -190,7 +191,7 @@ class FitManager:
                     f"Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}",
                 )
 
-        LOG.info(f"Using model: {self._model.name}")
+        LOG.info("Using model: %s", self._model.name)
         # Initialize parameters
         self._initial_parameter: NDArray | None = None
         self._reset_fit()
@@ -286,7 +287,8 @@ class FitManager:
             )
 
         LOG.debug(
-            f"Setting model to {model_name}, resetting all fit results and initial parameters.",
+            "Setting model to %s, resetting all fit results and initial parameters.",
+            model_name,
         )
         # Reinitialize constraint manager with new model parameters
         self._constraint_manager = ConstraintManager(
@@ -366,7 +368,8 @@ class FitManager:
             ]
             for contrast_param in contrast_params:
                 LOG.debug(
-                    f"Setting constraints for {contrast_param}: vmin={vmin}, vmax={vmax}, type={constraint_type}",
+                    "Setting constraints for %s: vmin=%s, vmax=%s, type=%s",
+                    contrast_param, vmin, vmax, constraint_type,
                 )
                 self._constraint_manager.set_constraint(
                     contrast_param, vmin, vmax, constraint_type
@@ -374,7 +377,8 @@ class FitManager:
         else:
             # Handle normal parameters
             LOG.debug(
-                f"Setting constraints for {param}: vmin={vmin}, vmax={vmax}, type={constraint_type}",
+                "Setting constraints for %s: vmin=%s, vmax=%s, type=%s",
+                param, vmin, vmax, constraint_type,
             )
             self._constraint_manager.set_constraint(param, vmin, vmax, constraint_type)
 
@@ -442,7 +446,7 @@ class FitManager:
         # Process each parameter in the model's unique parameter list
         for idx, param_name in enumerate(self.model_params_unique):
             param_type = param_name.split("_")[0]
-            LOG.debug(f"Guessing {param_type} parameters")
+            LOG.debug("Guessing %s parameters", param_type)
 
             if param_type == "center":
                 param_values = guess_center(self.data, self.f_ghz)
@@ -564,7 +568,8 @@ class FitManager:
             freq_min = self.f_ghz[irange].min()
             freq_max = self.f_ghz[irange].max()
             LOG.info(
-                f"Fitting frequency range {irange} from {freq_min:.3f}-{freq_max:.3f} GHz"
+                "Fitting frequency range %s from %.3f-%.3f GHz",
+                irange, freq_min, freq_max,
             )
 
             results = self.fit_frange(
@@ -590,7 +595,7 @@ class FitManager:
                 )
                 self._execution_time = np.stack((self._execution_time, results[4]))
 
-            LOG.info(f"Fit finished in {results[4]:.2f} seconds")
+            LOG.info("Fit finished in %.2f seconds", results[4])
 
         # Rearrange results to match input data dimensions
         self._fit_results = np.swapaxes(cast(NDArray, self._fit_results), 0, 1)

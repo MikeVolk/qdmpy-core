@@ -122,21 +122,23 @@ if __name__ == '__main__':
 
 
 def test_data_location() -> Path:
-    """Returns the platform-specific path to test data.
+    """Returns the default path to test data.
 
-    This function provides the default location for test data based on the
-    operating system.
+    This function provides a suggested location for test data. Users should
+    override this by setting the QDMPY_TEST_DATA environment variable or
+    by explicitly providing data paths to their functions.
 
     Returns:
-        Path to the test data directory.
+        Path to the test data directory. Defaults to ~/QDMpy_test_data if
+        QDMPY_TEST_DATA environment variable is not set.
 
-    Raises:
-        NotImplementedError: If the current platform is not supported.
+    Note:
+        This function no longer contains hardcoded system-specific paths.
+        Set the QDMPY_TEST_DATA environment variable to specify your test data location.
     """
-    if sys.platform == 'linux':
-        return Path('/media/data/Dropbox/FOV18x')
-    if sys.platform == 'darwin':
-        return Path('/Users/mike/Dropbox/FOV18x')
-    if sys.platform == 'win32':
-        return Path(r'D:\Dropbox\FOV18x')
-    raise NotImplementedError(f'Platform {sys.platform} is not supported')
+    test_data_env = os.environ.get('QDMPY_TEST_DATA')
+    if test_data_env:
+        return Path(test_data_env)
+    
+    # Default to a directory in the user's home folder
+    return Path.home() / 'QDMpy_test_data'
