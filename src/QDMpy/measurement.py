@@ -26,6 +26,7 @@ from numpy.typing import NDArray
 
 if TYPE_CHECKING:
     from os import PathLike
+    from QDMpy.result import FitResult
 
 if not __package__:
     # Get the current file's directory
@@ -155,9 +156,9 @@ class Measurement:
                 f"laser_image.shape={self.laser_image.shape}, "
                 f"output_directory='{self.output_directory}', "
                 f"pixel_spacing={self.pixel_spacing})")
-    
+
     def fit_odmr(
-        self, 
+        self,
         model_name: str | None = None,
         **kwargs: Any
     ) -> 'FitResult':
@@ -173,7 +174,8 @@ class Measurement:
                 - "ESR15N": For 15N isotope (2 peaks)  
                 - "ESRSINGLE": For single resonance
                 - None: Automatic model selection based on data analysis
-            **kwargs: Additional arguments passed to FitManager
+            **kwargs: Additional arguments passed to FitManager (e.g., constraints, 
+                estimator settings)
         
         Returns:
             FitResult object containing fit results and analysis methods
@@ -185,7 +187,7 @@ class Measurement:
         # Import here to avoid circular imports
         from QDMpy.fit import FitManager
         from QDMpy.result import FitResult
-        
+
         # Auto-detect model if none specified
         if model_name is None:
             LOG.info("Auto-detecting optimal model for ODMR data...")
@@ -200,9 +202,9 @@ class Measurement:
             except Exception as e:
                 LOG.warning("Model auto-detection failed: %s. Using default.", e)
                 model_name = self._fit_model
-                
+
         LOG.info("Starting ODMR fitting with model: %s", model_name)
-        
+
         # Validate that data has been processed
         try:
             processed_data = self.odmr.processed_data
@@ -213,7 +215,7 @@ class Measurement:
                 "ODMR data must be processed before fitting. "
                 "Call odmr.process_data() first."
             )
-        
+
         # Check for fitting dependencies
         from QDMpy import PYGPUFIT_PRESENT
         if not PYGPUFIT_PRESENT:
@@ -221,7 +223,7 @@ class Measurement:
                 "pyGpufit is required for fitting but not available. "
                 "Please install pyGpufit to enable fitting functionality."
             )
-        
+
         # Initialize FitManager with processed data
         LOG.debug("Initializing FitManager with data shape: %s", processed_data.data.shape)
         fit_manager = FitManager(
@@ -230,14 +232,14 @@ class Measurement:
             model_name=model_name,
             **kwargs
         )
-        
+
         # Perform the fitting
         LOG.info("Executing ODMR spectral fitting...")
         fit_manager.fit_odmr()
-        
+
         # Extract fit results data (no heavy object references)
         LOG.debug("Extracting fit results data...")
-        
+
         # Get all available parameters from FitManager
         parameters = {}
         for param_name in ['center', 'width_0', 'contrast', 'offset', 'chi2', 'states']:
@@ -246,7 +248,7 @@ class Measurement:
             except (KeyError, AttributeError):
                 LOG.debug("Parameter '%s' not available for model %s", param_name, model_name)
                 continue
-        
+
         # Add any model-specific parameters
         if model_name == "ESR14N":
             # 14N has multiple width parameters
@@ -261,7 +263,7 @@ class Measurement:
                 parameters['width_1'] = fit_manager.get_param('width_1')
             except (KeyError, AttributeError):
                 pass
-        
+
         # Calculate quality metrics
         quality_metrics = {}
         if 'chi2' in parameters and 'states' in parameters:
@@ -275,14 +277,14 @@ class Measurement:
                 'n_pixels': int(chi2_values.size),
                 'n_converged': int(np.sum(states_values == 0))
             }
-        
+
         # Prepare metadata
         metadata = {
             'fit_timestamp': __import__('datetime').datetime.now().isoformat(),
             'quality_metrics': quality_metrics,
             'fit_settings': kwargs  # Store any additional fitting parameters
         }
-        
+
         # Create lightweight FitResult with extracted data only
         result = FitResult(
             parameters=parameters,
@@ -291,9 +293,9 @@ class Measurement:
             model_name=model_name,
             metadata=metadata
         )
-        
+
         LOG.info("ODMR fitting completed successfully")
-        LOG.info("Extracted %d parameters for %d pixels", 
+        LOG.info("Extracted %d parameters for %d pixels",
                 len(parameters), np.prod(processed_data.scan_dimensions))
         return result
 
@@ -330,7 +332,6 @@ if __name__ == '__main__':
         output_dir,
     )
 
-    import matplotlib
     import matplotlib.pyplot as plt
     plt.imshow(measure.odmr.processed_data.data[0,0,:,0].reshape(measure.odmr.processed_data.scan_dimensions))
     plt.show()

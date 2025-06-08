@@ -37,3 +37,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Plotting interface**: Functions now take FitResult objects as input parameters instead of being methods
 - Model auto-detection in Measurement.fit_odmr() when model_name=None (removed redundant "auto" option)
 - FitResult objects are now lightweight and easily serializable without object reconstruction
+
+### Fixed
+- **Type safety improvements**: Resolved mypy type checking issues in refactored components
+- **Import handling**: Fixed circular import issues between plotting, measurement, and result modules  
+- **Code formatting**: Applied ruff auto-fixes for 102+ formatting and style issues
+- **Type annotations**: Corrected self parameter annotations and return type specifications
+- **Data serialization**: Fixed np.savez_compressed compatibility issues with numpy type conversion
+- **Docstring consistency**: Standardized parameter documentation and Google-style format compliance

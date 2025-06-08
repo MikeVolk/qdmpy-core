@@ -15,7 +15,7 @@ representing spatial, spectral, and polarization dimensions.
 from __future__ import annotations
 
 import itertools
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -23,6 +23,9 @@ import numpy as np
 from matplotlib import colors
 
 from QDMpy.utils import double_norm
+
+if TYPE_CHECKING:
+    from QDMpy.result import FitResult
 
 FREQ_LABEL = 'f [GHz]'
 CONTRAST_LABEL = 'c [%]'
@@ -42,11 +45,9 @@ def plot_fit_result_field_map(
         filename: Custom filename for saving (optional)
         **kwargs: Additional arguments for plot customization
     """
-    from QDMpy.result import FitResult  # Import here to avoid circular import
-    
     # Calculate magnetic field from fit results
     b_field = result.calculate_b_field()
-    
+
     # Set up default plot parameters
     plot_kwargs = {
         'title': f'Magnetic Field Map ({result.model_name})',
@@ -55,15 +56,15 @@ def plot_fit_result_field_map(
         'cmap': 'viridis',
         **kwargs
     }
-    
+
     # Create the plot
     fig, ax = plt.subplots(figsize=(8, 6))
-    
+
     # Convert pixel spacing to micrometers for axis labels
     pixel_spacing_um = result.pixel_spacing * 1e6
     height, width = result.scan_dimensions
-    extent = [0, width * pixel_spacing_um, 0, height * pixel_spacing_um]
-    
+    extent = (0, width * pixel_spacing_um, 0, height * pixel_spacing_um)
+
     im = ax.imshow(
         b_field,
         extent=extent,
@@ -71,24 +72,24 @@ def plot_fit_result_field_map(
         cmap=plot_kwargs.get('cmap', 'viridis'),
         aspect='equal'
     )
-    
+
     # Add colorbar
     cbar = plt.colorbar(im, ax=ax)
     cbar.set_label(plot_kwargs.get('colorbar_label', 'Magnetic Field (T)'))
-    
+
     # Set labels and title
     ax.set_xlabel('x [μm]')
     ax.set_ylabel('y [μm]')
     ax.set_title(plot_kwargs.get('title', 'Magnetic Field Map'))
-    
+
     plt.tight_layout()
-    
+
     if save:
         if filename is None:
             filename = f"b_field_map_{result.model_name}.png"
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         print(f"Magnetic field map saved to: {filename}")
-    
+
     plt.show()
 
 
@@ -108,11 +109,9 @@ def plot_fit_result_parameter_map(
         filename: Custom filename for saving (optional)
         **kwargs: Additional arguments for plot customization
     """
-    from QDMpy.result import FitResult  # Import here to avoid circular import
-    
     # Get parameter data reshaped as 2D map
     param_map = result.get_parameter_map(param_name)
-    
+
     # Set up default plot parameters based on parameter type
     param_labels = {
         'center': 'Resonance Center (Hz)',
@@ -124,25 +123,25 @@ def plot_fit_result_parameter_map(
         'chi2': 'Fit Quality (χ²)',
         'states': 'Fit State'
     }
-    
+
     default_title = f'{param_name.replace("_", " ").title()} Map ({result.model_name})'
     default_colorbar_label = param_labels.get(param_name, param_name.title())
-    
+
     plot_kwargs = {
         'title': default_title,
         'colorbar_label': default_colorbar_label,
         'cmap': 'viridis',
         **kwargs
     }
-    
+
     # Create the plot
     fig, ax = plt.subplots(figsize=(8, 6))
-    
+
     # Convert pixel spacing to micrometers for axis labels
     pixel_spacing_um = result.pixel_spacing * 1e6
     height, width = result.scan_dimensions
-    extent = [0, width * pixel_spacing_um, 0, height * pixel_spacing_um]
-    
+    extent = (0, width * pixel_spacing_um, 0, height * pixel_spacing_um)
+
     im = ax.imshow(
         param_map,
         extent=extent,
@@ -150,24 +149,24 @@ def plot_fit_result_parameter_map(
         cmap=plot_kwargs.get('cmap', 'viridis'),
         aspect='equal'
     )
-    
+
     # Add colorbar
     cbar = plt.colorbar(im, ax=ax)
     cbar.set_label(plot_kwargs.get('colorbar_label', param_name.title()))
-    
+
     # Set labels and title
     ax.set_xlabel('x [μm]')
     ax.set_ylabel('y [μm]')
     ax.set_title(plot_kwargs.get('title', f'{param_name} Map'))
-    
+
     plt.tight_layout()
-    
+
     if save:
         if filename is None:
             filename = f"{param_name}_map_{result.model_name}.png"
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         print(f"Parameter map saved to: {filename}")
-    
+
     plt.show()
 
 
@@ -185,34 +184,30 @@ def plot_fit_result_overview(
         filename: Custom filename for saving (optional)
         **kwargs: Additional arguments for plot customization
     """
-    from QDMpy.result import FitResult  # Import here to avoid circular import
-    
     # Parameters to plot (if available)
     plot_params = ['center', 'width_0', 'contrast', 'chi2']
     available_params = [p for p in plot_params if p in result.parameters]
-    
+
     # Add magnetic field
     b_field = result.calculate_b_field()
-    
+
     n_plots = len(available_params) + 1  # +1 for B-field
     ncols = min(3, n_plots)
     nrows = (n_plots + ncols - 1) // ncols
-    
+
     fig, axes = plt.subplots(nrows, ncols, figsize=(4*ncols, 4*nrows))
-    if n_plots == 1:
-        axes = [axes]
-    elif nrows == 1:
+    if n_plots == 1 or nrows == 1:
         axes = [axes]
     else:
         axes = axes.flatten()
-    
+
     # Convert pixel spacing to micrometers
     pixel_spacing_um = result.pixel_spacing * 1e6
     height, width = result.scan_dimensions
-    extent = [0, width * pixel_spacing_um, 0, height * pixel_spacing_um]
-    
+    extent = (0, width * pixel_spacing_um, 0, height * pixel_spacing_um)
+
     plot_idx = 0
-    
+
     # Plot magnetic field first
     ax = axes[plot_idx]
     im = ax.imshow(b_field, extent=extent, origin='lower', cmap='viridis', aspect='equal')
@@ -221,35 +216,35 @@ def plot_fit_result_overview(
     ax.set_ylabel('y [μm]')
     plt.colorbar(im, ax=ax)
     plot_idx += 1
-    
+
     # Plot available parameters
     for param in available_params:
         if plot_idx >= len(axes):
             break
-            
+
         ax = axes[plot_idx]
         param_map = result.get_parameter_map(param)
-        
+
         im = ax.imshow(param_map, extent=extent, origin='lower', cmap='viridis', aspect='equal')
         ax.set_title(f'{param.replace("_", " ").title()}')
         ax.set_xlabel('x [μm]')
         ax.set_ylabel('y [μm]')
         plt.colorbar(im, ax=ax)
         plot_idx += 1
-    
+
     # Hide unused subplots
     for i in range(plot_idx, len(axes)):
         axes[i].set_visible(False)
-    
+
     plt.suptitle(f'Fit Results Overview ({result.model_name})', fontsize=14)
     plt.tight_layout()
-    
+
     if save:
         if filename is None:
             filename = f"fit_overview_{result.model_name}.png"
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         print(f"Fit overview saved to: {filename}")
-    
+
     plt.show()
 
 

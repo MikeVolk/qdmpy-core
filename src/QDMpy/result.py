@@ -45,9 +45,9 @@ class FitResult:
         model_name: Name of the model used for fitting
         metadata: Additional fitting metadata (quality metrics, etc.)
     """
-    
+
     def __init__(
-        self, 
+        self,
         parameters: dict[str, NDArray],
         scan_dimensions: tuple[int, int],
         pixel_spacing: float,
@@ -69,13 +69,13 @@ class FitResult:
         self.pixel_spacing = pixel_spacing
         self.model_name = model_name
         self.metadata = metadata or {}
-        
+
         # Cache for expensive calculations
         self._b_field_cache: NDArray | None = None
-        
+
         LOG.info("FitResult initialized with model: %s", model_name)
         LOG.debug("Available parameters: %s", list(parameters.keys()))
-    
+
     def __repr__(self) -> str:
         """Return string representation of FitResult."""
         n_pixels = self.scan_dimensions[0] * self.scan_dimensions[1]
@@ -83,7 +83,7 @@ class FitResult:
         return (f"FitResult(model='{self.model_name}', "
                 f"n_pixels={n_pixels}, "
                 f"parameters={n_params})")
-    
+
     @property
     def centers(self) -> NDArray:
         """Get resonance center frequencies in Hz.
@@ -92,7 +92,7 @@ class FitResult:
             Array of center frequencies with shape matching spatial dimensions
         """
         return self.parameters['center']
-    
+
     @property
     def linewidths(self) -> NDArray:
         """Get ODMR linewidths in Hz.
@@ -102,8 +102,14 @@ class FitResult:
         Returns:
             Array of linewidths with shape matching spatial dimensions
         """
-        return self.parameters.get('width_0', self.parameters.get('width'))
-    
+        width_0 = self.parameters.get('width_0')
+        if width_0 is not None:
+            return width_0
+        width = self.parameters.get('width')
+        if width is not None:
+            return width
+        raise KeyError("No linewidth parameter found ('width_0' or 'width')")
+
     @property
     def contrasts(self) -> NDArray:
         """Get ODMR contrasts (normalized).
@@ -112,7 +118,7 @@ class FitResult:
             Array of contrast values with shape matching spatial dimensions
         """
         return self.parameters['contrast']
-    
+
     @property
     def offsets(self) -> NDArray:
         """Get baseline offsets.
@@ -121,7 +127,7 @@ class FitResult:
             Array of offset values with shape matching spatial dimensions
         """
         return self.parameters.get('offset', np.zeros_like(self.centers))
-    
+
     @property
     def chi2(self) -> NDArray:
         """Get fit quality (chi-squared values).
@@ -130,7 +136,7 @@ class FitResult:
             Array of chi-squared values with shape matching spatial dimensions
         """
         return self.parameters['chi2']
-    
+
     @property
     def fit_states(self) -> NDArray:
         """Get fitting convergence states.
@@ -139,7 +145,7 @@ class FitResult:
             Array of fit state codes with shape matching spatial dimensions
         """
         return self.parameters.get('states', np.zeros_like(self.centers, dtype=int))
-    
+
     def get_parameter(self, param_name: str) -> NDArray:
         """Get any fitted parameter by name.
         
@@ -156,7 +162,7 @@ class FitResult:
             available = list(self.parameters.keys())
             raise KeyError(f"Parameter '{param_name}' not found. Available: {available}")
         return self.parameters[param_name]
-    
+
     def get_parameter_map(self, param_name: str) -> NDArray:
         """Get parameter reshaped as 2D spatial map.
         
@@ -168,7 +174,7 @@ class FitResult:
         """
         param_data = self.get_parameter(param_name)
         return param_data.reshape(self.scan_dimensions)
-    
+
     def calculate_b_field(self, force_recalculate: bool = False) -> NDArray:
         """Calculate magnetic field map from fitted resonance frequencies.
         
@@ -188,9 +194,9 @@ class FitResult:
         if self._b_field_cache is None or force_recalculate:
             LOG.info("Calculating magnetic field from %s fit results", self.model_name)
             self._b_field_cache = self._compute_b_field()
-            
+
         return self._b_field_cache
-    
+
     def _compute_b_field(self) -> NDArray:
         """Internal method to compute magnetic field from resonance frequencies.
         
@@ -199,24 +205,24 @@ class FitResult:
         """
         # Get center frequencies and reshape to spatial map
         centers_map = self.get_parameter_map('center')
-        
+
         # NV center gyromagnetic ratio (Hz/T)
         # For NV centers: γ/2π ≈ 28.0 GHz/T
         gamma_nv = 28.0e9  # Hz/T
-        
+
         # Zero-field splitting frequency (Hz)
         # D = 2.87 GHz for NV centers
         d_zfs = 2.87e9  # Hz
-        
+
         # Calculate magnetic field: |B| = |f_center - D| / γ
         # This assumes the center frequency represents the shifted resonance
         b_field = np.abs(centers_map - d_zfs) / gamma_nv
-        
-        LOG.debug("B-field calculation: mean=%.2e T, std=%.2e T", 
+
+        LOG.debug("B-field calculation: mean=%.2e T, std=%.2e T",
                  b_field.mean(), b_field.std())
-        
+
         return b_field
-    
+
     def get_fit_quality_metrics(self) -> dict[str, float]:
         """Calculate overall fit quality metrics.
         
@@ -224,7 +230,7 @@ class FitResult:
             Dictionary containing various quality metrics
         """
         chi2_values = self.chi2
-        
+
         # Calculate basic statistics
         metrics = {
             'mean_chi2': float(np.mean(chi2_values)),
@@ -232,25 +238,25 @@ class FitResult:
             'std_chi2': float(np.std(chi2_values)),
             'n_pixels': int(chi2_values.size)
         }
-        
+
         # Add convergence rate if states are available
         if 'states' in self.parameters:
             states_values = self.fit_states
             metrics.update({
-                'convergence_rate': float(np.mean(states_values == 0)),  # Assuming 0 = converged
+                'convergence_rate': float(np.mean(states_values == 0)),
                 'n_converged': int(np.sum(states_values == 0))
             })
-        
+
         # Add any pre-computed metrics from metadata
         if 'quality_metrics' in self.metadata:
             metrics.update(self.metadata['quality_metrics'])
-        
+
         LOG.info("Fit quality metrics: mean_chi2=%.3f, n_pixels=%d",
                 metrics['mean_chi2'], metrics['n_pixels'])
-        
+
         return metrics
-    
-    
+
+
     def save_results(self, filepath: str | Path) -> None:
         """Save fit results to file.
         
@@ -262,7 +268,7 @@ class FitResult:
             reloaded later. The full FitManager state may not be preserved.
         """
         filepath = Path(filepath)
-        
+
         # Prepare data for saving
         save_data = {
             'model_name': self.model_name,
@@ -271,15 +277,27 @@ class FitResult:
             'metadata': self.metadata,
             'parameters': self.parameters.copy()  # Copy all parameters
         }
-        
+
         # Add magnetic field if calculated
         if self._b_field_cache is not None:
             save_data['b_field'] = self._b_field_cache
-        
+
         # Save to NPZ format for efficiency
-        np.savez_compressed(filepath, **save_data)
+        # Extract numpy arrays and convert other types to numpy-compatible formats
+        numpy_save_data = {}
+        for key, value in save_data.items():
+            if isinstance(value, (np.ndarray, np.number, int, float, str, bool)):
+                numpy_save_data[key] = value
+            elif isinstance(value, dict):
+                # Convert dict to array for numpy compatibility
+                numpy_save_data[key] = np.array([value], dtype=object)
+            else:
+                # Convert other types to arrays
+                numpy_save_data[key] = np.array(value)
+        
+        np.savez_compressed(filepath, **numpy_save_data)
         LOG.info("Fit results saved to: %s", filepath)
-    
+
     @classmethod
     def load_results(cls, filepath: str | Path) -> dict[str, Any]:
         """Load saved fit results from file.
@@ -296,14 +314,15 @@ class FitResult:
             which may not always be possible or desired.
         """
         filepath = Path(filepath)
-        
+
         if not filepath.exists():
             raise FileNotFoundError(f"Results file not found: {filepath}")
-        
+
         data = np.load(filepath, allow_pickle=True)
-        
+
         # Convert back to regular dict
         result_data = {key: data[key] for key in data.files}
-        
+
         LOG.info("Fit results loaded from: %s", filepath)
         return result_data
+
