@@ -1,5 +1,7 @@
 """Physical and computational constants for QDMpy.
 
+Convention: All frequency values are in GHz.
+
 This module defines essential constants used throughout the QDMpy package:
 
 - Physical constants: Fundamental values from quantum physics relevant to NV centers
@@ -15,11 +17,8 @@ and provide physically accurate values for quantum diamond microscopy analysis.
 from __future__ import annotations
 
 # Physical constants for NV centers
-GAMMA_NV = 28.024e9  # Hz/T, NV center gyromagnetic ratio (more precise value from old QDM)
-D_ZFS = 2.870e9  # Hz, zero-field splitting for NV centers
-
-# Conversion constant from old QDM implementation
-GAMMA = 28.024 / 1e6  # GHz/μT, gyromagnetic ratio in convenient units for B111 calculations
+GAMMA_NV = 28.024  # GHz/T, NV center gyromagnetic ratio
+D_ZFS = 2.870  # GHz, zero-field splitting for NV centers
 
 # Hyperfine splitting constants for nitrogen isotopes (in GHz)
 AHYP_14N = 0.002158  # Hyperfine splitting constant for 14N (in GHz)

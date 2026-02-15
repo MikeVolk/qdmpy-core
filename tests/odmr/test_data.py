@@ -170,11 +170,11 @@ class TestFrequencies:
         """Test that frequencies returns a numpy array."""
         assert isinstance(odmr_data.frequencies, np.ndarray)
 
-    def test_frequencies_in_hz(self, odmr_data, frequencies_1d):
-        """Test that frequencies are returned in Hz (not GHz)."""
+    def test_frequencies_in_ghz(self, odmr_data, frequencies_1d):
+        """Test that frequencies are returned in GHz."""
         result = odmr_data.frequencies
         for i in range(N_FRANGE):
-            np.testing.assert_allclose(result[i], frequencies_1d, rtol=1e-10)
+            np.testing.assert_allclose(result[i], frequencies_1d / 1e9, rtol=1e-10)
 
     def test_frequencies_shape(self, odmr_data):
         """Test that frequencies has shape (n_frange, n_freqs)."""

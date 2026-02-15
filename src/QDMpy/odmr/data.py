@@ -1,5 +1,8 @@
 """Data structures for ODMR spectroscopy in QDM analysis.
 
+Convention: All frequency values are in GHz. Raw Hz input from MATLAB files
+is converted at the ``from_numpy()`` input boundary.
+
 This module provides the `ODMRData` class, which serves as the fundamental data
 structure for handling Optically Detected Magnetic Resonance (ODMR) spectroscopic
 measurements using xarray for named-dimension data representation.
@@ -122,12 +125,11 @@ class ODMRData:
 
     @property
     def frequencies(self) -> NDArray:
-        """Frequency values in Hz as a numpy array.
+        """Frequency values in GHz as a numpy array.
 
         Returns shape (n_frange, n_freqs) or (n_freqs,) depending on the data.
         """
-        freq_ghz = self.data.coords['freq_ghz'].values
-        return freq_ghz * 1e9
+        return self.data.coords['freq_ghz'].values
 
     @property
     def numpy(self) -> NDArray:

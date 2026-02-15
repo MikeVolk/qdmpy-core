@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 
+from QDMpy.constants import D_ZFS, GAMMA_NV
 from QDMpy.result import FitResult
 
 
@@ -18,8 +19,8 @@ class TestFitResult:
         """Create sample fit parameters for testing."""
         n_pixels = 100
         return {
-            "center": np.random.normal(2.87e9, 1e6, n_pixels),  # ~2.87 GHz
-            "width_0": np.random.normal(5e5, 1e4, n_pixels),  # ~500 kHz
+            "center": np.random.normal(2.87, 0.001, n_pixels),  # ~2.87 GHz
+            "width_0": np.random.normal(0.0005, 0.00001, n_pixels),  # ~0.5 MHz in GHz
             "contrast": np.random.uniform(0.01, 0.1, n_pixels),  # 1-10% contrast
             "offset": np.random.normal(0, 0.01, n_pixels),  # Small offsets
             "chi2": np.random.exponential(1.0, n_pixels),  # Chi-squared values
@@ -91,7 +92,7 @@ class TestFitResult:
         # Remove width_0 and add width
         params = sample_parameters.copy()
         del params["width_0"]
-        params["width"] = np.random.normal(5e5, 1e4, 100)
+        params["width"] = np.random.normal(0.0005, 0.00001, 100)
 
         result = FitResult(
             parameters=params, scan_dimensions=(10, 10), pixel_spacing=4e-6, model_name="ESRSINGLE"
@@ -224,11 +225,9 @@ class TestFitResult:
         """Test internal B-field calculation logic."""
         b_field = sample_fit_result._compute_b_field()
 
-        # Get the expected calculation
+        # Get the expected calculation (all in GHz)
         centers_map = sample_fit_result.get_parameter_map("center")
-        gamma_nv = 28.0e9  # Hz/T
-        d_zfs = 2.87e9  # Hz
-        expected = np.abs(centers_map - d_zfs) / gamma_nv
+        expected = np.abs(centers_map - D_ZFS) / GAMMA_NV
 
         np.testing.assert_array_almost_equal(b_field, expected)
 

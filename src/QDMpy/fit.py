@@ -1,5 +1,8 @@
 """ODMR fitting module for Quantum Diamond Microscopy.
 
+Convention: All frequency values are in GHz. Conversion to Hz occurs only
+at the pygpufit boundary in ``fit_frange()`` and ``reshape_results()``.
+
 This module provides fitting functionality for ODMR spectra from NV centers
 in diamond, including model selection, parameter estimation, constraint
 management, and GPU-accelerated fitting.
@@ -123,12 +126,12 @@ class FitManager:
 
         Args:
             data: xr.DataArray with dims (polarity, freq_range, y, x, freq_idx).
-            frequencies: Frequency array in Hz, shape (n_frange, n_freq).
+            frequencies: Frequency array in GHz, shape (n_frange, n_freq).
             model_name: Model name ('auto', 'ESR14N', 'ESR15N', 'ESRSINGLE').
             constraints: Optional dict of custom constraints.
         """
         self._data_xr = data
-        self.f_ghz = np.atleast_2d(frequencies / 1e9)
+        self.f_ghz = np.atleast_2d(frequencies)
         logger.debug(
             'Initializing FitManager with data shape: %s at %s frequencies.',
             self._data_xr.shape,
@@ -421,6 +424,7 @@ class FitManager:
         data_reshaped = data.reshape((-1, n_freqs))
         initial_parameters_reshaped = initial_parameters.reshape((-1, self.n_parameter))
 
+        # --- GHz → Hz boundary for pygpufit ---
         for idx, param_name in enumerate(self.model_params_unique):
             if param_name.startswith('center'):
                 initial_parameters_reshaped[:, idx] *= 1e9

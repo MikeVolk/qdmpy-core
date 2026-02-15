@@ -68,14 +68,14 @@ def frequency_range():
 
     Shape: (n_frange, n_freq) to match guess function expectations.
     """
-    freq_1d = np.linspace(2.87e9, 2.89e9, 100)
+    freq_1d = np.linspace(2.87, 2.89, 100)
     return np.tile(freq_1d, (3, 1))  # (3 freq ranges, 100 freqs)
 
 
 @pytest.fixture
 def frequency_range_1d():
     """Create a 1D frequency range for single-pixel tests."""
-    return np.linspace(2.87e9, 2.89e9, 100)
+    return np.linspace(2.87, 2.89, 100)
 
 
 @pytest.fixture

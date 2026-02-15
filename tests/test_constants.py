@@ -8,6 +8,14 @@ from QDMpy import constants
 class TestConstants(unittest.TestCase):
     """Tests for constants in QDMpy."""
 
+    def test_gamma_nv(self):
+        """Test NV center gyromagnetic ratio is in GHz/T."""
+        self.assertEqual(constants.GAMMA_NV, 28.024)
+
+    def test_d_zfs(self):
+        """Test zero-field splitting is in GHz."""
+        self.assertEqual(constants.D_ZFS, 2.870)
+
     def test_hyperfine_constants(self):
         """Test hyperfine splitting constants."""
         # Verify that the hyperfine constants are defined

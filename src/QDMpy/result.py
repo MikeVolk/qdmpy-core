@@ -1,5 +1,7 @@
 """Fit results management for Quantum Diamond Microscopy.
 
+Convention: All frequency values are in GHz.
+
 This module provides the FitResult class which encapsulates the results of ODMR spectral
 fitting and provides methods for analysis, visualization, and data export. The FitResult
 class separates analysis functionality from data management, allowing for clean separation
@@ -22,7 +24,7 @@ import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 
-from QDMpy.constants import GAMMA
+from QDMpy.constants import D_ZFS, GAMMA_NV
 
 
 class FitResult:
@@ -291,11 +293,11 @@ class FitResult:
 
                 for pol in range(n_pol):
                     for direction in range(2):
-                        delta_resonance[pol, direction] = freq_diff[pol] / 2 / GAMMA * d[direction]
+                        delta_resonance[pol, direction] = freq_diff[pol] / 2 / GAMMA_NV * 1e6 * d[direction]
 
             else:
                 # Single frequency range - use frequency shift from zero field
-                zero_field_freq = 2.87  # GHz, standard NV center zero-field splitting
+                zero_field_freq = D_ZFS
                 freq_shift = resonance[:, 0] - zero_field_freq  # Shape: (n_pol, n_pixels)
 
                 # Reshape to spatial dimensions
@@ -308,7 +310,7 @@ class FitResult:
 
                 for pol in range(n_pol):
                     for direction in range(2):
-                        delta_resonance[pol, direction] = freq_shift[pol] / GAMMA * d[direction]
+                        delta_resonance[pol, direction] = freq_shift[pol] / GAMMA_NV * 1e6 * d[direction]
 
         else:
             # Multiple center parameters (center_0, center_1, etc.)
@@ -381,7 +383,7 @@ class FitResult:
 
                 for pol in range(freq_diff.shape[0]):
                     for direction in range(2):
-                        delta_resonance[pol, direction] = freq_diff[pol] / 2 / GAMMA * d[direction]
+                        delta_resonance[pol, direction] = freq_diff[pol] / 2 / GAMMA_NV * 1e6 * d[direction]
 
             else:
                 raise ValueError(
@@ -523,17 +525,9 @@ class FitResult:
         # Get center frequencies and reshape to spatial map
         centers_map = self.get_parameter_map("center")
 
-        # NV center gyromagnetic ratio (Hz/T)
-        # For NV centers: γ/2π ≈ 28.0 GHz/T
-        gamma_nv = 28.0e9  # Hz/T
-
-        # Zero-field splitting frequency (Hz)
-        # D = 2.87 GHz for NV centers
-        d_zfs = 2.87e9  # Hz
-
         # Calculate magnetic field: |B| = |f_center - D| / γ
-        # This assumes the center frequency represents the shifted resonance
-        b_field = np.abs(centers_map - d_zfs) / gamma_nv
+        # Centers are in GHz, GAMMA_NV is GHz/T, D_ZFS is GHz → result in T
+        b_field = np.abs(centers_map - D_ZFS) / GAMMA_NV
 
         logger.debug(f"B-field calculation: mean={b_field.mean():.2e} T, std={b_field.std():.2e} T")
 

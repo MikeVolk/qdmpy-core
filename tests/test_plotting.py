@@ -17,8 +17,8 @@ class TestPlotting(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         # Create sample data for testing
-        self.frequencies = np.linspace(2.87e9, 2.9e9, 100)
-        self.data = 1.0 - 0.1 * np.exp(-(((self.frequencies - 2.885e9) / 1e7) ** 2))
+        self.frequencies = np.linspace(2.87, 2.9, 100)
+        self.data = 1.0 - 0.1 * np.exp(-(((self.frequencies - 2.885) / 0.01) ** 2))
 
         # Create a mock figure for testing
         self.fig = plt.figure()
@@ -61,8 +61,8 @@ class TestFitResultPlotting(unittest.TestCase):
         self.mock_result.calculate_b_field.return_value = self.b_field_data
 
         # Mock parameter maps
-        self.center_data = np.random.normal(2.87e9, 1e6, (10, 10))
-        self.width_data = np.random.normal(5e5, 1e4, (10, 10))
+        self.center_data = np.random.normal(2.87, 0.001, (10, 10))
+        self.width_data = np.random.normal(0.0005, 0.00001, (10, 10))
         self.contrast_data = np.random.uniform(0.01, 0.1, (10, 10))
 
         def mock_get_parameter_map(param_name):
@@ -235,8 +235,8 @@ class TestFitResultPlotting(unittest.TestCase):
         # Create a real FitResult object
         n_pixels = 100
         parameters = {
-            "center": np.random.normal(2.87e9, 1e6, n_pixels),
-            "width_0": np.random.normal(5e5, 1e4, n_pixels),
+            "center": np.random.normal(2.87, 0.001, n_pixels),
+            "width_0": np.random.normal(0.0005, 0.00001, n_pixels),
             "contrast": np.random.uniform(0.01, 0.1, n_pixels),
             "offset": np.random.normal(0, 0.01, n_pixels),
             "chi2": np.random.exponential(1.0, n_pixels),

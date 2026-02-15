@@ -36,8 +36,8 @@ class TestModelFunctions:
     def test_esr14n_basic(self):
         """Test esr14n with basic input."""
         # Create test data
-        x = np.linspace(2.87e9, 2.88e9, 100)
-        parameters = np.array([2.87e9, 2e6, 0.2, 0.3, 0.1, 0.0])
+        x = np.linspace(2.87, 2.88, 100)
+        parameters = np.array([2.87, 0.002, 0.2, 0.3, 0.1, 0.0])
 
         # Get model output
         result = esr14n(x, parameters)
@@ -58,11 +58,11 @@ class TestModelFunctions:
 
     def test_esr14n_multiple_parameter_sets(self):
         """Test esr14n with multiple parameter sets."""
-        x = np.linspace(2.87e9, 2.88e9, 50)
+        x = np.linspace(2.87, 2.88, 50)
         parameters = np.array(
             [
-                [2.87e9, 2e6, 0.2, 0.3, 0.1, 0.0],
-                [2.875e9, 3e6, 0.1, 0.2, 0.3, 0.1],
+                [2.87, 0.002, 0.2, 0.3, 0.1, 0.0],
+                [2.875, 0.003, 0.1, 0.2, 0.3, 0.1],
             ]
         )
 
@@ -83,11 +83,11 @@ class TestModelFunctions:
 
     def test_esr14n_custom_hyperfine(self):
         """Test esr14n with custom hyperfine splitting."""
-        x = np.linspace(2.87e9, 2.88e9, 100)
-        parameters = np.array([2.87e9, 2e6, 0.2, 0.3, 0.1, 0.0])
+        x = np.linspace(2.87, 2.88, 100)
+        parameters = np.array([2.87, 0.002, 0.2, 0.3, 0.1, 0.0])
 
         # Use a custom hyperfine value
-        custom_ahyp = 5e6
+        custom_ahyp = 0.005
         result = esr14n(x, parameters, ahyp=custom_ahyp)
 
         # Dips should now occur at center ± custom_ahyp
@@ -103,8 +103,8 @@ class TestModelFunctions:
     def test_esr15n_basic(self):
         """Test esr15n with basic input."""
         # Create test data
-        x = np.linspace(2.86e9, 2.89e9, 100)  # Wider range to capture hyperfine splitting
-        parameters = np.array([2.87e9, 2e6, 0.2, 0.3, 0.0])
+        x = np.linspace(2.86, 2.89, 100)  # Wider range to capture hyperfine splitting
+        parameters = np.array([2.87, 0.002, 0.2, 0.3, 0.0])
 
         # Get model output
         result = esr15n(x, parameters)
@@ -126,11 +126,11 @@ class TestModelFunctions:
 
     def test_esr15n_multiple_parameter_sets(self):
         """Test esr15n with multiple parameter sets."""
-        x = np.linspace(2.87e9, 2.88e9, 50)
+        x = np.linspace(2.87, 2.88, 50)
         parameters = np.array(
             [
-                [2.87e9, 2e6, 0.2, 0.3, 0.0],
-                [2.875e9, 3e6, 0.3, 0.1, 0.1],
+                [2.87, 0.002, 0.2, 0.3, 0.0],
+                [2.875, 0.003, 0.3, 0.1, 0.1],
             ]
         )
 
@@ -145,11 +145,11 @@ class TestModelFunctions:
 
     def test_esr15n_custom_hyperfine(self):
         """Test esr15n with custom hyperfine splitting."""
-        x = np.linspace(2.87e9, 2.88e9, 100)
-        parameters = np.array([2.87e9, 2e6, 0.2, 0.3, 0.0])
+        x = np.linspace(2.87, 2.88, 100)
+        parameters = np.array([2.87, 0.002, 0.2, 0.3, 0.0])
 
         # Use a custom hyperfine value
-        custom_ahyp = 4e6
+        custom_ahyp = 0.004
         result = esr15n(x, parameters, ahyp=custom_ahyp)
 
         # Dips should now occur at center ± custom_ahyp
@@ -163,8 +163,8 @@ class TestModelFunctions:
     def test_esrsingle_basic(self):
         """Test esrsingle with basic input."""
         # Create test data
-        x = np.linspace(2.87e9, 2.88e9, 100)
-        parameters = np.array([2.87e9, 2e6, 0.2, 0.0])
+        x = np.linspace(2.87, 2.88, 100)
+        parameters = np.array([2.87, 0.002, 0.2, 0.0])
 
         # Get model output
         result = esrsingle(x, parameters)
@@ -184,11 +184,11 @@ class TestModelFunctions:
 
     def test_esrsingle_multiple_parameter_sets(self):
         """Test esrsingle with multiple parameter sets."""
-        x = np.linspace(2.87e9, 2.88e9, 50)
+        x = np.linspace(2.87, 2.88, 50)
         parameters = np.array(
             [
-                [2.87e9, 2e6, 0.2, 0.0],
-                [2.875e9, 3e6, 0.3, 0.1],
+                [2.87, 0.002, 0.2, 0.0],
+                [2.875, 0.003, 0.3, 0.1],
             ]
         )
 
@@ -282,8 +282,8 @@ class TestModelClass:
 
         # Create sample constraints
         constraints = {
-            "center": [2.8e9, 2.9e9, "FREE"],
-            "width": [1e6, 1e7, "FREE"],
+            "center": [2.8, 2.9, "FREE"],
+            "width": [0.001, 0.01, "FREE"],
             "contrast": [0.0, 1.0, "FREE"],
             "offset": [-0.1, 0.1, "FREE"],
         }
@@ -308,8 +308,8 @@ class TestModelClass:
         """Test the get_constraint_array method of Model."""
         model = ESR14N()
         constraints = {
-            "center": [2.8e9, 2.9e9],  # [min, max]
-            "width": [1e6, 1e7],
+            "center": [2.8, 2.9],  # [min, max]
+            "width": [0.001, 0.01],
             "contrast": [0.0, 1.0],
             "offset": [-0.1, 0.1],
         }
@@ -321,10 +321,10 @@ class TestModelClass:
 
         # Order matches parameters_unique: ["center", "width", "contrast_0", "contrast_1", "contrast_2", "offset"]
         expected = [
-            2.8e9,
-            2.9e9,  # center min/max
-            1e6,
-            1e7,  # width min/max
+            2.8,
+            2.9,  # center min/max
+            0.001,
+            0.01,  # width min/max
             0.0,
             1.0,  # contrast_0 min/max
             0.0,
@@ -341,7 +341,7 @@ class TestModelClass:
         model = ESR14N()
         # Only provide some constraints
         constraints = {
-            "center": [2.8e9, 2.9e9],
+            "center": [2.8, 2.9],
             "contrast": [0.0, 1.0],
         }
 
@@ -353,8 +353,8 @@ class TestModelClass:
         # Parameters not in constraints should have -inf/inf bounds
         # Order: ["center", "width", "contrast_0", "contrast_1", "contrast_2", "offset"]
         expected = [
-            2.8e9,
-            2.9e9,  # center min/max
+            2.8,
+            2.9,  # center min/max
             -np.inf,
             np.inf,  # width min/max (defaults)
             0.0,
@@ -391,17 +391,17 @@ class TestESR14N:
             "contrast_2",
             "offset",
         ]
-        assert model.ahyp == AHYP_14N * 1e9
+        assert model.ahyp == AHYP_14N
 
     def test_func(self):
         """Test the func method of ESR14N."""
         model = ESR14N()
-        x = np.linspace(2.87e9, 2.88e9, 10)
-        parameters = np.array([2.87e9, 2e6, 0.2, 0.3, 0.1, 0.0])
+        x = np.linspace(2.87, 2.88, 10)
+        parameters = np.array([2.87, 0.002, 0.2, 0.3, 0.1, 0.0])
 
-        # Should call esr14n with the correct hyperfine constant (Hz)
+        # Should call esr14n with the correct hyperfine constant (GHz)
         result = model.func(x, parameters)
-        expected = esr14n(x, parameters, AHYP_14N * 1e9)
+        expected = esr14n(x, parameters, AHYP_14N)
 
         assert_array_equal(result, expected)
 
@@ -416,17 +416,17 @@ class TestESR15N:
         assert model.name == "ESR15N"
         assert model.n_peaks == 2
         assert model.parameters_unique == ["center", "width", "contrast_0", "contrast_1", "offset"]
-        assert model.ahyp == AHYP_15N * 1e9
+        assert model.ahyp == AHYP_15N
 
     def test_func(self):
         """Test the func method of ESR15N."""
         model = ESR15N()
-        x = np.linspace(2.87e9, 2.88e9, 10)
-        parameters = np.array([2.87e9, 2e6, 0.2, 0.3, 0.0])
+        x = np.linspace(2.87, 2.88, 10)
+        parameters = np.array([2.87, 0.002, 0.2, 0.3, 0.0])
 
-        # Should call esr15n with the correct hyperfine constant (Hz)
+        # Should call esr15n with the correct hyperfine constant (GHz)
         result = model.func(x, parameters)
-        expected = esr15n(x, parameters, AHYP_15N * 1e9)
+        expected = esr15n(x, parameters, AHYP_15N)
 
         assert_array_equal(result, expected)
 
@@ -445,8 +445,8 @@ class TestESRSINGLE:
     def test_func(self):
         """Test the func method of ESRSINGLE."""
         model = ESRSINGLE()
-        x = np.linspace(2.87e9, 2.88e9, 10)
-        parameters = np.array([2.87e9, 2e6, 0.2, 0.0])
+        x = np.linspace(2.87, 2.88, 10)
+        parameters = np.array([2.87, 0.002, 0.2, 0.0])
 
         # Should call esrsingle
         result = model.func(x, parameters)

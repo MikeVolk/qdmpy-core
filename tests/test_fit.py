@@ -97,7 +97,7 @@ def sample_data(sample_numpy_data):
 @pytest.fixture
 def sample_frequencies():
     """Create sample frequencies for testing."""
-    return np.linspace(2.87e9, 2.88e9, 10)
+    return np.linspace(2.87, 2.88, 10)
 
 
 class TestFitInitialization:

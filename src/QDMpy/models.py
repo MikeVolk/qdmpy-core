@@ -1,5 +1,7 @@
 """Model definitions for fitting ODMR spectra.
 
+Convention: All frequency values are in GHz.
+
 This module provides models for fitting Optically Detected Magnetic Resonance (ODMR)
 spectra from Nitrogen-Vacancy (NV) centers in diamond. It includes models for different
 nitrogen isotopes (14N and 15N) and different configurations, along with a registry
@@ -41,16 +43,16 @@ def esr14n(
     - Center frequency + ahyp (mI = +1)
 
     Args:
-        x: Array of frequency values in Hz.
+        x: Array of frequency values in GHz.
         parameter: Parameter array with shape (N, 6) where N is the number of spectra.
             Each row contains parameters in this order:
-                - [0] center: Center frequency of the resonance (Hz)
-                - [1] width: Linewidth parameter (Hz)
+                - [0] center: Center frequency of the resonance (GHz)
+                - [1] width: Linewidth parameter (GHz)
                 - [2] contrast_-1: Contrast of the mI=-1 dip (0-1)
                 - [3] contrast_0: Contrast of the mI=0 dip (0-1)
                 - [4] contrast_+1: Contrast of the mI=+1 dip (0-1)
                 - [5] offset: Baseline offset (0-1)
-        ahyp: Hyperfine splitting constant (Hz). Defaults to AHYP_14N.
+        ahyp: Hyperfine splitting constant (GHz). Defaults to AHYP_14N.
 
     Returns:
         Model response array with shape (N, len(x)) where N is the number of
@@ -63,8 +65,8 @@ def esr14n(
 
     Example:
         >>> import numpy as np
-        >>> x = np.linspace(2.87e9, 2.88e9, 100)
-        >>> params = np.array([2.87e9, 2e6, 0.1, 0.2, 0.1, 0.0])
+        >>> x = np.linspace(2.87, 2.88, 100)
+        >>> params = np.array([2.87, 0.002, 0.1, 0.2, 0.1, 0.0])
         >>> spectrum = esr14n(x, params)
     """
     out = []
@@ -100,15 +102,15 @@ def esr15n(
     - Center frequency + ahyp (mI = +1/2)
 
     Args:
-        x: Array of frequency values in Hz.
+        x: Array of frequency values in GHz.
         parameter: Parameter array with shape (N, 5) where N is the number of spectra.
             Each row contains parameters in this order:
-                - [0] center: Center frequency of the resonance (Hz)
-                - [1] width: Linewidth parameter (Hz)
+                - [0] center: Center frequency of the resonance (GHz)
+                - [1] width: Linewidth parameter (GHz)
                 - [2] contrast_-1/2: Contrast of the mI=-1/2 dip (0-1)
                 - [3] contrast_+1/2: Contrast of the mI=+1/2 dip (0-1)
                 - [4] offset: Baseline offset (0-1)
-        ahyp: Hyperfine splitting constant (Hz). Defaults to AHYP_15N.
+        ahyp: Hyperfine splitting constant (GHz). Defaults to AHYP_15N.
 
     Returns:
         Model response array with shape (N, len(x)) where N is the number of
@@ -121,8 +123,8 @@ def esr15n(
 
     Example:
         >>> import numpy as np
-        >>> x = np.linspace(2.87e9, 2.88e9, 100)
-        >>> params = np.array([2.87e9, 2e6, 0.15, 0.15, 0.0])
+        >>> x = np.linspace(2.87, 2.88, 100)
+        >>> params = np.array([2.87, 0.002, 0.15, 0.15, 0.0])
         >>> spectrum = esr15n(x, params)
     """
     out = []
@@ -148,11 +150,11 @@ def esrsingle(x: NDArray[np.floating], parameter: NDArray[np.floating]) -> NDArr
     spin systems or when hyperfine structure is not resolved.
 
     Args:
-        x: Array of frequency values in Hz.
+        x: Array of frequency values in GHz.
         parameter: Parameter array with shape (N, 4) where N is the number of spectra.
             Each row contains parameters in this order:
-                - [0] center: Center frequency of the resonance (Hz)
-                - [1] width: Linewidth parameter (Hz)
+                - [0] center: Center frequency of the resonance (GHz)
+                - [1] width: Linewidth parameter (GHz)
                 - [2] contrast: Contrast of the dip (0-1)
                 - [3] offset: Baseline offset (0-1)
 
@@ -168,8 +170,8 @@ def esrsingle(x: NDArray[np.floating], parameter: NDArray[np.floating]) -> NDArr
 
     Example:
         >>> import numpy as np
-        >>> x = np.linspace(2.87e9, 2.88e9, 100)
-        >>> params = np.array([2.875e9, 3e6, 0.2, 0.0])
+        >>> x = np.linspace(2.87, 2.88, 100)
+        >>> params = np.array([2.875, 0.003, 0.2, 0.0])
         >>> spectrum = esrsingle(x, params)
     """
     out = []
@@ -242,7 +244,7 @@ class Model(ABC):
         It defines the mathematical function that calculates the model response.
 
         Args:
-            x: Array of frequency values in Hz.
+            x: Array of frequency values in GHz.
             parameters: Array of model parameters with shape appropriate for the
                 specific model.
 
@@ -447,7 +449,7 @@ class ESR14N(Model):
             3,
             ["center", "width", "contrast_0", "contrast_1", "contrast_2", "offset"],
         )
-        self.ahyp = AHYP_14N * 1e9  # Convert GHz to Hz for pygpufit models
+        self.ahyp = AHYP_14N
         self.model_id = 13
 
     def func(
@@ -461,7 +463,7 @@ class ESR14N(Model):
         and parameter set, using the predefined 14N hyperfine constant.
 
         Args:
-            x: Array of frequency values in Hz.
+            x: Array of frequency values in GHz.
             parameters: Parameter array with shape (N, 6) containing:
                 [center, width, contrast_-1, contrast_0, contrast_+1, offset].
 
@@ -497,7 +499,7 @@ class ESR15N(Model):
             2,
             ["center", "width", "contrast_0", "contrast_1", "offset"],
         )
-        self.ahyp = AHYP_15N * 1e9  # Convert GHz to Hz for pygpufit models
+        self.ahyp = AHYP_15N
         self.model_id = 14
 
     def func(
@@ -511,7 +513,7 @@ class ESR15N(Model):
         and parameter set, using the predefined 15N hyperfine constant.
 
         Args:
-            x: Array of frequency values in Hz.
+            x: Array of frequency values in GHz.
             parameters: Parameter array with shape (N, 5) containing:
                 [center, width, contrast_-1/2, contrast_+1/2, offset].
 
@@ -554,7 +556,7 @@ class ESRSINGLE(Model):
         and parameter set, producing a single Lorentzian dip.
 
         Args:
-            x: Array of frequency values in Hz.
+            x: Array of frequency values in GHz.
             parameters: Parameter array with shape (N, 4) containing:
                 [center, width, contrast, offset].
 
