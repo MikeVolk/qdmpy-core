@@ -1,3 +1,4 @@
+# noqa: N999
 """QDMpy: A Python package for Quantum Diamond Microscopy data analysis.
 
 This package provides tools for processing, analyzing, and visualizing data from

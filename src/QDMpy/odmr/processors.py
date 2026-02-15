@@ -7,7 +7,7 @@ a collection of processor classes and a manager to coordinate them.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 import xarray as xr
@@ -23,7 +23,7 @@ class BaseProcessor(ABC):
     """Abstract base class for ODMR processors."""
 
     @abstractmethod
-    def process(self: Self, data: ODMRData, **kwargs: Any) -> ODMRData:
+    def process(self: Self, data: ODMRData) -> ODMRData:
         """Process the given ODMRData instance and return a new instance."""
 
 
@@ -42,7 +42,7 @@ class NormalizationProcessor(BaseProcessor):
         """
         self.method = method
 
-    def process(self: Self, data: ODMRData, **kwargs: Any) -> ODMRData:
+    def process(self: Self, data: ODMRData) -> ODMRData:
         """Normalize the data based on the selected method."""
         from QDMpy.odmr.data import ODMRData
 
@@ -82,7 +82,7 @@ class BinningProcessor(BaseProcessor):
             raise ValueError("Bin factor must be greater than 0.")
         self.bin_factor = bin_factor
 
-    def process(self: Self, data: ODMRData, **kwargs: Any) -> ODMRData:
+    def process(self: Self, data: ODMRData) -> ODMRData:
         """Bin the data spatially by the specified factor."""
         from QDMpy.odmr.data import ODMRData
 
@@ -110,7 +110,7 @@ class OutlierProcessor(BaseProcessor):
         """
         self.threshold = threshold
 
-    def process(self: Self, data: ODMRData, **kwargs: Any) -> ODMRData:
+    def process(self: Self, data: ODMRData) -> ODMRData:
         """Apply an outlier mask based on the threshold."""
         from QDMpy.odmr.data import ODMRData
 
@@ -141,13 +141,17 @@ class FluorescenceCorrectionProcessor(BaseProcessor):
         """
         self.correction_factor = correction_factor
 
-    def process(self: Self, data: ODMRData, **kwargs: Any) -> ODMRData:
+    def process(
+        self: Self,
+        data: ODMRData,
+        *,
+        correction_factor: float | None = None,
+        glob_fluorescence: float | None = None,
+    ) -> ODMRData:
         """Apply fluorescence correction to the ODMR data."""
         from QDMpy.odmr.data import ODMRData
 
-        factor = kwargs.get(
-            "correction_factor", kwargs.get("glob_fluorescence", self.correction_factor)
-        )
+        factor = correction_factor or glob_fluorescence or self.correction_factor
         logger.info(f"Applying fluorescence correction with factor: {factor}")
 
         _, baseline_corrected = analyze_fluorescence_effects(data)

@@ -19,7 +19,7 @@ from numpy.typing import NDArray
 
 from QDMpy import get_settings, is_pygpufit_available
 from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
-from QDMpy.exceptions import ModelGuessNotPossible
+from QDMpy.exceptions import ModelGuessNotPossibleError
 from QDMpy.guess import (
     guess_center,
     guess_contrast,
@@ -177,7 +177,7 @@ class FitManager:
         if model_name == "auto":
             try:
                 self._model = guess_model(self._flat_data)
-            except ModelGuessNotPossible as e:
+            except ModelGuessNotPossibleError as e:
                 logger.warning(f"Could not auto-detect model: {e}")
                 self._model = ModelRegistry.get("ESRSINGLE")
                 logger.info(f"Defaulting to {self._model.name} model")

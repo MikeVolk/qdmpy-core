@@ -16,7 +16,7 @@ representing spatial, spectral, and polarization dimensions.
 from __future__ import annotations
 
 import itertools
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -37,7 +37,7 @@ CONTRAST_LABEL = "c [%]"
 
 
 def plot_fit_result_field_map(
-    result: FitResult, save: bool = False, filename: str | None = None, **kwargs: Any
+    result: FitResult, save: bool = False, filename: str | None = None
 ) -> None:
     """Plot magnetic field map from FitResult.
 
@@ -56,7 +56,6 @@ def plot_fit_result_field_map(
         "pixel_spacing": result.pixel_spacing,
         "colorbar_label": "Magnetic Field (T)",
         "cmap": "viridis",
-        **kwargs,
     }
 
     # Create the plot
@@ -99,7 +98,6 @@ def plot_fit_result_parameter_map(
     param_name: str,
     save: bool = False,
     filename: str | None = None,
-    **kwargs: Any,
 ) -> None:
     """Plot spatial map of fitted parameter from FitResult.
 
@@ -132,7 +130,6 @@ def plot_fit_result_parameter_map(
         "title": default_title,
         "colorbar_label": default_colorbar_label,
         "cmap": "viridis",
-        **kwargs,
     }
 
     # Create the plot
@@ -171,7 +168,7 @@ def plot_fit_result_parameter_map(
 
 
 def plot_fit_result_overview(
-    result: FitResult, save: bool = False, filename: str | None = None, **kwargs: Any
+    result: FitResult, save: bool = False, filename: str | None = None
 ) -> None:
     """Plot overview of fit results with multiple parameter maps.
 
@@ -246,7 +243,6 @@ def plot_light_img(
     ax: plt.Axes,
     data: np.ndarray,
     img: mpl.image.AxesImage | None = None,
-    **plt_props: Any | None,
 ) -> mpl.image.AxesImage:
     """Plot light image on axes.
 
@@ -268,7 +264,6 @@ def plot_light_img(
         origin="lower",
         aspect="equal",
         zorder=0,
-        **plt_props,
     )
 
 
@@ -276,7 +271,6 @@ def plot_fluorescence(
     ax: plt.Axes,
     data: np.ndarray,
     img: mpl.image.AxesImage | None = None,
-    **plt_props: Any | None,
 ) -> mpl.image.AxesImage:
     """Plot fluorescence image on axes.
 
@@ -298,7 +292,6 @@ def plot_fluorescence(
         origin="lower",
         aspect="equal",
         zorder=0,
-        **plt_props,
     )
 
 
@@ -306,7 +299,6 @@ def plot_laser_img(
     ax: plt.Axes,
     data: np.ndarray,
     img: mpl.image.AxesImage | None = None,
-    **plt_props: Any,
 ) -> mpl.image.AxesImage:
     """Plot laser image on axes.
 
@@ -328,7 +320,6 @@ def plot_laser_img(
         origin="lower",
         aspect="equal",
         zorder=0,
-        **plt_props,
     )
 
 
@@ -337,7 +328,6 @@ def update_line(
     x: np.ndarray,
     y: np.ndarray | None = None,
     line: plt.Line2D | None = None,
-    **plt_props: Any,
 ) -> plt.Line2D | None:
     """Update or create a line plot on axes.
 
@@ -367,7 +357,6 @@ def update_marker(
     x: np.ndarray,
     y: np.ndarray,
     line: plt.Line2D | None = None,
-    **plt_props: Any,
 ) -> plt.Line2D:
     """Update or create a marker plot on axes.
 
@@ -392,7 +381,6 @@ def plot_quality_data(
     ax: plt.Axes,
     data: np.ndarray,
     img: mpl.image.AxesImage | None = None,
-    **plt_props: Any,
 ) -> mpl.image.AxesImage:
     """Plot quality data on axes with normalized colors.
 
@@ -406,16 +394,13 @@ def plot_quality_data(
         Updated AxesImage object.
     """
     norm = get_color_norm(data.min(), data.max())
-    plt_props["norm"] = norm
-    plt_props["cmap"] = "inferno"
-    return update_img(ax, img, data, **plt_props)
+    return update_img(ax, img, data, norm=norm, cmap="inferno")
 
 
 def plot_data(
     ax: plt.Axes,
     data: np.ndarray,
     img: mpl.image.AxesImage | None = None,
-    **plt_props: Any,
 ) -> mpl.image.AxesImage:
     """Plot data on axes with normalized colors.
 
@@ -429,8 +414,7 @@ def plot_data(
         Updated AxesImage object.
     """
     norm = get_color_norm(data.min(), data.max())
-    plt_props["norm"] = norm
-    return update_img(ax, img, data, **plt_props)
+    return update_img(ax, img, data, norm=norm)
 
 
 def get_vmin_vmax(
@@ -486,9 +470,8 @@ def get_color_norm(vmin: float, vmax: float) -> colors.Normalize:
 def plot_overlay(
     ax: plt.Axes,
     data: np.ndarray,
-    img: mpl.image.AxesImage | None | None = None,
+    img: mpl.image.AxesImage | None = None,
     normtype: str = "simple",
-    **plt_props: Any,
 ) -> mpl.image.AxesImage:
     """Plot overlay image with normalized alpha channel.
 
@@ -503,17 +486,16 @@ def plot_overlay(
         Updated AxesImage object.
     """
     if normtype == "simple":
-        plt_props["alpha"] = double_norm(data)
+        alpha = double_norm(data)
     else:
         raise NotImplementedError(f"Normalization type {normtype} not implemented.")
-    return update_img(ax, img, data, **plt_props)
+    return update_img(ax, img, data, alpha=alpha)
 
 
 def plot_outlier(
     ax: plt.Axes,
     data: np.ndarray,
     img: mpl.image.AxesImage | None = None,
-    **plt_props: Any,
 ) -> mpl.image.AxesImage:
     """Plot outlier mask on axes.
 
@@ -527,10 +509,7 @@ def plot_outlier(
         Updated AxesImage object.
     """
     data = data.astype(float)
-    plt_props["cmap"] = "gist_rainbow"
-    plt_props["alpha"] = data
-    plt_props["zorder"] = 3
-    return update_img(ax, img, data, **plt_props)
+    return update_img(ax, img, data, cmap="gist_rainbow", alpha=data, zorder=3)
 
 
 def update_clim(
@@ -557,8 +536,7 @@ def update_cbar(
     cax: plt.Axes,
     vmin: float,
     vmax: float,
-    original_cax_locator: Any,
-    **plt_props: dict,
+    original_cax_locator: object,
 ) -> None:
     """Update colorbar limits and appearance.
 
@@ -586,7 +564,7 @@ def update_cbar(
     label = cax.get_ylabel()
     cax.clear()
     cax.set_axes_locator(original_cax_locator)
-    plt.colorbar(img, cax=cax, extend=extent, label=label, **plt_props)
+    plt.colorbar(img, cax=cax, extend=extent, label=label)
 
 
 def detect_extent(vmin: float, vmax: float, mn: float, mx: float) -> str:
@@ -613,7 +591,7 @@ def update_img(
     ax: plt.Axes,
     img: mpl.image.AxesImage | None,
     data: np.ndarray,
-    **plt_props: Any,
+    **plt_props,
 ) -> mpl.image.AxesImage:
     """Update or create image plot on axes.
 

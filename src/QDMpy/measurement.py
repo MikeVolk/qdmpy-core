@@ -57,7 +57,7 @@ class Measurement:
         metadata (Dict[str, Any]): Additional metadata for the measurement.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self: Self,
         odmr: ODMR,
         light_image: NDArray,
@@ -154,7 +154,12 @@ class Measurement:
             f"pixel_spacing={self.pixel_spacing})"
         )
 
-    def fit_odmr(self: Self, model_name: str | None = None, **kwargs: Any) -> FitResult:
+    def fit_odmr(  # noqa: C901, PLR0912, PLR0915
+        self: Self,
+        model_name: str | None = None,
+        *,
+        constraints: dict[str, Any] | None = None,
+    ) -> FitResult:
         """Fit ODMR spectra and return results object.
 
         This method performs spectral fitting on the processed ODMR data using
@@ -227,7 +232,7 @@ class Measurement:
             data=processed_data.data,
             frequencies=processed_data.frequencies,
             model_name=model_name,
-            **kwargs,
+            constraints=constraints,
         )
 
         # Perform the fitting
@@ -288,7 +293,7 @@ class Measurement:
         metadata = {
             "fit_timestamp": __import__("datetime").datetime.now().isoformat(),
             "quality_metrics": quality_metrics,
-            "fit_settings": kwargs,  # Store any additional fitting parameters
+            "fit_settings": {"constraints": constraints},
         }
 
         # Create lightweight FitResult with extracted data only

@@ -24,7 +24,7 @@ class CantImportError(Exception):
     """
 
 
-class WrongFileNumber(Exception):
+class WrongFileNumberError(Exception):
     """Exception raised when an incorrect number of files is provided.
 
     This exception is typically raised during data loading operations when
@@ -32,7 +32,7 @@ class WrongFileNumber(Exception):
     """
 
 
-class ModelGuessNotPossible(Exception):
+class ModelGuessNotPossibleError(Exception):
     """Exception raised when automatic model selection fails.
 
     This exception is raised when QDMpy cannot automatically determine an

@@ -7,10 +7,18 @@ supporting TOML files, environment variables, and programmatic overrides.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict, TomlConfigSettingsSource
+from pydantic_settings import (
+    BaseSettings,
+    DotEnvSettingsSource,
+    EnvSettingsSource,
+    InitSettingsSource,
+    SecretsSettingsSource,
+    SettingsConfigDict,
+    TomlConfigSettingsSource,
+)
 
 
 class DefaultPathsSettings(BaseModel):
@@ -166,11 +174,11 @@ class QDMpySettings(BaseSettings):
     def settings_customise_sources(
         cls,
         settings_cls: type[BaseSettings],
-        init_settings: Any,
-        env_settings: Any,
-        dotenv_settings: Any,
-        file_secret_settings: Any,
-    ) -> tuple[Any, ...]:
+        init_settings: InitSettingsSource,
+        env_settings: EnvSettingsSource,
+        _dotenv_settings: DotEnvSettingsSource,
+        _file_secret_settings: SecretsSettingsSource,
+    ) -> tuple[InitSettingsSource | EnvSettingsSource | TomlConfigSettingsSource | None, ...]:
         """Customize settings sources with TOML file support.
 
         Priority (highest to lowest):

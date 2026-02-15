@@ -18,7 +18,7 @@ from numpy.typing import NDArray
 from scipy.signal import find_peaks
 
 from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN, PROMINENCE
-from QDMpy.exceptions import ModelGuessNotPossible
+from QDMpy.exceptions import ModelGuessNotPossibleError
 from QDMpy.models import ModelRegistry
 
 if TYPE_CHECKING:
@@ -63,7 +63,7 @@ def guess_model(data: NDArray) -> Model:
         An instance of the appropriate model.
 
     Raises:
-        ModelGuessNotPossible: If the model cannot be reliably determined.
+        ModelGuessNotPossibleError: If the model cannot be reliably determined.
     """
     logger.info("Trying to detect best fitting model for ODMR data.")
     n_peaks, doubt, _ = guess_n_peaks(data)
@@ -72,7 +72,7 @@ def guess_model(data: NDArray) -> Model:
         model = get_model_by_peaks(n_peaks)
         logger.info(f"Detected model: {model.name}")
         return model
-    raise ModelGuessNotPossible(
+    raise ModelGuessNotPossibleError(
         "Guessing the model is not possible. Please select model manually.",
     )
 

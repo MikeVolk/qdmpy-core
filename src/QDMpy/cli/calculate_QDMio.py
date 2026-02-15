@@ -1,3 +1,4 @@
+# noqa: N999
 #!/usr/bin/python
 """Command-line interface for QDMpy data processing.
 
@@ -142,10 +143,6 @@ def main(argv: list[str] | None = None) -> int:
         logger.info(f"Exporting results to {output_dir}...")
         qdm_obj.export_qdmio(output_path=output_dir)
 
-        elapsed_time = time.time() - start_time
-        logger.info(f"Processing completed successfully in {elapsed_time:.2f} seconds")
-        return 0
-
     except Exception as e:
         logger.error(f"Error processing data: {e!s}")
         if getattr(args, "debug", False):
@@ -153,6 +150,10 @@ def main(argv: list[str] | None = None) -> int:
 
             traceback.print_exc()
         return 1
+    else:
+        elapsed_time = time.time() - start_time
+        logger.info(f"Processing completed successfully in {elapsed_time:.2f} seconds")
+        return 0
 
 
 if __name__ == "__main__":

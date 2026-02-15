@@ -251,10 +251,6 @@ def process_command_handler(args: argparse.Namespace) -> int:
             logger.info("Generating plots...")
             # Add plot generation here
 
-        elapsed_time = time.time() - start_time
-        logger.info(f"Processing completed successfully in {elapsed_time:.2f} seconds")
-        return 0
-
     except Exception as e:
         logger.error(f"Error processing data: {e!s}")
         if args.debug:
@@ -262,6 +258,10 @@ def process_command_handler(args: argparse.Namespace) -> int:
 
             traceback.print_exc()
         return 1
+    else:
+        elapsed_time = time.time() - start_time
+        logger.info(f"Processing completed successfully in {elapsed_time:.2f} seconds")
+        return 0
 
 
 def models_command_handler(args: argparse.Namespace) -> int:
@@ -329,8 +329,6 @@ def info_command_handler(args: argparse.Namespace) -> int:
 
             # Add more file-specific analysis here
 
-        return 0
-
     except Exception as e:
         logger.error(f"Error analyzing data: {e!s}")
         if args.debug:
@@ -338,3 +336,5 @@ def info_command_handler(args: argparse.Namespace) -> int:
 
             traceback.print_exc()
         return 1
+    else:
+        return 0

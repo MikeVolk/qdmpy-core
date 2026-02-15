@@ -200,7 +200,7 @@ class FitResult:
             self._delta_resonance_cache = self._compute_delta_resonance()
         return self._delta_resonance_cache
 
-    def _compute_delta_resonance(self: Self) -> NDArray:
+    def _compute_delta_resonance(self: Self) -> NDArray:  # noqa: C901, PLR0912, PLR0915
         """Compute frequency difference between resonance peaks.
 
         Implements the exact calculation from the old QDM class:

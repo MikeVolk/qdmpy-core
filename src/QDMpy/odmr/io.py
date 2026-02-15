@@ -33,7 +33,7 @@ class BaseLoader(ABC):
     """
 
     @abstractmethod
-    def load(self: Self, **kwargs: Any) -> xr.DataArray:
+    def load(self: Self) -> xr.DataArray:
         """Load ODMR data.
 
         Returns:
@@ -58,7 +58,7 @@ class MatlabLoader(BaseLoader):
         """
         self.data_folder = data_folder
 
-    def load(self: Self, **kwargs: Any) -> xr.DataArray:
+    def load(self: Self) -> xr.DataArray:  # noqa: C901, PLR0912
         """Load ODMR data from the specified folder.
 
         Returns:
