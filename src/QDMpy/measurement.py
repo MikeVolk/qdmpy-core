@@ -17,7 +17,6 @@ provides a unified interface for analysis and visualization of QDM experiments.
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -25,23 +24,12 @@ import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 
+from QDMpy.odmr.odmr import ODMR
+
 if TYPE_CHECKING:
     from os import PathLike
+
     from QDMpy.result import FitResult
-
-if not __package__:
-    # Get the current file's directory
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Go one level up to the package root
-    package_root = os.path.abspath(os.path.join(current_dir, ".."))
-    # Add to path if not already there
-    if package_root not in sys.path:
-        sys.path.insert(0, package_root)
-
-
-# Following import must be after setup_package_paths
-from QDMpy.odmr.odmr import ODMR
 
 
 class Measurement:
@@ -194,9 +182,12 @@ class Measurement:
                 from QDMpy.guess import guess_model
 
                 processed_data = self.odmr.processed_data
-                # Use mean spectrum for model detection
-                mean_spectrum = np.mean(processed_data.data, axis=(0, 1, 2))
-                detected_model = guess_model(mean_spectrum)
+                # Extract 4D numpy (n_pol, n_frange, n_pixel, n_freq) for guess_model
+                values = processed_data.data.values
+                n_pol, n_frange = values.shape[0], values.shape[1]
+                n_freq = values.shape[-1]
+                flat_data = values.reshape(n_pol, n_frange, -1, n_freq)
+                detected_model = guess_model(flat_data)
                 model_name = detected_model.name
                 logger.info(f"Auto-detected model: {model_name}")
             except Exception as e:
@@ -313,14 +304,13 @@ class Measurement:
 
 
 if __name__ == "__main__":
-    import numpy as np
+    import matplotlib.pyplot as plt
 
     from QDMpy.odmr.data import ODMRData
     from QDMpy.odmr.io import MatlabLoader
     from QDMpy.odmr.processors import BinningProcessor, FluorescenceCorrectionProcessor
 
     logger.enable("QDMpy")
-    # User-friendly initialization with proper paths
     data_folder = "/home/mike/git/QDMpy/tests/data/FOV18x"
     loader = MatlabLoader(data_folder=data_folder)
     odmr_data = ODMRData.from_loader(loader=loader)
@@ -329,11 +319,9 @@ if __name__ == "__main__":
     odmr.processor_manager.add_processor(FluorescenceCorrectionProcessor())
     odmr.process_data()
 
-    # Create dummy image data for testing
     dummy_light = np.ones((10, 10))
     dummy_laser = np.ones((10, 10))
 
-    # Create output directory
     output_dir = os.path.join(os.path.dirname(__file__), "..", "..", "tests", "output")
     os.makedirs(output_dir, exist_ok=True)
 
@@ -344,11 +332,8 @@ if __name__ == "__main__":
         output_dir,
     )
 
-    import matplotlib.pyplot as plt
-
+    # xarray: select first polarity, first freq_range, first freq_idx -> 2D (y, x)
     plt.imshow(
-        measure.odmr.processed_data.data[0, 0, :, 0].reshape(
-            measure.odmr.processed_data.scan_dimensions
-        )
+        measure.odmr.processed_data.data.isel(polarity=0, freq_range=0, freq_idx=0).values
     )
     plt.show()

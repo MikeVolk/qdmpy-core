@@ -31,6 +31,7 @@ dependencies = [
     "scipy>=1.15.2",
     "loguru>=0.7.0",
     "pydantic-settings>=2.4.0",
+    "xarray>=2026.2.0",
 ]
 
 [project.urls]

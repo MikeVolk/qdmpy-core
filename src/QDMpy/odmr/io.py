@@ -2,18 +2,6 @@
 
 This module provides a modular framework for loading Optically Detected Magnetic
 Resonance (ODMR) data from various file formats through a collection of loader classes.
-Key capabilities include:
-
-- Format abstraction: Common interface for accessing different file formats
-- MATLAB support: Loading from .mat files with specific ODMR data structures
-- Data validation: Ensuring loaded data meets structural and formatting requirements
-- Extensibility: Abstract base class for implementing additional format loaders
-- Metadata extraction: Retrieving experiment parameters from file headers
-- Scan dimension handling: Recovering 2D spatial information from 1D pixel arrays
-- Error handling: Graceful management of missing or malformed data files
-
-This IO layer decouples the higher-level analysis code from the specifics of
-data file formats, allowing for consistent processing regardless of data source.
 """
 
 from __future__ import annotations
@@ -24,6 +12,7 @@ from typing import Any
 
 import mat73
 import numpy as np
+import xarray as xr
 from numpy.typing import NDArray
 from scipy.io import loadmat
 
@@ -34,142 +23,138 @@ class BaseLoader(ABC):
     Subclasses should implement the `load` method to provide specific functionality
     for loading ODMR data from different file types or sources.
 
-    The loaded data should be in a standardized format with 4 dimensions:
-    - Axis 0: Different polarities of measurements (typically 2 for positive/negative)
-    - Axis 1: Different frequency ranges scanned in the experiment
-    - Axis 2: Frequency points (number of frequency measurements per pixel)
-    - Axis 3: Spatial pixels (flattened from a 2D image with rows x cols pixels)
+    The loaded data should be an xr.DataArray with named dimensions:
+    - polarity: measurement field polarity (pos/neg)
+    - freq_range: low vs high frequency band
+    - y: spatial row
+    - x: spatial column
+    - freq_idx: frequency sweep index within a range
     """
 
     @abstractmethod
-    def load(self, **kwargs: Any) -> tuple[NDArray | None, NDArray | None, NDArray | None]:
+    def load(self, **kwargs: Any) -> xr.DataArray:
         """Load ODMR data.
 
         Returns:
-            Tuple[Optional[NDArray], Optional[NDArray], Optional[NDArray]]: A tuple containing:
-                - raw_data: The raw data array with shape (polarities, frequency_ranges, pixels, frequencies).
-                - scan_dimensions: The scan dimensions (rows, cols) used to reshape pixels to 2D.
-                - frequencies: The 1D array of frequencies used in the measurements.
+            xr.DataArray with dims (polarity, freq_range, y, x, freq_idx)
+            and a 'freq_ghz' coordinate giving actual GHz values per
+            (freq_range, freq_idx).
         """
 
 
 class MatlabLoader(BaseLoader):
     """Loader for ODMR data from MATLAB files.
 
-    This loader supports both `.mat` files handled by `scipy.io.loadmat` and
-    `.mat` files with modern structures handled by `mat73.loadmat`.
-
     Attributes:
-        data_folder (str): Path to the folder containing MATLAB files.
+        data_folder: Path to the folder containing MATLAB files.
     """
 
     def __init__(self, data_folder: str) -> None:
-        """Initialize the MatlabLoader.
-
-        Args:
-            data_folder (str): Path to the folder containing MATLAB files.
-        """
         self.data_folder = data_folder
 
-    def load(self, **kwargs: Any) -> tuple[NDArray | None, NDArray | None, NDArray | None]:
+    def load(self, **kwargs: Any) -> xr.DataArray:
         """Load ODMR data from the specified folder.
 
-        Args:
-            kwargs (Any): Additional arguments for loading data (optional).
-
         Returns:
-            Tuple[Optional[NDArray], Optional[NDArray], Optional[NDArray]]: A tuple containing:
-                - raw_data: The raw data array with shape (polarities, frequency_ranges, pixels, frequencies).
-                  - Polarity axis (0): Contains measurements with different polarities (typically 2)
-                  - Frequency ranges axis (1): Contains data from different frequency ranges
-                  - Pixels axis (2): Contains flattened spatial pixels
-                  - Frequencies axis (3): Contains measurements at different frequencies
-                - scan_dimensions: The scan dimensions (rows, cols) used to reshape pixels to 2D.
-                - frequencies: The 1D array of frequencies used in the measurements.
-                - Note: All return values may be None if no files are processed.
+            xr.DataArray with dims (polarity, freq_range, y, x, freq_idx)
 
         Raises:
-            FileNotFoundError: If no valid MATLAB files are found in the folder.
+            FileNotFoundError: If no valid MATLAB files are found.
             ValueError: If the MATLAB file contains an unsupported structure.
         """
-        files = [f for f in os.listdir(self.data_folder) if f.endswith(".mat") and "run_" in f]
+        files = sorted(
+            f for f in os.listdir(self.data_folder) if f.endswith('.mat') and 'run_' in f
+        )
         if not files:
-            raise FileNotFoundError("No valid MATLAB files found in the folder.")
+            raise FileNotFoundError('No valid MATLAB files found in the folder.')
 
-        raw_data, img_shape, frequencies = None, None, None
+        per_file_data: list[NDArray] = []
+        rows: int = 0
+        cols: int = 0
+        frequencies: NDArray | None = None
 
         for file in files:
             full_path = os.path.join(self.data_folder, file)
-            # Try using mat73 for v7.3 format files first, then fall back to loadmat
             try:
                 mat_data = mat73.loadmat(full_path)
             except Exception:
                 mat_data = loadmat(full_path)
 
-            # Process MATLAB data into raw data arrays
             stacked_data = self._process_mat_file(mat_data)
-            raw_data = (
-                stacked_data if raw_data is None else np.stack((raw_data, stacked_data), axis=0)
-            )
+            per_file_data.append(stacked_data)
 
             try:
-                img_shape = np.array(
-                    [
-                        int(np.squeeze(mat_data["imgNumRows"])),
-                        int(np.squeeze(mat_data["imgNumCols"])),
-                    ],
-                )
+                rows = int(np.squeeze(mat_data['imgNumRows']))
+                cols = int(np.squeeze(mat_data['imgNumCols']))
             except KeyError as e:
-                raise ValueError(f"Missing required key in MATLAB file: {e}")
+                raise ValueError(f'Missing required key in MATLAB file: {e}')
 
             try:
-                # Keep original dtype for frequencies to maintain precision
-                frequencies = np.squeeze(mat_data["freqList"])
-
-                # Apply old codebase logic: split frequencies if needed
-                if "numFreqs" in mat_data:
-                    n_freqs = int(np.squeeze(mat_data["numFreqs"]))
-                    if n_freqs != len(frequencies):
-                        # Split into frequency ranges like old codebase
-                        frequencies = np.array([frequencies[:n_freqs], frequencies[n_freqs:]])
-
+                freq_list = np.squeeze(mat_data['freqList'])
+                if 'numFreqs' in mat_data:
+                    n_freqs = int(np.squeeze(mat_data['numFreqs']))
+                    if n_freqs != len(freq_list):
+                        frequencies = np.array([freq_list[:n_freqs], freq_list[n_freqs:]])
+                    else:
+                        frequencies = freq_list
+                else:
+                    frequencies = freq_list
             except KeyError as e:
-                raise ValueError(f"Missing required key in MATLAB file: {e}")
+                raise ValueError(f'Missing required key in MATLAB file: {e}')
 
-        return raw_data, img_shape, frequencies
+        if frequencies is None:
+            raise ValueError('No frequency data found in MATLAB files.')
+
+        # Stack polarity axis from multiple files
+        if len(per_file_data) == 1:
+            raw_data = per_file_data[0][np.newaxis, ...]
+        else:
+            raw_data = np.stack(per_file_data, axis=0)
+
+        # raw_data shape: (n_pol, n_frange, n_pixels, n_freqs)
+        n_pol, n_frange, n_pixels, n_freqs = raw_data.shape
+
+        # Reshape flattened pixels to 2D spatial grid
+        raw_data = raw_data.reshape(n_pol, n_frange, rows, cols, n_freqs)
+
+        # Build frequency coordinate
+        if frequencies.ndim == 1:
+            freq_ghz = np.tile(frequencies, (n_frange, 1)) / 1e9
+        else:
+            freq_ghz = frequencies / 1e9
+
+        polarity_labels = [f'pol_{i}' for i in range(n_pol)]
+        frange_labels = [f'frange_{i}' for i in range(n_frange)]
+
+        return xr.DataArray(
+            raw_data,
+            dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
+            coords={
+                'polarity': polarity_labels,
+                'freq_range': frange_labels,
+                'freq_ghz': (['freq_range', 'freq_idx'], freq_ghz),
+            },
+        )
 
     @staticmethod
     def _process_mat_file(mat_file: dict[str, Any]) -> NDArray:
         """Process a MATLAB file to extract raw ODMR data.
 
-        Args:
-            mat_file (dict[str, Any]): The MATLAB file content as a dictionary.
-
         Returns:
-            NDArray: Processed raw data with shape (polarities, frequency_ranges, pixels, frequencies).
-                - For 2 image stacks: Returns shape (2, frequency_ranges, pixels, frequencies)
-                  where the 2 represents positive/negative polarities.
-                - For 4 image stacks: Concatenates stacks 1+2 and 3+4 along the frequency ranges
-                  axis, returning shape (2, frequency_ranges, pixels, frequencies).
+            NDArray with shape (n_frange, n_pixels, n_freqs).
 
         Raises:
             ValueError: If the MATLAB file contains an unsupported number of image stacks.
         """
-        n_img_stacks = len([k for k in mat_file if "imgStack" in k])
+        n_img_stacks = len([k for k in mat_file if 'imgStack' in k])
         if n_img_stacks == 2:
-            return np.stack([mat_file["imgStack1"].T, mat_file["imgStack2"].T], axis=0)
+            return np.stack([mat_file['imgStack1'].T, mat_file['imgStack2'].T], axis=0)
         if n_img_stacks == 4:
-            return np.stack(
-                [
-                    np.concatenate(
-                        [mat_file["imgStack1"].T, mat_file["imgStack2"].T],
-                        axis=0,
-                    ),
-                    np.concatenate(
-                        [mat_file["imgStack3"].T, mat_file["imgStack4"].T],
-                        axis=0,
-                    ),
-                ],
-                axis=0,
-            )
-        raise ValueError("Unsupported number of image stacks in MATLAB file.")
+            stack_low = np.concatenate(
+                [mat_file['imgStack1'], mat_file['imgStack2']], axis=0
+            ).T
+            stack_high = np.concatenate(
+                [mat_file['imgStack3'], mat_file['imgStack4']], axis=0
+            ).T
+            return np.stack([stack_low, stack_high], axis=0)
+        raise ValueError('Unsupported number of image stacks in MATLAB file.')

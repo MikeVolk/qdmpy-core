@@ -1,4 +1,4 @@
-"""Test module for QDMpy.odmr.odmr"""
+"""Test module for QDMpy.odmr.odmr."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
+import xarray as xr
 
 from QDMpy.odmr.data import ODMRData
 from QDMpy.odmr.odmr import ODMR
@@ -15,9 +16,9 @@ from QDMpy.odmr.processors import ODMRProcessorManager
 @pytest.fixture
 def sample_data():
     """Create sample data for testing."""
-    data = np.random.random((2, 3, 100, 50))  # (modes, reps, pixels, frequencies)
-    scan_dimensions = np.array([10, 10])  # 10x10 grid
-    frequencies = np.linspace(2.87e9, 2.89e9, 50)  # 50 frequencies
+    data = np.random.random((2, 3, 100, 50))  # (n_pol, n_frange, n_pixels, n_freqs)
+    scan_dimensions = (10, 10)
+    frequencies = np.linspace(2.87e9, 2.89e9, 50)
     return data, scan_dimensions, frequencies
 
 
@@ -25,7 +26,7 @@ def sample_data():
 def sample_odmr_data(sample_data):
     """Create a sample ODMRData instance for testing."""
     data, scan_dimensions, frequencies = sample_data
-    return ODMRData(data, scan_dimensions, frequencies)
+    return ODMRData.from_numpy(data, scan_dimensions, frequencies)
 
 
 class TestODMR:
@@ -52,61 +53,50 @@ class TestODMR:
         data, scan_dimensions, frequencies = sample_data
         odmr = ODMR()
 
-        # Test method returns self for chaining
         result = odmr.load_data(data, scan_dimensions, frequencies)
         assert result is odmr
 
-        # Test data is loaded correctly
         assert isinstance(odmr._raw_data, ODMRData)
-        assert odmr._raw_data.data is data
-        assert odmr._raw_data.scan_dimensions is scan_dimensions
-        assert odmr._raw_data.frequencies is frequencies
+        assert isinstance(odmr._raw_data.data, xr.DataArray)
+        assert odmr._raw_data.scan_dimensions == (10, 10)
+        assert odmr._raw_data.shape == (2, 3, 10, 10, 50)
         assert odmr._processed_data is None
         assert odmr.is_processed is False
 
     def test_reset_no_data(self):
         """Test reset method with no data."""
         odmr = ODMR()
-        with pytest.raises(ValueError, match="No raw data"):
+        with pytest.raises(ValueError, match='No raw data'):
             odmr.reset()
 
     def test_reset(self, sample_odmr_data):
         """Test reset method."""
         odmr = ODMR(sample_odmr_data)
-
-        # Create a processed data state
         odmr._processed_data = MagicMock()
         odmr.is_processed = True
 
-        # Test method returns self for chaining
         result = odmr.reset()
         assert result is odmr
-
-        # Test reset properly clears processed data
         assert odmr._processed_data is None
         assert odmr.is_processed is False
 
     def test_process_data_no_data(self):
         """Test process_data method with no data."""
         odmr = ODMR()
-        with pytest.raises(ValueError, match="No ODMRData loaded"):
+        with pytest.raises(ValueError, match='No ODMRData loaded'):
             odmr.process_data()
 
     def test_process_data(self, sample_odmr_data):
         """Test process_data method."""
         odmr = ODMR(sample_odmr_data)
 
-        # Mock the processor_manager
         mock_processor_manager = MagicMock()
         mock_processed_data = MagicMock()
         mock_processor_manager.process.return_value = mock_processed_data
         odmr.processor_manager = mock_processor_manager
 
-        # Test method returns self for chaining
         result = odmr.process_data()
         assert result is odmr
-
-        # Test processing is applied correctly
         mock_processor_manager.process.assert_called_once_with(sample_odmr_data)
         assert odmr._processed_data is mock_processed_data
         assert odmr.is_processed is True
@@ -114,7 +104,7 @@ class TestODMR:
     def test_raw_data_property_no_data(self):
         """Test raw_data property with no data."""
         odmr = ODMR()
-        with pytest.raises(ValueError, match="No raw data available"):
+        with pytest.raises(ValueError, match='No raw data available'):
             odmr.raw_data
 
     def test_raw_data_property(self, sample_odmr_data):
@@ -125,7 +115,7 @@ class TestODMR:
     def test_processed_data_property_no_data(self):
         """Test processed_data property with no processed data."""
         odmr = ODMR()
-        with pytest.raises(ValueError, match="No processed data available"):
+        with pytest.raises(ValueError, match='No processed data available'):
             odmr.processed_data
 
     def test_processed_data_property(self, sample_odmr_data):
@@ -138,15 +128,10 @@ class TestODMR:
     def test_method_chaining(self, sample_data):
         """Test that methods can be chained."""
         data, scan_dimensions, frequencies = sample_data
-
-        # Create mock processor
         mock_processor = MagicMock()
 
-        # Set up a chain of method calls
         odmr = ODMR()
         odmr.processor_manager.add_processor(mock_processor)
 
         result = odmr.load_data(data, scan_dimensions, frequencies).process_data().reset()
-
-        # The chain should end with the ODMR instance
         assert result is odmr

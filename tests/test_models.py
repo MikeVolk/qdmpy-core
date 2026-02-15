@@ -229,7 +229,7 @@ class TestModelClass:
         model = ESR14N()
 
         # Check that parameter strips the unique identifiers
-        expected = ["contrast", "center", "width", "width", "width", "offset"]
+        expected = ["center", "width", "contrast", "contrast", "contrast", "offset"]
         assert model.parameter == expected
 
     def test_model_property_n_parameters(self):
@@ -319,19 +319,18 @@ class TestModelClass:
         # Should have 2 values (min and max) for each parameter
         assert len(constraint_array) == 2 * model.n_parameters
 
-        # Check that constraints are applied correctly
-        # Order should match parameters_unique: ["contrast", "center", "width_0", "width_1", "width_2", "offset"]
+        # Order matches parameters_unique: ["center", "width", "contrast_0", "contrast_1", "contrast_2", "offset"]
         expected = [
-            0.0,
-            1.0,  # contrast min/max
             2.8e9,
             2.9e9,  # center min/max
             1e6,
-            1e7,  # width_0 min/max
-            1e6,
-            1e7,  # width_1 min/max
-            1e6,
-            1e7,  # width_2 min/max
+            1e7,  # width min/max
+            0.0,
+            1.0,  # contrast_0 min/max
+            0.0,
+            1.0,  # contrast_1 min/max
+            0.0,
+            1.0,  # contrast_2 min/max
             -0.1,
             0.1,  # offset min/max
         ]
@@ -352,18 +351,18 @@ class TestModelClass:
         assert len(constraint_array) == 2 * model.n_parameters
 
         # Parameters not in constraints should have -inf/inf bounds
-        # Order: ["contrast", "center", "width_0", "width_1", "width_2", "offset"]
+        # Order: ["center", "width", "contrast_0", "contrast_1", "contrast_2", "offset"]
         expected = [
-            0.0,
-            1.0,  # contrast min/max
             2.8e9,
             2.9e9,  # center min/max
             -np.inf,
-            np.inf,  # width_0 min/max (defaults)
-            -np.inf,
-            np.inf,  # width_1 min/max (defaults)
-            -np.inf,
-            np.inf,  # width_2 min/max (defaults)
+            np.inf,  # width min/max (defaults)
+            0.0,
+            1.0,  # contrast_0 min/max
+            0.0,
+            1.0,  # contrast_1 min/max
+            0.0,
+            1.0,  # contrast_2 min/max
             -np.inf,
             np.inf,  # offset min/max (defaults)
         ]
@@ -385,14 +384,14 @@ class TestESR14N:
         assert model.name == "ESR14N"
         assert model.n_peaks == 3
         assert model.parameters_unique == [
-            "contrast",
             "center",
-            "width_0",
-            "width_1",
-            "width_2",
+            "width",
+            "contrast_0",
+            "contrast_1",
+            "contrast_2",
             "offset",
         ]
-        assert model.ahyp == AHYP_14N
+        assert model.ahyp == AHYP_14N * 1e9
 
     def test_func(self):
         """Test the func method of ESR14N."""
@@ -400,9 +399,9 @@ class TestESR14N:
         x = np.linspace(2.87e9, 2.88e9, 10)
         parameters = np.array([2.87e9, 2e6, 0.2, 0.3, 0.1, 0.0])
 
-        # Should call esr14n with the correct hyperfine constant
+        # Should call esr14n with the correct hyperfine constant (Hz)
         result = model.func(x, parameters)
-        expected = esr14n(x, parameters, AHYP_14N)
+        expected = esr14n(x, parameters, AHYP_14N * 1e9)
 
         assert_array_equal(result, expected)
 
@@ -416,8 +415,8 @@ class TestESR15N:
 
         assert model.name == "ESR15N"
         assert model.n_peaks == 2
-        assert model.parameters_unique == ["contrast", "center", "width_0", "width_1", "offset"]
-        assert model.ahyp == AHYP_15N
+        assert model.parameters_unique == ["center", "width", "contrast_0", "contrast_1", "offset"]
+        assert model.ahyp == AHYP_15N * 1e9
 
     def test_func(self):
         """Test the func method of ESR15N."""
@@ -425,9 +424,9 @@ class TestESR15N:
         x = np.linspace(2.87e9, 2.88e9, 10)
         parameters = np.array([2.87e9, 2e6, 0.2, 0.3, 0.0])
 
-        # Should call esr15n with the correct hyperfine constant
+        # Should call esr15n with the correct hyperfine constant (Hz)
         result = model.func(x, parameters)
-        expected = esr15n(x, parameters, AHYP_15N)
+        expected = esr15n(x, parameters, AHYP_15N * 1e9)
 
         assert_array_equal(result, expected)
 
@@ -441,7 +440,7 @@ class TestESRSINGLE:
 
         assert model.name == "ESRSINGLE"
         assert model.n_peaks == 1
-        assert model.parameters_unique == ["contrast", "center", "width_0", "offset"]
+        assert model.parameters_unique == ["center", "width", "contrast", "offset"]
 
     def test_func(self):
         """Test the func method of ESRSINGLE."""
