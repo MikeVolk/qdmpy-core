@@ -15,8 +15,8 @@ from __future__ import annotations
 from typing import Any, Optional, Union, cast
 
 import numpy as np
-from numpy.typing import NDArray
 from loguru import logger
+from numpy.typing import NDArray
 
 from QDMpy import PYGPUFIT_PRESENT, SETTINGS
 from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
@@ -28,6 +28,7 @@ from QDMpy.guess import (
     guess_width,
 )
 from QDMpy.models import Model, ModelRegistry
+from QDMpy.settings import ModelConstraintsSettings
 
 if PYGPUFIT_PRESENT:
     import pygpufit.gpufit as gf
@@ -46,7 +47,7 @@ class ConstraintManager:
     def __init__(
         self: ConstraintManager,
         model_params: list[str],
-        settings: dict,
+        settings: ModelConstraintsSettings,
         units: dict[str, str],
     ) -> None:
         """Initialize constraints from configuration settings.
@@ -61,15 +62,17 @@ class ConstraintManager:
         self._initialize_constraints(model_params, settings)
 
     def _initialize_constraints(
-        self: ConstraintManager, model_params: list[str], settings: dict
+        self: ConstraintManager,
+        model_params: list[str],
+        settings: ModelConstraintsSettings,
     ) -> None:
         """Initialize constraints based on model parameters and settings."""
         for param in model_params:
             base_param = param.split("_")[0]
             self._constraints[param] = [
-                settings[f"{base_param}_min"],
-                settings[f"{base_param}_max"],
-                settings[f"{base_param}_type"],
+                getattr(settings, f"{base_param}_min"),
+                getattr(settings, f"{base_param}_max"),
+                getattr(settings, f"{base_param}_type"),
                 self._units[base_param],
             ]
 
@@ -195,7 +198,7 @@ class FitManager:
         self._reset_fit()
         # Set up constraint manager
         self._constraint_manager = ConstraintManager(
-            self.model_params_unique, SETTINGS["model"]["constraints"], UNITS
+            self.model_params_unique, SETTINGS.model.constraints, UNITS
         )
 
         # Apply custom constraints if provided
@@ -204,7 +207,7 @@ class FitManager:
                 self.set_constraints(param, **constraint, reset_fit=False)
 
         # Set estimator from configuration
-        self.estimator_id = ESTIMATOR_ID[SETTINGS["fit"]["estimator"]]
+        self.estimator_id = ESTIMATOR_ID[SETTINGS.fit.estimator]
 
     def __repr__(self: FitManager) -> str:
         """Get a string representation of the FitManager instance.
@@ -292,7 +295,7 @@ class FitManager:
         )
         # Reinitialize constraint manager with new model parameters
         self._constraint_manager = ConstraintManager(
-            self.model_params_unique, SETTINGS["model"]["constraints"], UNITS
+            self.model_params_unique, SETTINGS.model.constraints, UNITS
         )
         self._reset_fit()
         # Reset initial parameters to None - they will be computed lazily when needed
@@ -654,8 +657,8 @@ class FitManager:
             initial_parameters=np.ascontiguousarray(initial_parameters_reshaped, dtype=np.float32),
             weights=None,
             model_id=self._model.model_id,
-            max_number_iterations=SETTINGS["fit"]["max_number_iterations"],
-            tolerance=SETTINGS["fit"]["tolerance"],
+            max_number_iterations=SETTINGS.fit.max_number_iterations,
+            tolerance=SETTINGS.fit.tolerance,
             estimator_id=self.estimator_id,
         )
 

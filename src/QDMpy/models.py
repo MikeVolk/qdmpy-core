@@ -407,15 +407,15 @@ class ModelRegistry:
         Returns:
             Dictionary mapping parameter names to constraint lists.
         """
-        settings = SETTINGS["fit"]["constraints"]
+        settings = SETTINGS.model.constraints
         constraints: dict[str, list[Any]] = {}
 
         for param in model.parameters_unique:
             base_param = param.split("_")[0]
             constraints[param] = [
-                settings[f"{base_param}_min"],
-                settings[f"{base_param}_max"],
-                settings[f"{base_param}_type"],
+                getattr(settings, f"{base_param}_min"),
+                getattr(settings, f"{base_param}_max"),
+                getattr(settings, f"{base_param}_type"),
             ]
         return constraints
 

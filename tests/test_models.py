@@ -23,6 +23,11 @@ from QDMpy.models import (
     esr15n,
     esrsingle,
 )
+from QDMpy.settings import (
+    ModelConstraintsSettings,
+    ModelSettings,
+    QDMpySettings,
+)
 
 
 class TestModelFunctions:
@@ -511,31 +516,32 @@ class TestModelRegistry:
                 return x  # Dummy implementation
 
         # Use a patch to ensure SETTINGS contains the right structure
-        with patch(
-            "QDMpy.models.SETTINGS",
-            {
-                "fit": {
-                    "constraints": {
-                        "contrast_min": 0.0,
-                        "contrast_max": 1.0,
-                        "contrast_type": "FREE",
-                        "width_min": 1e6,
-                        "width_max": 1e7,
-                        "width_type": "FREE",
-                    }
-                },
-            },
-        ):
+        mock_settings = QDMpySettings(
+            model=ModelSettings(
+                constraints=ModelConstraintsSettings(
+                    contrast_min=0.0,
+                    contrast_max=1.0,
+                    contrast_type='FREE',
+                    width_min=1e6,
+                    width_max=1e7,
+                    width_type='FREE',
+                )
+            ),
+        )
+
+        with patch('QDMpy.models.SETTINGS', mock_settings):
             # Access the protected method for testing
-            constraints = ModelRegistry._initialize_constraints(TestModelInitConstraints())
+            constraints = ModelRegistry._initialize_constraints(
+                TestModelInitConstraints()
+            )
 
             # Verify the output has the right structure
-            assert "contrast_0" in constraints
-            assert "width_0" in constraints
-            assert len(constraints["contrast_0"]) == 3
-            assert constraints["contrast_0"][0] == 0.0  # min
-            assert constraints["contrast_0"][1] == 1.0  # max
-            assert constraints["contrast_0"][2] == "FREE"  # type
+            assert 'contrast_0' in constraints
+            assert 'width_0' in constraints
+            assert len(constraints['contrast_0']) == 3
+            assert constraints['contrast_0'][0] == 0.0  # min
+            assert constraints['contrast_0'][1] == 1.0  # max
+            assert constraints['contrast_0'][2] == 'FREE'  # type
 
 
 # Test the path handling in direct import

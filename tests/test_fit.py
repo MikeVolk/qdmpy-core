@@ -14,31 +14,37 @@ from numpy.testing import assert_array_almost_equal, assert_array_equal
 
 from QDMpy.fit import CONSTRAINT_TYPES, FitManager
 from QDMpy.models import ESR14N, ESR15N, ESRSINGLE, ModelRegistry
+from QDMpy.settings import (
+    FitSettings,
+    ModelConstraintsSettings,
+    ModelSettings,
+    QDMpySettings,
+)
 
 # Mock settings for tests
-MOCK_SETTINGS = {
-    "fit": {
-        "estimator": "LSE",
-        "max_number_iterations": 100,
-        "tolerance": 1e-6,
-    },
-    "model": {
-        "constraints": {
-            "center_min": 2.8e9,
-            "center_max": 2.9e9,
-            "center_type": "FREE",
-            "width_min": 1e6,
-            "width_max": 1e7,
-            "width_type": "FREE",
-            "contrast_min": 0.0,
-            "contrast_max": 1.0,
-            "contrast_type": "FREE",
-            "offset_min": -0.1,
-            "offset_max": 0.1,
-            "offset_type": "FREE",
-        }
-    },
-}
+MOCK_SETTINGS = QDMpySettings(
+    fit=FitSettings(
+        estimator='LSE',
+        max_number_iterations=100,
+        tolerance=1e-6,
+    ),
+    model=ModelSettings(
+        constraints=ModelConstraintsSettings(
+            center_min=2.8e9,
+            center_max=2.9e9,
+            center_type='FREE',
+            width_min=1e6,
+            width_max=1e7,
+            width_type='FREE',
+            contrast_min=0.0,
+            contrast_max=1.0,
+            contrast_type='FREE',
+            offset_min=-0.1,
+            offset_max=0.1,
+            offset_type='FREE',
+        )
+    ),
+)
 
 
 @pytest.fixture

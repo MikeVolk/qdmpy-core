@@ -14,21 +14,17 @@ __version__ = "0.1.0a"
 
 import logging
 import os
-import shutil
 import sys
 from pathlib import Path
-from typing import Any
 
 import matplotlib as mpl
-import tomli
 from loguru import logger
 
 mpl.rcParams["figure.facecolor"] = "white"
 
 PROJECT_PATH = Path(os.path.abspath(__file__)).parent
 CONFIG_PATH = Path().home() / ".config" / "QDMpy"
-CONFIG_FILE = CONFIG_PATH / "config.ini"
-CONFIG_INI = PROJECT_PATH / "config.ini"
+CONFIG_FILE = CONFIG_PATH / "settings.toml"
 DESKTOP = Path().home() / "Desktop"
 
 SRC_PATH = PROJECT_PATH.parent
@@ -46,44 +42,36 @@ logger.debug(f"QDMpy config file {CONFIG_FILE}")
 
 ############################### configfile stuff ######################################
 def make_configfile(reset: bool = False) -> None:
-    """Creates the config file if it does not exist.
+    """Creates the config directory if it does not exist.
 
     Args:
-      reset: bool:  (Default value = False)
+      reset: If True, removes the user config file so Pydantic defaults take over.
 
     """
     CONFIG_PATH.mkdir(parents=True, exist_ok=True)
-    if not CONFIG_FILE.exists() or reset:
-        logger.info(f"Copying default QDMpy 'config.ini' file to {CONFIG_FILE}")
-        shutil.copy2(CONFIG_INI, CONFIG_FILE)
-
-
-def load_config(file: Path | str = CONFIG_FILE) -> dict:
-    """Loads the config file.
-
-    Args:
-        file: Path to the config file. Defaults to the standard config file location.
-
-    Returns:
-        Dictionary with the config file contents.
-    """
-    logger.info(f"Loading config file: {file}")
-    with open(file, "rb") as file_obj:
-        return tomli.load(file_obj)
+    if reset and CONFIG_FILE.exists():
+        CONFIG_FILE.unlink()
+        logger.info(f"Deleted user config file {CONFIG_FILE}")
 
 
 def reset_config() -> None:
-    """Resets the config file to default settings.
+    """Resets the config to default settings.
 
-    This function overwrites the existing config file with the default settings
-    from the package's internal config.ini file.
+    This removes the user config file, causing Pydantic settings to use defaults.
     """
     make_configfile(reset=True)
-    logger.info("Config file reset")
+    logger.info("Config reset to defaults")
 
+
+# Import settings before any other QDMpy modules
+from QDMpy.settings import QDMpySettings
 
 make_configfile()
-SETTINGS = load_config()
+SETTINGS: QDMpySettings = QDMpySettings()
+
+# Wire loguru logging to the configured level
+logger.remove()
+logger.add(sys.stderr, level=SETTINGS.logging.log_level)
 
 ############################### CHECK IF pygpufit IS INSTALLED ###############################
 import importlib.util

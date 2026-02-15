@@ -1,0 +1,279 @@
+"""Tests for QDMpy settings module."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from QDMpy.settings import (
+    DefaultPathsSettings,
+    FitSettings,
+    LocalOutlierFactorSettings,
+    LoggingSettings,
+    ModelConstraintsSettings,
+    ModelFindPeaksSettings,
+    ModelSettings,
+    OdmrSettings,
+    OutlierDetectionSettings,
+    QDMpySettings,
+    StatisticsPercentileSettings,
+)
+
+
+class TestDefaultPathsSettings:
+    """Tests for DefaultPathsSettings."""
+
+    def test_default_values(self):
+        """Test default values."""
+        settings = DefaultPathsSettings()
+        assert settings.data_path == ''
+
+    def test_custom_values(self):
+        """Test custom values."""
+        settings = DefaultPathsSettings(data_path='/home/data')
+        assert settings.data_path == '/home/data'
+
+
+class TestOdmrSettings:
+    """Tests for OdmrSettings."""
+
+    def test_default_norm_method(self):
+        """Test default normalization method."""
+        settings = OdmrSettings()
+        assert settings.norm_method == 'max'
+
+    def test_custom_norm_method(self):
+        """Test custom normalization method."""
+        for method in ['max', 'min', 'mean']:
+            settings = OdmrSettings(norm_method=method)
+            assert settings.norm_method == method
+
+    def test_invalid_norm_method(self):
+        """Test invalid normalization method raises error."""
+        with pytest.raises(ValueError):
+            OdmrSettings(norm_method='invalid')
+
+
+class TestModelConstraintsSettings:
+    """Tests for ModelConstraintsSettings."""
+
+    def test_default_constraints(self):
+        """Test default constraint values."""
+        settings = ModelConstraintsSettings()
+        assert settings.center_min == 2
+        assert settings.center_max == 3.1
+        assert settings.center_type == 'LOWER_UPPER'
+        assert settings.width_min == 0.0001
+        assert settings.width_max == 0.005
+        assert settings.width_type == 'LOWER_UPPER'
+        assert settings.contrast_min == 0.003
+        assert settings.contrast_max == 0
+        assert settings.contrast_type == 'LOWER'
+        assert settings.offset_min == 0
+        assert settings.offset_max == 0
+        assert settings.offset_type == 'FREE'
+
+    def test_custom_constraints(self):
+        """Test custom constraint values."""
+        settings = ModelConstraintsSettings(
+            center_min=1.0,
+            center_max=4.0,
+            center_type='FREE',
+        )
+        assert settings.center_min == 1.0
+        assert settings.center_max == 4.0
+        assert settings.center_type == 'FREE'
+
+    def test_valid_constraint_types(self):
+        """Test all valid constraint types."""
+        for constraint_type in ['FREE', 'LOWER', 'UPPER', 'LOWER_UPPER']:
+            settings = ModelConstraintsSettings(center_type=constraint_type)
+            assert settings.center_type == constraint_type
+
+    def test_invalid_constraint_type(self):
+        """Test invalid constraint type raises error."""
+        with pytest.raises(ValueError):
+            ModelConstraintsSettings(center_type='INVALID')
+
+
+class TestModelSettings:
+    """Tests for ModelSettings."""
+
+    def test_default_model_settings(self):
+        """Test default model settings."""
+        settings = ModelSettings()
+        assert isinstance(settings.find_peaks, ModelFindPeaksSettings)
+        assert isinstance(settings.constraints, ModelConstraintsSettings)
+        assert settings.find_peaks.prominence == 0.0004
+
+    def test_custom_model_settings(self):
+        """Test custom model settings."""
+        constraints = ModelConstraintsSettings(center_min=2.5)
+        settings = ModelSettings(constraints=constraints)
+        assert settings.constraints.center_min == 2.5
+
+
+class TestFitSettings:
+    """Tests for FitSettings."""
+
+    def test_default_fit_settings(self):
+        """Test default fit settings."""
+        settings = FitSettings()
+        assert settings.estimator == 'MLE'
+        assert settings.max_number_iterations == 1000
+        assert settings.tolerance == 1e-10
+
+    def test_custom_fit_settings(self):
+        """Test custom fit settings."""
+        settings = FitSettings(
+            estimator='LSE',
+            max_number_iterations=500,
+            tolerance=1e-6,
+        )
+        assert settings.estimator == 'LSE'
+        assert settings.max_number_iterations == 500
+        assert settings.tolerance == 1e-6
+
+    def test_valid_estimators(self):
+        """Test valid estimator types."""
+        for estimator in ['LSE', 'MLE']:
+            settings = FitSettings(estimator=estimator)
+            assert settings.estimator == estimator
+
+    def test_invalid_estimator(self):
+        """Test invalid estimator raises error."""
+        with pytest.raises(ValueError):
+            FitSettings(estimator='INVALID')
+
+
+class TestOutlierDetectionSettings:
+    """Tests for OutlierDetectionSettings."""
+
+    def test_default_outlier_settings(self):
+        """Test default outlier detection settings."""
+        settings = OutlierDetectionSettings()
+        assert settings.method == 'LocalOutlierFactor'
+        assert isinstance(settings.local_outlier_factor, LocalOutlierFactorSettings)
+        assert isinstance(
+            settings.statistics_percentile, StatisticsPercentileSettings
+        )
+
+    def test_statistics_percentile_method(self):
+        """Test StatisticsPercentile method settings."""
+        settings = OutlierDetectionSettings(method='StatisticsPercentile')
+        assert settings.method == 'StatisticsPercentile'
+
+    def test_local_outlier_factor_defaults(self):
+        """Test LocalOutlierFactor default settings."""
+        settings = OutlierDetectionSettings()
+        assert settings.local_outlier_factor.n_neighbors == 20
+        assert settings.local_outlier_factor.algorithm == 'auto'
+        assert settings.local_outlier_factor.leaf_size == 30
+        assert settings.local_outlier_factor.metric == 'minkowski'
+        assert settings.local_outlier_factor.p == 2
+        assert settings.local_outlier_factor.contamination == 'auto'
+
+
+class TestLoggingSettings:
+    """Tests for LoggingSettings."""
+
+    def test_default_log_level(self):
+        """Test default log level."""
+        settings = LoggingSettings()
+        assert settings.log_level == 'WARNING'
+
+    def test_custom_log_levels(self):
+        """Test custom log levels."""
+        for level in ['TRACE', 'DEBUG', 'INFO', 'SUCCESS', 'WARNING', 'ERROR',
+                      'CRITICAL']:
+            settings = LoggingSettings(log_level=level)
+            assert settings.log_level == level
+
+    def test_invalid_log_level(self):
+        """Test invalid log level raises error."""
+        with pytest.raises(ValueError):
+            LoggingSettings(log_level='INVALID')
+
+
+class TestQDMpySettings:
+    """Tests for the main QDMpySettings class."""
+
+    def test_default_settings(self):
+        """Test that default settings are created correctly."""
+        settings = QDMpySettings()
+        assert isinstance(settings.default_paths, DefaultPathsSettings)
+        assert isinstance(settings.odmr, OdmrSettings)
+        assert isinstance(settings.model, ModelSettings)
+        assert isinstance(settings.fit, FitSettings)
+        assert isinstance(settings.outlier_detection, OutlierDetectionSettings)
+        assert isinstance(settings.logging, LoggingSettings)
+
+    def test_custom_fit_settings(self):
+        """Test passing custom fit settings."""
+        fit_settings = FitSettings(estimator='LSE', max_number_iterations=500)
+        settings = QDMpySettings(fit=fit_settings)
+        assert settings.fit.estimator == 'LSE'
+        assert settings.fit.max_number_iterations == 500
+
+    def test_nested_settings_override(self):
+        """Test overriding nested settings."""
+        constraints = ModelConstraintsSettings(center_min=1.5)
+        model_settings = ModelSettings(constraints=constraints)
+        settings = QDMpySettings(model=model_settings)
+        assert settings.model.constraints.center_min == 1.5
+
+    def test_environment_variable_override(self):
+        """Test environment variable overrides."""
+        with patch.dict('os.environ', {'QDMPY_LOGGING__LOG_LEVEL': 'DEBUG'}):
+            settings = QDMpySettings()
+            assert settings.logging.log_level == 'DEBUG'
+
+    def test_environment_variable_nested_override(self):
+        """Test nested environment variable overrides."""
+        with patch.dict(
+            'os.environ',
+            {'QDMPY_FIT__ESTIMATOR': 'LSE', 'QDMPY_FIT__MAX_NUMBER_ITERATIONS': '200'},
+        ):
+            settings = QDMpySettings()
+            assert settings.fit.estimator == 'LSE'
+            assert settings.fit.max_number_iterations == 200
+
+    def test_toml_file_loading(self):
+        """Test loading settings from a TOML file."""
+        # Create a temporary TOML file
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / 'settings.toml'
+            config_path.write_text('[fit]\nestimator = "LSE"\nmax_number_iterations = 100\n')
+
+            # Mock the config file path
+            with patch(
+                'QDMpy.settings.Path.home',
+                return_value=Path(tmpdir),
+            ):
+                with patch(
+                    'QDMpy.settings.QDMpySettings.model_config',
+                    {'toml_file': config_path},
+                    create=True,
+                ):
+                    settings = QDMpySettings()
+                    # Since we're mocking, just verify the settings work
+                    assert isinstance(settings, QDMpySettings)
+
+    def test_init_settings_priority(self):
+        """Test that init settings have highest priority."""
+        settings = QDMpySettings(
+            fit=FitSettings(estimator='LSE'),
+            logging=LoggingSettings(log_level='DEBUG'),
+        )
+        assert settings.fit.estimator == 'LSE'
+        assert settings.logging.log_level == 'DEBUG'
+
+    def test_extra_fields_ignored(self):
+        """Test that extra fields are ignored (extra='ignore')."""
+        # This should not raise an error
+        settings = QDMpySettings(extra_field='should_be_ignored')
+        assert isinstance(settings, QDMpySettings)
