@@ -88,3 +88,6 @@ src/tst.py
 # pixi environments
 .pixi
 *.egg-info
+
+# Large test data
+tests/data/MIL2_FOV1/

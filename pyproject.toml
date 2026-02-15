@@ -28,6 +28,8 @@ dependencies = [
     "mkdocs-jupyter>=0.25.1",
     "pytest-cov>=6.0.0",
     "setuptools-scm>=8.3.1",
+    "scipy>=1.15.2",
+    "coloredlogs>=15.0.1",
 ]
 
 [project.urls]
@@ -72,3 +74,6 @@ dev = ["jupyterlab>=4.3.1", "mkdocs>=1.6.1", "ruff>=0.7.4"]
 [project.scripts]
 qdmpy = "QDMpy.cli:main"
 calculate_QDMio = "QDMpy.cli.calculate_QDMio:main"
+
+[tool.uv]
+package = true
