@@ -5,13 +5,11 @@ These tests validate that the new QDMpy codebase loads identical data
 compared to reference data generated from the old codebase.
 """
 
-import logging
 from pathlib import Path
 
 import numpy as np
 import pytest
-
-LOG = logging.getLogger(__name__)
+from loguru import logger
 
 
 @pytest.mark.validation
@@ -54,9 +52,9 @@ class TestDataLoadingValidation:
             err_msg="Scan dimensions do not match reference",
         )
 
-        LOG.info(f"✅ Raw data loading validation passed")
-        LOG.info(f"   Data shape: {odmr_data.data.shape}")
-        LOG.info(f"   Scan dimensions: {odmr_data.scan_dimensions}")
+        logger.info(f"✅ Raw data loading validation passed")
+        logger.info(f"   Data shape: {odmr_data.data.shape}")
+        logger.info(f"   Scan dimensions: {odmr_data.scan_dimensions}")
 
     def test_reference_images_loading(self, test_data_folder):
         """Test that reference images (LED, laser) are loaded correctly."""
@@ -77,6 +75,6 @@ class TestDataLoadingValidation:
         assert led_image.ndim == 2, "LED image should be 2D"
         assert laser_image.ndim == 2, "Laser image should be 2D"
 
-        LOG.info(f"✅ Reference images loading passed")
-        LOG.info(f"   LED shape: {led_image.shape}")
-        LOG.info(f"   Laser shape: {laser_image.shape}")
+        logger.info(f"✅ Reference images loading passed")
+        logger.info(f"   LED shape: {led_image.shape}")
+        logger.info(f"   Laser shape: {laser_image.shape}")

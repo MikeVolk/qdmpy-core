@@ -15,16 +15,14 @@ The FitResult class handles:
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+from loguru import logger
 from numpy.typing import NDArray
 
 from QDMpy.constants import GAMMA
-
-LOG = logging.getLogger(__name__)
 
 
 class FitResult:
@@ -78,8 +76,8 @@ class FitResult:
         self._delta_resonance_cache: NDArray | None = None
         self._b111_cache: tuple[NDArray, NDArray] | None = None
 
-        LOG.info("FitResult initialized with model: %s", model_name)
-        LOG.debug("Available parameters: %s", list(parameters.keys()))
+        logger.info(f"FitResult initialized with model: {model_name}")
+        logger.debug(f"Available parameters: {list(parameters.keys())}")
 
     def __repr__(self) -> str:
         """Return string representation of FitResult."""
@@ -211,23 +209,21 @@ class FitResult:
         Returns:
             Array with shape (n_pol, 2, height, width) for spatial maps
         """
-        LOG.debug("Computing delta resonance for B111 calculations")
+        logger.debug("Computing delta resonance for B111 calculations")
 
         # Look for single 'center' parameter with multiple frequency ranges
         if "center" in self.parameters:
             # Standard case: center parameter with shape (n_pol, n_frange, n_pixels)
             resonance = self.parameters["center"]
-            LOG.debug("Center parameter shape: %s", resonance.shape)
+            logger.debug(f"Center parameter shape: {resonance.shape}")
 
             # Handle variable shapes from fit results
             if len(resonance.shape) == 4:
                 # Shape is (n_pol, n_frange, n_pixels, 1) - squeeze last dimension
                 n_pol, n_frange, n_pixels, _ = resonance.shape
                 resonance = np.squeeze(resonance, axis=-1)  # Remove last dimension
-                LOG.debug(
-                    "Squeezed center parameter from %s to %s",
-                    self.parameters["center"].shape,
-                    resonance.shape,
+                logger.debug(
+                    f"Squeezed center parameter from {self.parameters['center'].shape} to {resonance.shape}"
                 )
             elif len(resonance.shape) == 3:
                 n_pol, n_frange, n_pixels = resonance.shape
@@ -238,10 +234,8 @@ class FitResult:
                 n_frange = total_pol_frange // n_pol
                 n_pixels = resonance.shape[1]
                 resonance = resonance.reshape((n_pol, n_frange, n_pixels))
-                LOG.debug(
-                    "Reshaped center parameter from %s to %s",
-                    self.parameters["center"].shape,
-                    resonance.shape,
+                logger.debug(
+                    f"Reshaped center parameter from {self.parameters['center'].shape} to {resonance.shape}"
                 )
             else:
                 raise ValueError(f"Unexpected center parameter shape: {resonance.shape}")
@@ -272,12 +266,8 @@ class FitResult:
                     if adjusted_height * adjusted_width != n_pixels:
                         adjusted_height, adjusted_width = n_pixels, 1
 
-                LOG.debug(
-                    "Pixel count mismatch: data has %d pixels, scan_dims suggest %d. Using (%d, %d)",
-                    n_pixels,
-                    expected_pixels,
-                    adjusted_height,
-                    adjusted_width,
+                logger.debug(
+                    f"Pixel count mismatch: data has {n_pixels} pixels, scan_dims suggest {expected_pixels}. Using ({adjusted_height}, {adjusted_width})"
                 )
                 height, width = adjusted_height, adjusted_width
 
@@ -363,6 +353,7 @@ class FitResult:
 
                     height, width = adjusted_height, adjusted_width
 
+
                 # Calculate frequency difference between frequency ranges
                 # Take the difference within each frequency range if multiple ranges exist
                 if low_freq_centers.shape[1] >= 2:
@@ -397,7 +388,7 @@ class FitResult:
                     f"Insufficient center parameters for delta resonance calculation. Found: {len(center_params)}"
                 )
 
-        LOG.debug("Delta resonance computed with shape: %s", delta_resonance.shape)
+        logger.debug(f"Delta resonance computed with shape: {delta_resonance.shape}")
         return delta_resonance
 
     @property
@@ -428,11 +419,11 @@ class FitResult:
         Returns:
             Tuple of (remanent_field, induced_field) arrays
         """
-        LOG.info("Computing B111 magnetic field components")
+        logger.info("Computing B111 magnetic field components")
 
         # Get delta resonance
         delta_res = self.delta_resonance
-        LOG.debug("Delta resonance shape for B111 calculation: %s", delta_res.shape)
+        logger.debug(f"Delta resonance shape for B111 calculation: {delta_res.shape}")
 
         # Handle the expected shape: (n_pol, 2, height, width)
         # where the "2" dimension represents [negative_diff, positive_diff]
@@ -468,13 +459,11 @@ class FitResult:
         b111_remanent = (neg_diff + pos_diff) / 2
         b111_induced = (neg_diff - pos_diff) / 2
 
-        LOG.debug(
-            "B111 remanent field: mean=%.2e μT, std=%.2e μT",
-            b111_remanent.mean(),
-            b111_remanent.std(),
+        logger.debug(
+            f"B111 remanent field: mean={b111_remanent.mean():.2e} μT, std={b111_remanent.std():.2e} μT"
         )
-        LOG.debug(
-            "B111 induced field: mean=%.2e μT, std=%.2e μT", b111_induced.mean(), b111_induced.std()
+        logger.debug(
+            f"B111 induced field: mean={b111_induced.mean():.2e} μT, std={b111_induced.std():.2e} μT"
         )
 
         return b111_remanent, b111_induced
@@ -520,7 +509,7 @@ class FitResult:
             and appropriate model-specific conversion factors.
         """
         if self._b_field_cache is None or force_recalculate:
-            LOG.info("Calculating magnetic field from %s fit results", self.model_name)
+            logger.info(f"Calculating magnetic field from {self.model_name} fit results")
             self._b_field_cache = self._compute_b_field()
 
         return self._b_field_cache
@@ -546,7 +535,7 @@ class FitResult:
         # This assumes the center frequency represents the shifted resonance
         b_field = np.abs(centers_map - d_zfs) / gamma_nv
 
-        LOG.debug("B-field calculation: mean=%.2e T, std=%.2e T", b_field.mean(), b_field.std())
+        logger.debug(f"B-field calculation: mean={b_field.mean():.2e} T, std={b_field.std():.2e} T")
 
         return b_field
 
@@ -580,10 +569,8 @@ class FitResult:
         if "quality_metrics" in self.metadata:
             metrics.update(self.metadata["quality_metrics"])
 
-        LOG.info(
-            "Fit quality metrics: mean_chi2=%.3f, n_pixels=%d",
-            metrics["mean_chi2"],
-            metrics["n_pixels"],
+        logger.info(
+            f"Fit quality metrics: mean_chi2={metrics['mean_chi2']:.3f}, n_pixels={metrics['n_pixels']}"
         )
 
         return metrics
@@ -632,7 +619,7 @@ class FitResult:
                 numpy_save_data[key] = np.array(value)
 
         np.savez_compressed(filepath, **numpy_save_data)
-        LOG.info("Fit results saved to: %s", filepath)
+        logger.info(f"Fit results saved to: {filepath}")
 
     @classmethod
     def load_results(cls, filepath: str | Path) -> dict[str, Any]:
@@ -659,5 +646,5 @@ class FitResult:
         # Convert back to regular dict
         result_data = {key: data[key] for key in data.files}
 
-        LOG.info("Fit results loaded from: %s", filepath)
+        logger.info(f"Fit results loaded from: {filepath}")
         return result_data

@@ -17,26 +17,20 @@ The script processes data with binning factors 1, 2, and 8, generating:
 """
 
 import argparse
-import logging
 import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
-
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-LOG = logging.getLogger(__name__)
+from loguru import logger
 
 # Import utilities for old codebase access
 sys.path.insert(0, str(Path(__file__).parent.parent))
 try:
     from validation_tests.utils import safe_import_old_qdmpy
 except ImportError:
-    LOG.error("Could not import validation utilities. Ensure validation_tests/ is present.")
+    logger.error("Could not import validation utilities. Ensure validation_tests/ is present.")
     sys.exit(1)
 
 
@@ -63,10 +57,10 @@ class ReferenceDataGenerator:
         # Create output directory
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        LOG.info(f"Reference data generator initialized:")
-        LOG.info(f"  Data folder: {self.data_folder}")
-        LOG.info(f"  Output directory: {self.output_dir}")
-        LOG.info(f"  Binning factors: {self.binning_factors}")
+        logger.info(f"Reference data generator initialized:")
+        logger.info(f"  Data folder: {self.data_folder}")
+        logger.info(f"  Output directory: {self.output_dir}")
+        logger.info(f"  Binning factors: {self.binning_factors}")
 
     def validate_data_folder(self) -> bool:
         """Validate that the data folder contains required files."""
@@ -78,10 +72,10 @@ class ReferenceDataGenerator:
                 missing_files.append(filename)
 
         if missing_files:
-            LOG.error(f"Missing required files in {self.data_folder}: {missing_files}")
+            logger.error(f"Missing required files in {self.data_folder}: {missing_files}")
             return False
 
-        LOG.info("Data folder validation passed - all required files present")
+        logger.info("Data folder validation passed - all required files present")
         return True
 
     def generate_reference_data(self) -> bool:
@@ -90,7 +84,7 @@ class ReferenceDataGenerator:
         Returns:
             True if all reference data generated successfully, False otherwise
         """
-        LOG.info("Starting reference data generation")
+        logger.info("Starting reference data generation")
         start_time = time.time()
 
         # Validate data folder
@@ -100,13 +94,13 @@ class ReferenceDataGenerator:
         # Import old codebase
         QDMpy_old, QDM_old, ODMR_old = safe_import_old_qdmpy()
         if QDM_old is None:
-            LOG.error("Failed to import old QDMpy codebase")
+            logger.error("Failed to import old QDMpy codebase")
             return False
 
         success = True
 
         for bin_factor in self.binning_factors:
-            LOG.info(f"Generating reference data for binning factor {bin_factor}")
+            logger.info(f"Generating reference data for binning factor {bin_factor}")
 
             try:
                 # Generate reference data for this binning factor
@@ -115,24 +109,24 @@ class ReferenceDataGenerator:
                 )
 
                 if reference_data is None:
-                    LOG.error(f"Failed to generate reference data for binning factor {bin_factor}")
+                    logger.error(f"Failed to generate reference data for binning factor {bin_factor}")
                     success = False
                     continue
 
                 # Save reference data
                 output_file = self.output_dir / f"reference_bin_{bin_factor}.npz"
                 self._save_reference_data(reference_data, output_file)
-                LOG.info(f"Saved reference data: {output_file}")
+                logger.info(f"Saved reference data: {output_file}")
 
             except Exception as e:
-                LOG.exception(
+                logger.exception(
                     f"Error generating reference data for binning factor {bin_factor}: {e}"
                 )
                 success = False
 
         total_time = time.time() - start_time
-        LOG.info(f"Reference data generation completed in {total_time:.2f} seconds")
-        LOG.info(f"Success: {success}")
+        logger.info(f"Reference data generation completed in {total_time:.2f} seconds")
+        logger.info(f"Success: {success}")
 
         return success
 
@@ -152,25 +146,25 @@ class ReferenceDataGenerator:
         """
         try:
             # Stage 1: Load raw data
-            LOG.debug(f"Loading raw data (bin_factor={bin_factor})")
+            logger.debug(f"Loading raw data (bin_factor={bin_factor})")
             raw_data = self._load_raw_data(ODMR_old)
             if raw_data is None:
                 return None
 
             # Stage 2: Process data (normalize, bin, fluorescence correction)
-            LOG.debug(f"Processing data (bin_factor={bin_factor})")
+            logger.debug(f"Processing data (bin_factor={bin_factor})")
             processed_data = self._process_data(raw_data, bin_factor)
             if processed_data is None:
                 return None
 
             # Stage 3: Fit data
-            LOG.debug(f"Fitting data (bin_factor={bin_factor})")
+            logger.debug(f"Fitting data (bin_factor={bin_factor})")
             fit_results = self._fit_data(QDM_old, processed_data)
             if fit_results is None:
                 return None
 
             # Stage 4: Calculate magnetic fields
-            LOG.debug(f"Calculating magnetic fields (bin_factor={bin_factor})")
+            logger.debug(f"Calculating magnetic fields (bin_factor={bin_factor})")
             magnetic_fields = self._calculate_magnetic_fields(fit_results)
             if magnetic_fields is None:
                 return None
@@ -186,11 +180,11 @@ class ReferenceDataGenerator:
                 "magnetic_fields": magnetic_fields,
             }
 
-            LOG.debug(f"Reference data generated successfully for bin_factor={bin_factor}")
+            logger.debug(f"Reference data generated successfully for bin_factor={bin_factor}")
             return reference_data
 
         except Exception as e:
-            LOG.exception(f"Failed to generate reference data for bin_factor={bin_factor}: {e}")
+            logger.exception(f"Failed to generate reference data for bin_factor={bin_factor}: {e}")
             return None
 
     def _load_raw_data(self, ODMR_old: Any) -> Optional[Dict[str, Any]]:
@@ -223,11 +217,11 @@ class ReferenceDataGenerator:
                 },
             }
 
-            LOG.debug(f"Raw data loaded: shape={raw_data['odmr_raw_data'].shape}")
+            logger.debug(f"Raw data loaded: shape={raw_data['odmr_raw_data'].shape}")
             return raw_data
 
         except Exception as e:
-            LOG.exception(f"Failed to load raw data: {e}")
+            logger.exception(f"Failed to load raw data: {e}")
             return None
 
     def _process_data(self, raw_data: Dict[str, Any], bin_factor: int) -> Optional[Dict[str, Any]]:
@@ -275,11 +269,11 @@ class ReferenceDataGenerator:
                 },
             }
 
-            LOG.debug(f"Data processed: shape={processed_data['processed_odmr_data'].shape}")
+            logger.debug(f"Data processed: shape={processed_data['processed_odmr_data'].shape}")
             return processed_data
 
         except Exception as e:
-            LOG.exception(f"Failed to process data: {e}")
+            logger.exception(f"Failed to process data: {e}")
             return None
 
     def _fit_data(self, QDM_old: Any, processed_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -344,11 +338,11 @@ class ReferenceDataGenerator:
                 },
             }
 
-            LOG.debug(f"Fitting completed: fit_shape={fit_results['metadata']['fit_shape']}")
+            logger.debug(f"Fitting completed: fit_shape={fit_results['metadata']['fit_shape']}")
             return fit_results
 
         except Exception as e:
-            LOG.exception(f"Failed to fit data: {e}")
+            logger.exception(f"Failed to fit data: {e}")
             return None
 
     def _calculate_magnetic_fields(self, fit_results: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -404,13 +398,13 @@ class ReferenceDataGenerator:
                 },
             }
 
-            LOG.debug(
+            logger.debug(
                 f"Magnetic fields calculated: shape={magnetic_fields['metadata']['field_shape']}"
             )
             return magnetic_fields
 
         except Exception as e:
-            LOG.exception(f"Failed to calculate magnetic fields: {e}")
+            logger.exception(f"Failed to calculate magnetic fields: {e}")
             return None
 
     def _save_reference_data(self, reference_data: Dict[str, Any], output_file: Path) -> None:
@@ -448,11 +442,11 @@ class ReferenceDataGenerator:
             # Save to compressed file
             np.savez_compressed(output_file, **save_dict)
 
-            LOG.debug(f"Reference data saved to {output_file}")
-            LOG.debug(f"Saved {len(save_dict)} data arrays")
+            logger.debug(f"Reference data saved to {output_file}")
+            logger.debug(f"Saved {len(save_dict)} data arrays")
 
         except Exception as e:
-            LOG.exception(f"Failed to save reference data: {e}")
+            logger.exception(f"Failed to save reference data: {e}")
             raise
 
 
@@ -480,7 +474,7 @@ def main():
 
     # Validate arguments
     if not Path(args.data_folder).exists():
-        LOG.error(f"Data folder does not exist: {args.data_folder}")
+        logger.error(f"Data folder does not exist: {args.data_folder}")
         return 1
 
     try:
@@ -507,7 +501,7 @@ def main():
             return 1
 
     except Exception as e:
-        LOG.exception(f"Reference data generation failed: {e}")
+        logger.exception(f"Reference data generation failed: {e}")
         return 1
 
 

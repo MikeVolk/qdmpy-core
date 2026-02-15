@@ -6,14 +6,11 @@ results compared to the old codebase, including fit parameters, errors, and
 convergence metrics.
 """
 
-import logging
-
 import numpy as np
 import pytest
+from loguru import logger
 
 from .conftest import array_comparison
-
-LOG = logging.getLogger(__name__)
 
 
 @pytest.mark.validation
@@ -76,7 +73,7 @@ class TestFittingValidation:
             f"tolerance={params_comparison['tolerance']:.2e}"
         )
 
-        LOG.info(f"Fit parameters validation passed for bin_factor={bin_factor}")
+        logger.info(f"Fit parameters validation passed for bin_factor={bin_factor}")
 
     def test_fit_quality_metrics(
         self, test_data_folder, new_qdmpy_modules, old_qdmpy_modules, bin_factor, test_parameters
@@ -150,12 +147,12 @@ class TestFittingValidation:
             )
             # Log but don't fail on iteration differences
             if not iter_comparison["passed"]:
-                LOG.warning(
+                logger.warning(
                     f"Iteration count differences (bin={bin_factor}): "
                     f"max_diff={iter_comparison['max_diff']:.1f}"
                 )
 
-        LOG.info(f"Fit quality metrics validation passed for bin_factor={bin_factor}")
+        logger.info(f"Fit quality metrics validation passed for bin_factor={bin_factor}")
 
 
 @pytest.mark.validation
@@ -222,7 +219,7 @@ class TestFittingReferenceComparison:
                     f"max_diff={chi_sq_comparison['max_diff']:.2e}"
                 )
 
-        LOG.info(f"Reference fitting comparison passed for bin_factor={bin_factor}")
+        logger.info(f"Reference fitting comparison passed for bin_factor={bin_factor}")
 
 
 @pytest.mark.validation
@@ -272,7 +269,7 @@ def test_fitting_performance(
     fit_result = measurement_new.fit()
     new_time = time.time() - start_time
 
-    LOG.info(f"Fitting performance (bin={bin_factor}): old={old_time:.3f}s, new={new_time:.3f}s")
+    logger.info(f"Fitting performance (bin={bin_factor}): old={old_time:.3f}s, new={new_time:.3f}s")
 
     # Fitting performance should be reasonable
     # Allow more tolerance since fitting can vary significantly

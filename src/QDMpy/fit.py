@@ -12,11 +12,11 @@ spectra from Nitrogen-Vacancy (NV) centers in diamond. It includes a Fit class t
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Optional, Union, cast
 
 import numpy as np
 from numpy.typing import NDArray
+from loguru import logger
 
 from QDMpy import PYGPUFIT_PRESENT, SETTINGS
 from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
@@ -31,8 +31,6 @@ from QDMpy.models import Model, ModelRegistry
 
 if PYGPUFIT_PRESENT:
     import pygpufit.gpufit as gf
-
-LOG = logging.getLogger(__name__)
 
 # Unit mapping for different parameter types
 UNITS = {"center": "GHz", "width": "GHz", "contrast": "a.u.", "offset": "a.u."}
@@ -168,7 +166,7 @@ class FitManager:
         self._data = data
         # Convert frequencies from Hz to GHz for consistent units throughout
         self.f_ghz = frequencies / 1e9
-        LOG.debug(
+        logger.debug(
             "Initializing FitManager instance with data: %s at %s frequencies.",
             self.data.shape,
             frequencies.shape,
@@ -179,10 +177,10 @@ class FitManager:
             try:
                 self._model = guess_model(data)
             except ModelGuessNotPossible as e:
-                LOG.warning("Could not auto-detect model: %s", e)
+                logger.warning(f"Could not auto-detect model: {e}")
                 # Default to ESRSINGLE if auto-detection fails
                 self._model = ModelRegistry.get("ESRSINGLE")
-                LOG.info("Defaulting to %s model", self._model.name)
+                logger.info(f"Defaulting to {self._model.name} model")
         else:
             try:
                 self._model = ModelRegistry.get(model_name.upper())
@@ -191,7 +189,7 @@ class FitManager:
                     f"Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}",
                 )
 
-        LOG.info("Using model: %s", self._model.name)
+        logger.info(f"Using model: {self._model.name}")
         # Initialize parameters
         self._initial_parameter: NDArray | None = None
         self._reset_fit()
@@ -234,7 +232,7 @@ class FitManager:
         Args:
             data: New spectral data array to fit
         """
-        LOG.info("Data changed, fits need to be recalculated!")
+        logger.info("Data changed, fits need to be recalculated!")
         if np.all(self._data == data):
             return
         self._data = data
@@ -288,7 +286,7 @@ class FitManager:
                 f"Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}",
             )
 
-        LOG.debug(
+        logger.debug(
             "Setting model to %s, resetting all fit results and initial parameters.",
             model_name,
         )
@@ -368,7 +366,7 @@ class FitManager:
             # Apply to all numbered variants
             contrast_params = [p for p in self.model_params_unique if p.startswith("contrast_")]
             for contrast_param in contrast_params:
-                LOG.debug(
+                logger.debug(
                     "Setting constraints for %s: vmin=%s, vmax=%s, type=%s",
                     contrast_param,
                     vmin,
@@ -378,7 +376,7 @@ class FitManager:
                 self._constraint_manager.set_constraint(contrast_param, vmin, vmax, constraint_type)
         else:
             # Handle normal parameters
-            LOG.debug(
+            logger.debug(
                 "Setting constraints for %s: vmin=%s, vmax=%s, type=%s",
                 param,
                 vmin,
@@ -449,7 +447,7 @@ class FitManager:
         # Process each parameter in the model's unique parameter list
         for idx, param_name in enumerate(self.model_params_unique):
             param_type = param_name.split("_")[0]
-            LOG.debug("Guessing %s parameters", param_type)
+            logger.debug(f"Guessing {param_type} parameters")
 
             if param_type == "center":
                 param_values = guess_center(self.data, self.f_ghz)
@@ -557,22 +555,19 @@ class FitManager:
             raise ImportError("pyGpufit is required for fitting but not installed")
 
         if self._fitted and not refit:
-            LOG.debug("Already fitted")
+            logger.debug("Already fitted")
             return
 
         if self.fitted and refit:
             self._reset_fit()
-            LOG.debug("Refitting the ODMR data")
+            logger.debug("Refitting the ODMR data")
 
         # Fit each frequency range separately
         for irange in range(self.data.shape[1]):
             freq_min = self.f_ghz[irange].min()
             freq_max = self.f_ghz[irange].max()
-            LOG.info(
-                "Fitting frequency range %s from %.3f-%.3f GHz",
-                irange,
-                freq_min,
-                freq_max,
+            logger.info(
+                f"Fitting frequency range {irange} from {freq_min:.3f}-{freq_max:.3f} GHz"
             )
 
             results = self.fit_frange(
@@ -596,7 +591,7 @@ class FitManager:
                 self._number_iterations = np.stack((self._number_iterations, results[3]))
                 self._execution_time = np.stack((self._execution_time, results[4]))
 
-            LOG.info("Fit finished in %.2f seconds", results[4])
+            logger.info(f"Fit finished in {results[4]:.2f} seconds")
 
         # Rearrange results to match input data dimensions
         self._fit_results = np.swapaxes(cast(NDArray, self._fit_results), 0, 1)

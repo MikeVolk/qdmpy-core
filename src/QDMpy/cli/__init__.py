@@ -7,12 +7,9 @@ analyzing Quantum Diamond Microscopy data.
 
 from __future__ import annotations
 
-import logging
 import sys
 from importlib.metadata import version as get_version
-
-# Set up logging specifically for the CLI
-CLI_LOGGER = logging.getLogger("QDMpy.cli")
+from loguru import logger
 
 
 # Define the main entry point function that will be called by the 'qdmpy' command
@@ -47,10 +44,10 @@ def main() -> int:
     try:
         return process_command(args)
     except KeyboardInterrupt:
-        CLI_LOGGER.warning("Operation cancelled by user")
+        logger.warning("Operation cancelled by user")
         return 130
     except Exception as e:
-        CLI_LOGGER.error(f"Error: {e!s}")
+        logger.error(f"Error: {e!s}")
         if args.debug:
             # Print full traceback in debug mode
             import traceback

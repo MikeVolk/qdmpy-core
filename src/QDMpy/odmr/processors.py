@@ -18,19 +18,17 @@ of data processing workflows while maintaining a consistent interface.
 
 from __future__ import annotations
 
-import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 import numpy as np
+from loguru import logger
 from matplotlib import pyplot as plt
 from numpy.typing import NDArray
 from skimage.measure import block_reduce
 
 if TYPE_CHECKING:
     from QDMpy.odmr.data import ODMRData
-
-LOG = logging.getLogger(__name__)
 
 
 class BaseProcessor(ABC):
@@ -84,7 +82,7 @@ class NormalizationProcessor(BaseProcessor):
         Raises:
             NotImplementedError: If the specified normalization method is not supported.
         """
-        LOG.debug("Normalizing data using method: %s", self.method)
+        logger.debug(f"Normalizing data using method: {self.method}")
         factors = self._get_norm_factors(data.data, self.method)
         normalized_data = data.data / factors
         metadata = data.metadata.copy()
@@ -152,7 +150,7 @@ class BinningProcessor(BaseProcessor):
             ODMRData: A new instance containing the binned data with reduced spatial resolution
                      but the same overall shape structure.
         """
-        LOG.debug("Binning data with factor: %s", self.bin_factor)
+        logger.debug(f"Binning data with factor: {self.bin_factor}")
         # Calculate spatial dimensions, ensuring compatibility with non-square images
         total_pixels = data.data.shape[2]
         # Try to determine rows and cols from scan_dimensions if available
@@ -166,7 +164,7 @@ class BinningProcessor(BaseProcessor):
         else:
             # Fallback to assuming square images if dimensions are not available
             int(total_pixels**0.5)
-            LOG.warning("Assuming square image for binning. Using scan_dimensions is recommended.")
+            logger.warning("Assuming square image for binning. Using scan_dimensions is recommended.")
 
         reshape_data = data.data.reshape(
             data.data.shape[0],
@@ -233,7 +231,7 @@ class OutlierProcessor(BaseProcessor):
         Returns:
             ODMRData: A new instance with outliers masked.
         """
-        LOG.debug("Masking outliers with threshold: %s", self.threshold)
+        logger.debug(f"Masking outliers with threshold: {self.threshold}")
         # Use a more robust algorithm that considers standard deviation
         data_mean = np.mean(data.data, axis=-1, keepdims=True)
         data_std = np.std(data.data, axis=-1, keepdims=True)
@@ -293,7 +291,7 @@ class FluorescenceCorrectionProcessor(BaseProcessor):
             "correction_factor", kwargs.get("glob_fluorescence", self.correction_factor)
         )
 
-        LOG.info("Applying fluorescence correction with factor: %s", factor)
+        logger.info(f"Applying fluorescence correction with factor: {factor}")
 
         # Get the baseline-corrected data
         _, baseline_corrected = analyze_fluorescence_effects(data)
@@ -353,15 +351,15 @@ def analyze_fluorescence_effects(
 
             # Check if all values are NaN
             if np.all(np.isnan(delta_copy)):
-                LOG.warning("All values in delta_copy are NaN. Using middle pixel instead.")
+                logger.warning("All values in delta_copy are NaN. Using middle pixel instead.")
                 flat_idx = data.data.shape[2] // 2  # Use middle pixel as fallback
             else:
                 flat_idx = int(np.unravel_index(np.nanargmax(delta_copy), delta_copy.shape)[2])
 
-            LOG.info("Automatically selected pixel index: %s", flat_idx)
+            logger.info(f"Automatically selected pixel index: {flat_idx}")
         except ValueError:
             # Fallback to middle pixel if any error occurs
-            LOG.warning("Error finding representative pixel. Using middle pixel instead.")
+            logger.warning("Error finding representative pixel. Using middle pixel instead.")
             flat_idx = data.data.shape[2] // 2
     else:
         flat_idx = int(pixel_idx)
@@ -510,7 +508,7 @@ class ODMRProcessorManager:
         Args:
             processor (BaseProcessor): An instance of a processor to add.
         """
-        LOG.debug("Adding processor: %s", processor.__class__.__name__)
+        logger.debug(f"Adding processor: {processor.__class__.__name__}")
         self.processors.append(processor)
 
     def process(self, data: ODMRData) -> ODMRData:
@@ -522,11 +520,11 @@ class ODMRProcessorManager:
         Returns:
             ODMRData: A new ODMRData instance containing the processed data.
         """
-        LOG.info("Starting processing pipeline.")
+        logger.info("Starting processing pipeline.")
         for processor in self.processors:
-            LOG.debug("Applying processor: %s", processor.__class__.__name__)
+            logger.debug(f"Applying processor: {processor.__class__.__name__}")
             data = processor.process(data)
-        LOG.info("Processing pipeline completed.")
+        logger.info("Processing pipeline completed.")
         return data
 
     def list_processors(self) -> list[str]:

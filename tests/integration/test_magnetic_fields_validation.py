@@ -5,14 +5,11 @@ These tests validate that the new QDMpy codebase calculates identical
 magnetic field components (B111 remanent and induced) compared to the old codebase.
 """
 
-import logging
-
 import numpy as np
 import pytest
+from loguru import logger
 
 from .conftest import array_comparison
-
-LOG = logging.getLogger(__name__)
 
 
 @pytest.mark.validation
@@ -109,7 +106,7 @@ class TestMagneticFieldValidation:
             f"tolerance={b111_total_comparison['tolerance']:.2e}"
         )
 
-        LOG.info(f"B111 magnetic field validation passed for bin_factor={bin_factor}")
+        logger.info(f"B111 magnetic field validation passed for bin_factor={bin_factor}")
 
     def test_magnetic_field_properties(
         self, test_data_folder, new_qdmpy_modules, bin_factor, test_parameters
@@ -159,7 +156,7 @@ class TestMagneticFieldValidation:
             max_field = np.max(np.abs(b111_total[valid_mask]))
             assert max_field < 10.0, f"Magnetic field magnitude unreasonable: {max_field:.2e} T"
 
-        LOG.info(f"Magnetic field properties validation passed for bin_factor={bin_factor}")
+        logger.info(f"Magnetic field properties validation passed for bin_factor={bin_factor}")
 
 
 @pytest.mark.validation
@@ -241,7 +238,7 @@ class TestMagneticFieldReferenceComparison:
             f"tolerance={b111_total_comparison['tolerance']:.2e}"
         )
 
-        LOG.info(f"Reference magnetic field comparison passed for bin_factor={bin_factor}")
+        logger.info(f"Reference magnetic field comparison passed for bin_factor={bin_factor}")
 
 
 @pytest.mark.validation
@@ -293,7 +290,7 @@ def test_magnetic_field_performance(
     magnetic_result = measurement_new.calculate_magnetic_fields()
     new_time = time.time() - start_time
 
-    LOG.info(
+    logger.info(
         f"Magnetic field performance (bin={bin_factor}): old={old_time:.3f}s, new={new_time:.3f}s"
     )
 

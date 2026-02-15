@@ -24,13 +24,13 @@ Expected folder structure:
 
 from __future__ import annotations
 
-import logging
 import os
 import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from loguru import logger
 
 sys.path.append("/home/mike/git/QDMpy/src")
 
@@ -47,23 +47,19 @@ from QDMpy.odmr.processors import (
     OutlierProcessor,
 )
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-QDMpy.LOG.setLevel(logging.INFO)
-
 # Set the data folder path - can be updated by user
 # Try to use test data if available
 if os.path.exists("/home/mike/Documents/FOV18x"):
     DATA_FOLDER = "/home/mike/Documents/FOV18x"
 elif os.path.exists("/home/mike/git/QDMpy/tests/data"):
     DATA_FOLDER = "/home/mike/git/QDMpy/tests/data"
-    logging.warning(f"Using test data folder: {DATA_FOLDER}")
+    logger.warning(f"Using test data folder: {DATA_FOLDER}")
 else:
     # Default to tests/data directory - modify this path as needed
     DATA_FOLDER = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tests", "data"
     )
-    logging.warning(f"Using default test data folder: {DATA_FOLDER}")
+    logger.warning(f"Using default test data folder: {DATA_FOLDER}")
 
 
 def load_image_from_csv(filepath: str | Path) -> np.ndarray:
@@ -75,15 +71,15 @@ def load_image_from_csv(filepath: str | Path) -> np.ndarray:
     Returns:
         The image as a numpy array.
     """
-    logging.info(f"Loading image from {filepath}")
+    logger.info(f"Loading image from {filepath}")
     try:
         if not os.path.exists(filepath):
-            logging.warning(f"File not found: {filepath}")
+            logger.warning(f"File not found: {filepath}")
             # Return a small dummy array as fallback
             return np.ones((10, 10))
         return np.genfromtxt(filepath, delimiter=",")
     except Exception as e:
-        logging.exception(f"Error loading image from {filepath}: {e}")
+        logger.exception(f"Error loading image from {filepath}: {e}")
         # Return a small dummy array as fallback
         return np.ones((10, 10))
 
@@ -93,7 +89,7 @@ def main() -> None:
     print(f"QDMpy version: {QDMpy.__version__}")
 
     # Step 1: Load ODMR data using MatlabLoader
-    logging.info(f"Loading ODMR data from {DATA_FOLDER}")
+    logger.info(f"Loading ODMR data from {DATA_FOLDER}")
     loader = MatlabLoader(data_folder=DATA_FOLDER)
 
     # Option 1: Load data to arrays and create ODMRData manually
@@ -103,12 +99,12 @@ def main() -> None:
     # Option 2: Load data directly to ODMRData (preferred)
     odmr_data = ODMRData.from_loader(loader)
 
-    logging.info(f"ODMR data shape: {odmr_data.shape}")
-    logging.info(
+    logger.info(f"ODMR data shape: {odmr_data.shape}")
+    logger.info(
         f"Frequency range: {odmr_data.frequencies.min()/1e9:.3f} - "
         f"{odmr_data.frequencies.max()/1e9:.3f} GHz"
     )
-    logging.info(f"Scan dimensions: {odmr_data.scan_dimensions}")
+    logger.info(f"Scan dimensions: {odmr_data.scan_dimensions}")
 
     # Step 2: Load light and laser images
     led_path = os.path.join(DATA_FOLDER, "LED.csv")
@@ -117,30 +113,30 @@ def main() -> None:
     led_image = load_image_from_csv(led_path)
     laser_image = load_image_from_csv(laser_path)
 
-    logging.info(f"LED image shape: {led_image.shape}")
-    logging.info(f"Laser image shape: {laser_image.shape}")
+    logger.info(f"LED image shape: {led_image.shape}")
+    logger.info(f"Laser image shape: {laser_image.shape}")
 
     # Step 3: Create ODMR object and apply processing
     odmr = ODMR(odmr_data)
 
     # Add processors for data cleaning and preparation
-    logging.info("Setting up data processors")
+    logger.info("Setting up data processors")
     odmr.processor_manager.add_processor(NormalizationProcessor(method="max"))
     odmr.processor_manager.add_processor(BinningProcessor(bin_factor=2))
     odmr.processor_manager.add_processor(OutlierProcessor(threshold=3.0))
     odmr.processor_manager.add_processor(FluorescenceCorrectionProcessor(correction_factor=0.2))
 
     # Process the data
-    logging.info("Processing ODMR data")
+    logger.info("Processing ODMR data")
     odmr.process_data()
 
-    logging.info(f"Processed data shape: {odmr.processed_data.shape}")
+    logger.info(f"Processed data shape: {odmr.processed_data.shape}")
 
     # Step 4: Create a Measurement object
     output_dir = Path("./output")
     output_dir.mkdir(exist_ok=True)
 
-    logging.info(f"Creating Measurement object with output to {output_dir}")
+    logger.info(f"Creating Measurement object with output to {output_dir}")
     measurement = Measurement(
         odmr=odmr,
         light_image=led_image,
@@ -155,19 +151,19 @@ def main() -> None:
         from QDMpy.guess import guess_model
 
         model = guess_model(odmr.processed_data.data)
-        logging.info(f"Auto-detected model: {model.name}")
+        logger.info(f"Auto-detected model: {model.name}")
     except Exception as e:
-        logging.warning(f"Couldn't auto-detect model: {e}")
+        logger.warning(f"Couldn't auto-detect model: {e}")
         # Fall back to a specific model - try ESRSINGLE which is simpler
         try:
             model = ESRSINGLE()
-            logging.info("Using ESRSINGLE model as fallback")
+            logger.info("Using ESRSINGLE model as fallback")
         except Exception:
             # If that fails, try each model in sequence
             for model_class in [ESR14N, ESR15N, ESRSINGLE]:
                 try:
                     model = model_class()
-                    logging.info(f"Using {model.name} model as fallback")
+                    logger.info(f"Using {model.name} model as fallback")
                     break
                 except Exception:
                     continue
@@ -184,15 +180,15 @@ def main() -> None:
                         return 1.0 - p[-1] * np.exp(-(((x - p[0]) / p[1]) ** 2))
 
                 model = DummyModel()
-                logging.warning("Using dummy model as all standard models failed")
+                logger.warning("Using dummy model as all standard models failed")
 
     # Step 6: Basic visualization
     # Plot a sample ODMR spectrum from the middle of the image
     plt.figure(figsize=(10, 6))
 
     # Debug shape information
-    logging.info(f"Processed data details - Shape: {odmr.processed_data.data.shape}")
-    logging.info(f"Frequencies shape: {odmr.processed_data.frequencies.shape}")
+    logger.info(f"Processed data details - Shape: {odmr.processed_data.data.shape}")
+    logger.info(f"Frequencies shape: {odmr.processed_data.frequencies.shape}")
 
     # Extract data for a safe pixel index
     freqs = odmr.processed_data.frequencies
@@ -206,7 +202,7 @@ def main() -> None:
         # Create a simple plot of the mean spectrum across all pixels
         # This is safer and doesn't depend on exact data structure
         mean_spectrum = np.mean(odmr.processed_data.data.reshape(-1, freqs.size), axis=0)
-        logging.info(f"Mean spectrum shape: {mean_spectrum.shape}")
+        logger.info(f"Mean spectrum shape: {mean_spectrum.shape}")
 
         # Plot the mean spectrum
         plt.plot(freqs / 1e9, mean_spectrum, "o-", label="Mean ODMR Spectrum")
@@ -216,7 +212,7 @@ def main() -> None:
         spectrum = mean_spectrum  # For model fitting
 
     except Exception as e:
-        logging.exception(f"Error creating spectrum plot: {e}")
+        logger.exception(f"Error creating spectrum plot: {e}")
         # Create a dummy plot if needed
         plt.plot([freqs.min() / 1e9, freqs.max() / 1e9], [1, 0.9], "o-", label="Dummy Data")
         # Dummy spectrum for model fitting
@@ -276,12 +272,12 @@ def main() -> None:
                 fit_y = model.func(freqs, reshaped_params)
                 plt.plot(freqs / 1e9, fit_y, "r-", label=f"{model.name} Model (Mock)")
             except Exception as reshape_e:
-                logging.warning(f"Reshaping parameters failed: {reshape_e}")
+                logger.warning(f"Reshaping parameters failed: {reshape_e}")
                 # Create a simple Lorentzian curve as fallback
                 simple_y = 1.0 - 0.1 * np.exp(-(((freqs - mean_freq) / 0.01e9) ** 2))
                 plt.plot(freqs / 1e9, simple_y, "r-", label="Simple Lorentzian (Fallback)")
     except Exception as e:
-        logging.warning(f"Couldn't generate model visualization: {e}")
+        logger.warning(f"Couldn't generate model visualization: {e}")
         # Create a simple Lorentzian curve as fallback
         simple_y = 1.0 - 0.1 * np.exp(-(((freqs - np.mean(freqs)) / 0.01e9) ** 2))
         plt.plot(freqs / 1e9, simple_y, "r-", label="Simple Lorentzian (Fallback)")
@@ -295,7 +291,7 @@ def main() -> None:
     # Save the plot
     plot_path = output_dir / "sample_spectrum.png"
     plt.savefig(plot_path)
-    logging.info(f"Saved sample spectrum to {plot_path}")
+    logger.info(f"Saved sample spectrum to {plot_path}")
 
     # Show the plot (comment out for headless environments)
     plt.show()
@@ -309,7 +305,7 @@ def main() -> None:
             f"{model_instance.n_parameters} parameters"
         )
 
-    logging.info("Example completed successfully")
+    logger.info("Example completed successfully")
 
 
 if __name__ == "__main__":

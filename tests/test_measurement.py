@@ -9,10 +9,11 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import numpy as np
 import pytest
+from loguru import logger
 
 # Add the project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -222,7 +223,7 @@ class TestMeasurement:
         measurement.metadata.update({"another_key": 123})
         assert measurement.metadata["another_key"] == 123
 
-    @patch("logging.Logger.debug")
+    @patch("loguru.logger.debug")
     def test_logging(self, mock_debug, sample_odmr, sample_images, temp_output_dir):
         """Test that initialization logs appropriate messages."""
         light_image, laser_image = sample_images

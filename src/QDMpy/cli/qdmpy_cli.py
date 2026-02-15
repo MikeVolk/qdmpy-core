@@ -7,29 +7,13 @@ including the argument parsing, subcommands, and execution logic.
 from __future__ import annotations
 
 import argparse
-import logging
 import os
 import time
 from pathlib import Path
 
 import QDMpy
-from QDMpy.cli import CLI_LOGGER
+from loguru import logger
 from QDMpy.models import ModelRegistry
-
-
-def setup_logging(debug: bool = False) -> None:
-    """Configure logging for the QDMpy CLI.
-
-    Args:
-        debug: Whether to enable debug logging
-    """
-    # Configure the QDMpy root logger
-    level = logging.DEBUG if debug else logging.INFO
-    QDMpy.LOG.setLevel(level)
-    CLI_LOGGER.setLevel(level)
-
-    if debug:
-        CLI_LOGGER.debug("Debug logging enabled")
 
 
 def create_parser(version: str) -> argparse.ArgumentParser:
@@ -198,9 +182,6 @@ def process_command(args: argparse.Namespace) -> int:
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
-    # Set up logging based on debug flag
-    setup_logging(args.debug)
-
     # Execute the appropriate command handler
     if hasattr(args, "func"):
         return args.func(args)
@@ -220,10 +201,10 @@ def process_command_handler(args: argparse.Namespace) -> int:
     start_time = time.time()
 
     # Log the command parameters
-    CLI_LOGGER.info(f"Processing data from: {args.input_path}")
-    CLI_LOGGER.info(f"Binning factor: {args.bin_factor}")
-    CLI_LOGGER.info(f"Model: {args.model}")
-    CLI_LOGGER.info(f"Global fluorescence: {args.global_fluorescence}")
+    logger.info(f"Processing data from: {args.input_path}")
+    logger.info(f"Binning factor: {args.bin_factor}")
+    logger.info(f"Model: {args.model}")
+    logger.info(f"Global fluorescence: {args.global_fluorescence}")
 
     # Determine output directory
     output_dir = args.output if args.output else os.path.join(args.input_path, "results")
@@ -231,53 +212,53 @@ def process_command_handler(args: argparse.Namespace) -> int:
 
     # Check if output directory exists
     if output_path.exists() and not args.overwrite:
-        CLI_LOGGER.error(
+        logger.error(
             f"Output directory {output_dir} already exists. Use --overwrite to overwrite."
         )
         return 1
 
     # Create output directory if it doesn't exist
     if not output_path.exists():
-        CLI_LOGGER.info(f"Creating output directory: {output_dir}")
+        logger.info(f"Creating output directory: {output_dir}")
         output_path.mkdir(parents=True)
 
     try:
         # Import here to avoid slow imports when running other commands
         from QDMpy._core.qdm_old import QDM
 
-        CLI_LOGGER.info("Loading and processing data...")
+        logger.info("Loading and processing data...")
 
         # Create QDM object from data
         qdm_obj = QDM.from_qdmio(args.input_path, model_name=args.model)
 
         # Apply binning if requested
         if args.bin_factor > 1:
-            CLI_LOGGER.info(f"Applying spatial binning with factor {args.bin_factor}...")
+            logger.info(f"Applying spatial binning with factor {args.bin_factor}...")
             qdm_obj.bin_data(bin_factor=args.bin_factor)
 
         # Apply global fluorescence correction
-        CLI_LOGGER.info(f"Applying global fluorescence correction ({args.global_fluorescence})...")
+        logger.info(f"Applying global fluorescence correction ({args.global_fluorescence})...")
         qdm_obj.correct_glob_fluorescence(glob_fluorescence=args.global_fluorescence)
 
         # Fit ODMR data
-        CLI_LOGGER.info("Fitting ODMR spectra...")
+        logger.info("Fitting ODMR spectra...")
         qdm_obj.fit_odmr()
 
         # Export results
-        CLI_LOGGER.info(f"Exporting results to {output_dir}...")
+        logger.info(f"Exporting results to {output_dir}...")
         qdm_obj.export_qdmio(output_path=output_dir)
 
         # Generate plots if not disabled
         if not args.no_plots:
-            CLI_LOGGER.info("Generating plots...")
+            logger.info("Generating plots...")
             # Add plot generation here
 
         elapsed_time = time.time() - start_time
-        CLI_LOGGER.info(f"Processing completed successfully in {elapsed_time:.2f} seconds")
+        logger.info(f"Processing completed successfully in {elapsed_time:.2f} seconds")
         return 0
 
     except Exception as e:
-        CLI_LOGGER.error(f"Error processing data: {e!s}")
+        logger.error(f"Error processing data: {e!s}")
         if args.debug:
             import traceback
 
@@ -299,8 +280,8 @@ def models_command_handler(args: argparse.Namespace) -> int:
     if args.model_name:
         # Show details for a specific model
         if args.model_name not in models:
-            CLI_LOGGER.error(f"Model '{args.model_name}' not found")
-            CLI_LOGGER.info(f"Available models: {', '.join(models.keys())}")
+            logger.error(f"Model '{args.model_name}' not found")
+            logger.info(f"Available models: {', '.join(models.keys())}")
             return 1
 
         model_info = models[args.model_name]
@@ -341,7 +322,7 @@ def info_command_handler(args: argparse.Namespace) -> int:
     path = Path(args.data_path)
 
     if not path.exists():
-        CLI_LOGGER.error(f"Path does not exist: {path}")
+        logger.error(f"Path does not exist: {path}")
         return 1
 
     try:
@@ -349,7 +330,7 @@ def info_command_handler(args: argparse.Namespace) -> int:
         from QDMpy.odmr.io import MatlabLoader
 
         if path.is_dir():
-            CLI_LOGGER.info(f"Analyzing directory: {path}")
+            logger.info(f"Analyzing directory: {path}")
             loader = MatlabLoader(data_folder=str(path))
             file_info = loader.get_file_list()
 
@@ -360,7 +341,7 @@ def info_command_handler(args: argparse.Namespace) -> int:
                 for i, file in enumerate(file_info):
                     print(f"\nFile {i+1}: {file}")
         else:
-            CLI_LOGGER.info(f"Analyzing file: {path}")
+            logger.info(f"Analyzing file: {path}")
             print(f"\nFile: {path}")
             print(f"Size: {path.stat().st_size / (1024*1024):.2f} MB")
             print(f"Last modified: {time.ctime(path.stat().st_mtime)}")
@@ -370,7 +351,7 @@ def info_command_handler(args: argparse.Namespace) -> int:
         return 0
 
     except Exception as e:
-        CLI_LOGGER.error(f"Error analyzing data: {e!s}")
+        logger.error(f"Error analyzing data: {e!s}")
         if args.debug:
             import traceback
 

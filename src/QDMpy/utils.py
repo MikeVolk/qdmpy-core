@@ -15,14 +15,12 @@ functionality provided by other modules in the package.
 
 from __future__ import annotations
 
-import logging
 import os
 import sys
 
 import numpy as np
+from loguru import logger
 from numpy.typing import ArrayLike, NDArray
-
-LOG = logging.getLogger(__name__)
 
 
 def setup_package_paths() -> None:

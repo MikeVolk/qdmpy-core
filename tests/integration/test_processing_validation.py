@@ -5,12 +5,9 @@ These tests validate that the new QDMpy codebase produces identical processing
 results compared to reference data generated from the old codebase.
 """
 
-import logging
-
 import numpy as np
 import pytest
-
-LOG = logging.getLogger(__name__)
+from loguru import logger
 
 
 @pytest.mark.validation
@@ -49,7 +46,7 @@ class TestProcessingValidation:
             err_msg="Normalized data does not match reference",
         )
 
-        LOG.info(f"✅ Normalization validation passed for bin_factor={bin_factor}")
+        logger.info(f"✅ Normalization validation passed for bin_factor={bin_factor}")
 
     @pytest.mark.parametrize("bin_factor", [1, 2, 8])
     def test_binning_processing(
@@ -94,9 +91,9 @@ class TestProcessingValidation:
             err_msg="Binned scan dimensions do not match reference",
         )
 
-        LOG.info(f"✅ Binning validation passed for bin_factor={bin_factor}")
-        LOG.info(f"   Final shape: {odmr.processed_data.data.shape}")
-        LOG.info(f"   Scan dimensions: {odmr.processed_data.scan_dimensions}")
+        logger.info(f"✅ Binning validation passed for bin_factor={bin_factor}")
+        logger.info(f"   Final shape: {odmr.processed_data.data.shape}")
+        logger.info(f"   Scan dimensions: {odmr.processed_data.scan_dimensions}")
 
     @pytest.mark.parametrize("bin_factor", [1, 2, 8])
     def test_fluorescence_correction(
@@ -136,7 +133,7 @@ class TestProcessingValidation:
             err_msg="Fluorescence corrected data does not match reference",
         )
 
-        LOG.info(f"✅ Fluorescence correction validation passed for bin_factor={bin_factor}")
+        logger.info(f"✅ Fluorescence correction validation passed for bin_factor={bin_factor}")
 
 
 @pytest.mark.slow
@@ -190,7 +187,7 @@ class TestProcessingPerformance:
                 f"(max allowed: {max_allowed_time:.3f}s)"
             )
 
-            LOG.info(f"✅ Performance validation passed for bin_factor={bin_factor}")
-            LOG.info(f"   New: {actual_time:.3f}s vs Reference: {ref_timing:.3f}s")
+            logger.info(f"✅ Performance validation passed for bin_factor={bin_factor}")
+            logger.info(f"   New: {actual_time:.3f}s vs Reference: {ref_timing:.3f}s")
         else:
-            LOG.warning(f"No reference timing available for bin_factor={bin_factor}")
+            logger.warning(f"No reference timing available for bin_factor={bin_factor}")

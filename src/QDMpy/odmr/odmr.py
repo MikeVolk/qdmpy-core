@@ -17,10 +17,11 @@ applying configurable processing pipelines to raw spectroscopic data.
 
 from __future__ import annotations
 
-import logging
 import os
 import sys
 from typing import TYPE_CHECKING
+
+from loguru import logger
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -33,8 +34,6 @@ if not __package__:
 
 from QDMpy.odmr.data import ODMRData
 from QDMpy.odmr.processors import ODMRProcessorManager
-
-LOG = logging.getLogger(__name__)
 
 
 class ODMR:
@@ -95,7 +94,7 @@ class ODMR:
             _processed_data: Resets to None.
             is_processed: Resets to False.
         """
-        LOG.info("Loading data into ODMR instance.")
+        logger.info("Loading data into ODMR instance.")
         self._raw_data = ODMRData(raw_data, scan_dimensions, frequencies)
         self._processed_data = None
         self.is_processed = False
@@ -113,9 +112,9 @@ class ODMR:
             ValueError: If no raw data is loaded.
         """
         if self._raw_data is None:
-            LOG.error("No raw data loaded. Cannot reset.")
+            logger.error("No raw data loaded. Cannot reset.")
             raise ValueError("No raw data to reset to.")
-        LOG.info("Resetting to raw data.")
+        logger.info("Resetting to raw data.")
         self._processed_data = None
         self.is_processed = False
         return self
@@ -133,9 +132,9 @@ class ODMR:
             ValueError: If no raw data is loaded.
         """
         if self._raw_data is None:
-            LOG.error("No data loaded.")
+            logger.error("No data loaded.")
             raise ValueError("No ODMRData loaded.")
-        LOG.info("Processing data.")
+        logger.info("Processing data.")
         self._processed_data = self.processor_manager.process(self._raw_data)
         self.is_processed = True
         return self
@@ -151,7 +150,7 @@ class ODMR:
             ValueError: If no raw data is loaded.
         """
         if self._raw_data is None:
-            LOG.error("No raw data loaded.")
+            logger.error("No raw data loaded.")
             raise ValueError("No raw data available.")
         return self._raw_data
 
@@ -166,7 +165,7 @@ class ODMR:
             ValueError: If no processing has been performed yet.
         """
         if self._processed_data is None:
-            LOG.error("No data has been processed yet.")
+            logger.error("No data has been processed yet.")
             raise ValueError("No processed data available.")
         return self._processed_data
 

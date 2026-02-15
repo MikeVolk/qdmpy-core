@@ -6,16 +6,14 @@ through magnetic field calculation, ensuring identical results between
 old and new codebases.
 """
 
-import logging
 import time
 from pathlib import Path
 
 import numpy as np
 import pytest
+from loguru import logger
 
 from .conftest import array_comparison
-
-LOG = logging.getLogger(__name__)
 
 
 @pytest.mark.validation
@@ -36,7 +34,7 @@ class TestFullPipelineValidation:
         fit_params = test_parameters["fitting_parameters"]
 
         # Run complete pipeline with old codebase
-        LOG.info(f"Running old codebase pipeline (bin_factor={bin_factor})")
+        logger.info(f"Running old codebase pipeline (bin_factor={bin_factor})")
         start_time = time.time()
 
         # Load and process data
@@ -67,7 +65,7 @@ class TestFullPipelineValidation:
         }
 
         # Run complete pipeline with new codebase
-        LOG.info(f"Running new codebase pipeline (bin_factor={bin_factor})")
+        logger.info(f"Running new codebase pipeline (bin_factor={bin_factor})")
         start_time = time.time()
 
         # Load and process data
@@ -159,13 +157,13 @@ class TestFullPipelineValidation:
         )
 
         # Log performance comparison
-        LOG.info(
+        logger.info(
             f"Pipeline performance (bin_factor={bin_factor}): "
             f"old={old_time:.3f}s, new={new_time:.3f}s, "
             f"ratio={new_time/old_time:.2f}x"
         )
 
-        LOG.info(f"Complete pipeline validation passed for bin_factor={bin_factor}")
+        logger.info(f"Complete pipeline validation passed for bin_factor={bin_factor}")
 
     def test_pipeline_with_different_models(
         self, test_data_folder, new_qdmpy_modules, old_qdmpy_modules, test_parameters
@@ -176,7 +174,7 @@ class TestFullPipelineValidation:
         models_to_test = ["auto"]  # Add more models as supported
 
         for model_name in models_to_test:
-            LOG.info(f"Testing pipeline with model: {model_name}")
+            logger.info(f"Testing pipeline with model: {model_name}")
 
             # Create modified test parameters
             model_params = test_parameters.copy()
@@ -187,7 +185,7 @@ class TestFullPipelineValidation:
                 test_data_folder, new_qdmpy_modules, old_qdmpy_modules, bin_factor, model_params
             )
 
-            LOG.info(f"Pipeline validation passed for model: {model_name}")
+            logger.info(f"Pipeline validation passed for model: {model_name}")
 
 
 @pytest.mark.validation
@@ -207,7 +205,7 @@ class TestFullPipelineReferenceComparison:
         fluor_value = test_parameters["global_fluorescence"]
         fit_params = test_parameters["fitting_parameters"]
 
-        LOG.info(f"Testing pipeline against reference data (bin_factor={bin_factor})")
+        logger.info(f"Testing pipeline against reference data (bin_factor={bin_factor})")
 
         # Run complete pipeline with new codebase
         loader = MatlabLoader(data_folder=str(test_data_folder))
@@ -292,7 +290,7 @@ class TestFullPipelineReferenceComparison:
             + "\n".join(failed_comparisons)
         )
 
-        LOG.info(f"Reference pipeline validation passed for bin_factor={bin_factor}")
+        logger.info(f"Reference pipeline validation passed for bin_factor={bin_factor}")
 
 
 @pytest.mark.validation
@@ -314,7 +312,7 @@ def test_pipeline_performance_scaling(
     fit_params = test_parameters["fitting_parameters"]
 
     for bin_factor in bin_factors:
-        LOG.info(f"Performance testing with bin_factor={bin_factor}")
+        logger.info(f"Performance testing with bin_factor={bin_factor}")
 
         # Time old codebase
         start_time = time.time()
@@ -350,7 +348,7 @@ def test_pipeline_performance_scaling(
         new_time = time.time() - start_time
         performance_results["new"][bin_factor] = new_time
 
-        LOG.info(
+        logger.info(
             f"Performance (bin_factor={bin_factor}): "
             f"old={old_time:.3f}s, new={new_time:.3f}s, "
             f"ratio={new_time/old_time:.2f}x"
@@ -375,4 +373,4 @@ def test_pipeline_performance_scaling(
         # But this is not always guaranteed due to fitting convergence
         pass  # Skip strict performance scaling checks for now
 
-    LOG.info("Pipeline performance scaling validation completed")
+    logger.info("Pipeline performance scaling validation completed")

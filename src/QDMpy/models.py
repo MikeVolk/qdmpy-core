@@ -8,11 +8,11 @@ system for managing and retrieving models.
 
 from __future__ import annotations
 
-import logging
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar
 
 import numpy as np
+from loguru import logger
 from numpy.typing import NDArray
 
 # Handle paths for direct script execution
@@ -22,8 +22,6 @@ setup_package_paths()
 
 from QDMpy import SETTINGS  # noqa: E402
 from QDMpy.constants import AHYP_14N, AHYP_15N  # noqa: E402
-
-LOG = logging.getLogger(__name__)
 
 
 def esr14n(
@@ -355,7 +353,7 @@ class ModelRegistry:
             >>> ModelRegistry.register('CUSTOM', {'class': CustomModel, 'hyp': 0.001})
         """
         cls._registry[name] = model
-        LOG.info("Registered model: %s", name)
+        logger.info(f"Registered model: {name}")
 
     @classmethod
     def get(cls: type[ModelRegistry], name: str) -> Model:

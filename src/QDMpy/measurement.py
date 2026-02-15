@@ -16,13 +16,13 @@ provides a unified interface for analysis and visualization of QDM experiments.
 
 from __future__ import annotations
 
-import logging
 import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+from loguru import logger
 from numpy.typing import NDArray
 
 if TYPE_CHECKING:
@@ -42,8 +42,6 @@ if not __package__:
 
 # Following import must be after setup_package_paths
 from QDMpy.odmr.odmr import ODMR
-
-LOG = logging.getLogger(__name__)
 
 
 class Measurement:
@@ -92,15 +90,15 @@ class Measurement:
             ValueError: If the ODMR instance is not properly initialized or if image shapes
                        don't match the ODMR data.
         """
-        LOG.info("Initializing Measurement object.")
-        LOG.info('Output directory: "%s"', output_directory)
+        logger.info("Initializing Measurement object.")
+        logger.info(f'Output directory: "{output_directory}"')
 
         self.output_directory = Path(output_directory)
         self.pixel_spacing = pixel_spacing
         self.metadata: dict[str, Any] = {}
 
         # Store the ODMR instance
-        LOG.debug("Setting ODMR data.")
+        logger.debug("Setting ODMR data.")
         self.odmr = odmr
 
         # Validate ODMR data availability
@@ -111,27 +109,27 @@ class Measurement:
             raise ValueError("ODMR instance has no raw data")
 
         # Validate ODMR instance data
-        LOG.debug("ODMR raw data shape: %s", self.odmr.raw_data.shape)
+        logger.debug(f"ODMR raw data shape: {self.odmr.raw_data.shape}")
 
         # Check if data has been processed
         try:
-            LOG.debug("ODMR processed data shape: %s", self.odmr.processed_data.shape)
+            logger.debug(f"ODMR processed data shape: {self.odmr.processed_data.shape}")
         except ValueError:
-            LOG.warning("ODMR data has not been processed yet. Some functionality may be limited.")
+            logger.warning("ODMR data has not been processed yet. Some functionality may be limited.")
 
-        LOG.debug("ODMR frequencies shape: %s", self.odmr.raw_data.frequencies.shape)
+        logger.debug(f"ODMR frequencies shape: {self.odmr.raw_data.frequencies.shape}")
 
         # Initialize outlier mask
-        LOG.debug("Initializing outlier mask.")
+        logger.debug("Initializing outlier mask.")
         self._outliers: NDArray | None = np.ones(self.odmr.raw_data.shape, dtype=bool)
 
         # Store light and laser images
-        LOG.debug("Storing light and laser images.")
+        logger.debug("Storing light and laser images.")
         self.light_image = light_image
         self.laser_image = laser_image
 
         # Initialize B111 field and fit model
-        LOG.debug("Initializing B111 field and fit model.")
+        logger.debug("Initializing B111 field and fit model.")
         self._B111: NDArray | None = None
         # Store default fit model preference
         self._fit_model = fit_model
@@ -191,7 +189,7 @@ class Measurement:
 
         # Auto-detect model if none specified
         if model_name is None:
-            LOG.info("Auto-detecting optimal model for ODMR data...")
+            logger.info("Auto-detecting optimal model for ODMR data...")
             try:
                 from QDMpy.guess import guess_model
 
@@ -200,12 +198,12 @@ class Measurement:
                 mean_spectrum = np.mean(processed_data.data, axis=(0, 1, 2))
                 detected_model = guess_model(mean_spectrum)
                 model_name = detected_model.name
-                LOG.info("Auto-detected model: %s", model_name)
+                logger.info(f"Auto-detected model: {model_name}")
             except Exception as e:
-                LOG.warning("Model auto-detection failed: %s. Using default.", e)
+                logger.warning(f"Model auto-detection failed: {e}. Using default.")
                 model_name = self._fit_model
 
-        LOG.info("Starting ODMR fitting with model: %s", model_name)
+        logger.info(f"Starting ODMR fitting with model: {model_name}")
 
         # Validate that data has been processed
         try:
@@ -227,7 +225,7 @@ class Measurement:
             )
 
         # Initialize FitManager with processed data
-        LOG.debug("Initializing FitManager with data shape: %s", processed_data.data.shape)
+        logger.debug(f"Initializing FitManager with data shape: {processed_data.data.shape}")
         fit_manager = FitManager(
             data=processed_data.data,
             frequencies=processed_data.frequencies,
@@ -236,11 +234,11 @@ class Measurement:
         )
 
         # Perform the fitting
-        LOG.info("Executing ODMR spectral fitting...")
+        logger.info("Executing ODMR spectral fitting...")
         fit_manager.fit_odmr()
 
         # Extract fit results data (no heavy object references)
-        LOG.debug("Extracting fit results data...")
+        logger.debug("Extracting fit results data...")
 
         # Get all available parameters from FitManager
         parameters = {}
@@ -251,7 +249,7 @@ class Measurement:
             try:
                 parameters[param_name] = fit_manager.get_param(param_name)
             except (KeyError, AttributeError, ValueError):
-                LOG.debug("Parameter '%s' not available for model %s", param_name, model_name)
+                logger.debug(f"Parameter '{param_name}' not available for model {model_name}")
                 continue
 
         # Add fitting metadata if available
@@ -259,7 +257,7 @@ class Measurement:
             try:
                 parameters[param_name] = fit_manager.get_param(param_name)
             except (KeyError, AttributeError, ValueError):
-                LOG.debug("Parameter '%s' not available for model %s", param_name, model_name)
+                logger.debug(f"Parameter '{param_name}' not available for model {model_name}")
                 continue
 
         # Add any model-specific parameters
@@ -307,11 +305,9 @@ class Measurement:
             metadata=metadata,
         )
 
-        LOG.info("ODMR fitting completed successfully")
-        LOG.info(
-            "Extracted %d parameters for %d pixels",
-            len(parameters),
-            np.prod(processed_data.scan_dimensions),
+        logger.info("ODMR fitting completed successfully")
+        logger.info(
+            f"Extracted {len(parameters)} parameters for {np.prod(processed_data.scan_dimensions)} pixels"
         )
         return result
 
@@ -323,7 +319,7 @@ if __name__ == "__main__":
     from QDMpy.odmr.io import MatlabLoader
     from QDMpy.odmr.processors import BinningProcessor, FluorescenceCorrectionProcessor
 
-    LOG.setLevel(logging.DEBUG)
+    logger.enable("QDMpy")
     # User-friendly initialization with proper paths
     data_folder = "/home/mike/git/QDMpy/tests/data/FOV18x"
     loader = MatlabLoader(data_folder=data_folder)

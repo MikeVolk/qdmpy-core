@@ -6,16 +6,12 @@ that validate the new QDMpy codebase against reference data generated from
 the old codebase.
 """
 
-import logging
 import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
 import pytest
-
-# Setup logging for tests
-logging.basicConfig(level=logging.INFO)
 
 # Add project root to path for importing validation utilities
 PROJECT_ROOT = Path(__file__).parent.parent.parent

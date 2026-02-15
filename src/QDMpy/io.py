@@ -16,16 +16,14 @@ used by the QDMpy analysis pipeline.
 
 from __future__ import annotations
 
-import logging
 import os
 from collections.abc import Sequence
 from typing import Any
 
 import matplotlib.image as mpimg
 import numpy as np
+from loguru import logger
 from numpy.typing import NDArray
-
-LOG = logging.getLogger(__name__)
 
 
 def has_csv(lst: Sequence[str | bytes | os.PathLike[Any]]) -> bool:

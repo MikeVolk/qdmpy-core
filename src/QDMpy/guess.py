@@ -11,12 +11,12 @@ The module operates primarily on 4D numpy arrays containing ODMR data with dimen
 
 from __future__ import annotations
 
-import logging
 import os
 import sys
 from typing import TYPE_CHECKING
 
 import numpy as np
+from loguru import logger
 from numba import njit, prange
 from numpy.typing import NDArray
 from scipy.signal import find_peaks
@@ -33,8 +33,6 @@ from QDMpy.models import ModelRegistry
 
 if TYPE_CHECKING:
     from QDMpy.models import Model
-
-LOG = logging.getLogger(__name__)
 
 
 @njit(fastmath=True)
@@ -89,12 +87,12 @@ def guess_model(data: NDArray) -> Model:
     Raises:
         ModelGuessNotPossible: If the model cannot be reliably determined.
     """
-    LOG.info("Trying to detect best fitting model for ODMR data.")
+    logger.info("Trying to detect best fitting model for ODMR data.")
     n_peaks, doubt, _ = guess_n_peaks(data)
 
     if not doubt:
         model = get_model_by_peaks(n_peaks)
-        LOG.info(f"Detected model: {model.name}")
+        logger.info(f"Detected model: {model.name}")
         return model
     raise ModelGuessNotPossible(
         "Guessing the model is not possible. Please select model manually.",
@@ -186,7 +184,7 @@ def guess_initial_fit_parameters(data: NDArray, freq: NDArray, model: Model) -> 
     # Guess each parameter defined in the model
     for param in model.parameters_unique:
         param_type = param.split("_")[0]  # Extract parameter type (e.g., 'width')
-        LOG.info(f"Calculating initial guess for {param_type}")
+        logger.info(f"Calculating initial guess for {param_type}")
         if param_type in parameter_guessers:
             fit_parameters.append(parameter_guessers[param_type]())
         else:
