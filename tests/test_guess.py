@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 
 from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
-from QDMpy.exceptions import ModelGuessNotPossible
+from QDMpy.exceptions import ModelGuessNotPossibleError
 from QDMpy.guess import (
     get_model_by_peaks,
     guess_center,
@@ -212,7 +212,7 @@ class TestGuessModel:
         mock_guess_n_peaks.return_value = (2, True, [])
         data = np.zeros((2, 3, 10, 100))
 
-        with pytest.raises(ModelGuessNotPossible):
+        with pytest.raises(ModelGuessNotPossibleError):
             guess_model(data)
 
 
