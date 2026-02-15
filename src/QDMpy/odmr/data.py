@@ -42,6 +42,12 @@ class ODMRData:
         data: xr.DataArray,
         metadata: dict[str, Any] | None = None,
     ) -> None:
+        """Initialize ODMRData with an xarray DataArray and optional metadata.
+
+        Args:
+            data: xr.DataArray with dims (polarity, freq_range, y, x, freq_idx).
+            metadata: Optional dictionary of metadata associated with the data.
+        """
         self.data = data
         self.metadata = metadata or {}
 

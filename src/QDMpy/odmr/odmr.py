@@ -25,6 +25,11 @@ class ODMR:
     """
 
     def __init__(self: Self, odmr_data: ODMRData | None = None) -> None:
+        """Initialize the ODMR manager with optional raw data.
+
+        Args:
+            odmr_data: Optional ODMRData instance to initialize with.
+        """
         self._raw_data = odmr_data
         self._processed_data: ODMRData | None = None
         self.is_processed = False

@@ -51,6 +51,11 @@ class MatlabLoader(BaseLoader):
     """
 
     def __init__(self: Self, data_folder: str) -> None:
+        """Initialize the MATLAB loader with a data folder path.
+
+        Args:
+            data_folder: Path to the folder containing MATLAB data files.
+        """
         self.data_folder = data_folder
 
     def load(self: Self, **kwargs: Any) -> xr.DataArray:

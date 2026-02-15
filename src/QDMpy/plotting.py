@@ -248,14 +248,16 @@ def plot_light_img(
     img: mpl.image.AxesImage | None = None,
     **plt_props: Any | None,
 ) -> mpl.image.AxesImage:
-    """Args:
-      ax:
-      data:
-      img:  (Default value = None)
-      **plt_props:
+    """Plot light image on axes.
+
+    Args:
+        ax: Matplotlib axes to plot on.
+        data: Image data to plot.
+        img: Existing AxesImage to update (optional).
+        **plt_props: Additional plotting properties.
 
     Returns:
-
+        Updated AxesImage object.
     """
     return update_img(
         ax,
@@ -276,14 +278,16 @@ def plot_fluorescence(
     img: mpl.image.AxesImage | None = None,
     **plt_props: Any | None,
 ) -> mpl.image.AxesImage:
-    """Args:
-      ax:
-      data:
-      img:  (Default value = None)
-      **plt_props:
+    """Plot fluorescence image on axes.
+
+    Args:
+        ax: Matplotlib axes to plot on.
+        data: Image data to plot.
+        img: Existing AxesImage to update (optional).
+        **plt_props: Additional plotting properties.
 
     Returns:
-
+        Updated AxesImage object.
     """
     return update_img(
         ax,
@@ -304,14 +308,16 @@ def plot_laser_img(
     img: mpl.image.AxesImage | None = None,
     **plt_props: Any,
 ) -> mpl.image.AxesImage:
-    """Args:
-      ax: plt.Axes:
-      data:
-      img:  (Default value = None)
-      **plt_props:
+    """Plot laser image on axes.
+
+    Args:
+        ax: Matplotlib axes to plot on.
+        data: Image data to plot.
+        img: Existing AxesImage to update (optional).
+        **plt_props: Additional plotting properties.
 
     Returns:
-
+        Updated AxesImage object.
     """
     return update_img(
         ax,
@@ -333,15 +339,17 @@ def update_line(
     line: plt.Line2D | None = None,
     **plt_props: Any,
 ) -> plt.Line2D | None:
-    """Args:
-      ax: plt.Axes:
-      x:np.ndarray[float]:
-      y:np.ndarray[float]:  (Default value = None)
-      line:plt.Line2D:  (Default value = None)
-      **plt_props:
+    """Update or create a line plot on axes.
+
+    Args:
+        ax: Matplotlib axes to plot on.
+        x: X-axis data array.
+        y: Y-axis data array (optional).
+        line: Existing Line2D object to update (optional).
+        **plt_props: Additional plotting properties.
 
     Returns:
-
+        Line2D object or None if y is None.
     """
     if y is None:
         return None
@@ -361,15 +369,17 @@ def update_marker(
     line: plt.Line2D | None = None,
     **plt_props: Any,
 ) -> plt.Line2D:
-    """Args:
-      ax: plt.Axes:
-      x:
-      y:
-      line:  (Default value = None)
-      **plt_props:
+    """Update or create a marker plot on axes.
+
+    Args:
+        ax: Matplotlib axes to plot on.
+        x: X-axis data array.
+        y: Y-axis data array.
+        line: Existing Line2D object to update (optional).
+        **plt_props: Additional plotting properties.
 
     Returns:
-
+        Updated or created Line2D object.
     """
     if line is None:
         (line,) = ax.plot(x, y, **plt_props)
@@ -384,14 +394,16 @@ def plot_quality_data(
     img: mpl.image.AxesImage | None = None,
     **plt_props: Any,
 ) -> mpl.image.AxesImage:
-    """Args:
-      ax: plt.Axes:
-      data:
-      img:  (Default value = None)
-      **plt_props:
+    """Plot quality data on axes with normalized colors.
+
+    Args:
+        ax: Matplotlib axes to plot on.
+        data: Quality data to plot.
+        img: Existing AxesImage to update (optional).
+        **plt_props: Additional plotting properties.
 
     Returns:
-
+        Updated AxesImage object.
     """
     norm = get_color_norm(data.min(), data.max())
     plt_props["norm"] = norm
@@ -405,14 +417,16 @@ def plot_data(
     img: mpl.image.AxesImage | None = None,
     **plt_props: Any,
 ) -> mpl.image.AxesImage:
-    """Args:
-      ax: plt.Axes:
-      data:
-      img:  (Default value = None)
-      **plt_props:
+    """Plot data on axes with normalized colors.
+
+    Args:
+        ax: Matplotlib axes to plot on.
+        data: Data to plot.
+        img: Existing AxesImage to update (optional).
+        **plt_props: Additional plotting properties.
 
     Returns:
-
+        Updated AxesImage object.
     """
     norm = get_color_norm(data.min(), data.max())
     plt_props["norm"] = norm
@@ -455,12 +469,14 @@ def get_vmin_vmax(
 
 
 def get_color_norm(vmin: float, vmax: float) -> colors.Normalize:
-    """Args:
-      vmin:
-      vmax:
+    """Get appropriate color normalization for value range.
+
+    Args:
+        vmin: Minimum value.
+        vmax: Maximum value.
 
     Returns:
-
+        Matplotlib Normalize object (CenteredNorm or Normalize).
     """
     if vmin < 0 < vmax:
         return colors.CenteredNorm(halfrange=vmax, vcenter=0)
@@ -474,15 +490,17 @@ def plot_overlay(
     normtype: str = "simple",
     **plt_props: Any,
 ) -> mpl.image.AxesImage:
-    """Args:
-      ax: plt.Axes:
-      data:
-      img:  (Default value = None)
-      normtype:  (Default value = "simple")
-      **plt_props:
+    """Plot overlay image with normalized alpha channel.
+
+    Args:
+        ax: Matplotlib axes to plot on.
+        data: Overlay data to plot.
+        img: Existing AxesImage to update (optional).
+        normtype: Normalization type ("simple" by default).
+        **plt_props: Additional plotting properties.
 
     Returns:
-
+        Updated AxesImage object.
     """
     if normtype == "simple":
         plt_props["alpha"] = double_norm(data)
@@ -497,14 +515,16 @@ def plot_outlier(
     img: mpl.image.AxesImage | None = None,
     **plt_props: Any,
 ) -> mpl.image.AxesImage:
-    """Args:
-      ax: plt.Axes:
-      data:
-      img:  (Default value = None)
-      **plt_props:
+    """Plot outlier mask on axes.
+
+    Args:
+        ax: Matplotlib axes to plot on.
+        data: Outlier data to plot.
+        img: Existing AxesImage to update (optional).
+        **plt_props: Additional plotting properties.
 
     Returns:
-
+        Updated AxesImage object.
     """
     data = data.astype(float)
     plt_props["cmap"] = "gist_rainbow"
@@ -540,15 +560,15 @@ def update_cbar(
     original_cax_locator: Any,
     **plt_props: dict,
 ) -> None:
-    """Args:
-      img:
-      cax:
-      vmin:
-      vmax:
-      original_cax_locator:
+    """Update colorbar limits and appearance.
 
-    Returns:
-
+    Args:
+        img: AxesImage object to get data from.
+        cax: Colorbar axes to update.
+        vmin: Minimum colorbar value.
+        vmax: Maximum colorbar value.
+        original_cax_locator: Original axes locator to restore.
+        **plt_props: Additional colorbar properties.
     """
     data = img.get_array()
     if data is None:
@@ -595,14 +615,16 @@ def update_img(
     data: np.ndarray,
     **plt_props: Any,
 ) -> mpl.image.AxesImage:
-    """Args:
-      ax: plt.Axes:
-      img:
-      data:
-      **plt_props:
+    """Update or create image plot on axes.
+
+    Args:
+        ax: Matplotlib axes to plot on.
+        img: Existing AxesImage to update (optional).
+        data: Image data to plot.
+        **plt_props: Additional plotting properties.
 
     Returns:
-
+        Updated or created AxesImage object.
     """
     data_dimensions = plt_props.pop("data_dimensions", data.shape)
     plt_props["extent"] = [0, data_dimensions[1], 0, data_dimensions[0]]
@@ -618,11 +640,10 @@ def update_img(
 
 
 def toggle_img(img: mpl.image.AxesImage | None = None) -> None:
-    """Args:
-      img:  (Default value = None).
+    """Toggle visibility of image.
 
-    Returns:
-
+    Args:
+        img: AxesImage object to toggle (optional).
     """
     if img is None:
         return
@@ -630,12 +651,14 @@ def toggle_img(img: mpl.image.AxesImage | None = None) -> None:
 
 
 def check_fit_pixel(qdm_obj: Measurement, idx: int) -> tuple[plt.Figure, plt.Axes]:
-    """Args:
-      qdm_obj:
-      idx:
+    """Check fit results for a specific pixel.
+
+    Args:
+        qdm_obj: Measurement object containing ODMR data and fit results.
+        idx: Pixel index to check.
 
     Returns:
-
+        Tuple of (Figure, Axes) containing the fit comparison plot.
     """
     # noinspection PyTypeChecker
     f, ax = plt.subplots(1, 2, figsize=(10, 4), sharex=False, sharey=True)
@@ -684,13 +707,15 @@ def plot_fit_params(
     param: str,
     save: str | bool = False,
 ) -> plt.Figure:
-    """Args:
-      qdm_obj:
-      param:
-      save:  (Default value = False).
+    """Plot spatial maps of fitted parameters across polarities and field ranges.
+
+    Args:
+        qdm_obj: Measurement object containing fit results.
+        param: Parameter name to plot (e.g., "contrast", "center", "width").
+        save: Whether to save the figure (can be bool or filename).
 
     Returns:
-
+        Matplotlib Figure object containing the parameter maps.
     """
     data = qdm_obj.get_param(param)
 

@@ -1,5 +1,4 @@
-"""QDMpy.odmr.
-==========
+"""Framework for handling and processing ODMR data.
 
 The `QDMpy.odmr` module provides a comprehensive framework for handling, processing,
 and analyzing ODMR (Optically Detected Magnetic Resonance) data. This module is

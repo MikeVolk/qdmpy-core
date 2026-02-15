@@ -43,6 +43,13 @@ class ConstraintManager:
         settings: ModelConstraintsSettings,
         units: dict[str, str],
     ) -> None:
+        """Initialize the constraint manager with model parameters and settings.
+
+        Args:
+            model_params: List of model parameter names to constrain.
+            settings: ModelConstraintsSettings with constraint bounds and types.
+            units: Dictionary mapping parameter names to their units.
+        """
         self._constraints: dict[str, list[Any]] = {}
         self._units = units
         self._initialize_constraints(model_params, settings)
@@ -68,6 +75,14 @@ class ConstraintManager:
         vmax: float | None = None,
         constraint_type: str | None = None,
     ) -> None:
+        """Set constraint bounds and type for a parameter.
+
+        Args:
+            param: Parameter name.
+            vmin: Minimum value constraint.
+            vmax: Maximum value constraint.
+            constraint_type: Type of constraint ('FREE', 'LOWER', 'UPPER', 'LOWER_UPPER').
+        """
         if param not in self._constraints:
             raise ValueError(f"Unknown parameter: {param}")
         current = self._constraints[param]
@@ -81,9 +96,25 @@ class ConstraintManager:
             current[2] = constraint_type
 
     def get_constraints(self: Self) -> dict[str, list[Any]]:
+        """Get all parameter constraints.
+
+        Returns:
+            Dictionary mapping parameter names to constraint lists [vmin, vmax, type, unit].
+        """
         return self._constraints
 
-    def to_array(self: Self, n_pixel: int, model_params: list[str]) -> NDArray:
+    def to_array(
+        self: Self, n_pixel: int, model_params: list[str]
+    ) -> NDArray:
+        """Convert constraints to array format for GPU fitting.
+
+        Args:
+            n_pixel: Number of pixels (for array replication).
+            model_params: List of parameter names to extract constraints for.
+
+        Returns:
+            NDArray of shape (n_pixel, 2*n_params) with min/max bounds for each parameter.
+        """
         constraints_list: list[float] = []
         for param in model_params:
             param_min, param_max = self._constraints[param][0], self._constraints[param][1]
@@ -94,6 +125,14 @@ class ConstraintManager:
         return np.tile(constraints_list, (n_pixel, 1))
 
     def get_constraint_types(self: Self, model_params: list[str]) -> NDArray:
+        """Get constraint type indices for parameters.
+
+        Args:
+            model_params: List of parameter names.
+
+        Returns:
+            NDArray of constraint type indices (0=FREE, 1=LOWER, 2=UPPER, 3=LOWER_UPPER).
+        """
         return np.array(
             [CONSTRAINT_TYPES.index(self._constraints[param][2]) for param in model_params],
             dtype=np.int32,
@@ -209,10 +248,20 @@ class FitManager:
 
     @property
     def model(self: Self) -> Model:
+        """Get the current fitting model.
+
+        Returns:
+            The Model object currently used for fitting.
+        """
         return self._model
 
     @property
     def model_name(self: Self) -> str:
+        """Get the current model name.
+
+        Returns:
+            Model name string (e.g., 'ESR14N', 'ESR15N', 'ESRSINGLE').
+        """
         return self._model.name
 
     @model_name.setter
@@ -232,14 +281,29 @@ class FitManager:
 
     @property
     def model_params(self: Self) -> list[str]:
+        """Get all model parameter names including duplicates.
+
+        Returns:
+            List of parameter names for the current model.
+        """
         return self._model.parameter
 
     @property
     def model_params_unique(self: Self) -> list[str]:
+        """Get unique model parameter names.
+
+        Returns:
+            List of unique parameter names (without duplicates) for the current model.
+        """
         return self._model.parameters_unique
 
     @property
     def n_parameter(self: Self) -> int:
+        """Get the number of parameters in the model.
+
+        Returns:
+            Number of parameters for the current model.
+        """
         return self._model.n_parameters
 
     def set_constraints(
@@ -250,6 +314,15 @@ class FitManager:
         constraint_type: str | int | None = None,
         reset_fit: bool = True,
     ) -> None:
+        """Set parameter constraints with optional fit reset.
+
+        Args:
+            param: Parameter name to constrain.
+            vmin: Minimum value constraint.
+            vmax: Maximum value constraint.
+            constraint_type: Type as string or index (0=FREE, 1=LOWER, 2=UPPER, 3=LOWER_UPPER).
+            reset_fit: Whether to reset fit results when constraints change.
+        """
         if isinstance(constraint_type, int):
             if 0 <= constraint_type < len(CONSTRAINT_TYPES):
                 constraint_type = CONSTRAINT_TYPES[constraint_type]
@@ -287,22 +360,46 @@ class FitManager:
             self._reset_fit()
 
     def set_free_constraints(self: Self) -> None:
+        """Remove all constraints by setting all parameters to FREE."""
         for param in self.model_params_unique:
             self._constraint_manager.set_constraint(param, constraint_type="FREE")
         self._reset_fit()
 
     @property
     def constraints(self: Self) -> dict[str, list[Any]]:
+        """Get current parameter constraints.
+
+        Returns:
+            Dictionary mapping parameter names to constraint lists.
+        """
         return self._constraint_manager.get_constraints()
 
     def get_constraints_array(self: Self, n_pixel: int) -> NDArray:
+        """Get constraints as array for GPU fitting.
+
+        Args:
+            n_pixel: Number of pixels.
+
+        Returns:
+            NDArray of shape (n_pixel, 2*n_params) with constraint bounds.
+        """
         return self._constraint_manager.to_array(n_pixel, self.model_params_unique)
 
     def get_constraint_types(self: Self) -> NDArray:
+        """Get constraint type indices for model parameters.
+
+        Returns:
+            NDArray of constraint type indices.
+        """
         return self._constraint_manager.get_constraint_types(self.model_params_unique)
 
     @property
     def initial_parameter(self: Self) -> NDArray:
+        """Get initial parameter guesses (cached).
+
+        Returns:
+            NDArray with shape (n_pol, n_frange, n_pixel, n_params).
+        """
         if self._initial_parameter is None:
             self._initial_parameter = self.get_initial_parameter()
         return self._initial_parameter
@@ -340,11 +437,30 @@ class FitManager:
 
     @property
     def parameter(self: Self) -> NDArray:
+        """Get fitted parameters from most recent fit.
+
+        Returns:
+            NDArray of fitted parameter values.
+
+        Raises:
+            ValueError: If no fit has been performed yet.
+        """
         if not self.fitted:
             raise ValueError("No fit has been performed yet. Call fit_odmr() first.")
         return cast(NDArray, self._fit_results)
 
     def get_param(self: Self, param: str) -> NDArray:
+        """Get specific fitted parameter or fit metric.
+
+        Args:
+            param: Parameter name (e.g., 'center', 'width') or metric ('chi_squares', 'chi2').
+
+        Returns:
+            NDArray of parameter or metric values.
+
+        Raises:
+            ValueError: If no fit has been performed yet.
+        """
         if not self.fitted:
             raise ValueError("No fit has been performed yet. Call fit_odmr() first.")
         if param in {"chi2", "chi_squares", "chi_squared"}:
@@ -368,9 +484,22 @@ class FitManager:
 
     @property
     def fitted(self: Self) -> bool:
+        """Check if fit has been performed.
+
+        Returns:
+            True if fit_odmr() has been called and completed successfully.
+        """
         return self._fitted
 
     def fit_odmr(self: Self, refit: bool = False) -> None:
+        """Perform GPU-accelerated ODMR fitting on all frequency ranges.
+
+        Args:
+            refit: If True, refit even if already fitted. If False, skip if already fitted.
+
+        Raises:
+            ImportError: If pyGpufit is not installed.
+        """
         if not is_pygpufit_available():
             raise ImportError("pyGpufit is required for fitting but not installed")
         if self._fitted and not refit:
@@ -417,6 +546,19 @@ class FitManager:
         freq: NDArray,
         initial_parameters: NDArray,
     ) -> list[NDArray]:
+        """Fit a single frequency range using GPU.
+
+        Args:
+            data: ODMR data with shape (n_pol, n_pixel, n_freq).
+            freq: Frequency values in GHz for this range.
+            initial_parameters: Initial parameter guesses.
+
+        Returns:
+            List containing [fit_params, states, chi_squares, iterations, exec_time].
+
+        Raises:
+            ImportError: If pyGpufit is not installed.
+        """
         if not is_pygpufit_available():
             raise ImportError("pyGpufit is required for fitting but not installed")
 
@@ -451,6 +593,14 @@ class FitManager:
         return list(results)
 
     def reshape_results(self: Self, results: list[Any]) -> list[Any]:
+        """Reshape fit results and convert center frequencies from Hz to GHz.
+
+        Args:
+            results: List of results from pygpufit.
+
+        Returns:
+            List of reshaped results with spatial dimensions restored.
+        """
         for i, result in enumerate(results):
             if not isinstance(result, float):
                 results[i] = self.reshape_result(result)
@@ -463,6 +613,14 @@ class FitManager:
         return results
 
     def reshape_result(self: Self, result: NDArray) -> NDArray:
+        """Reshape a single result array to spatial dimensions.
+
+        Args:
+            result: Flattened result array.
+
+        Returns:
+            NDArray reshaped to (n_pol, n_pixel) or scalar if applicable.
+        """
         n_pol, n_pix = self._current_data_shape[0], self._current_data_shape[1]
         result_reshaped = result.reshape((n_pol, n_pix, -1))
         return np.squeeze(result_reshaped)

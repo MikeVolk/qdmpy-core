@@ -35,6 +35,11 @@ class NormalizationProcessor(BaseProcessor):
     """
 
     def __init__(self: Self, method: str = "max") -> None:
+        """Initialize the normalization processor.
+
+        Args:
+            method: Normalization method to use (default: 'max').
+        """
         self.method = method
 
     def process(self: Self, data: ODMRData, **kwargs: Any) -> ODMRData:
@@ -65,6 +70,14 @@ class BinningProcessor(BaseProcessor):
     """
 
     def __init__(self: Self, bin_factor: int) -> None:
+        """Initialize the binning processor with a spatial binning factor.
+
+        Args:
+            bin_factor: Factor by which to bin spatial dimensions.
+
+        Raises:
+            ValueError: If bin_factor is not greater than 0.
+        """
         if bin_factor <= 0:
             raise ValueError("Bin factor must be greater than 0.")
         self.bin_factor = bin_factor
@@ -90,6 +103,11 @@ class OutlierProcessor(BaseProcessor):
     """
 
     def __init__(self: Self, threshold: float = 0.001) -> None:
+        """Initialize the outlier processor with a detection threshold.
+
+        Args:
+            threshold: Z-score threshold for outlier detection (default: 0.001).
+        """
         self.threshold = threshold
 
     def process(self: Self, data: ODMRData, **kwargs: Any) -> ODMRData:
@@ -116,6 +134,11 @@ class FluorescenceCorrectionProcessor(BaseProcessor):
     """
 
     def __init__(self: Self, correction_factor: float = 0.2) -> None:
+        """Initialize the fluorescence correction processor.
+
+        Args:
+            correction_factor: Correction factor to apply (default: 0.2).
+        """
         self.correction_factor = correction_factor
 
     def process(self: Self, data: ODMRData, **kwargs: Any) -> ODMRData:
@@ -272,6 +295,7 @@ class ODMRProcessorManager:
     """
 
     def __init__(self: Self) -> None:
+        """Initialize an empty processing pipeline."""
         self.processors: list[BaseProcessor] = []
 
     def add_processor(self: Self, processor: BaseProcessor) -> None:

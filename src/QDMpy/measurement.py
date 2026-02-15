@@ -35,7 +35,9 @@ if TYPE_CHECKING:
 
 
 class Measurement:
-    """The Measurement class encapsulates all data and processing related to a single QDM
+    """Encapsulate all data and processing for a single QDM measurement.
+
+    The Measurement class encapsulates all data and processing related to a single QDM
     (Quantum Diamond Microscope) measurement.
 
     It manages:
