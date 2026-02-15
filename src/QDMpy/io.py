@@ -22,7 +22,6 @@ from typing import Any
 
 import matplotlib.image as mpimg
 import numpy as np
-from loguru import logger
 from numpy.typing import NDArray
 
 
@@ -99,4 +98,4 @@ def get_image(
 
         return np.array(img)
     except Exception as e:
-        raise ValueError(f"Failed to load image: {e!s}")
+        raise ValueError(f"Failed to load image: {e!s}") from e

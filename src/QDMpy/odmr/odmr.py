@@ -6,12 +6,10 @@ ODMR data handling including raw/processed data lifecycle and processing pipelin
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-import numpy as np
 import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
+from typing_extensions import Self
 
 from QDMpy.odmr.data import ODMRData
 from QDMpy.odmr.processors import ODMRProcessorManager
@@ -26,14 +24,14 @@ class ODMR:
         processor_manager: The processor manager for applying transformations.
     """
 
-    def __init__(self, odmr_data: ODMRData | None = None) -> None:
+    def __init__(self: Self, odmr_data: ODMRData | None = None) -> None:
         self._raw_data = odmr_data
         self._processed_data: ODMRData | None = None
         self.is_processed = False
         self.processor_manager = ODMRProcessorManager()
 
     def load_data(
-        self,
+        self: Self,
         raw_data: NDArray,
         scan_dimensions: tuple[int, int],
         frequencies: NDArray,
@@ -54,7 +52,7 @@ class ODMR:
         self.is_processed = False
         return self
 
-    def load_xarray(self, data: xr.DataArray) -> ODMR:
+    def load_xarray(self: Self, data: xr.DataArray) -> ODMR:
         """Load an xr.DataArray directly.
 
         Args:
@@ -69,7 +67,7 @@ class ODMR:
         self.is_processed = False
         return self
 
-    def reset(self) -> ODMR:
+    def reset(self: Self) -> ODMR:
         """Reset to the raw data."""
         if self._raw_data is None:
             logger.error('No raw data loaded. Cannot reset.')
@@ -79,7 +77,7 @@ class ODMR:
         self.is_processed = False
         return self
 
-    def process_data(self) -> ODMR:
+    def process_data(self: Self) -> ODMR:
         """Apply the processing pipeline to the raw data."""
         if self._raw_data is None:
             logger.error('No data loaded.')
@@ -90,7 +88,7 @@ class ODMR:
         return self
 
     @property
-    def raw_data(self) -> ODMRData:
+    def raw_data(self: Self) -> ODMRData:
         """Access the raw ODMRData."""
         if self._raw_data is None:
             logger.error('No raw data loaded.')
@@ -98,7 +96,7 @@ class ODMR:
         return self._raw_data
 
     @property
-    def processed_data(self) -> ODMRData:
+    def processed_data(self: Self) -> ODMRData:
         """Access the processed ODMRData."""
         if self._processed_data is None:
             logger.error('No data has been processed yet.')

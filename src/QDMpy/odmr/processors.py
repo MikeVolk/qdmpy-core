@@ -13,7 +13,7 @@ import numpy as np
 import xarray as xr
 from loguru import logger
 from matplotlib import pyplot as plt
-from numpy.typing import NDArray
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from QDMpy.odmr.data import ODMRData
@@ -23,7 +23,7 @@ class BaseProcessor(ABC):
     """Abstract base class for ODMR processors."""
 
     @abstractmethod
-    def process(self, data: ODMRData, **kwargs: Any) -> ODMRData:
+    def process(self: Self, data: ODMRData, **kwargs: Any) -> ODMRData:
         """Process the given ODMRData instance and return a new instance."""
 
 
@@ -34,10 +34,10 @@ class NormalizationProcessor(BaseProcessor):
         method: The normalization method to use (e.g., 'max').
     """
 
-    def __init__(self, method: str = 'max') -> None:
+    def __init__(self: Self, method: str = 'max') -> None:
         self.method = method
 
-    def process(self, data: ODMRData, **kwargs: Any) -> ODMRData:
+    def process(self: Self, data: ODMRData, **kwargs: Any) -> ODMRData:
         """Normalize the data based on the selected method."""
         from QDMpy.odmr.data import ODMRData
 
@@ -48,7 +48,7 @@ class NormalizationProcessor(BaseProcessor):
         metadata['normalized'] = True
         return ODMRData(data=normalized, metadata=metadata)
 
-    def _get_norm_factors(self, da: xr.DataArray, method: str) -> xr.DataArray:
+    def _get_norm_factors(self: Self, da: xr.DataArray, method: str) -> xr.DataArray:
         """Calculate normalization factors."""
         if method == 'max':
             return da.max(dim='freq_idx')
@@ -64,12 +64,12 @@ class BinningProcessor(BaseProcessor):
         bin_factor: The factor by which to bin the data spatially.
     """
 
-    def __init__(self, bin_factor: int) -> None:
+    def __init__(self: Self, bin_factor: int) -> None:
         if bin_factor <= 0:
             raise ValueError('Bin factor must be greater than 0.')
         self.bin_factor = bin_factor
 
-    def process(self, data: ODMRData, **kwargs: Any) -> ODMRData:
+    def process(self: Self, data: ODMRData, **kwargs: Any) -> ODMRData:
         """Bin the data spatially by the specified factor."""
         from QDMpy.odmr.data import ODMRData
 
@@ -91,10 +91,10 @@ class OutlierProcessor(BaseProcessor):
         threshold: The threshold for outlier detection in standard deviations.
     """
 
-    def __init__(self, threshold: float = 0.001) -> None:
+    def __init__(self: Self, threshold: float = 0.001) -> None:
         self.threshold = threshold
 
-    def process(self, data: ODMRData, **kwargs: Any) -> ODMRData:
+    def process(self: Self, data: ODMRData, **kwargs: Any) -> ODMRData:
         """Apply an outlier mask based on the threshold."""
         from QDMpy.odmr.data import ODMRData
 
@@ -117,10 +117,10 @@ class FluorescenceCorrectionProcessor(BaseProcessor):
         correction_factor: The fluorescence correction factor.
     """
 
-    def __init__(self, correction_factor: float = 0.2) -> None:
+    def __init__(self: Self, correction_factor: float = 0.2) -> None:
         self.correction_factor = correction_factor
 
-    def process(self, data: ODMRData, **kwargs: Any) -> ODMRData:
+    def process(self: Self, data: ODMRData, **kwargs: Any) -> ODMRData:
         """Apply fluorescence correction to the ODMR data."""
         from QDMpy.odmr.data import ODMRData
 
@@ -269,15 +269,15 @@ class ODMRProcessorManager:
         processors: List of processors in the pipeline.
     """
 
-    def __init__(self) -> None:
+    def __init__(self: Self) -> None:
         self.processors: list[BaseProcessor] = []
 
-    def add_processor(self, processor: BaseProcessor) -> None:
+    def add_processor(self: Self, processor: BaseProcessor) -> None:
         """Add a processor to the processing pipeline."""
         logger.debug(f'Adding processor: {processor.__class__.__name__}')
         self.processors.append(processor)
 
-    def process(self, data: ODMRData) -> ODMRData:
+    def process(self: Self, data: ODMRData) -> ODMRData:
         """Apply all processors sequentially."""
         logger.info('Starting processing pipeline.')
         for processor in self.processors:
@@ -286,6 +286,6 @@ class ODMRProcessorManager:
         logger.info('Processing pipeline completed.')
         return data
 
-    def list_processors(self) -> list[str]:
+    def list_processors(self: Self) -> list[str]:
         """List the names of processors in the pipeline."""
         return [processor.__class__.__name__ for processor in self.processors]

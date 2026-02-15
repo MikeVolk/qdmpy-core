@@ -15,6 +15,7 @@ import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
 from scipy.io import loadmat
+from typing_extensions import Self
 
 
 class BaseLoader(ABC):
@@ -32,7 +33,7 @@ class BaseLoader(ABC):
     """
 
     @abstractmethod
-    def load(self, **kwargs: Any) -> xr.DataArray:
+    def load(self: Self, **kwargs: Any) -> xr.DataArray:
         """Load ODMR data.
 
         Returns:
@@ -49,10 +50,10 @@ class MatlabLoader(BaseLoader):
         data_folder: Path to the folder containing MATLAB files.
     """
 
-    def __init__(self, data_folder: str) -> None:
+    def __init__(self: Self, data_folder: str) -> None:
         self.data_folder = data_folder
 
-    def load(self, **kwargs: Any) -> xr.DataArray:
+    def load(self: Self, **kwargs: Any) -> xr.DataArray:
         """Load ODMR data from the specified folder.
 
         Returns:
@@ -87,7 +88,7 @@ class MatlabLoader(BaseLoader):
                 rows = int(np.squeeze(mat_data['imgNumRows']))
                 cols = int(np.squeeze(mat_data['imgNumCols']))
             except KeyError as e:
-                raise ValueError(f'Missing required key in MATLAB file: {e}')
+                raise ValueError(f'Missing required key in MATLAB file: {e}') from e
 
             try:
                 freq_list = np.squeeze(mat_data['freqList'])
@@ -100,7 +101,7 @@ class MatlabLoader(BaseLoader):
                 else:
                     frequencies = freq_list
             except KeyError as e:
-                raise ValueError(f'Missing required key in MATLAB file: {e}')
+                raise ValueError(f'Missing required key in MATLAB file: {e}') from e
 
         if frequencies is None:
             raise ValueError('No frequency data found in MATLAB files.')

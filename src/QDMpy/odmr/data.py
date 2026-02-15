@@ -16,6 +16,7 @@ import numpy as np
 import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from QDMpy.odmr.io import BaseLoader
@@ -37,7 +38,7 @@ class ODMRData:
     """
 
     def __init__(
-        self,
+        self: Self,
         data: xr.DataArray,
         metadata: dict[str, Any] | None = None,
     ) -> None:
@@ -70,7 +71,7 @@ class ODMRData:
             logger.exception(
                 f'Failed to load data using loader {loader.__class__.__name__}: {e}'
             )
-            raise RuntimeError(f'Data loading failed: {e}')
+            raise RuntimeError(f'Data loading failed: {e}') from e
 
     @classmethod
     def from_numpy(
@@ -119,12 +120,12 @@ class ODMRData:
         return cls(da, metadata=metadata)
 
     @property
-    def scan_dimensions(self) -> tuple[int, int]:
+    def scan_dimensions(self: Self) -> tuple[int, int]:
         """Spatial dimensions (rows, cols) derived from the DataArray."""
         return (self.data.sizes['y'], self.data.sizes['x'])
 
     @property
-    def frequencies(self) -> NDArray:
+    def frequencies(self: Self) -> NDArray:
         """Frequency values in GHz as a numpy array.
 
         Returns shape (n_frange, n_freqs) or (n_freqs,) depending on the data.
@@ -132,11 +133,11 @@ class ODMRData:
         return self.data.coords['freq_ghz'].values
 
     @property
-    def numpy(self) -> NDArray:
+    def numpy(self: Self) -> NDArray:
         """Raw numpy array for performance-critical code."""
         return self.data.values
 
     @property
-    def shape(self) -> tuple[int, ...]:
+    def shape(self: Self) -> tuple[int, ...]:
         """Shape of the underlying DataArray."""
         return self.data.shape

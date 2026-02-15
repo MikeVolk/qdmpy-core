@@ -10,7 +10,7 @@ management, and GPU-accelerated fitting.
 
 from __future__ import annotations
 
-from typing import Any, Optional, Union, cast
+from typing import Any, Self, cast
 
 import numpy as np
 import xarray as xr
@@ -38,7 +38,7 @@ class ConstraintManager:
     """Manages parameter constraints for fitting."""
 
     def __init__(
-        self,
+        self: Self,
         model_params: list[str],
         settings: ModelConstraintsSettings,
         units: dict[str, str],
@@ -48,7 +48,7 @@ class ConstraintManager:
         self._initialize_constraints(model_params, settings)
 
     def _initialize_constraints(
-        self,
+        self: Self,
         model_params: list[str],
         settings: ModelConstraintsSettings,
     ) -> None:
@@ -62,7 +62,7 @@ class ConstraintManager:
             ]
 
     def set_constraint(
-        self,
+        self: Self,
         param: str,
         vmin: float | None = None,
         vmax: float | None = None,
@@ -80,10 +80,10 @@ class ConstraintManager:
                 raise ValueError(f'Invalid constraint type: {constraint_type}')
             current[2] = constraint_type
 
-    def get_constraints(self) -> dict[str, list[Any]]:
+    def get_constraints(self: Self) -> dict[str, list[Any]]:
         return self._constraints
 
-    def to_array(self, n_pixel: int, model_params: list[str]) -> NDArray:
+    def to_array(self: Self, n_pixel: int, model_params: list[str]) -> NDArray:
         constraints_list: list[float] = []
         for param in model_params:
             param_min, param_max = self._constraints[param][0], self._constraints[param][1]
@@ -93,7 +93,7 @@ class ConstraintManager:
             constraints_list.extend((param_min, param_max))
         return np.tile(constraints_list, (n_pixel, 1))
 
-    def get_constraint_types(self, model_params: list[str]) -> NDArray:
+    def get_constraint_types(self: Self, model_params: list[str]) -> NDArray:
         return np.array(
             [CONSTRAINT_TYPES.index(self._constraints[param][2]) for param in model_params],
             dtype=np.int32,
@@ -113,11 +113,11 @@ class FitManager:
     """
 
     def __init__(
-        self,
+        self: Self,
         data: xr.DataArray,
         frequencies: NDArray,
         model_name: str = 'auto',
-        constraints: Optional[dict[str, Any]] = None,
+        constraints: dict[str, Any] | None = None,
     ) -> None:
         """Initialize a fitting instance for ODMR data.
 
@@ -145,10 +145,10 @@ class FitManager:
         else:
             try:
                 self._model = ModelRegistry.get(model_name.upper())
-            except KeyError:
+            except KeyError as e:
                 raise ValueError(
                     f'Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}',
-                )
+                ) from e
 
         logger.info(f'Using model: {self._model.name}')
         self._initial_parameter: NDArray | None = None
@@ -162,7 +162,7 @@ class FitManager:
         self.estimator_id = ESTIMATOR_ID[get_settings().fit.estimator]
 
     @property
-    def _flat_data(self) -> NDArray:
+    def _flat_data(self: Self) -> NDArray:
         """4D numpy array (n_pol, n_frange, n_pixel, n_freq) for numba functions."""
         values = self._data_xr.values  # (pol, frange, y, x, freq_idx)
         n_pol, n_frange = values.shape[0], values.shape[1]
@@ -170,12 +170,12 @@ class FitManager:
         return values.reshape(n_pol, n_frange, -1, n_freq)
 
     @property
-    def data(self) -> NDArray:
+    def data(self: Self) -> NDArray:
         """Get 4D numpy data (n_pol, n_frange, n_pixel, n_freq)."""
         return self._flat_data
 
     @data.setter
-    def data(self, data: NDArray) -> None:
+    def data(self: Self, data: NDArray) -> None:
         logger.info('Data changed, fits need to be recalculated!')
         if np.all(self._flat_data == data):
             return
@@ -193,7 +193,7 @@ class FitManager:
         self._initial_parameter = None
         self._reset_fit()
 
-    def _reset_fit(self) -> None:
+    def _reset_fit(self: Self) -> None:
         self._fitted = False
         self._fit_results: NDArray | None = None
         self._states: NDArray | None = None
@@ -201,28 +201,28 @@ class FitManager:
         self._number_iterations: NDArray | None = None
         self._execution_time: NDArray | None = None
 
-    def __repr__(self) -> str:
+    def __repr__(self: Self) -> str:
         return (
             f'FitManager(data: {self._data_xr.shape}, '
             f'f: {self.f_ghz.shape}, model: {self._model.name})'
         )
 
     @property
-    def model(self) -> Model:
+    def model(self: Self) -> Model:
         return self._model
 
     @property
-    def model_name(self) -> str:
+    def model_name(self: Self) -> str:
         return self._model.name
 
     @model_name.setter
-    def model_name(self, model_name: str) -> None:
+    def model_name(self: Self, model_name: str) -> None:
         try:
             self._model = ModelRegistry.get(model_name.upper())
-        except KeyError:
+        except KeyError as e:
             raise ValueError(
                 f'Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}',
-            )
+            ) from e
         logger.debug('Setting model to %s, resetting fit results.', model_name)
         self._constraint_manager = ConstraintManager(
             self.model_params_unique, get_settings().model.constraints, UNITS
@@ -231,23 +231,23 @@ class FitManager:
         self._initial_parameter = None
 
     @property
-    def model_params(self) -> list[str]:
+    def model_params(self: Self) -> list[str]:
         return self._model.parameter
 
     @property
-    def model_params_unique(self) -> list[str]:
+    def model_params_unique(self: Self) -> list[str]:
         return self._model.parameters_unique
 
     @property
-    def n_parameter(self) -> int:
+    def n_parameter(self: Self) -> int:
         return self._model.n_parameters
 
     def set_constraints(
-        self,
+        self: Self,
         param: str,
-        vmin: Optional[float] = None,
-        vmax: Optional[float] = None,
-        constraint_type: Optional[Union[str, int]] = None,
+        vmin: float | None = None,
+        vmax: float | None = None,
+        constraint_type: str | int | None = None,
         reset_fit: bool = True,
     ) -> None:
         if isinstance(constraint_type, int):
@@ -280,28 +280,28 @@ class FitManager:
         if reset_fit:
             self._reset_fit()
 
-    def set_free_constraints(self) -> None:
+    def set_free_constraints(self: Self) -> None:
         for param in self.model_params_unique:
             self._constraint_manager.set_constraint(param, constraint_type='FREE')
         self._reset_fit()
 
     @property
-    def constraints(self) -> dict[str, list[Any]]:
+    def constraints(self: Self) -> dict[str, list[Any]]:
         return self._constraint_manager.get_constraints()
 
-    def get_constraints_array(self, n_pixel: int) -> NDArray:
+    def get_constraints_array(self: Self, n_pixel: int) -> NDArray:
         return self._constraint_manager.to_array(n_pixel, self.model_params_unique)
 
-    def get_constraint_types(self) -> NDArray:
+    def get_constraint_types(self: Self) -> NDArray:
         return self._constraint_manager.get_constraint_types(self.model_params_unique)
 
     @property
-    def initial_parameter(self) -> NDArray:
+    def initial_parameter(self: Self) -> NDArray:
         if self._initial_parameter is None:
             self._initial_parameter = self.get_initial_parameter()
         return self._initial_parameter
 
-    def get_initial_parameter(self) -> NDArray:
+    def get_initial_parameter(self: Self) -> NDArray:
         """Generate initial parameter guesses.
 
         Extracts numpy from xarray, flattens spatial dims for numba functions.
@@ -333,12 +333,12 @@ class FitManager:
         return np.ascontiguousarray(result, dtype=np.float32)
 
     @property
-    def parameter(self) -> NDArray:
+    def parameter(self: Self) -> NDArray:
         if not self.fitted:
             raise ValueError('No fit has been performed yet. Call fit_odmr() first.')
         return cast(NDArray, self._fit_results)
 
-    def get_param(self, param: str) -> NDArray:
+    def get_param(self: Self, param: str) -> NDArray:
         if not self.fitted:
             raise ValueError('No fit has been performed yet. Call fit_odmr() first.')
         if param in {'chi2', 'chi_squares', 'chi_squared'}:
@@ -348,7 +348,7 @@ class FitManager:
             return np.mean(cast(NDArray, self._fit_results)[..., idx], axis=-1)
         return cast(NDArray, self._fit_results)[..., idx]
 
-    def _param_idx(self, parameter: str) -> list[int]:
+    def _param_idx(self: Self, parameter: str) -> list[int]:
         if parameter == 'resonance':
             parameter = 'center'
         if parameter == 'mean_contrast':
@@ -361,10 +361,10 @@ class FitManager:
         return idx
 
     @property
-    def fitted(self) -> bool:
+    def fitted(self: Self) -> bool:
         return self._fitted
 
-    def fit_odmr(self, refit: bool = False) -> None:
+    def fit_odmr(self: Self, refit: bool = False) -> None:
         if not is_pygpufit_available():
             raise ImportError('pyGpufit is required for fitting but not installed')
         if self._fitted and not refit:
@@ -408,7 +408,7 @@ class FitManager:
         self._fitted = True
 
     def fit_frange(
-        self,
+        self: Self,
         data: NDArray,
         freq: NDArray,
         initial_parameters: NDArray,
@@ -446,7 +446,7 @@ class FitManager:
         )
         return list(results)
 
-    def reshape_results(self, results: list[Any]) -> list[Any]:
+    def reshape_results(self: Self, results: list[Any]) -> list[Any]:
         for i, result in enumerate(results):
             if not isinstance(result, float):
                 results[i] = self.reshape_result(result)
@@ -458,7 +458,7 @@ class FitManager:
                     fit_parameters[..., idx] /= 1e9
         return results
 
-    def reshape_result(self, result: NDArray) -> NDArray:
+    def reshape_result(self: Self, result: NDArray) -> NDArray:
         n_pol, n_pix = self._current_data_shape[0], self._current_data_shape[1]
         result_reshaped = result.reshape((n_pol, n_pix, -1))
         return np.squeeze(result_reshaped)

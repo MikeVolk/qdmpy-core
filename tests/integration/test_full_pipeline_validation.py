@@ -1,15 +1,13 @@
-"""
-Full pipeline validation tests for QDMpy.
+"""Full pipeline validation tests for QDMpy.
 
 These tests validate the complete end-to-end pipeline from data loading
 through magnetic field calculation, ensuring identical results between
 old and new codebases.
 """
+from __future__ import annotations
 
 import time
-from pathlib import Path
 
-import numpy as np
 import pytest
 from loguru import logger
 
@@ -24,7 +22,7 @@ class TestFullPipelineValidation:
 
     def test_complete_pipeline_consistency(
         self, test_data_folder, new_qdmpy_modules, old_qdmpy_modules, bin_factor, test_parameters
-    ):
+    ) -> None:
         """Test complete pipeline from data loading to magnetic field calculation."""
         # Import modules
         QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
@@ -167,7 +165,7 @@ class TestFullPipelineValidation:
 
     def test_pipeline_with_different_models(
         self, test_data_folder, new_qdmpy_modules, old_qdmpy_modules, test_parameters
-    ):
+    ) -> None:
         """Test pipeline consistency with different model configurations."""
         # Test with bin_factor=2 and different models if supported
         bin_factor = 2
@@ -196,7 +194,7 @@ class TestFullPipelineReferenceComparison:
 
     def test_pipeline_against_reference(
         self, test_data_folder, reference_data, new_qdmpy_modules, test_parameters
-    ):
+    ) -> None:
         """Test complete pipeline against pre-generated reference data."""
         # Import new modules
         QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
@@ -299,7 +297,7 @@ class TestFullPipelineReferenceComparison:
 @pytest.mark.slow
 def test_pipeline_performance_scaling(
     test_data_folder, new_qdmpy_modules, old_qdmpy_modules, test_parameters
-):
+) -> None:
     """Test pipeline performance scaling with different binning factors."""
     # Import modules
     QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
@@ -343,8 +341,8 @@ def test_pipeline_performance_scaling(
         measurement_new = Measurement_new(
             odmr_data=odmr_new, model_name=test_parameters["model_name"], **fit_params
         )
-        fit_result = measurement_new.fit()
-        magnetic_result = measurement_new.calculate_magnetic_fields()
+        measurement_new.fit()
+        measurement_new.calculate_magnetic_fields()
         new_time = time.time() - start_time
         performance_results["new"][bin_factor] = new_time
 
@@ -368,9 +366,9 @@ def test_pipeline_performance_scaling(
     # Check that performance scales appropriately with binning
     # Smaller bin factors (more pixels) should take longer
     for i in range(len(bin_factors) - 1):
-        bin1, bin2 = bin_factors[i], bin_factors[i + 1]
+        _bin1, _bin2 = bin_factors[i], bin_factors[i + 1]
         # Generally, smaller bin factor (more data) should take longer
         # But this is not always guaranteed due to fitting convergence
-        pass  # Skip strict performance scaling checks for now
+        # Skip strict performance scaling checks for now
 
     logger.info("Pipeline performance scaling validation completed")

@@ -1,12 +1,11 @@
-"""
-Pytest validation tests for spectral fitting functionality.
+"""Pytest validation tests for spectral fitting functionality.
 
 These tests validate that the new QDMpy codebase produces identical fitting
 results compared to the old codebase, including fit parameters, errors, and
 convergence metrics.
 """
+from __future__ import annotations
 
-import numpy as np
 import pytest
 from loguru import logger
 
@@ -21,7 +20,7 @@ class TestFittingValidation:
 
     def test_fit_parameters_consistency(
         self, test_data_folder, new_qdmpy_modules, old_qdmpy_modules, bin_factor, test_parameters
-    ):
+    ) -> None:
         """Test that fitting produces identical parameters."""
         # Import modules
         QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
@@ -77,7 +76,7 @@ class TestFittingValidation:
 
     def test_fit_quality_metrics(
         self, test_data_folder, new_qdmpy_modules, old_qdmpy_modules, bin_factor, test_parameters
-    ):
+    ) -> None:
         """Test that fitting quality metrics are consistent."""
         # Import modules
         QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
@@ -163,7 +162,7 @@ class TestFittingReferenceComparison:
 
     def test_against_reference_fit_results(
         self, test_data_folder, reference_data, new_qdmpy_modules, test_parameters
-    ):
+    ) -> None:
         """Test fitting results against reference data."""
         # Import new modules
         QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
@@ -228,7 +227,7 @@ class TestFittingReferenceComparison:
 @pytest.mark.performance
 def test_fitting_performance(
     test_data_folder, new_qdmpy_modules, old_qdmpy_modules, bin_factor, test_parameters
-):
+) -> None:
     """Performance test for fitting operations."""
     import time
 
@@ -266,7 +265,7 @@ def test_fitting_performance(
     measurement_new = Measurement_new(
         odmr_data=odmr_new, model_name=test_parameters["model_name"], **fit_params
     )
-    fit_result = measurement_new.fit()
+    measurement_new.fit()
     new_time = time.time() - start_time
 
     logger.info(f"Fitting performance (bin={bin_factor}): old={old_time:.3f}s, new={new_time:.3f}s")

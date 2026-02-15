@@ -17,7 +17,7 @@ from QDMpy.utils import (
 class TestUtils(unittest.TestCase):
     """Tests for utility functions in QDMpy.utils."""
 
-    def test_millify(self):
+    def test_millify(self) -> None:
         """Test millify function for human-readable numbers."""
         # Test a range of values
         test_cases = [
@@ -47,20 +47,21 @@ class TestUtils(unittest.TestCase):
                 input_val, expected, precision = test_case
                 result = millify(input_val, precision)
 
-            self.assertEqual(result, expected)
+            assert result == expected
 
-    def test_double_norm(self):
+    def test_double_norm(self) -> None:
         """Test double norm function for array normalization."""
         # Create a test array with positive and negative values
         test_array = np.array([-5, -3, -1, 0, 1, 3, 5], dtype=float)
 
         # Test with default settings
         result = double_norm(test_array)
-        self.assertTrue(np.all(result >= 0) and np.all(result <= 1))
-        self.assertEqual(result.min(), 0)
-        self.assertEqual(result.max(), 1)
+        assert np.all(result >= 0)
+        assert np.all(result <= 1)
+        assert result.min() == 0
+        assert result.max() == 1
 
-    def test_idx2rc(self):
+    def test_idx2rc(self) -> None:
         """Test conversion from linear indices to row-column coordinates."""
         # Create a 3x4 array for testing
         shape = (3, 4)  # 3 rows, 4 columns
@@ -68,22 +69,22 @@ class TestUtils(unittest.TestCase):
         # Test single index
         idx = 5  # Should be at row 1, column 1 (0-indexed)
         row, col = idx2rc(idx, shape)
-        self.assertEqual(row, 1)
-        self.assertEqual(col, 1)
+        assert row == 1
+        assert col == 1
 
         # Test multiple indices
         indices = [0, 5, 10]  # Should map to (0,0), (1,1), (2,2)
         rows, cols = idx2rc(indices, shape)
-        self.assertTrue(np.array_equal(rows, np.array([0, 1, 2])))
-        self.assertTrue(np.array_equal(cols, np.array([0, 1, 2])))
+        assert np.array_equal(rows, np.array([0, 1, 2]))
+        assert np.array_equal(cols, np.array([0, 1, 2]))
 
         # Test array input
         indices_array = np.array([0, 5, 10])
         rows, cols = idx2rc(indices_array, shape)
-        self.assertTrue(np.array_equal(rows, np.array([0, 1, 2])))
-        self.assertTrue(np.array_equal(cols, np.array([0, 1, 2])))
+        assert np.array_equal(rows, np.array([0, 1, 2]))
+        assert np.array_equal(cols, np.array([0, 1, 2]))
 
-    def test_rc2idx(self):
+    def test_rc2idx(self) -> None:
         """Test conversion from row-column coordinates to linear indices."""
         # Create a 3x4 array for testing
         shape = (3, 4)  # 3 rows, 4 columns
@@ -91,14 +92,14 @@ class TestUtils(unittest.TestCase):
         # Test single coordinate pair
         rc = np.array([[1], [1]])  # Row 1, column 1 should be index 5
         idx = rc2idx(rc, shape)
-        self.assertEqual(idx[0], 5)
+        assert idx[0] == 5
 
         # Test multiple coordinate pairs
         rc = np.array([[0, 1, 2], [0, 1, 2]])  # (0,0), (1,1), (2,2) should map to 0, 5, 10
         idx = rc2idx(rc, shape)
-        self.assertTrue(np.array_equal(idx, np.array([0, 5, 10])))
+        assert np.array_equal(idx, np.array([0, 5, 10]))
 
-    def test_polyfit2d(self):
+    def test_polyfit2d(self) -> None:
         """Test 2D polynomial fitting."""
         # Create sample data
         x = np.array([0, 1, 2])
@@ -112,7 +113,7 @@ class TestUtils(unittest.TestCase):
         solution, residuals, rank, singular_values = polyfit2d(x, y, z)
 
         # Check the shape of the solution (should be (kx+1)*(ky+1) = 16 for default kx=ky=3)
-        self.assertEqual(len(solution), 16)
+        assert len(solution) == 16
 
         # Check residuals (should be close to zero for perfect fit)
         self.assertAlmostEqual(np.sum(residuals), 0, places=10)
@@ -131,17 +132,17 @@ class TestUtils(unittest.TestCase):
         self.assertAlmostEqual(solution[1], 1, places=5)  # y term
         self.assertAlmostEqual(solution[4], 1, places=5)  # x term
 
-    def test_rms(self):
+    def test_rms(self) -> None:
         """Test root mean square calculation."""
         # Test with all zeros
         data = np.zeros(10)
         result = rms(data)
-        self.assertEqual(result, 0.0)
+        assert result == 0.0
 
         # Test with all ones
         data = np.ones(10)
         result = rms(data)
-        self.assertEqual(result, 1.0)
+        assert result == 1.0
 
         # Test with known values
         data = np.array([1, 2, 3, 4, 5])

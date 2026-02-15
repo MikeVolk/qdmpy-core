@@ -1,4 +1,4 @@
-"""Test module for QDMpy.guess
+"""Test module for QDMpy.guess.
 
 These tests cover the model and parameter guessing functionality used for ODMR data
 processing and fitting.
@@ -91,12 +91,12 @@ def model_instances():
 class TestValidateArray:
     """Test cases for validate_array function."""
 
-    def test_validate_correct_dimensions(self):
+    def test_validate_correct_dimensions(self) -> None:
         """Test validation with correct dimensions."""
         data = np.zeros((2, 3, 4, 5))
         validate_array(data, 4, 'test_data')
 
-    def test_validate_incorrect_dimensions(self):
+    def test_validate_incorrect_dimensions(self) -> None:
         """Test validation with incorrect dimensions."""
         data = np.zeros((2, 3, 4))
         with pytest.raises(ValueError) as excinfo:
@@ -104,18 +104,18 @@ class TestValidateArray:
         assert 'must have 4 dimensions' in str(excinfo.value)
         assert 'Got 3' in str(excinfo.value)
 
-    def test_none_array(self):
+    def test_none_array(self) -> None:
         """Test validation with None."""
         with pytest.raises(ValueError):
             validate_array(None, 4, 'test_data')
 
-    def test_non_numeric_array(self):
+    def test_non_numeric_array(self) -> None:
         """Test validation with a non-numeric array."""
         data = np.array([['a', 'b'], ['c', 'd']])
         with pytest.raises(ValueError):
             validate_array(data, 2, 'test_data')
 
-    def test_unexpected_dimensions(self):
+    def test_unexpected_dimensions(self) -> None:
         """Test validation with unexpected dimensions."""
         data = np.zeros((2, 3, 4))
         with pytest.raises(ValueError):
@@ -125,7 +125,7 @@ class TestValidateArray:
 class TestGuessNPeaks:
     """Test cases for guess_n_peaks function."""
 
-    def test_guess_n_peaks_mock(self):
+    def test_guess_n_peaks_mock(self) -> None:
         """Test guessing the number of peaks with mocked find_peaks."""
         mock_data = np.random.random((2, 3, 10, 100))
 
@@ -137,7 +137,7 @@ class TestGuessNPeaks:
             assert bool(doubt) is False
             assert len(indices) == mock_data.shape[0] * mock_data.shape[1]
 
-    def test_guess_n_peaks_doubt(self):
+    def test_guess_n_peaks_doubt(self) -> None:
         """Test guessing peaks when there's doubt (inconsistent counts)."""
         mock_data = np.random.random((2, 3, 10, 100))
 
@@ -155,7 +155,7 @@ class TestGuessNPeaks:
             assert bool(doubt) is True
             assert len(indices) == mock_data.shape[0] * mock_data.shape[1]
 
-    def test_incorrect_dimensions(self):
+    def test_incorrect_dimensions(self) -> None:
         """Test with incorrect dimensions."""
         data = np.zeros((2, 3, 4))
         with pytest.raises(ValueError):
@@ -165,28 +165,28 @@ class TestGuessNPeaks:
 class TestGetModelByPeaks:
     """Test cases for get_model_by_peaks function."""
 
-    def test_get_model_single_peak(self, model_instances):
+    def test_get_model_single_peak(self, model_instances) -> None:
         """Test getting the model for a single peak."""
         model = get_model_by_peaks(1)
         assert isinstance(model, ESRSINGLE)
         assert model.n_peaks == 1
         assert model.name == 'ESRSINGLE'
 
-    def test_get_model_two_peaks(self, model_instances):
+    def test_get_model_two_peaks(self, model_instances) -> None:
         """Test getting the model for two peaks."""
         model = get_model_by_peaks(2)
         assert isinstance(model, ESR15N)
         assert model.n_peaks == 2
         assert model.name == 'ESR15N'
 
-    def test_get_model_three_peaks(self, model_instances):
+    def test_get_model_three_peaks(self, model_instances) -> None:
         """Test getting the model for three peaks."""
         model = get_model_by_peaks(3)
         assert isinstance(model, ESR14N)
         assert model.n_peaks == 3
         assert model.name == 'ESR14N'
 
-    def test_get_model_invalid_peaks(self):
+    def test_get_model_invalid_peaks(self) -> None:
         """Test with an invalid number of peaks."""
         with pytest.raises(ValueError) as excinfo:
             get_model_by_peaks(4)
@@ -197,7 +197,7 @@ class TestGuessModel:
     """Test cases for guess_model function."""
 
     @patch('QDMpy.guess.guess_n_peaks')
-    def test_guess_model_no_doubt(self, mock_guess_n_peaks):
+    def test_guess_model_no_doubt(self, mock_guess_n_peaks) -> None:
         """Test guessing model when there's no doubt."""
         mock_guess_n_peaks.return_value = (2, False, [])
         data = np.zeros((2, 3, 10, 100))
@@ -207,7 +207,7 @@ class TestGuessModel:
         assert model.n_peaks == 2
 
     @patch('QDMpy.guess.guess_n_peaks')
-    def test_guess_model_with_doubt(self, mock_guess_n_peaks):
+    def test_guess_model_with_doubt(self, mock_guess_n_peaks) -> None:
         """Test guessing model when there's doubt."""
         mock_guess_n_peaks.return_value = (2, True, [])
         data = np.zeros((2, 3, 10, 100))
@@ -219,7 +219,7 @@ class TestGuessModel:
 class TestNormalizePixel:
     """Test cases for normalize_pixel function."""
 
-    def test_normalize_pixel_normal(self):
+    def test_normalize_pixel_normal(self) -> None:
         """Test normalizing a pixel with normal data."""
         pixel = np.array([1.0, 1.2, 1.5, 1.8, 2.0])
         normalized = normalize_pixel(pixel)
@@ -228,14 +228,14 @@ class TestNormalizePixel:
         assert normalized.max() == 1.0
         assert normalized.shape == pixel.shape
 
-    def test_normalize_pixel_constant(self):
+    def test_normalize_pixel_constant(self) -> None:
         """Test normalizing a constant pixel."""
         pixel = np.ones(10)
         normalized = normalize_pixel(pixel)
         assert np.all(normalized == 0.0)
         assert normalized.shape == pixel.shape
 
-    def test_normalize_pixel_negative(self):
+    def test_normalize_pixel_negative(self) -> None:
         """Test normalizing a pixel with negative values."""
         pixel = np.array([0.0, -0.5, -1.0, -1.5, -2.0])
         normalized = normalize_pixel(pixel)
@@ -244,13 +244,13 @@ class TestNormalizePixel:
         assert normalized.max() == 1.0
         assert normalized.shape == pixel.shape
 
-    def test_empty_pixel(self):
+    def test_empty_pixel(self) -> None:
         """Test normalizing an empty pixel raises error."""
         pixel = np.array([])
         with pytest.raises(Exception):
             normalize_pixel(pixel)
 
-    def test_all_zeros(self):
+    def test_all_zeros(self) -> None:
         """Test normalizing a pixel with all zeros."""
         pixel = np.zeros(10)
         normalized = normalize_pixel(pixel)
@@ -258,7 +258,7 @@ class TestNormalizePixel:
         assert np.isclose(normalized[0], 1.0)
         assert np.isclose(normalized[-1], 0.0)
 
-    def test_negative_values(self):
+    def test_negative_values(self) -> None:
         """Test normalizing a pixel with negative values."""
         pixel = np.array([-1, -2, -3, -4], dtype=np.float64)
         normalized = normalize_pixel(pixel)
@@ -269,19 +269,19 @@ class TestNormalizePixel:
 class TestGuessContrastPixel:
     """Test cases for guess_contrast_pixel function."""
 
-    def test_guess_contrast_pixel_normal(self):
+    def test_guess_contrast_pixel_normal(self) -> None:
         """Test guessing contrast with normal data."""
         pixel = np.array([0.5, 0.7, 0.3, 0.9, 0.6])
         contrast = guess_contrast_pixel(pixel)
         assert np.isclose(contrast, 0.6667, rtol=1e-4)
 
-    def test_guess_contrast_pixel_zero(self):
+    def test_guess_contrast_pixel_zero(self) -> None:
         """Test guessing contrast with zero values."""
         pixel = np.zeros(5)
         contrast = guess_contrast_pixel(pixel)
         assert contrast == 0.0
 
-    def test_guess_contrast_pixel_constant(self):
+    def test_guess_contrast_pixel_constant(self) -> None:
         """Test guessing contrast with constant values."""
         pixel = np.ones(5)
         contrast = guess_contrast_pixel(pixel)
@@ -291,7 +291,7 @@ class TestGuessContrastPixel:
 class TestGuessContrast:
     """Test cases for guess_contrast function."""
 
-    def test_guess_contrast_shape(self, sample_odmr_data):
+    def test_guess_contrast_shape(self, sample_odmr_data) -> None:
         """Test that the shape of the output is correct."""
         contrasts = guess_contrast(sample_odmr_data)
 
@@ -302,7 +302,7 @@ class TestGuessContrast:
         )
         assert contrasts.shape == expected_shape
 
-    def test_guess_contrast_values(self):
+    def test_guess_contrast_values(self) -> None:
         """Test that values are correctly calculated."""
         # (1 pol, 1 frange, 2 pixels, 10 freqs)
         data = np.ones((1, 1, 2, 10))
@@ -321,7 +321,7 @@ class TestGuessContrast:
 class TestGuessCenterPixel:
     """Test cases for guess_center_pixel function."""
 
-    def test_guess_center_pixel(self, frequency_range_1d):
+    def test_guess_center_pixel(self, frequency_range_1d) -> None:
         """Test guessing the center frequency of a pixel."""
         pixel = np.ones(100)
         center_idx = 50
@@ -338,7 +338,7 @@ class TestGuessCenterPixel:
 class TestGuessCenter:
     """Test cases for guess_center function."""
 
-    def test_guess_center_shape(self, sample_odmr_data, frequency_range):
+    def test_guess_center_shape(self, sample_odmr_data, frequency_range) -> None:
         """Test that the shape of the output is correct."""
         centers = guess_center(sample_odmr_data, frequency_range)
 
@@ -349,7 +349,7 @@ class TestGuessCenter:
         )
         assert centers.shape == expected_shape
 
-    def test_guess_center_values(self, frequency_range):
+    def test_guess_center_values(self, frequency_range) -> None:
         """Test that the values are correctly calculated."""
         # (1 pol, 1 frange, 2 pixels, 100 freqs)
         data = np.ones((1, 1, 2, 100))
@@ -377,7 +377,7 @@ class TestGuessCenter:
 class TestGuessWidthPixel:
     """Test cases for guess_width_pixel function."""
 
-    def test_guess_width_pixel(self, frequency_range_1d):
+    def test_guess_width_pixel(self, frequency_range_1d) -> None:
         """Test guessing the width of a pixel."""
         pixel = np.ones(100)
         center_idx = 50
@@ -394,7 +394,7 @@ class TestGuessWidthPixel:
 class TestGuessWidth:
     """Test cases for guess_width function."""
 
-    def test_guess_width_shape(self, sample_odmr_data, frequency_range):
+    def test_guess_width_shape(self, sample_odmr_data, frequency_range) -> None:
         """Test that the shape of the output is correct."""
         widths = guess_width(sample_odmr_data, frequency_range, DEFAULT_VMIN, DEFAULT_VMAX)
 
@@ -405,7 +405,7 @@ class TestGuessWidth:
         )
         assert widths.shape == expected_shape
 
-    def test_guess_width_positive(self, sample_odmr_data, frequency_range):
+    def test_guess_width_positive(self, sample_odmr_data, frequency_range) -> None:
         """Test that all widths are positive."""
         widths = guess_width(sample_odmr_data, frequency_range, DEFAULT_VMIN, DEFAULT_VMAX)
         assert np.all(widths > 0)
@@ -414,7 +414,7 @@ class TestGuessWidth:
 class TestGuessInitialFitParameters:
     """Test cases for guess_initial_fit_parameters function."""
 
-    def test_guess_initial_fit_parameters_single(self, sample_odmr_data, frequency_range):
+    def test_guess_initial_fit_parameters_single(self, sample_odmr_data, frequency_range) -> None:
         """Test guessing parameters for ESRSINGLE model."""
         model = ESRSINGLE()
         parameters = guess_initial_fit_parameters(sample_odmr_data, frequency_range, model)
@@ -427,7 +427,7 @@ class TestGuessInitialFitParameters:
         )
         assert parameters.shape == expected_shape
 
-    def test_guess_initial_fit_parameters_14n(self, sample_odmr_data, frequency_range):
+    def test_guess_initial_fit_parameters_14n(self, sample_odmr_data, frequency_range) -> None:
         """Test guessing parameters for ESR14N model."""
         model = ESR14N()
         parameters = guess_initial_fit_parameters(sample_odmr_data, frequency_range, model)
@@ -440,7 +440,7 @@ class TestGuessInitialFitParameters:
         )
         assert parameters.shape == expected_shape
 
-    def test_guess_initial_fit_parameters_15n(self, sample_odmr_data, frequency_range):
+    def test_guess_initial_fit_parameters_15n(self, sample_odmr_data, frequency_range) -> None:
         """Test guessing parameters for ESR15N model."""
         model = ESR15N()
         parameters = guess_initial_fit_parameters(sample_odmr_data, frequency_range, model)
@@ -453,7 +453,7 @@ class TestGuessInitialFitParameters:
         )
         assert parameters.shape == expected_shape
 
-    def test_guess_initial_fit_parameters_invalid_param(self, sample_odmr_data, frequency_range):
+    def test_guess_initial_fit_parameters_invalid_param(self, sample_odmr_data, frequency_range) -> None:
         """Test guessing parameters with an invalid parameter type."""
         mock_model = MagicMock()
         mock_model.parameters_unique = ['invalid_param']

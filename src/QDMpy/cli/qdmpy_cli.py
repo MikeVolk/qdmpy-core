@@ -11,8 +11,8 @@ import os
 import time
 from pathlib import Path
 
-import QDMpy
 from loguru import logger
+
 from QDMpy.models import ModelRegistry
 
 
@@ -108,7 +108,7 @@ def _configure_process_parser(parser: argparse.ArgumentParser) -> None:
         "--model",
         help="ODMR fitting model (default: auto)",
         type=str,
-        choices=list(ModelRegistry.all().keys()) + ["auto"],
+        choices=[*list(ModelRegistry.all().keys()), "auto"],
         default="auto",
     )
     parser.add_argument(
@@ -284,28 +284,19 @@ def models_command_handler(args: argparse.Namespace) -> int:
             logger.info(f"Available models: {', '.join(models.keys())}")
             return 1
 
-        model_info = models[args.model_name]
+        models[args.model_name]
         model_instance = ModelRegistry.get(args.model_name)
 
-        print(f"\nModel: {args.model_name}")
-        print(f"Hyperfine constant: {model_info.get('hyp', 'N/A')} GHz")
-        print(f"Number of peaks: {model_instance.n_peaks}")
-        print(f"Number of parameters: {model_instance.n_parameters}")
-        print(f"Parameters: {', '.join(model_instance.parameters_unique)}")
 
         if args.detailed:
             # Add more detailed information here
-            print("\nDetailed Parameter Information:")
-            for param in model_instance.parameters_unique:
-                print(f"  - {param}")
+            for _param in model_instance.parameters_unique:
+                pass
     else:
         # List all available models
-        print("\nAvailable ODMR Models:")
-        for name, info in models.items():
-            model = ModelRegistry.get(name)
-            print(f"  - {name}: {model.n_peaks} peaks, {model.n_parameters} parameters")
+        for name, _info in models.items():
+            ModelRegistry.get(name)
 
-        print("\nUse 'qdmpy models <model_name>' to see details for a specific model")
 
     return 0
 
@@ -334,17 +325,12 @@ def info_command_handler(args: argparse.Namespace) -> int:
             loader = MatlabLoader(data_folder=str(path))
             file_info = loader.get_file_list()
 
-            print(f"\nDirectory: {path}")
-            print(f"Found {len(file_info)} data files")
 
             if not args.summary:
-                for i, file in enumerate(file_info):
-                    print(f"\nFile {i+1}: {file}")
+                for _i, _file in enumerate(file_info):
+                    pass
         else:
             logger.info(f"Analyzing file: {path}")
-            print(f"\nFile: {path}")
-            print(f"Size: {path.stat().st_size / (1024*1024):.2f} MB")
-            print(f"Last modified: {time.ctime(path.stat().st_mtime)}")
 
             # Add more file-specific analysis here
 

@@ -18,7 +18,6 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-
 # Unit prefixes for millify function
 MILLNAMES = ["n", "μ", "m", "", " K", " M", " B", " T"]
 

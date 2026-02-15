@@ -18,7 +18,7 @@ The FitResult class handles:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 import numpy as np
 from loguru import logger
@@ -50,7 +50,7 @@ class FitResult:
     """
 
     def __init__(
-        self,
+        self: Self,
         parameters: dict[str, NDArray],
         scan_dimensions: tuple[int, int],
         pixel_spacing: float,
@@ -81,7 +81,7 @@ class FitResult:
         logger.info(f"FitResult initialized with model: {model_name}")
         logger.debug(f"Available parameters: {list(parameters.keys())}")
 
-    def __repr__(self) -> str:
+    def __repr__(self: Self) -> str:
         """Return string representation of FitResult."""
         n_pixels = self.scan_dimensions[0] * self.scan_dimensions[1]
         n_params = len(self.parameters)
@@ -92,7 +92,7 @@ class FitResult:
         )
 
     @property
-    def centers(self) -> NDArray:
+    def centers(self: Self) -> NDArray:
         """Get resonance center frequencies in Hz.
 
         Returns:
@@ -101,7 +101,7 @@ class FitResult:
         return self.parameters["center"]
 
     @property
-    def linewidths(self) -> NDArray:
+    def linewidths(self: Self) -> NDArray:
         """Get ODMR linewidths in Hz.
 
         For models with multiple lines, returns the primary linewidth.
@@ -118,7 +118,7 @@ class FitResult:
         raise KeyError("No linewidth parameter found ('width_0' or 'width')")
 
     @property
-    def contrasts(self) -> NDArray:
+    def contrasts(self: Self) -> NDArray:
         """Get ODMR contrasts (normalized).
 
         Returns:
@@ -127,7 +127,7 @@ class FitResult:
         return self.parameters["contrast"]
 
     @property
-    def offsets(self) -> NDArray:
+    def offsets(self: Self) -> NDArray:
         """Get baseline offsets.
 
         Returns:
@@ -136,7 +136,7 @@ class FitResult:
         return self.parameters.get("offset", np.zeros_like(self.centers))
 
     @property
-    def chi2(self) -> NDArray:
+    def chi2(self: Self) -> NDArray:
         """Get fit quality (chi-squared values).
 
         Returns:
@@ -145,7 +145,7 @@ class FitResult:
         return self.parameters["chi2"]
 
     @property
-    def fit_states(self) -> NDArray:
+    def fit_states(self: Self) -> NDArray:
         """Get fitting convergence states.
 
         Returns:
@@ -153,7 +153,7 @@ class FitResult:
         """
         return self.parameters.get("states", np.zeros_like(self.centers, dtype=int))
 
-    def get_parameter(self, param_name: str) -> NDArray:
+    def get_parameter(self: Self, param_name: str) -> NDArray:
         """Get any fitted parameter by name.
 
         Args:
@@ -170,7 +170,7 @@ class FitResult:
             raise KeyError(f"Parameter '{param_name}' not found. Available: {available}")
         return self.parameters[param_name]
 
-    def get_parameter_map(self, param_name: str) -> NDArray:
+    def get_parameter_map(self: Self, param_name: str) -> NDArray:
         """Get parameter reshaped as 2D spatial map.
 
         Args:
@@ -183,7 +183,7 @@ class FitResult:
         return param_data.reshape(self.scan_dimensions)
 
     @property
-    def delta_resonance(self) -> NDArray:
+    def delta_resonance(self: Self) -> NDArray:
         """Get the frequency difference between resonance peaks.
 
         This calculates the splitting between high and low frequency resonances,
@@ -200,7 +200,7 @@ class FitResult:
             self._delta_resonance_cache = self._compute_delta_resonance()
         return self._delta_resonance_cache
 
-    def _compute_delta_resonance(self) -> NDArray:
+    def _compute_delta_resonance(self: Self) -> NDArray:
         """Compute frequency difference between resonance peaks.
 
         Implements the exact calculation from the old QDM class:
@@ -394,7 +394,7 @@ class FitResult:
         return delta_resonance
 
     @property
-    def b111(self) -> tuple[NDArray, NDArray]:
+    def b111(self: Self) -> tuple[NDArray, NDArray]:
         """Get B111 magnetic field components (remanent and induced).
 
         This is the core magnetic field calculation for quantum diamond microscopy,
@@ -412,7 +412,7 @@ class FitResult:
             self._b111_cache = self._compute_b111()
         return self._b111_cache
 
-    def _compute_b111(self) -> tuple[NDArray, NDArray]:
+    def _compute_b111(self: Self) -> tuple[NDArray, NDArray]:
         """Compute B111 magnetic field components.
 
         Uses the exact algorithm from the old QDM class to calculate remanent
@@ -471,7 +471,7 @@ class FitResult:
         return b111_remanent, b111_induced
 
     @property
-    def b111_remanent(self) -> NDArray:
+    def b111_remanent(self: Self) -> NDArray:
         """Get the remanent (permanent) B111 magnetic field component.
 
         The remanent field represents the permanent magnetic field component
@@ -483,7 +483,7 @@ class FitResult:
         return self.b111[0]
 
     @property
-    def b111_induced(self) -> NDArray:
+    def b111_induced(self: Self) -> NDArray:
         """Get the induced B111 magnetic field component.
 
         The induced field represents the field component that varies with
@@ -494,7 +494,7 @@ class FitResult:
         """
         return self.b111[1]
 
-    def calculate_b_field(self, force_recalculate: bool = False) -> NDArray:
+    def calculate_b_field(self: Self, force_recalculate: bool = False) -> NDArray:
         """Calculate magnetic field map from fitted resonance frequencies.
 
         This method computes the magnetic field strength based on the Zeeman
@@ -516,7 +516,7 @@ class FitResult:
 
         return self._b_field_cache
 
-    def _compute_b_field(self) -> NDArray:
+    def _compute_b_field(self: Self) -> NDArray:
         """Internal method to compute magnetic field from resonance frequencies.
 
         Returns:
@@ -533,7 +533,7 @@ class FitResult:
 
         return b_field
 
-    def get_fit_quality_metrics(self) -> dict[str, float]:
+    def get_fit_quality_metrics(self: Self) -> dict[str, float]:
         """Calculate overall fit quality metrics.
 
         Returns:
@@ -569,7 +569,7 @@ class FitResult:
 
         return metrics
 
-    def save_results(self, filepath: str | Path) -> None:
+    def save_results(self: Self, filepath: str | Path) -> None:
         """Save fit results to file.
 
         Args:

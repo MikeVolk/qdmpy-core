@@ -21,7 +21,7 @@ def test_data_path() -> str:
 class TestBaseLoader:
     """Test class for BaseLoader."""
 
-    def test_abstract_class(self):
+    def test_abstract_class(self) -> None:
         """Test that BaseLoader cannot be instantiated directly."""
         with pytest.raises(TypeError):
             BaseLoader()
@@ -30,12 +30,12 @@ class TestBaseLoader:
 class TestMatlabLoader:
     """Test class for MatlabLoader."""
 
-    def test_init(self, test_data_path):
+    def test_init(self, test_data_path) -> None:
         """Test initialization of MatlabLoader."""
         loader = MatlabLoader(data_folder=test_data_path)
         assert loader.data_folder == test_data_path
 
-    def test_load(self, test_data_path):
+    def test_load(self, test_data_path) -> None:
         """Test load method returns xr.DataArray with correct structure."""
         if not os.path.isdir(test_data_path):
             pytest.skip('Test data directory not found')
@@ -51,14 +51,14 @@ class TestMatlabLoader:
         assert result.dims == ('polarity', 'freq_range', 'y', 'x', 'freq_idx')
         assert len(result.shape) == 5
 
-    def test_load_no_files(self):
+    def test_load_no_files(self) -> None:
         """Test load method with no valid files."""
         with patch('os.listdir', return_value=[]):
             loader = MatlabLoader(data_folder='/dummy/path')
             with pytest.raises(FileNotFoundError):
                 loader.load()
 
-    def test_process_mat_file_2stacks(self):
+    def test_process_mat_file_2stacks(self) -> None:
         """Test _process_mat_file with 2 image stacks."""
         mock_data = {
             'imgStack1': np.ones((10, 10)),
@@ -70,7 +70,7 @@ class TestMatlabLoader:
         assert np.array_equal(result[0], np.ones((10, 10)))
         assert np.array_equal(result[1], np.ones((10, 10)) * 2)
 
-    def test_process_mat_file_4stacks(self):
+    def test_process_mat_file_4stacks(self) -> None:
         """Test _process_mat_file with 4 image stacks (concat-before-transpose)."""
         mock_data = {
             'imgStack1': np.ones((5, 10)),
@@ -94,7 +94,7 @@ class TestMatlabLoader:
         ).T
         assert np.array_equal(result[1], expected_high)
 
-    def test_process_mat_file_unsupported(self):
+    def test_process_mat_file_unsupported(self) -> None:
         """Test _process_mat_file with unsupported number of stacks."""
         mock_data = {
             'imgStack1': np.ones((10, 10)),
@@ -105,7 +105,7 @@ class TestMatlabLoader:
         with pytest.raises(ValueError, match='Unsupported number of image stacks'):
             MatlabLoader._process_mat_file(mock_data)
 
-    def test_keys_missing_exception(self):
+    def test_keys_missing_exception(self) -> None:
         """Test that ValueError is raised when keys are missing from data."""
         mock_data = {'some_other_key': 'value'}
 

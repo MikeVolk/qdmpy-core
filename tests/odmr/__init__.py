@@ -1,1 +1,1 @@
-"""Test package for QDMpy.odmr module"""
+"""Test package for QDMpy.odmr module."""

@@ -33,7 +33,7 @@ from QDMpy.settings import (
 class TestModelFunctions:
     """Tests for the individual model functions."""
 
-    def test_esr14n_basic(self):
+    def test_esr14n_basic(self) -> None:
         """Test esr14n with basic input."""
         # Create test data
         x = np.linspace(2.87, 2.88, 100)
@@ -56,7 +56,7 @@ class TestModelFunctions:
             result >= 1.0 + parameters[5] - (parameters[2] + parameters[3] + parameters[4])
         )
 
-    def test_esr14n_multiple_parameter_sets(self):
+    def test_esr14n_multiple_parameter_sets(self) -> None:
         """Test esr14n with multiple parameter sets."""
         x = np.linspace(2.87, 2.88, 50)
         parameters = np.array(
@@ -81,7 +81,7 @@ class TestModelFunctions:
         # Second set has deeper dip for third resonance
         assert result[1, center2_idx] < 1.0 - parameters[1][3]
 
-    def test_esr14n_custom_hyperfine(self):
+    def test_esr14n_custom_hyperfine(self) -> None:
         """Test esr14n with custom hyperfine splitting."""
         x = np.linspace(2.87, 2.88, 100)
         parameters = np.array([2.87, 0.002, 0.2, 0.3, 0.1, 0.0])
@@ -100,7 +100,7 @@ class TestModelFunctions:
         assert result[0, dip1_idx] < 1.0  # Dip at center - custom_ahyp
         assert result[0, dip3_idx] < 1.0  # Dip at center + custom_ahyp
 
-    def test_esr15n_basic(self):
+    def test_esr15n_basic(self) -> None:
         """Test esr15n with basic input."""
         # Create test data
         x = np.linspace(2.86, 2.89, 100)  # Wider range to capture hyperfine splitting
@@ -124,7 +124,7 @@ class TestModelFunctions:
         assert np.all(result <= 1.0 + parameters[4])
         assert np.all(result >= 1.0 + parameters[4] - (parameters[2] + parameters[3]))
 
-    def test_esr15n_multiple_parameter_sets(self):
+    def test_esr15n_multiple_parameter_sets(self) -> None:
         """Test esr15n with multiple parameter sets."""
         x = np.linspace(2.87, 2.88, 50)
         parameters = np.array(
@@ -143,7 +143,7 @@ class TestModelFunctions:
         # Second set has deeper dip for first resonance
         assert result[0, :].min() < result[1, :].min()
 
-    def test_esr15n_custom_hyperfine(self):
+    def test_esr15n_custom_hyperfine(self) -> None:
         """Test esr15n with custom hyperfine splitting."""
         x = np.linspace(2.87, 2.88, 100)
         parameters = np.array([2.87, 0.002, 0.2, 0.3, 0.0])
@@ -160,7 +160,7 @@ class TestModelFunctions:
         assert result[0, dip1_idx] < 1.0  # Dip at center - custom_ahyp
         assert result[0, dip2_idx] < 1.0  # Dip at center + custom_ahyp
 
-    def test_esrsingle_basic(self):
+    def test_esrsingle_basic(self) -> None:
         """Test esrsingle with basic input."""
         # Create test data
         x = np.linspace(2.87, 2.88, 100)
@@ -182,7 +182,7 @@ class TestModelFunctions:
         assert np.all(result <= 1.0 + parameters[3])
         assert np.all(result >= 1.0 + parameters[3] - parameters[2])
 
-    def test_esrsingle_multiple_parameter_sets(self):
+    def test_esrsingle_multiple_parameter_sets(self) -> None:
         """Test esrsingle with multiple parameter sets."""
         x = np.linspace(2.87, 2.88, 50)
         parameters = np.array(
@@ -218,12 +218,12 @@ class TestModelFunctions:
 class TestModelClass:
     """Tests for the abstract Model class and concrete implementations."""
 
-    def test_model_abstract_class(self):
+    def test_model_abstract_class(self) -> None:
         """Test that Model cannot be instantiated directly."""
         with pytest.raises(TypeError):
             Model("TestModel", 1, ["param1", "param2"])
 
-    def test_model_property_parameter(self):
+    def test_model_property_parameter(self) -> None:
         """Test the parameter property of the Model class."""
         # Using a concrete implementation since Model is abstract
         model = ESR14N()
@@ -232,7 +232,7 @@ class TestModelClass:
         expected = ["center", "width", "contrast", "contrast", "contrast", "offset"]
         assert model.parameter == expected
 
-    def test_model_property_n_parameters(self):
+    def test_model_property_n_parameters(self) -> None:
         """Test the n_parameters property of the Model class."""
         model_14n = ESR14N()
         model_15n = ESR15N()
@@ -242,13 +242,13 @@ class TestModelClass:
         assert model_15n.n_parameters == 5
         assert model_single.n_parameters == 4
 
-    def test_model_repr(self):
+    def test_model_repr(self) -> None:
         """Test the string representation of Model."""
         model = ESR14N()
         expected = "Model(ESR14N, n_parameters: 6, n_peaks: 3)"
         assert repr(model) == expected
 
-    def test_model_func_abstract(self):
+    def test_model_func_abstract(self) -> None:
         """Test that the func method raises NotImplementedError if not implemented."""
         # We can't instantiate an abstract class without implementing all methods,
         # so we'll check the abstractmethod decorator directly
@@ -259,7 +259,7 @@ class TestModelClass:
         # To test line 190 (raise NotImplementedError), we'll subclass Model and
         # call the parent's func method
         class TestModelCallsParentFunc(Model):
-            def __init__(self):
+            def __init__(self) -> None:
                 super().__init__("TEST", 1, ["param1"])
 
             def func(self, x, parameters):
@@ -275,7 +275,7 @@ class TestModelClass:
         with pytest.raises(NotImplementedError):
             model.func(x, params)
 
-    def test_constraint_access(self):
+    def test_constraint_access(self) -> None:
         """Test the constraint-related code paths with a direct test approach."""
         # We can create constraint dictionaries directly and test their behavior
         model = ESR14N()
@@ -304,7 +304,7 @@ class TestModelClass:
         assert all(isinstance(v, (int, float)) for v in min_values)
         assert all(isinstance(v, (int, float)) for v in max_values)
 
-    def test_get_constraint_array(self):
+    def test_get_constraint_array(self) -> None:
         """Test the get_constraint_array method of Model."""
         model = ESR14N()
         constraints = {
@@ -336,7 +336,7 @@ class TestModelClass:
         ]
         assert_array_equal(constraint_array, expected)
 
-    def test_get_constraint_array_with_missing_constraints(self):
+    def test_get_constraint_array_with_missing_constraints(self) -> None:
         """Test get_constraint_array with missing constraints."""
         model = ESR14N()
         # Only provide some constraints
@@ -377,7 +377,7 @@ class TestModelClass:
 class TestESR14N:
     """Tests for the ESR14N model."""
 
-    def test_init(self):
+    def test_init(self) -> None:
         """Test initialization of ESR14N."""
         model = ESR14N()
 
@@ -393,7 +393,7 @@ class TestESR14N:
         ]
         assert model.ahyp == AHYP_14N
 
-    def test_func(self):
+    def test_func(self) -> None:
         """Test the func method of ESR14N."""
         model = ESR14N()
         x = np.linspace(2.87, 2.88, 10)
@@ -409,7 +409,7 @@ class TestESR14N:
 class TestESR15N:
     """Tests for the ESR15N model."""
 
-    def test_init(self):
+    def test_init(self) -> None:
         """Test initialization of ESR15N."""
         model = ESR15N()
 
@@ -418,7 +418,7 @@ class TestESR15N:
         assert model.parameters_unique == ["center", "width", "contrast_0", "contrast_1", "offset"]
         assert model.ahyp == AHYP_15N
 
-    def test_func(self):
+    def test_func(self) -> None:
         """Test the func method of ESR15N."""
         model = ESR15N()
         x = np.linspace(2.87, 2.88, 10)
@@ -434,7 +434,7 @@ class TestESR15N:
 class TestESRSINGLE:
     """Tests for the ESRSINGLE model."""
 
-    def test_init(self):
+    def test_init(self) -> None:
         """Test initialization of ESRSINGLE."""
         model = ESRSINGLE()
 
@@ -442,7 +442,7 @@ class TestESRSINGLE:
         assert model.n_peaks == 1
         assert model.parameters_unique == ["center", "width", "contrast", "offset"]
 
-    def test_func(self):
+    def test_func(self) -> None:
         """Test the func method of ESRSINGLE."""
         model = ESRSINGLE()
         x = np.linspace(2.87, 2.88, 10)
@@ -458,7 +458,7 @@ class TestESRSINGLE:
 class TestModelRegistry:
     """Tests for the ModelRegistry class."""
 
-    def test_registry_initial_state(self):
+    def test_registry_initial_state(self) -> None:
         """Test the initial state of the registry."""
         # The registry should already contain the three models
         registry = ModelRegistry.all()
@@ -471,7 +471,7 @@ class TestModelRegistry:
         assert registry["ESR15N"]["class"] == ESR15N
         assert registry["ESRSINGLE"]["class"] == ESRSINGLE
 
-    def test_register_new_model(self):
+    def test_register_new_model(self) -> None:
         """Test registering a new model."""
         # Create a mock model class
         mock_model_class = MagicMock()
@@ -484,7 +484,7 @@ class TestModelRegistry:
         assert "MOCK_MODEL" in registry
         assert registry["MOCK_MODEL"]["class"] == mock_model_class
 
-    def test_get_model(self):
+    def test_get_model(self) -> None:
         """Test getting a model by name."""
         # Get models by name
         model_14n = ModelRegistry.get("ESR14N")
@@ -496,19 +496,19 @@ class TestModelRegistry:
         assert isinstance(model_15n, ESR15N)
         assert isinstance(model_single, ESRSINGLE)
 
-    def test_get_nonexistent_model(self):
+    def test_get_nonexistent_model(self) -> None:
         """Test getting a model that doesn't exist."""
         with pytest.raises(KeyError):
             ModelRegistry.get("NON_EXISTENT_MODEL")
 
-    def test_initialize_constraints_method(self):
+    def test_initialize_constraints_method(self) -> None:
         """Test the _initialize_constraints method of ModelRegistry."""
         # We need to test line 294-305
         # Create a test model derived from Model that will expose _initialize_constraints
         from QDMpy.models import Model as QDMpyModel
 
         class TestModelInitConstraints(QDMpyModel):
-            def __init__(self):
+            def __init__(self) -> None:
                 super().__init__("TEST", 1, ["contrast_0", "width_0"])
 
             def func(self, x, parameters):
@@ -544,7 +544,7 @@ class TestModelRegistry:
 
 
 # Test the main demo function
-def test_main_demo_function():
+def test_main_demo_function() -> None:
     """Test the _main_demo function that shows model usage."""
     import io
     from unittest.mock import patch

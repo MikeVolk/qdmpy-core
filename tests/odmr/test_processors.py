@@ -33,7 +33,7 @@ def sample_odmr_data():
 class TestBaseProcessor:
     """Test class for BaseProcessor."""
 
-    def test_abstract_class(self):
+    def test_abstract_class(self) -> None:
         """Test that BaseProcessor cannot be instantiated directly."""
         with pytest.raises(TypeError):
             BaseProcessor()
@@ -42,17 +42,17 @@ class TestBaseProcessor:
 class TestNormalizationProcessor:
     """Test class for NormalizationProcessor."""
 
-    def test_init_default(self):
+    def test_init_default(self) -> None:
         """Test initialization with default parameters."""
         processor = NormalizationProcessor()
         assert processor.method == 'max'
 
-    def test_init_custom(self):
+    def test_init_custom(self) -> None:
         """Test initialization with custom parameters."""
         processor = NormalizationProcessor(method='custom')
         assert processor.method == 'custom'
 
-    def test_process_max_method(self, sample_odmr_data):
+    def test_process_max_method(self, sample_odmr_data) -> None:
         """Test process method with 'max' normalization."""
         processor = NormalizationProcessor(method='max')
         result = processor.process(sample_odmr_data)
@@ -66,7 +66,7 @@ class TestNormalizationProcessor:
 
         assert result.metadata['normalized'] is True
 
-    def test_process_unsupported_method(self, sample_odmr_data):
+    def test_process_unsupported_method(self, sample_odmr_data) -> None:
         """Test process method with unsupported normalization method."""
         processor = NormalizationProcessor(method='unsupported')
         with pytest.raises(NotImplementedError):
@@ -76,12 +76,12 @@ class TestNormalizationProcessor:
 class TestBinningProcessor:
     """Test class for BinningProcessor."""
 
-    def test_init(self):
+    def test_init(self) -> None:
         """Test initialization with valid parameters."""
         processor = BinningProcessor(bin_factor=2)
         assert processor.bin_factor == 2
 
-    def test_init_invalid(self):
+    def test_init_invalid(self) -> None:
         """Test initialization with invalid parameters."""
         with pytest.raises(ValueError):
             BinningProcessor(bin_factor=0)
@@ -89,7 +89,7 @@ class TestBinningProcessor:
         with pytest.raises(ValueError):
             BinningProcessor(bin_factor=-1)
 
-    def test_process(self, sample_odmr_data):
+    def test_process(self, sample_odmr_data) -> None:
         """Test process method reduces spatial dimensions."""
         processor = BinningProcessor(bin_factor=2)
         result = processor.process(sample_odmr_data)
@@ -108,17 +108,17 @@ class TestBinningProcessor:
 class TestOutlierProcessor:
     """Test class for OutlierProcessor."""
 
-    def test_init_default(self):
+    def test_init_default(self) -> None:
         """Test initialization with default parameters."""
         processor = OutlierProcessor()
         assert processor.threshold == 0.001
 
-    def test_init_custom(self):
+    def test_init_custom(self) -> None:
         """Test initialization with custom parameters."""
         processor = OutlierProcessor(threshold=0.01)
         assert processor.threshold == 0.01
 
-    def test_process(self, sample_odmr_data):
+    def test_process(self, sample_odmr_data) -> None:
         """Test process method masks outlier values as NaN."""
         sample_odmr_data.data.values[0, 0, 0, 0, 0] = 1000.0
 
@@ -137,17 +137,17 @@ class TestOutlierProcessor:
 class TestFluorescenceCorrectionProcessor:
     """Test class for FluorescenceCorrectionProcessor."""
 
-    def test_init_default(self):
+    def test_init_default(self) -> None:
         """Test initialization with default parameters."""
         processor = FluorescenceCorrectionProcessor()
         assert processor.correction_factor == 0.2
 
-    def test_init_custom(self):
+    def test_init_custom(self) -> None:
         """Test initialization with custom parameters."""
         processor = FluorescenceCorrectionProcessor(correction_factor=0.5)
         assert processor.correction_factor == 0.5
 
-    def test_process(self, sample_odmr_data, monkeypatch):
+    def test_process(self, sample_odmr_data, monkeypatch) -> None:
         """Test process method applies fluorescence correction."""
         mock_baseline = xr.DataArray(
             np.ones((2, 2, 50)) * 0.1,
@@ -174,7 +174,7 @@ class TestFluorescenceCorrectionProcessor:
         assert result.metadata['fluorescence_correction']['factor'] == 0.2
         assert result.metadata['fluorescence_correction']['applied'] is True
 
-    def test_process_with_override_factor(self, sample_odmr_data, monkeypatch):
+    def test_process_with_override_factor(self, sample_odmr_data, monkeypatch) -> None:
         """Test process method with override correction factor."""
         mock_baseline = xr.DataArray(
             np.ones((2, 2, 50)) * 0.1,
@@ -194,7 +194,7 @@ class TestFluorescenceCorrectionProcessor:
 
         assert result.metadata['fluorescence_correction']['factor'] == 0.5
 
-    def test_process_with_legacy_param(self, sample_odmr_data, monkeypatch):
+    def test_process_with_legacy_param(self, sample_odmr_data, monkeypatch) -> None:
         """Test process method with legacy glob_fluorescence parameter."""
         mock_baseline = xr.DataArray(
             np.ones((2, 2, 50)) * 0.1,
@@ -218,7 +218,7 @@ class TestFluorescenceCorrectionProcessor:
 class TestFluorescenceAnalysis:
     """Test class for fluorescence analysis functions."""
 
-    def test_analyze_fluorescence_effects(self, sample_odmr_data):
+    def test_analyze_fluorescence_effects(self, sample_odmr_data) -> None:
         """Test analyze_fluorescence_effects with a specified pixel."""
         sample_odmr_data.data.values[:] = 1.0
         sample_odmr_data.data.values[:, :, 5, 0, :] = 0.8
@@ -234,7 +234,7 @@ class TestFluorescenceAnalysis:
 
         assert -0.5 < float(baseline_corrected.mean()) < 0.5
 
-    def test_analyze_fluorescence_effects_auto_pixel(self, sample_odmr_data):
+    def test_analyze_fluorescence_effects_auto_pixel(self, sample_odmr_data) -> None:
         """Test analyze_fluorescence_effects with automatic pixel selection."""
         idx, baseline_corrected = analyze_fluorescence_effects(sample_odmr_data)
 
@@ -249,12 +249,12 @@ class TestFluorescenceAnalysis:
 class TestODMRProcessorManager:
     """Test class for ODMRProcessorManager."""
 
-    def test_init(self):
+    def test_init(self) -> None:
         """Test initialization."""
         manager = ODMRProcessorManager()
         assert len(manager.processors) == 0
 
-    def test_add_processor(self):
+    def test_add_processor(self) -> None:
         """Test add_processor method."""
         manager = ODMRProcessorManager()
         processor1 = NormalizationProcessor()
@@ -269,7 +269,7 @@ class TestODMRProcessorManager:
         assert manager.processors[0] is processor1
         assert manager.processors[1] is processor2
 
-    def test_process(self, sample_odmr_data):
+    def test_process(self, sample_odmr_data) -> None:
         """Test process method chains processors sequentially."""
         manager = ODMRProcessorManager()
 
@@ -291,7 +291,7 @@ class TestODMRProcessorManager:
 
         assert result is sample_odmr_data
 
-    def test_list_processors(self):
+    def test_list_processors(self) -> None:
         """Test list_processors method."""
         manager = ODMRProcessorManager()
 

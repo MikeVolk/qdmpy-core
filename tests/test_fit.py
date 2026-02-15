@@ -104,7 +104,7 @@ class TestFitInitialization:
     """Test initialization of the FitManager class."""
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_init_with_default_model(self, sample_data, sample_frequencies):
+    def test_init_with_default_model(self, sample_data, sample_frequencies) -> None:
         """Test initialization with default 'auto' model."""
         with patch('QDMpy.fit.guess_model') as mock_guess_model:
             mock_model = ESRSINGLE()
@@ -117,21 +117,21 @@ class TestFitInitialization:
             assert fit.model == mock_model
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_init_with_specific_model(self, sample_data, sample_frequencies):
+    def test_init_with_specific_model(self, sample_data, sample_frequencies) -> None:
         """Test initialization with a specific model."""
         fit = FitManager(sample_data, sample_frequencies, model_name='ESR14N')
         assert fit.model_name == 'ESR14N'
         assert isinstance(fit.model, ESR14N)
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_init_with_invalid_model(self, sample_data, sample_frequencies):
+    def test_init_with_invalid_model(self, sample_data, sample_frequencies) -> None:
         """Test initialization with an invalid model name."""
         with pytest.raises(ValueError) as excinfo:
             FitManager(sample_data, sample_frequencies, model_name='INVALID_MODEL')
         assert 'Unknown model' in str(excinfo.value)
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_init_with_custom_constraints(self, sample_data, sample_frequencies):
+    def test_init_with_custom_constraints(self, sample_data, sample_frequencies) -> None:
         """Test initialization with custom constraints."""
         constraints = {'center': {'vmin': 2.87, 'vmax': 2.88, 'constraint_type': 'LOWER_UPPER'}}
 
@@ -146,7 +146,7 @@ class TestFitProperties:
     """Test property getters and setters of the FitManager class."""
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_data_property(self, sample_data, sample_numpy_data, sample_frequencies):
+    def test_data_property(self, sample_data, sample_numpy_data, sample_frequencies) -> None:
         """Test data property getter and setter."""
         fit = FitManager(sample_data, sample_frequencies)
 
@@ -165,7 +165,7 @@ class TestFitProperties:
             mock_reset.assert_not_called()
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_model_name_property(self, sample_data, sample_frequencies):
+    def test_model_name_property(self, sample_data, sample_frequencies) -> None:
         """Test model_name property getter and setter."""
         fit = FitManager(sample_data, sample_frequencies, model_name='ESRSINGLE')
         assert fit.model_name == 'ESRSINGLE'
@@ -182,7 +182,7 @@ class TestConstraintsMethods:
     """Test constraint-related methods of the FitManager class."""
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_set_constraints(self, sample_data, sample_frequencies):
+    def test_set_constraints(self, sample_data, sample_frequencies) -> None:
         """Test set_constraints method."""
         fit = FitManager(sample_data, sample_frequencies)
         fit.set_constraints('center', vmin=2.85, vmax=2.90, constraint_type='LOWER_UPPER')
@@ -192,7 +192,7 @@ class TestConstraintsMethods:
         assert fit.constraints['center'][2] == 'LOWER_UPPER'
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_set_constraints_with_numeric_type(self, sample_data, sample_frequencies):
+    def test_set_constraints_with_numeric_type(self, sample_data, sample_frequencies) -> None:
         """Test set_constraints with numeric constraint type."""
         fit = FitManager(sample_data, sample_frequencies)
         fit.set_constraints('width', vmin=1e6, constraint_type=1)
@@ -201,7 +201,7 @@ class TestConstraintsMethods:
         assert fit.constraints['width'][2] == 'LOWER'
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_set_constraints_invalid_type(self, sample_data, sample_frequencies):
+    def test_set_constraints_invalid_type(self, sample_data, sample_frequencies) -> None:
         """Test set_constraints with invalid constraint type."""
         fit = FitManager(sample_data, sample_frequencies)
 
@@ -212,7 +212,7 @@ class TestConstraintsMethods:
             fit.set_constraints('center', constraint_type=10)
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_set_free_constraints(self, sample_data, sample_frequencies):
+    def test_set_free_constraints(self, sample_data, sample_frequencies) -> None:
         """Test set_free_constraints method."""
         fit = FitManager(sample_data, sample_frequencies)
         fit.set_constraints('center', vmin=2.85, vmax=2.90, constraint_type='LOWER_UPPER')
@@ -224,7 +224,7 @@ class TestConstraintsMethods:
             assert fit.constraints[param][2] == 'FREE'
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_get_constraints_array(self, sample_data, sample_frequencies):
+    def test_get_constraints_array(self, sample_data, sample_frequencies) -> None:
         """Test get_constraints_array method."""
         fit = FitManager(sample_data, sample_frequencies, model_name='ESRSINGLE')
         fit.set_constraints('center', vmin=2.85, vmax=2.90)
@@ -250,7 +250,7 @@ class TestConstraintsMethods:
         assert_array_almost_equal(constraints_array[0], constraints_array[1])
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_get_constraint_types(self, sample_data, sample_frequencies):
+    def test_get_constraint_types(self, sample_data, sample_frequencies) -> None:
         """Test get_constraint_types method."""
         fit = FitManager(sample_data, sample_frequencies, model_name='ESRSINGLE')
         model_params = fit.model_params_unique
@@ -269,7 +269,7 @@ class TestConstraintsMethods:
 
 @pytest.mark.parametrize('model_name', ['ESRSINGLE', 'ESR15N', 'ESR14N'])
 @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-def test_get_initial_parameter(sample_data, sample_frequencies, model_name):
+def test_get_initial_parameter(sample_data, sample_frequencies, model_name) -> None:
     """Test get_initial_parameter method with different models."""
     fit = FitManager(sample_data, sample_frequencies, model_name=model_name)
     initial_params = fit.get_initial_parameter()
@@ -283,7 +283,7 @@ class TestParamMethods:
     """Test parameter-related methods of the FitManager class."""
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_param_idx(self, sample_data, sample_frequencies):
+    def test_param_idx(self, sample_data, sample_frequencies) -> None:
         """Test _param_idx method."""
         fit = FitManager(sample_data, sample_frequencies, model_name='ESR14N')
 
@@ -299,7 +299,7 @@ class TestParamMethods:
 class TestConstraintManager:
     """Test the ConstraintManager class."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test initialization of the ConstraintManager."""
         model_params = ['center', 'width_0', 'contrast', 'offset']
         settings = ModelConstraintsSettings(
@@ -332,7 +332,7 @@ class TestConstraintManager:
         assert constraints['width_0'][2] == 'LOWER'
         assert constraints['width_0'][3] == 'GHz'
 
-    def test_set_constraint(self):
+    def test_set_constraint(self) -> None:
         """Test setting constraints."""
         model_params = ['center', 'width_0', 'contrast', 'offset']
         settings = ModelConstraintsSettings(
@@ -372,7 +372,7 @@ class TestConstraintManager:
         with pytest.raises(ValueError):
             constraint_manager.set_constraint('center', constraint_type='INVALID')
 
-    def test_to_array(self):
+    def test_to_array(self) -> None:
         """Test conversion to constraint array."""
         model_params = ['contrast', 'center', 'width_0', 'offset']
         settings = ModelConstraintsSettings(
@@ -409,7 +409,7 @@ class TestConstraintManager:
         assert_array_almost_equal(constraints_array[0], expected_first_row)
         assert_array_almost_equal(constraints_array[0], constraints_array[1])
 
-    def test_get_constraint_types(self):
+    def test_get_constraint_types(self) -> None:
         """Test getting constraint types as array."""
         model_params = ['contrast', 'center', 'width_0', 'offset']
         settings = ModelConstraintsSettings(
@@ -445,11 +445,11 @@ class TestFitting:
     """Test fitting methods of the FitManager class."""
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_fit_odmr(self, sample_data, sample_frequencies):
+    def test_fit_odmr(self, sample_data, sample_frequencies) -> None:
         """Test fit_odmr method."""
 
     @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-    def test_reshape_results(self, sample_data, sample_frequencies):
+    def test_reshape_results(self, sample_data, sample_frequencies) -> None:
         """Test reshape_results method."""
         fit = FitManager(sample_data, sample_frequencies)
 
@@ -474,7 +474,7 @@ class TestFitting:
 
 @patch('QDMpy.fit.is_pygpufit_available', new=lambda: True)
 @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-def test_fit_odmr_refit(sample_data, sample_frequencies):
+def test_fit_odmr_refit(sample_data, sample_frequencies) -> None:
     """Test fit_odmr with refit=True."""
     fit = FitManager(sample_data, sample_frequencies)
 
@@ -501,7 +501,7 @@ def test_fit_odmr_refit(sample_data, sample_frequencies):
 
 
 @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-def test_set_constraints_missing_param(sample_data, sample_frequencies):
+def test_set_constraints_missing_param(sample_data, sample_frequencies) -> None:
     """Test set_constraints with a missing parameter."""
     fit = FitManager(sample_data, sample_frequencies)
 
@@ -511,7 +511,7 @@ def test_set_constraints_missing_param(sample_data, sample_frequencies):
 
 
 @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-def test_get_param_invalid(sample_data, sample_frequencies):
+def test_get_param_invalid(sample_data, sample_frequencies) -> None:
     """Test get_param with an invalid parameter."""
     fit = FitManager(sample_data, sample_frequencies)
 
@@ -526,7 +526,7 @@ def test_get_param_invalid(sample_data, sample_frequencies):
         fit.get_param('invalid_param')
 
 
-def test_constraint_manager_missing_settings():
+def test_constraint_manager_missing_settings() -> None:
     """Test ConstraintManager initialization with missing settings."""
     model_params = ['center', 'width_0', 'contrast', 'offset']
     incomplete_settings = ModelConstraintsSettings(
@@ -550,7 +550,7 @@ def test_constraint_manager_missing_settings():
     assert len(cm.get_constraints()) == 4
 
 
-def test_to_array_zero_pixels():
+def test_to_array_zero_pixels() -> None:
     """Test ConstraintManager.to_array with zero pixels."""
     model_params = ['center', 'width_0', 'contrast', 'offset']
     settings = ModelConstraintsSettings(
@@ -575,7 +575,7 @@ def test_to_array_zero_pixels():
 
 
 @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-def test_get_initial_parameter_edge_cases(sample_frequencies):
+def test_get_initial_parameter_edge_cases(sample_frequencies) -> None:
     """Test get_initial_parameter with edge cases."""
     zero_data_4d = np.zeros((2, 1, 4, 10))
     zero_data_xr = _make_xr_data(zero_data_4d)
@@ -593,7 +593,7 @@ def test_get_initial_parameter_edge_cases(sample_frequencies):
 @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
 @patch('QDMpy.fit.is_pygpufit_available', new=lambda: True)
 @patch('pygpufit.gpufit.fit_constrained')
-def test_fit_frange_mocked(mock_fit_constrained, sample_data, sample_frequencies):
+def test_fit_frange_mocked(mock_fit_constrained, sample_data, sample_frequencies) -> None:
     """Test fit_frange with mocked pyGpufit."""
     fit = FitManager(sample_data, sample_frequencies)
 
@@ -613,7 +613,7 @@ def test_fit_frange_mocked(mock_fit_constrained, sample_data, sample_frequencies
 
 
 @patch('QDMpy.fit.get_settings', new=lambda: MOCK_SETTINGS)
-def test_set_free_constraints_complex_model(sample_data, sample_frequencies):
+def test_set_free_constraints_complex_model(sample_data, sample_frequencies) -> None:
     """Test set_free_constraints with a complex model."""
     fit = FitManager(sample_data, sample_frequencies, model_name='ESR14N')
     fit.set_constraints('center', vmin=2.85, vmax=2.90, constraint_type='LOWER_UPPER')

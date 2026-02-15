@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import unittest
+from typing import NoReturn
+
+import pytest
 
 from QDMpy.exceptions import CantImportError, ModelGuessNotPossible, WrongFileNumber
 
@@ -8,44 +11,44 @@ from QDMpy.exceptions import CantImportError, ModelGuessNotPossible, WrongFileNu
 class TestExceptions(unittest.TestCase):
     """Tests for custom exceptions in QDMpy."""
 
-    def test_cant_import_error(self):
+    def test_cant_import_error(self) -> NoReturn:
         """Test CantImportError."""
         # Test that the exception can be raised with a message
         error_message = "Could not import required module 'test_module'"
-        with self.assertRaises(CantImportError) as context:
+        with pytest.raises(CantImportError) as context:
             raise CantImportError(error_message)
 
         # Verify the error message
-        self.assertEqual(str(context.exception), error_message)
+        assert str(context.exception) == error_message
 
         # Verify inheritance
-        self.assertIsInstance(context.exception, Exception)
+        assert isinstance(context.exception, Exception)
 
-    def test_wrong_file_number(self):
+    def test_wrong_file_number(self) -> NoReturn:
         """Test WrongFileNumber."""
         # Test that the exception can be raised with a message
         error_message = "Expected 2 files, got 1"
-        with self.assertRaises(WrongFileNumber) as context:
+        with pytest.raises(WrongFileNumber) as context:
             raise WrongFileNumber(error_message)
 
         # Verify the error message
-        self.assertEqual(str(context.exception), error_message)
+        assert str(context.exception) == error_message
 
         # Verify inheritance
-        self.assertIsInstance(context.exception, Exception)
+        assert isinstance(context.exception, Exception)
 
-    def test_model_guess_not_possible(self):
+    def test_model_guess_not_possible(self) -> NoReturn:
         """Test ModelGuessNotPossible."""
         # Test that the exception can be raised with a message
         error_message = "Could not automatically determine model for data"
-        with self.assertRaises(ModelGuessNotPossible) as context:
+        with pytest.raises(ModelGuessNotPossible) as context:
             raise ModelGuessNotPossible(error_message)
 
         # Verify the error message
-        self.assertEqual(str(context.exception), error_message)
+        assert str(context.exception) == error_message
 
         # Verify inheritance
-        self.assertIsInstance(context.exception, Exception)
+        assert isinstance(context.exception, Exception)
 
 
 if __name__ == "__main__":

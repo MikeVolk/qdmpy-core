@@ -1,9 +1,9 @@
-"""
-Pytest validation tests for magnetic field calculation functionality.
+"""Pytest validation tests for magnetic field calculation functionality.
 
 These tests validate that the new QDMpy codebase calculates identical
 magnetic field components (B111 remanent and induced) compared to the old codebase.
 """
+from __future__ import annotations
 
 import numpy as np
 import pytest
@@ -20,7 +20,7 @@ class TestMagneticFieldValidation:
 
     def test_b111_calculation_consistency(
         self, test_data_folder, new_qdmpy_modules, old_qdmpy_modules, bin_factor, test_parameters
-    ):
+    ) -> None:
         """Test that B111 magnetic field calculations are identical."""
         # Import modules
         QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
@@ -60,7 +60,7 @@ class TestMagneticFieldValidation:
         measurement_new = Measurement_new(
             odmr_data=odmr_new, model_name=test_parameters["model_name"], **fit_params
         )
-        fit_result = measurement_new.fit()
+        measurement_new.fit()
         magnetic_result = measurement_new.calculate_magnetic_fields()
 
         new_b111_rem = magnetic_result.B111_remanent.copy()
@@ -110,7 +110,7 @@ class TestMagneticFieldValidation:
 
     def test_magnetic_field_properties(
         self, test_data_folder, new_qdmpy_modules, bin_factor, test_parameters
-    ):
+    ) -> None:
         """Test that magnetic field results have expected properties."""
         # Import new modules
         QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
@@ -132,7 +132,7 @@ class TestMagneticFieldValidation:
         measurement_new = Measurement_new(
             odmr_data=odmr_new, model_name=test_parameters["model_name"], **fit_params
         )
-        fit_result = measurement_new.fit()
+        measurement_new.fit()
         magnetic_result = measurement_new.calculate_magnetic_fields()
 
         # Check field shapes are consistent
@@ -167,7 +167,7 @@ class TestMagneticFieldReferenceComparison:
 
     def test_against_reference_magnetic_fields(
         self, test_data_folder, reference_data, new_qdmpy_modules, test_parameters
-    ):
+    ) -> None:
         """Test magnetic field calculations against reference data."""
         # Import new modules
         QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
@@ -190,7 +190,7 @@ class TestMagneticFieldReferenceComparison:
         measurement_new = Measurement_new(
             odmr_data=odmr_new, model_name=test_parameters["model_name"], **fit_params
         )
-        fit_result = measurement_new.fit()
+        measurement_new.fit()
         magnetic_result = measurement_new.calculate_magnetic_fields()
 
         # Get reference magnetic fields
@@ -247,7 +247,7 @@ class TestMagneticFieldReferenceComparison:
 @pytest.mark.performance
 def test_magnetic_field_performance(
     test_data_folder, new_qdmpy_modules, old_qdmpy_modules, bin_factor, test_parameters
-):
+) -> None:
     """Performance test for magnetic field calculations."""
     import time
 
@@ -286,8 +286,8 @@ def test_magnetic_field_performance(
     measurement_new = Measurement_new(
         odmr_data=odmr_new, model_name=test_parameters["model_name"], **fit_params
     )
-    fit_result = measurement_new.fit()
-    magnetic_result = measurement_new.calculate_magnetic_fields()
+    measurement_new.fit()
+    measurement_new.calculate_magnetic_fields()
     new_time = time.time() - start_time
 
     logger.info(

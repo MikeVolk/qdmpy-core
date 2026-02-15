@@ -1,9 +1,9 @@
-"""
-Pytest validation tests for data processing functionality.
+"""Pytest validation tests for data processing functionality.
 
 These tests validate that the new QDMpy codebase produces identical processing
 results compared to reference data generated from the old codebase.
 """
+from __future__ import annotations
 
 import numpy as np
 import pytest
@@ -18,7 +18,7 @@ class TestProcessingValidation:
     @pytest.mark.parametrize("bin_factor", [1, 2, 8])
     def test_normalization_processing(
         self, reference_data, new_qdmpy_modules, test_data_folder, bin_factor
-    ):
+    ) -> None:
         """Test that normalization produces identical results to reference."""
         # Import new codebase modules
         QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
@@ -51,14 +51,14 @@ class TestProcessingValidation:
     @pytest.mark.parametrize("bin_factor", [1, 2, 8])
     def test_binning_processing(
         self, reference_data, new_qdmpy_modules, test_data_folder, bin_factor
-    ):
+    ) -> None:
         """Test that binning produces identical results to reference."""
         if bin_factor == 1:
             pytest.skip("No binning applied for bin_factor=1")
 
         # Import new codebase modules
         QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
-        from QDMpy.odmr.processors import NormalizationProcessor, BinningProcessor
+        from QDMpy.odmr.processors import BinningProcessor, NormalizationProcessor
 
         # Load data with new codebase
         loader = MatlabLoader(data_folder=str(test_data_folder))
@@ -98,14 +98,14 @@ class TestProcessingValidation:
     @pytest.mark.parametrize("bin_factor", [1, 2, 8])
     def test_fluorescence_correction(
         self, reference_data, new_qdmpy_modules, test_data_folder, bin_factor
-    ):
+    ) -> None:
         """Test that fluorescence correction produces identical results to reference."""
         # Import new codebase modules
         QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
         from QDMpy.odmr.processors import (
-            NormalizationProcessor,
             BinningProcessor,
             FluorescenceCorrectionProcessor,
+            NormalizationProcessor,
         )
 
         # Load data with new codebase
@@ -146,14 +146,14 @@ class TestProcessingPerformance:
     @pytest.mark.parametrize("bin_factor", [1, 2, 8])
     def test_processing_performance(
         self, reference_data, new_qdmpy_modules, test_data_folder, bin_factor, benchmark
-    ):
+    ) -> None:
         """Benchmark processing performance against reference times."""
         # Import new codebase modules
         QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
         from QDMpy.odmr.processors import (
-            NormalizationProcessor,
             BinningProcessor,
             FluorescenceCorrectionProcessor,
+            NormalizationProcessor,
         )
 
         def run_processing():
@@ -173,7 +173,7 @@ class TestProcessingPerformance:
             return odmr.processed_data
 
         # Benchmark the processing
-        result = benchmark(run_processing)
+        benchmark(run_processing)
 
         # Get reference timing if available
         ref_timing = reference_data.get("processing_time_seconds", None)

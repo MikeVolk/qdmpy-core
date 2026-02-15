@@ -1,11 +1,9 @@
-"""
-Pytest validation tests for data loading functionality.
+"""Pytest validation tests for data loading functionality.
 
 These tests validate that the new QDMpy codebase loads identical data
 compared to reference data generated from the old codebase.
 """
-
-from pathlib import Path
+from __future__ import annotations
 
 import numpy as np
 import pytest
@@ -17,7 +15,7 @@ from loguru import logger
 class TestDataLoadingValidation:
     """Validation tests for ODMR data loading operations."""
 
-    def test_raw_data_loading(self, reference_data, new_qdmpy_modules, test_data_folder):
+    def test_raw_data_loading(self, reference_data, new_qdmpy_modules, test_data_folder) -> None:
         """Test that raw ODMR data is loaded identically to reference data."""
         # Import new codebase modules
         QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
@@ -52,11 +50,11 @@ class TestDataLoadingValidation:
             err_msg="Scan dimensions do not match reference",
         )
 
-        logger.info(f"✅ Raw data loading validation passed")
+        logger.info("✅ Raw data loading validation passed")
         logger.info(f"   Data shape: {odmr_data.data.shape}")
         logger.info(f"   Scan dimensions: {odmr_data.scan_dimensions}")
 
-    def test_reference_images_loading(self, test_data_folder):
+    def test_reference_images_loading(self, test_data_folder) -> None:
         """Test that reference images (LED, laser) are loaded correctly."""
         led_path = test_data_folder / "LED.csv"
         laser_path = test_data_folder / "laser.csv"
@@ -75,6 +73,6 @@ class TestDataLoadingValidation:
         assert led_image.ndim == 2, "LED image should be 2D"
         assert laser_image.ndim == 2, "Laser image should be 2D"
 
-        logger.info(f"✅ Reference images loading passed")
+        logger.info("✅ Reference images loading passed")
         logger.info(f"   LED shape: {led_image.shape}")
         logger.info(f"   Laser shape: {laser_image.shape}")

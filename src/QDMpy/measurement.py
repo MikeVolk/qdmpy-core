@@ -16,6 +16,7 @@ provides a unified interface for analysis and visualization of QDM experiments.
 
 from __future__ import annotations
 
+import contextlib
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -23,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
+from typing_extensions import Self
 
 from QDMpy.odmr.odmr import ODMR
 
@@ -54,7 +56,7 @@ class Measurement:
     """
 
     def __init__(
-        self,
+        self: Self,
         odmr: ODMR,
         light_image: NDArray,
         laser_image: NDArray,
@@ -93,8 +95,8 @@ class Measurement:
         try:
             # Use public property instead of accessing protected member
             _ = self.odmr.raw_data
-        except ValueError:
-            raise ValueError("ODMR instance has no raw data")
+        except ValueError as e:
+            raise ValueError("ODMR instance has no raw data") from e
 
         # Validate ODMR instance data
         logger.debug(f"ODMR raw data shape: {self.odmr.raw_data.shape}")
@@ -122,7 +124,7 @@ class Measurement:
         # Store default fit model preference
         self._fit_model = fit_model
 
-    def __str__(self) -> str:
+    def __str__(self: Self) -> str:
         """Return a string representation of the Measurement object.
 
         Returns:
@@ -134,7 +136,7 @@ class Measurement:
             f"pixel_spacing={self.pixel_spacing} m)"
         )
 
-    def __repr__(self) -> str:
+    def __repr__(self: Self) -> str:
         """Return a developer string representation of the Measurement object.
 
         Returns:
@@ -148,7 +150,7 @@ class Measurement:
             f"pixel_spacing={self.pixel_spacing})"
         )
 
-    def fit_odmr(self, model_name: str | None = None, **kwargs: Any) -> "FitResult":
+    def fit_odmr(self: Self, model_name: str | None = None, **kwargs: Any) -> FitResult:
         """Fit ODMR spectra and return results object.
 
         This method performs spectral fitting on the processed ODMR data using
@@ -201,10 +203,10 @@ class Measurement:
             processed_data = self.odmr.processed_data
             if processed_data is None:
                 raise ValueError("ODMR data must be processed before fitting")
-        except (AttributeError, ValueError):
+        except (AttributeError, ValueError) as e:
             raise ValueError(
                 "ODMR data must be processed before fitting. " "Call odmr.process_data() first."
-            )
+            ) from e
 
         # Check for fitting dependencies
         from QDMpy import is_pygpufit_available
@@ -261,10 +263,8 @@ class Measurement:
                     continue
         elif model_name == "ESR15N":
             # 15N has width parameter
-            try:
+            with contextlib.suppress(KeyError, AttributeError):
                 parameters["width"] = fit_manager.get_param("width")
-            except (KeyError, AttributeError):
-                pass
 
         # Calculate quality metrics
         quality_metrics = {}

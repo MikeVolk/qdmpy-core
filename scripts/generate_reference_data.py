@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Reference data generation script for QDMpy validation.
+"""Reference data generation script for QDMpy validation.
 
 This script generates reference results using the old QDMpy codebase for multiple
 binning factors. The reference data is used by the pytest validation suite to
@@ -15,12 +14,13 @@ The script processes data with binning factors 1, 2, and 8, generating:
 - Fit results and parameters
 - Magnetic field calculations (B111 components)
 """
+from __future__ import annotations
 
 import argparse
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 from loguru import logger
@@ -37,7 +37,7 @@ except ImportError:
 class ReferenceDataGenerator:
     """Generates reference data using the old QDMpy codebase."""
 
-    def __init__(self, data_folder: str, output_dir: str):
+    def __init__(self, data_folder: str, output_dir: str) -> None:
         """Initialize the reference data generator.
 
         Args:
@@ -57,7 +57,7 @@ class ReferenceDataGenerator:
         # Create output directory
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Reference data generator initialized:")
+        logger.info("Reference data generator initialized:")
         logger.info(f"  Data folder: {self.data_folder}")
         logger.info(f"  Output directory: {self.output_dir}")
         logger.info(f"  Binning factors: {self.binning_factors}")
@@ -132,7 +132,7 @@ class ReferenceDataGenerator:
 
     def _generate_for_binning(
         self, QDMpy_old: Any, QDM_old: Any, ODMR_old: Any, bin_factor: int
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Generate reference data for a specific binning factor.
 
         Args:
@@ -187,7 +187,7 @@ class ReferenceDataGenerator:
             logger.exception(f"Failed to generate reference data for bin_factor={bin_factor}: {e}")
             return None
 
-    def _load_raw_data(self, ODMR_old: Any) -> Optional[Dict[str, Any]]:
+    def _load_raw_data(self, ODMR_old: Any) -> dict[str, Any] | None:
         """Load raw ODMR data using old codebase.
 
         Args:
@@ -224,7 +224,7 @@ class ReferenceDataGenerator:
             logger.exception(f"Failed to load raw data: {e}")
             return None
 
-    def _process_data(self, raw_data: Dict[str, Any], bin_factor: int) -> Optional[Dict[str, Any]]:
+    def _process_data(self, raw_data: dict[str, Any], bin_factor: int) -> dict[str, Any] | None:
         """Process raw data with the old codebase.
 
         Args:
@@ -276,7 +276,7 @@ class ReferenceDataGenerator:
             logger.exception(f"Failed to process data: {e}")
             return None
 
-    def _fit_data(self, QDM_old: Any, processed_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _fit_data(self, QDM_old: Any, processed_data: dict[str, Any]) -> dict[str, Any] | None:
         """Fit processed data using old codebase.
 
         Args:
@@ -345,7 +345,7 @@ class ReferenceDataGenerator:
             logger.exception(f"Failed to fit data: {e}")
             return None
 
-    def _calculate_magnetic_fields(self, fit_results: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _calculate_magnetic_fields(self, fit_results: dict[str, Any]) -> dict[str, Any] | None:
         """Calculate magnetic fields from fit results using old codebase.
 
         Args:
@@ -407,7 +407,7 @@ class ReferenceDataGenerator:
             logger.exception(f"Failed to calculate magnetic fields: {e}")
             return None
 
-    def _save_reference_data(self, reference_data: Dict[str, Any], output_file: Path) -> None:
+    def _save_reference_data(self, reference_data: dict[str, Any], output_file: Path) -> None:
         """Save reference data to compressed numpy file.
 
         Args:
@@ -450,7 +450,7 @@ class ReferenceDataGenerator:
             raise
 
 
-def main():
+def main() -> int | None:
     """Main entry point for reference data generation."""
     parser = argparse.ArgumentParser(
         description="Generate reference data using old QDMpy codebase for validation"
@@ -485,20 +485,8 @@ def main():
         success = generator.generate_reference_data()
 
         if success:
-            print("\n" + "=" * 60)
-            print("REFERENCE DATA GENERATION COMPLETED SUCCESSFULLY")
-            print("=" * 60)
-            print(f"Output directory: {generator.output_dir}")
-            print(f"Generated reference data for binning factors: {generator.binning_factors}")
-            print("=" * 60)
             return 0
-        else:
-            print("\n" + "=" * 60)
-            print("REFERENCE DATA GENERATION FAILED")
-            print("=" * 60)
-            print("Check the logs for detailed error information")
-            print("=" * 60)
-            return 1
+        return 1
 
     except Exception as e:
         logger.exception(f"Reference data generation failed: {e}")

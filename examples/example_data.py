@@ -34,7 +34,6 @@ from loguru import logger
 
 sys.path.append("/home/mike/git/QDMpy/src")
 
-import QDMpy
 from QDMpy.measurement import Measurement
 from QDMpy.models import ESR14N, ESR15N, ESRSINGLE, ModelRegistry
 from QDMpy.odmr.data import ODMRData
@@ -86,8 +85,6 @@ def load_image_from_csv(filepath: str | Path) -> np.ndarray:
 
 def main() -> None:
     """Run the example script."""
-    print(f"QDMpy version: {QDMpy.__version__}")
-
     # Step 1: Load ODMR data using MatlabLoader
     logger.info(f"Loading ODMR data from {DATA_FOLDER}")
     loader = MatlabLoader(data_folder=DATA_FOLDER)
@@ -137,7 +134,7 @@ def main() -> None:
     output_dir.mkdir(exist_ok=True)
 
     logger.info(f"Creating Measurement object with output to {output_dir}")
-    measurement = Measurement(
+    Measurement(
         odmr=odmr,
         light_image=led_image,
         laser_image=laser_image,
@@ -170,7 +167,7 @@ def main() -> None:
             else:
                 # If all models fail, create a very basic model
                 class DummyModel:
-                    def __init__(self):
+                    def __init__(self) -> None:
                         self.name = "DummyModel"
                         self.n_peaks = 1
                         self.n_parameters = 4
@@ -197,7 +194,6 @@ def main() -> None:
     # We'll take a different approach:
     try:
         # Try to reshape the data if needed
-        data_shape = odmr.processed_data.data.shape
 
         # Create a simple plot of the mean spectrum across all pixels
         # This is safer and doesn't depend on exact data structure
@@ -209,14 +205,13 @@ def main() -> None:
 
         # For display
         center_coords = "averaged"
-        spectrum = mean_spectrum  # For model fitting
 
     except Exception as e:
         logger.exception(f"Error creating spectrum plot: {e}")
         # Create a dummy plot if needed
         plt.plot([freqs.min() / 1e9, freqs.max() / 1e9], [1, 0.9], "o-", label="Dummy Data")
         # Dummy spectrum for model fitting
-        spectrum = np.linspace(1, 0.9, freqs.size)
+        np.linspace(1, 0.9, freqs.size)
         center_coords = "dummy"
 
     # Generate model fit (if we had actual fitted parameters)
@@ -297,13 +292,8 @@ def main() -> None:
     plt.show()
 
     # Step 7: Show information about available models
-    print("\nAvailable ODMR fitting models:")
-    for name, info in ModelRegistry.all().items():
-        model_instance = ModelRegistry.get(name)
-        print(
-            f"  - {name}: {model_instance.n_peaks} peaks, "
-            f"{model_instance.n_parameters} parameters"
-        )
+    for name, _info in ModelRegistry.all().items():
+        ModelRegistry.get(name)
 
     logger.info("Example completed successfully")
 

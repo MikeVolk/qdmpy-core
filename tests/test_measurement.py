@@ -1,4 +1,4 @@
-"""Test module for QDMpy.measurement
+"""Test module for QDMpy.measurement.
 
 These tests cover the Measurement class, which encapsulates all data and processing
 related to a single QDM (Quantum Diamond Microscope) measurement.
@@ -7,7 +7,7 @@ related to a single QDM (Quantum Diamond Microscope) measurement.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -60,7 +60,7 @@ def temp_output_dir(tmp_path):
 class TestMeasurement:
     """Test class for Measurement."""
 
-    def test_init(self, sample_odmr, sample_images, temp_output_dir):
+    def test_init(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test initialization with standard parameters."""
         light_image, laser_image = sample_images
 
@@ -85,7 +85,7 @@ class TestMeasurement:
         assert measurement._outliers is not None
         assert measurement._B111 is None
 
-    def test_init_with_unprocessed_odmr(self, sample_odmr_data, sample_images, temp_output_dir):
+    def test_init_with_unprocessed_odmr(self, sample_odmr_data, sample_images, temp_output_dir) -> None:
         """Test initialization with an ODMR instance that hasn't been processed."""
         light_image, laser_image = sample_images
         odmr = ODMR(sample_odmr_data)
@@ -102,7 +102,7 @@ class TestMeasurement:
         assert np.array_equal(measurement.laser_image, laser_image)
         assert hasattr(measurement, '_outliers')
 
-    def test_init_with_no_odmr_data(self, sample_images, temp_output_dir):
+    def test_init_with_no_odmr_data(self, sample_images, temp_output_dir) -> None:
         """Test initialization with an ODMR instance that has no data."""
         light_image, laser_image = sample_images
         empty_odmr = ODMR()
@@ -117,7 +117,7 @@ class TestMeasurement:
 
         assert 'ODMR instance has no raw data' in str(excinfo.value)
 
-    def test_string_representations(self, sample_odmr, sample_images, temp_output_dir):
+    def test_string_representations(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test the string representation methods."""
         light_image, laser_image = sample_images
         measurement = Measurement(
@@ -137,7 +137,7 @@ class TestMeasurement:
         assert 'light_image.shape' in repr_str
         assert 'laser_image.shape' in repr_str
 
-    def test_with_different_pixel_spacing(self, sample_odmr, sample_images, temp_output_dir):
+    def test_with_different_pixel_spacing(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test initialization with different pixel spacing values."""
         light_image, laser_image = sample_images
         measurement = Measurement(
@@ -151,7 +151,7 @@ class TestMeasurement:
         assert measurement.pixel_spacing == 1e-6
         assert measurement.pixel_spacing != 4e-6
 
-    def test_with_string_output_directory(self, sample_odmr, sample_images, temp_output_dir):
+    def test_with_string_output_directory(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test initialization with string output directory."""
         light_image, laser_image = sample_images
         output_dir_str = str(temp_output_dir)
@@ -166,7 +166,7 @@ class TestMeasurement:
         assert isinstance(measurement.output_directory, Path)
         assert str(measurement.output_directory) == output_dir_str
 
-    def test_metadata_dictionary(self, sample_odmr, sample_images, temp_output_dir):
+    def test_metadata_dictionary(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test that the metadata dictionary works as expected."""
         light_image, laser_image = sample_images
         measurement = Measurement(
@@ -186,7 +186,7 @@ class TestMeasurement:
         measurement.metadata.update({'another_key': 123})
         assert measurement.metadata['another_key'] == 123
 
-    def test_outliers_property(self, sample_odmr, sample_images, temp_output_dir):
+    def test_outliers_property(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test the _outliers attribute."""
         light_image, laser_image = sample_images
         measurement = Measurement(
@@ -201,7 +201,7 @@ class TestMeasurement:
         assert measurement._outliers.shape == sample_odmr.raw_data.shape
         assert measurement._outliers.dtype == bool
 
-    def test_B111_property(self, sample_odmr, sample_images, temp_output_dir):
+    def test_B111_property(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test the _B111 attribute."""
         light_image, laser_image = sample_images
         measurement = Measurement(
@@ -217,7 +217,7 @@ class TestMeasurement:
         measurement._B111 = test_data
         assert measurement._B111 is test_data
 
-    def test_fit_model_attribute(self, sample_odmr, sample_images, temp_output_dir):
+    def test_fit_model_attribute(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test the _fit_model attribute."""
         light_image, laser_image = sample_images
         measurement = Measurement(
@@ -237,7 +237,7 @@ class TestMeasurement:
         )
         assert measurement2._fit_model == 'ESR14N'
 
-    def test_fit_odmr_auto_model_detection(self, sample_odmr, sample_images, temp_output_dir):
+    def test_fit_odmr_auto_model_detection(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test fit_odmr with automatic model detection."""
         light_image, laser_image = sample_images
 
@@ -268,7 +268,7 @@ class TestMeasurement:
                     'chi2': np.random.random(25),
                     'states': np.random.choice([0, 1], 25),
                 }
-                mock_fit_instance.get_param.side_effect = lambda param: test_params.get(param, None)
+                mock_fit_instance.get_param.side_effect = lambda param: test_params.get(param)
 
                 with patch('QDMpy.is_pygpufit_available', return_value=True):
                     result = measurement.fit_odmr()
@@ -280,7 +280,7 @@ class TestMeasurement:
                 assert isinstance(result, FitResult)
                 assert result.model_name == 'ESR15N'
 
-    def test_fit_odmr_specific_model(self, sample_odmr, sample_images, temp_output_dir):
+    def test_fit_odmr_specific_model(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test fit_odmr with a specific model name."""
         light_image, laser_image = sample_images
         measurement = Measurement(
@@ -308,7 +308,7 @@ class TestMeasurement:
                 'chi2': np.random.random(25),
                 'states': np.random.choice([0, 1], 25),
             }
-            mock_fit_instance.get_param.side_effect = lambda param: test_params.get(param, None)
+            mock_fit_instance.get_param.side_effect = lambda param: test_params.get(param)
 
             with patch('QDMpy.is_pygpufit_available', return_value=True):
                 result = measurement.fit_odmr(model_name='ESR14N')
@@ -320,7 +320,7 @@ class TestMeasurement:
             assert isinstance(result, FitResult)
             assert result.model_name == 'ESR14N'
 
-    def test_fit_odmr_no_processed_data(self, sample_odmr_data, sample_images, temp_output_dir):
+    def test_fit_odmr_no_processed_data(self, sample_odmr_data, sample_images, temp_output_dir) -> None:
         """Test fit_odmr with ODMR that has no processed data."""
         light_image, laser_image = sample_images
         unprocessed_odmr = ODMR(sample_odmr_data)
@@ -335,7 +335,7 @@ class TestMeasurement:
         with pytest.raises(ValueError, match='ODMR data must be processed'):
             measurement.fit_odmr()
 
-    def test_fit_odmr_data_extraction(self, sample_odmr, sample_images, temp_output_dir):
+    def test_fit_odmr_data_extraction(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test that fit_odmr properly extracts data for fitting."""
         light_image, laser_image = sample_images
         measurement = Measurement(
@@ -359,7 +359,7 @@ class TestMeasurement:
                 'width': np.random.random(25),
                 'offset': np.random.random(25),
                 'chi2': np.random.random(25),
-            }.get(param, None)
+            }.get(param)
 
             with patch('QDMpy.is_pygpufit_available', return_value=True):
                 result = measurement.fit_odmr()
@@ -371,7 +371,7 @@ class TestMeasurement:
 
             assert result.pixel_spacing == 5e-6
 
-    def test_fit_odmr_metadata_preservation(self, sample_odmr, sample_images, temp_output_dir):
+    def test_fit_odmr_metadata_preservation(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test that fit_odmr preserves and includes measurement metadata."""
         light_image, laser_image = sample_images
         measurement = Measurement(
@@ -397,7 +397,7 @@ class TestMeasurement:
                 'chi2': np.random.random(25),
                 'states': np.random.choice([0, 1], 25),
             }
-            mock_fit_instance.get_param.side_effect = lambda param: test_params.get(param, None)
+            mock_fit_instance.get_param.side_effect = lambda param: test_params.get(param)
 
             with patch('QDMpy.is_pygpufit_available', return_value=True):
                 result = measurement.fit_odmr()

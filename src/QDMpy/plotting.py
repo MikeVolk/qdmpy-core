@@ -27,7 +27,6 @@ from QDMpy.utils import double_norm
 
 if TYPE_CHECKING:
     from QDMpy.measurement import Measurement
-    from QDMpy.models import Model
     from QDMpy.result import FitResult
 
 # Import for runtime usage
@@ -38,7 +37,7 @@ CONTRAST_LABEL = "c [%]"
 
 
 def plot_fit_result_field_map(
-    result: "FitResult", save: bool = False, filename: str | None = None, **kwargs: Any
+    result: FitResult, save: bool = False, filename: str | None = None, **kwargs: Any
 ) -> None:
     """Plot magnetic field map from FitResult.
 
@@ -91,13 +90,12 @@ def plot_fit_result_field_map(
         if filename is None:
             filename = f"b_field_map_{result.model_name}.png"
         plt.savefig(filename, dpi=300, bbox_inches="tight")
-        print(f"Magnetic field map saved to: {filename}")
 
     plt.show()
 
 
 def plot_fit_result_parameter_map(
-    result: "FitResult",
+    result: FitResult,
     param_name: str,
     save: bool = False,
     filename: str | None = None,
@@ -168,13 +166,12 @@ def plot_fit_result_parameter_map(
         if filename is None:
             filename = f"{param_name}_map_{result.model_name}.png"
         plt.savefig(filename, dpi=300, bbox_inches="tight")
-        print(f"Parameter map saved to: {filename}")
 
     plt.show()
 
 
 def plot_fit_result_overview(
-    result: "FitResult", save: bool = False, filename: str | None = None, **kwargs: Any
+    result: FitResult, save: bool = False, filename: str | None = None, **kwargs: Any
 ) -> None:
     """Plot overview of fit results with multiple parameter maps.
 
@@ -197,10 +194,7 @@ def plot_fit_result_overview(
 
     fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 4 * nrows))
     # Ensure axes is always a list for consistent indexing
-    if nrows == 1 and ncols == 1:
-        axes = [axes]
-    else:
-        axes = axes.flatten()
+    axes = [axes] if nrows == 1 and ncols == 1 else axes.flatten()
 
     # Convert pixel spacing to micrometers
     pixel_spacing_um = result.pixel_spacing * 1e6
@@ -244,7 +238,6 @@ def plot_fit_result_overview(
         if filename is None:
             filename = f"fit_overview_{result.model_name}.png"
         plt.savefig(filename, dpi=300, bbox_inches="tight")
-        print(f"Fit overview saved to: {filename}")
 
     plt.show()
 
@@ -382,7 +375,6 @@ def update_marker(
         (line,) = ax.plot(x, y, **plt_props)
     else:
         line.set_data(x, y)
-        # ax.draw_artist(line)
     return line
 
 
@@ -423,7 +415,6 @@ def plot_data(
 
     """
     norm = get_color_norm(data.min(), data.max())
-    # plt_props["cmap"] = ""
     plt_props["norm"] = norm
     return update_img(ax, img, data, **plt_props)
 
@@ -650,7 +641,6 @@ def check_fit_pixel(qdm_obj: Measurement, idx: int) -> tuple[plt.Figure, plt.Axe
     f, ax = plt.subplots(1, 2, figsize=(10, 4), sharex=False, sharey=True)
     polarities = ["+", "-"]
     model = [None, models.esrsingle, models.esr15n, models.esr14n][qdm_obj.model_name]
-    lst = ["pol/side", *qdm_obj.fit.model_params, "chi2"]
 
     for p, frange in itertools.product(
         range(qdm_obj.odmr.n_pol),

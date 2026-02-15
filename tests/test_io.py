@@ -1,4 +1,4 @@
-"""Test module for QDMpy.io
+"""Test module for QDMpy.io.
 
 These tests cover the functions for file loading and handling in the io module.
 """
@@ -17,7 +17,7 @@ from QDMpy.io import get_image, get_image_file, has_csv
 class TestIO:
     """Test the io module functions."""
 
-    def test_has_csv(self):
+    def test_has_csv(self) -> None:
         """Test has_csv function."""
         # Empty list
         assert not has_csv([])
@@ -29,7 +29,7 @@ class TestIO:
         assert has_csv(["file.csv", "image.jpg"])
         assert has_csv(["FILE.CSV", "image.jpg"])  # Case insensitive
 
-    def test_get_image_file(self):
+    def test_get_image_file(self) -> None:
         """Test get_image_file function."""
         # Test with CSV files
         files = ["data.csv", "image.jpg"]
@@ -43,7 +43,7 @@ class TestIO:
         with pytest.raises(ValueError):
             get_image_file(["file1.txt", "file2.txt"])
 
-    def test_get_image(self):
+    def test_get_image(self) -> None:
         """Test get_image function with temporary files."""
         # Create a temporary directory
         with tempfile.TemporaryDirectory() as tmpdirname:

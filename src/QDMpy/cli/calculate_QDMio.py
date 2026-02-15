@@ -16,12 +16,12 @@ import sys
 import time
 from pathlib import Path
 
-import QDMpy
 from loguru import logger
+
 from QDMpy._core.qdm_old import QDM
 
 
-def main(argv: list[str] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """Main function for the legacy QDMpy command line interface.
 
     Processes command line arguments to calculate B111 field from ODMR data

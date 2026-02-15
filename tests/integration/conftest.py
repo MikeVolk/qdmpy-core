@@ -1,13 +1,13 @@
-"""
-Pytest configuration and fixtures for integration tests.
+"""Pytest configuration and fixtures for integration tests.
 
 This module provides shared fixtures and configuration for integration tests
 that validate the new QDMpy codebase against reference data generated from
 the old codebase.
 """
+from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 import pytest
@@ -100,7 +100,7 @@ def test_parameters():
 
 def array_comparison(
     array1: np.ndarray, array2: np.ndarray, tolerance: float, name: str = "array"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Compare two arrays with detailed statistics.
 
     Args:
