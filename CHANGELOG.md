@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+### Added
+- **Vital B111 magnetic field calculations**: Migrated essential functions from legacy QDM class including `b111_remanent`, `b111_induced`, and `delta_resonance` properties
+- **Complete B-field analysis pipeline**: Added frequency-range-based magnetic field calculation using `(high_freq - low_freq)` splitting for both positive and negative field directions
+- **FitResult B111 properties**: New properties accessible via `result.b111_remanent`, `result.b111_induced`, and `result.b111` tuple for spatial magnetic field maps
+- **Comprehensive caching system**: Intelligent caching of expensive B111 calculations with automatic cache invalidation
+- **Legacy compatibility**: Exact reproduction of old QDM class B111 calculation algorithms ensuring continuity with existing analysis workflows
+
 ### Performance
 - **Major performance optimization**: Restored parallel processing in guess functions (center, contrast, width) with `@numba.njit(parallel=True)` and `prange()` 
 - **Significant speedups for large images**: Width calculation now 1.2x faster, center calculation 25x faster, contrast calculation 111x faster than previous implementation

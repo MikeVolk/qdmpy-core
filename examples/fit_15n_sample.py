@@ -8,13 +8,14 @@ This script demonstrates the complete workflow for processing ODMR data:
 
 The script uses data from the test directory and applies QDMpy's processing pipeline.
 """
+
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
 # Add src to path for local imports
-sys.path.insert(0, str(Path(__file__).parents[1] / 'src'))
+sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 import numpy as np
 
@@ -38,7 +39,9 @@ def main():
 
     print(f"Loaded data shape: {odmr_data.shape}")
     print(f"Scan dimensions: {odmr_data.scan_dimensions}")
-    print(f"Frequency range: {odmr_data.frequencies.min():.1e} - {odmr_data.frequencies.max():.1e} Hz")
+    print(
+        f"Frequency range: {odmr_data.frequencies.min():.1e} - {odmr_data.frequencies.max():.1e} Hz"
+    )
 
     # Create ODMR instance and setup processing pipeline
     odmr = ODMR(odmr_data)
@@ -57,7 +60,7 @@ def main():
 
     # Get 15N model from registry
     print("\nSetting up 15N model for fitting...")
-    model_15n = ModelRegistry.get('ESR15N')
+    model_15n = ModelRegistry.get("ESR15N")
 
     # Prepare data for fitting - FitManager expects 4D data: (n_polarity, n_frange, n_pixel, n_frequencies)
     # Let's use a subset of the full data
@@ -84,23 +87,25 @@ def main():
             # Plot spectrum for first polarity, first frequency range, pixel i
             spectrum = fit_data[0, 0, i, :]
             # Use correct frequency slice for the first frequency range
-            freq_slice = frequencies_ghz[:spectrum.shape[0]]
-            ax.plot(freq_slice, spectrum, 'b-', linewidth=2)
-            ax.set_xlabel('Frequency (GHz)')
-            ax.set_ylabel('ODMR Signal (normalized)')
-            ax.set_title(f'Pixel {i+1} ODMR Spectrum')
+            freq_slice = frequencies_ghz[: spectrum.shape[0]]
+            ax.plot(freq_slice, spectrum, "b-", linewidth=2)
+            ax.set_xlabel("Frequency (GHz)")
+            ax.set_ylabel("ODMR Signal (normalized)")
+            ax.set_title(f"Pixel {i+1} ODMR Spectrum")
             ax.grid(True, alpha=0.3)
 
             # Mark expected 15N resonance positions (rough estimate)
             center_freq = 2.87  # GHz, typical for NV centers
             ahyp_15n = 3.03e-3  # GHz, 15N hyperfine splitting
-            ax.axvline(center_freq - ahyp_15n, color='r', linestyle='--', alpha=0.7, label='15N resonances')
-            ax.axvline(center_freq + ahyp_15n, color='r', linestyle='--', alpha=0.7)
+            ax.axvline(
+                center_freq - ahyp_15n, color="r", linestyle="--", alpha=0.7, label="15N resonances"
+            )
+            ax.axvline(center_freq + ahyp_15n, color="r", linestyle="--", alpha=0.7)
             if i == 0:
                 ax.legend()
 
         plt.tight_layout()
-        plt.savefig('odmr_spectra_sample.png', dpi=150, bbox_inches='tight')
+        plt.savefig("odmr_spectra_sample.png", dpi=150, bbox_inches="tight")
         print("Saved ODMR spectra plot as 'odmr_spectra_sample.png'")
 
         # Display some statistics

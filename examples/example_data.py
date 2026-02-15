@@ -21,6 +21,7 @@ Expected folder structure:
     ├── run_00000.mat
     └── run_00001.mat
 """
+
 from __future__ import annotations
 
 import logging
@@ -31,7 +32,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-sys.path.append('/home/mike/git/QDMpy/src')
+sys.path.append("/home/mike/git/QDMpy/src")
 
 import QDMpy
 from QDMpy.measurement import Measurement
@@ -59,7 +60,9 @@ elif os.path.exists("/home/mike/git/QDMpy/tests/data"):
     logging.warning(f"Using test data folder: {DATA_FOLDER}")
 else:
     # Default to tests/data directory - modify this path as needed
-    DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tests", "data")
+    DATA_FOLDER = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tests", "data"
+    )
     logging.warning(f"Using default test data folder: {DATA_FOLDER}")
 
 
@@ -78,7 +81,7 @@ def load_image_from_csv(filepath: str | Path) -> np.ndarray:
             logging.warning(f"File not found: {filepath}")
             # Return a small dummy array as fallback
             return np.ones((10, 10))
-        return np.genfromtxt(filepath, delimiter=',')
+        return np.genfromtxt(filepath, delimiter=",")
     except Exception as e:
         logging.exception(f"Error loading image from {filepath}: {e}")
         # Return a small dummy array as fallback
@@ -101,8 +104,10 @@ def main() -> None:
     odmr_data = ODMRData.from_loader(loader)
 
     logging.info(f"ODMR data shape: {odmr_data.shape}")
-    logging.info(f"Frequency range: {odmr_data.frequencies.min()/1e9:.3f} - "
-                f"{odmr_data.frequencies.max()/1e9:.3f} GHz")
+    logging.info(
+        f"Frequency range: {odmr_data.frequencies.min()/1e9:.3f} - "
+        f"{odmr_data.frequencies.max()/1e9:.3f} GHz"
+    )
     logging.info(f"Scan dimensions: {odmr_data.scan_dimensions}")
 
     # Step 2: Load light and laser images
@@ -142,12 +147,13 @@ def main() -> None:
         laser_image=laser_image,
         output_directory=output_dir,
         pixel_spacing=4e-6,  # 4 µm pixel size
-        fit_model="auto",    # Auto-detect model based on peaks
+        fit_model="auto",  # Auto-detect model based on peaks
     )
 
     # Step 5: Guess the model if needed (can be done automatically)
     try:
         from QDMpy.guess import guess_model
+
         model = guess_model(odmr.processed_data.data)
         logging.info(f"Auto-detected model: {model.name}")
     except Exception as e:
@@ -175,7 +181,7 @@ def main() -> None:
 
                     def func(self, x, p):
                         # Simple Lorentzian function
-                        return 1.0 - p[-1] * np.exp(-((x - p[0]) / p[1])**2)
+                        return 1.0 - p[-1] * np.exp(-(((x - p[0]) / p[1]) ** 2))
 
                 model = DummyModel()
                 logging.warning("Using dummy model as all standard models failed")
@@ -203,7 +209,7 @@ def main() -> None:
         logging.info(f"Mean spectrum shape: {mean_spectrum.shape}")
 
         # Plot the mean spectrum
-        plt.plot(freqs / 1e9, mean_spectrum, 'o-', label='Mean ODMR Spectrum')
+        plt.plot(freqs / 1e9, mean_spectrum, "o-", label="Mean ODMR Spectrum")
 
         # For display
         center_coords = "averaged"
@@ -212,7 +218,7 @@ def main() -> None:
     except Exception as e:
         logging.exception(f"Error creating spectrum plot: {e}")
         # Create a dummy plot if needed
-        plt.plot([freqs.min()/1e9, freqs.max()/1e9], [1, 0.9], 'o-', label='Dummy Data')
+        plt.plot([freqs.min() / 1e9, freqs.max() / 1e9], [1, 0.9], "o-", label="Dummy Data")
         # Dummy spectrum for model fitting
         spectrum = np.linspace(1, 0.9, freqs.size)
         center_coords = "dummy"
@@ -228,48 +234,61 @@ def main() -> None:
             mock_params = np.array([mean_freq, 0.1, 0.01e9, 1.0])
         elif model.name == "ESR15N":
             # Parameters: center1, center2, contrast1, contrast2, width1, width2, offset
-            mock_params = np.array([
-                mean_freq - 0.01e9, mean_freq + 0.01e9,  # centers
-                0.1, 0.1,  # contrasts
-                0.01e9, 0.01e9,  # widths
-                1.0  # offset
-            ])
+            mock_params = np.array(
+                [
+                    mean_freq - 0.01e9,
+                    mean_freq + 0.01e9,  # centers
+                    0.1,
+                    0.1,  # contrasts
+                    0.01e9,
+                    0.01e9,  # widths
+                    1.0,  # offset
+                ]
+            )
         else:  # ESR14N
             # Parameters: 3 centers, 3 contrasts, 3 widths, 1 offset
-            mock_params = np.array([
-                mean_freq - 0.02e9, mean_freq, mean_freq + 0.02e9,  # centers
-                0.1, 0.1, 0.1,  # contrasts
-                0.01e9, 0.01e9, 0.01e9,  # widths
-                1.0  # offset
-            ])
+            mock_params = np.array(
+                [
+                    mean_freq - 0.02e9,
+                    mean_freq,
+                    mean_freq + 0.02e9,  # centers
+                    0.1,
+                    0.1,
+                    0.1,  # contrasts
+                    0.01e9,
+                    0.01e9,
+                    0.01e9,  # widths
+                    1.0,  # offset
+                ]
+            )
 
         # Generate a mock fit for visualization
         # Sometimes the model function needs a different shape of parameters
         # So we try a few approaches
         try:
             fit_y = model.func(freqs, mock_params)
-            plt.plot(freqs / 1e9, fit_y, 'r-', label=f'{model.name} Model (Mock)')
+            plt.plot(freqs / 1e9, fit_y, "r-", label=f"{model.name} Model (Mock)")
         except Exception:
             # Try reshape to match expected model parameter shape
             try:
                 # If model expects 2D parameters
                 reshaped_params = mock_params.reshape(1, -1)
                 fit_y = model.func(freqs, reshaped_params)
-                plt.plot(freqs / 1e9, fit_y, 'r-', label=f'{model.name} Model (Mock)')
+                plt.plot(freqs / 1e9, fit_y, "r-", label=f"{model.name} Model (Mock)")
             except Exception as reshape_e:
                 logging.warning(f"Reshaping parameters failed: {reshape_e}")
                 # Create a simple Lorentzian curve as fallback
-                simple_y = 1.0 - 0.1 * np.exp(-((freqs - mean_freq) / 0.01e9)**2)
-                plt.plot(freqs / 1e9, simple_y, 'r-', label='Simple Lorentzian (Fallback)')
+                simple_y = 1.0 - 0.1 * np.exp(-(((freqs - mean_freq) / 0.01e9) ** 2))
+                plt.plot(freqs / 1e9, simple_y, "r-", label="Simple Lorentzian (Fallback)")
     except Exception as e:
         logging.warning(f"Couldn't generate model visualization: {e}")
         # Create a simple Lorentzian curve as fallback
-        simple_y = 1.0 - 0.1 * np.exp(-((freqs - np.mean(freqs)) / 0.01e9)**2)
-        plt.plot(freqs / 1e9, simple_y, 'r-', label='Simple Lorentzian (Fallback)')
+        simple_y = 1.0 - 0.1 * np.exp(-(((freqs - np.mean(freqs)) / 0.01e9) ** 2))
+        plt.plot(freqs / 1e9, simple_y, "r-", label="Simple Lorentzian (Fallback)")
 
-    plt.xlabel('Frequency (GHz)')
-    plt.ylabel('Normalized Intensity')
-    plt.title(f'ODMR Spectrum at Pixel {center_coords}')
+    plt.xlabel("Frequency (GHz)")
+    plt.ylabel("Normalized Intensity")
+    plt.title(f"ODMR Spectrum at Pixel {center_coords}")
     plt.legend()
     plt.grid(True, alpha=0.3)
 
@@ -285,8 +304,10 @@ def main() -> None:
     print("\nAvailable ODMR fitting models:")
     for name, info in ModelRegistry.all().items():
         model_instance = ModelRegistry.get(name)
-        print(f"  - {name}: {model_instance.n_peaks} peaks, "
-              f"{model_instance.n_parameters} parameters")
+        print(
+            f"  - {name}: {model_instance.n_peaks} peaks, "
+            f"{model_instance.n_parameters} parameters"
+        )
 
     logging.info("Example completed successfully")
 
