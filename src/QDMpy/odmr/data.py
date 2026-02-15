@@ -63,15 +63,13 @@ class ODMRData:
         Raises:
             RuntimeError: If the loader fails to fetch data.
         """
-        logger.info(f'Loading ODMR data using loader: {loader.__class__.__name__}')
+        logger.info(f"Loading ODMR data using loader: {loader.__class__.__name__}")
         try:
             data = loader.load(**(loader_args or {}))
             return cls(data)
         except Exception as e:
-            logger.exception(
-                f'Failed to load data using loader {loader.__class__.__name__}: {e}'
-            )
-            raise RuntimeError(f'Data loading failed: {e}') from e
+            logger.exception(f"Failed to load data using loader {loader.__class__.__name__}: {e}")
+            raise RuntimeError(f"Data loading failed: {e}") from e
 
     @classmethod
     def from_numpy(
@@ -105,16 +103,16 @@ class ODMRData:
         else:
             freq_ghz = frequencies / 1e9
 
-        polarity_labels = [f'pol_{i}' for i in range(n_pol)]
-        frange_labels = [f'frange_{i}' for i in range(n_frange)]
+        polarity_labels = [f"pol_{i}" for i in range(n_pol)]
+        frange_labels = [f"frange_{i}" for i in range(n_frange)]
 
         da = xr.DataArray(
             data_5d,
-            dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
+            dims=("polarity", "freq_range", "y", "x", "freq_idx"),
             coords={
-                'polarity': polarity_labels,
-                'freq_range': frange_labels,
-                'freq_ghz': (['freq_range', 'freq_idx'], freq_ghz),
+                "polarity": polarity_labels,
+                "freq_range": frange_labels,
+                "freq_ghz": (["freq_range", "freq_idx"], freq_ghz),
             },
         )
         return cls(da, metadata=metadata)
@@ -122,7 +120,7 @@ class ODMRData:
     @property
     def scan_dimensions(self: Self) -> tuple[int, int]:
         """Spatial dimensions (rows, cols) derived from the DataArray."""
-        return (self.data.sizes['y'], self.data.sizes['x'])
+        return (self.data.sizes["y"], self.data.sizes["x"])
 
     @property
     def frequencies(self: Self) -> NDArray:
@@ -130,7 +128,7 @@ class ODMRData:
 
         Returns shape (n_frange, n_freqs) or (n_freqs,) depending on the data.
         """
-        return self.data.coords['freq_ghz'].values
+        return self.data.coords["freq_ghz"].values
 
     @property
     def numpy(self: Self) -> NDArray:

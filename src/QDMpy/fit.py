@@ -29,9 +29,9 @@ from QDMpy.guess import (
 from QDMpy.models import Model, ModelRegistry
 from QDMpy.settings import ModelConstraintsSettings
 
-UNITS = {'center': 'GHz', 'width': 'GHz', 'contrast': 'a.u.', 'offset': 'a.u.'}
-CONSTRAINT_TYPES = ['FREE', 'LOWER', 'UPPER', 'LOWER_UPPER']
-ESTIMATOR_ID = {'LSE': 0, 'MLE': 1}
+UNITS = {"center": "GHz", "width": "GHz", "contrast": "a.u.", "offset": "a.u."}
+CONSTRAINT_TYPES = ["FREE", "LOWER", "UPPER", "LOWER_UPPER"]
+ESTIMATOR_ID = {"LSE": 0, "MLE": 1}
 
 
 class ConstraintManager:
@@ -53,11 +53,11 @@ class ConstraintManager:
         settings: ModelConstraintsSettings,
     ) -> None:
         for param in model_params:
-            base_param = param.split('_')[0]
+            base_param = param.split("_")[0]
             self._constraints[param] = [
-                getattr(settings, f'{base_param}_min'),
-                getattr(settings, f'{base_param}_max'),
-                getattr(settings, f'{base_param}_type'),
+                getattr(settings, f"{base_param}_min"),
+                getattr(settings, f"{base_param}_max"),
+                getattr(settings, f"{base_param}_type"),
                 self._units[base_param],
             ]
 
@@ -69,7 +69,7 @@ class ConstraintManager:
         constraint_type: str | None = None,
     ) -> None:
         if param not in self._constraints:
-            raise ValueError(f'Unknown parameter: {param}')
+            raise ValueError(f"Unknown parameter: {param}")
         current = self._constraints[param]
         if vmin is not None:
             current[0] = vmin
@@ -77,7 +77,7 @@ class ConstraintManager:
             current[1] = vmax
         if constraint_type is not None:
             if constraint_type not in CONSTRAINT_TYPES:
-                raise ValueError(f'Invalid constraint type: {constraint_type}')
+                raise ValueError(f"Invalid constraint type: {constraint_type}")
             current[2] = constraint_type
 
     def get_constraints(self: Self) -> dict[str, list[Any]]:
@@ -87,7 +87,7 @@ class ConstraintManager:
         constraints_list: list[float] = []
         for param in model_params:
             param_min, param_max = self._constraints[param][0], self._constraints[param][1]
-            if param.startswith('center'):
+            if param.startswith("center"):
                 param_min *= 1e9
                 param_max *= 1e9
             constraints_list.extend((param_min, param_max))
@@ -116,7 +116,7 @@ class FitManager:
         self: Self,
         data: xr.DataArray,
         frequencies: NDArray,
-        model_name: str = 'auto',
+        model_name: str = "auto",
         constraints: dict[str, Any] | None = None,
     ) -> None:
         """Initialize a fitting instance for ODMR data.
@@ -130,27 +130,27 @@ class FitManager:
         self._data_xr = data
         self.f_ghz = np.atleast_2d(frequencies)
         logger.debug(
-            'Initializing FitManager with data shape: %s at %s frequencies.',
+            "Initializing FitManager with data shape: %s at %s frequencies.",
             self._data_xr.shape,
             self.f_ghz.shape,
         )
 
-        if model_name == 'auto':
+        if model_name == "auto":
             try:
                 self._model = guess_model(self._flat_data)
             except ModelGuessNotPossible as e:
-                logger.warning(f'Could not auto-detect model: {e}')
-                self._model = ModelRegistry.get('ESRSINGLE')
-                logger.info(f'Defaulting to {self._model.name} model')
+                logger.warning(f"Could not auto-detect model: {e}")
+                self._model = ModelRegistry.get("ESRSINGLE")
+                logger.info(f"Defaulting to {self._model.name} model")
         else:
             try:
                 self._model = ModelRegistry.get(model_name.upper())
             except KeyError as e:
                 raise ValueError(
-                    f'Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}',
+                    f"Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}",
                 ) from e
 
-        logger.info(f'Using model: {self._model.name}')
+        logger.info(f"Using model: {self._model.name}")
         self._initial_parameter: NDArray | None = None
         self._reset_fit()
         self._constraint_manager = ConstraintManager(
@@ -176,14 +176,14 @@ class FitManager:
 
     @data.setter
     def data(self: Self, data: NDArray) -> None:
-        logger.info('Data changed, fits need to be recalculated!')
+        logger.info("Data changed, fits need to be recalculated!")
         if np.all(self._flat_data == data):
             return
         # Re-wrap into xarray with same coords
         n_pol, n_frange = data.shape[0], data.shape[1]
         n_freq = data.shape[-1]
-        n_y = self._data_xr.sizes['y']
-        n_x = self._data_xr.sizes['x']
+        n_y = self._data_xr.sizes["y"]
+        n_x = self._data_xr.sizes["x"]
         reshaped = data.reshape(n_pol, n_frange, n_y, n_x, n_freq)
         self._data_xr = xr.DataArray(
             reshaped,
@@ -203,8 +203,8 @@ class FitManager:
 
     def __repr__(self: Self) -> str:
         return (
-            f'FitManager(data: {self._data_xr.shape}, '
-            f'f: {self.f_ghz.shape}, model: {self._model.name})'
+            f"FitManager(data: {self._data_xr.shape}, "
+            f"f: {self.f_ghz.shape}, model: {self._model.name})"
         )
 
     @property
@@ -221,9 +221,9 @@ class FitManager:
             self._model = ModelRegistry.get(model_name.upper())
         except KeyError as e:
             raise ValueError(
-                f'Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}',
+                f"Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}",
             ) from e
-        logger.debug('Setting model to %s, resetting fit results.', model_name)
+        logger.debug("Setting model to %s, resetting fit results.", model_name)
         self._constraint_manager = ConstraintManager(
             self.model_params_unique, get_settings().model.constraints, UNITS
         )
@@ -255,25 +255,31 @@ class FitManager:
                 constraint_type = CONSTRAINT_TYPES[constraint_type]
             else:
                 raise ValueError(
-                    f'Invalid constraint type index: {constraint_type}. Must be 0-{len(CONSTRAINT_TYPES)-1}',
+                    f"Invalid constraint type index: {constraint_type}. Must be 0-{len(CONSTRAINT_TYPES)-1}",
                 )
 
-        is_base_param = param == 'contrast' and any(
-            'contrast_' in p for p in self.model_params_unique
+        is_base_param = param == "contrast" and any(
+            "contrast_" in p for p in self.model_params_unique
         )
 
         if is_base_param:
-            contrast_params = [p for p in self.model_params_unique if p.startswith('contrast_')]
+            contrast_params = [p for p in self.model_params_unique if p.startswith("contrast_")]
             for contrast_param in contrast_params:
                 logger.debug(
-                    'Setting constraints for %s: vmin=%s, vmax=%s, type=%s',
-                    contrast_param, vmin, vmax, constraint_type,
+                    "Setting constraints for %s: vmin=%s, vmax=%s, type=%s",
+                    contrast_param,
+                    vmin,
+                    vmax,
+                    constraint_type,
                 )
                 self._constraint_manager.set_constraint(contrast_param, vmin, vmax, constraint_type)
         else:
             logger.debug(
-                'Setting constraints for %s: vmin=%s, vmax=%s, type=%s',
-                param, vmin, vmax, constraint_type,
+                "Setting constraints for %s: vmin=%s, vmax=%s, type=%s",
+                param,
+                vmin,
+                vmax,
+                constraint_type,
             )
             self._constraint_manager.set_constraint(param, vmin, vmax, constraint_type)
 
@@ -282,7 +288,7 @@ class FitManager:
 
     def set_free_constraints(self: Self) -> None:
         for param in self.model_params_unique:
-            self._constraint_manager.set_constraint(param, constraint_type='FREE')
+            self._constraint_manager.set_constraint(param, constraint_type="FREE")
         self._reset_fit()
 
     @property
@@ -314,19 +320,19 @@ class FitManager:
         result = np.zeros((n_pol, n_frange, n_pixel, self.n_parameter), dtype=np.float32)
 
         for idx, param_name in enumerate(self.model_params_unique):
-            param_type = param_name.split('_')[0]
-            logger.debug(f'Guessing {param_type} parameters')
+            param_type = param_name.split("_")[0]
+            logger.debug(f"Guessing {param_type} parameters")
 
-            if param_type == 'center':
+            if param_type == "center":
                 param_values = guess_center(flat, self.f_ghz)
-            elif param_type == 'contrast':
+            elif param_type == "contrast":
                 param_values = guess_contrast(flat)
-            elif param_type == 'width':
+            elif param_type == "width":
                 param_values = guess_width(flat, self.f_ghz, DEFAULT_VMIN, DEFAULT_VMAX)
-            elif param_type == 'offset':
+            elif param_type == "offset":
                 param_values = np.zeros((n_pol, n_frange, n_pixel))
             else:
-                raise ValueError(f'Unknown parameter type: {param_type}')
+                raise ValueError(f"Unknown parameter type: {param_type}")
 
             result[:, :, :, idx] = param_values
 
@@ -335,29 +341,29 @@ class FitManager:
     @property
     def parameter(self: Self) -> NDArray:
         if not self.fitted:
-            raise ValueError('No fit has been performed yet. Call fit_odmr() first.')
+            raise ValueError("No fit has been performed yet. Call fit_odmr() first.")
         return cast(NDArray, self._fit_results)
 
     def get_param(self: Self, param: str) -> NDArray:
         if not self.fitted:
-            raise ValueError('No fit has been performed yet. Call fit_odmr() first.')
-        if param in {'chi2', 'chi_squares', 'chi_squared'}:
+            raise ValueError("No fit has been performed yet. Call fit_odmr() first.")
+        if param in {"chi2", "chi_squares", "chi_squared"}:
             return cast(NDArray, self._chi_squares)
         idx = self._param_idx(param)
-        if param == 'mean_contrast':
+        if param == "mean_contrast":
             return np.mean(cast(NDArray, self._fit_results)[..., idx], axis=-1)
         return cast(NDArray, self._fit_results)[..., idx]
 
     def _param_idx(self: Self, parameter: str) -> list[int]:
-        if parameter == 'resonance':
-            parameter = 'center'
-        if parameter == 'mean_contrast':
-            parameter = 'contrast'
+        if parameter == "resonance":
+            parameter = "center"
+        if parameter == "mean_contrast":
+            parameter = "contrast"
         idx = [i for i, p in enumerate(self.model_params) if p == parameter]
         if not idx:
             idx = [i for i, p in enumerate(self.model_params_unique) if p == parameter]
         if not idx:
-            raise ValueError(f'Unknown parameter: {parameter}')
+            raise ValueError(f"Unknown parameter: {parameter}")
         return idx
 
     @property
@@ -366,21 +372,19 @@ class FitManager:
 
     def fit_odmr(self: Self, refit: bool = False) -> None:
         if not is_pygpufit_available():
-            raise ImportError('pyGpufit is required for fitting but not installed')
+            raise ImportError("pyGpufit is required for fitting but not installed")
         if self._fitted and not refit:
-            logger.debug('Already fitted')
+            logger.debug("Already fitted")
             return
         if self.fitted and refit:
             self._reset_fit()
-            logger.debug('Refitting the ODMR data')
+            logger.debug("Refitting the ODMR data")
 
         flat = self._flat_data  # (n_pol, n_frange, n_pixel, n_freq)
         for irange in range(flat.shape[1]):
             freq_min = self.f_ghz[irange].min()
             freq_max = self.f_ghz[irange].max()
-            logger.info(
-                f'Fitting frequency range {irange} from {freq_min:.3f}-{freq_max:.3f} GHz'
-            )
+            logger.info(f"Fitting frequency range {irange} from {freq_min:.3f}-{freq_max:.3f} GHz")
 
             results = self.fit_frange(
                 flat[:, irange],
@@ -402,7 +406,7 @@ class FitManager:
                 self._number_iterations = np.stack((self._number_iterations, results[3]))
                 self._execution_time = np.stack((self._execution_time, results[4]))
 
-            logger.info(f'Fit finished in {results[4]:.2f} seconds')
+            logger.info(f"Fit finished in {results[4]:.2f} seconds")
 
         self._fit_results = np.swapaxes(cast(NDArray, self._fit_results), 0, 1)
         self._fitted = True
@@ -414,7 +418,7 @@ class FitManager:
         initial_parameters: NDArray,
     ) -> list[NDArray]:
         if not is_pygpufit_available():
-            raise ImportError('pyGpufit is required for fitting but not installed')
+            raise ImportError("pyGpufit is required for fitting but not installed")
 
         import pygpufit.gpufit as gf
 
@@ -425,7 +429,7 @@ class FitManager:
 
         # --- GHz → Hz boundary for pygpufit ---
         for idx, param_name in enumerate(self.model_params_unique):
-            if param_name.startswith('center'):
+            if param_name.startswith("center"):
                 initial_parameters_reshaped[:, idx] *= 1e9
 
         n_pixel = data_reshaped.shape[0]
@@ -454,7 +458,7 @@ class FitManager:
         if len(results) > 0 and not isinstance(results[0], float):
             fit_parameters = results[0]
             for idx, param_name in enumerate(self.model_params_unique):
-                if param_name.startswith('center'):
+                if param_name.startswith("center"):
                     fit_parameters[..., idx] /= 1e9
         return results
 

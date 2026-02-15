@@ -293,7 +293,9 @@ class FitResult:
 
                 for pol in range(n_pol):
                     for direction in range(2):
-                        delta_resonance[pol, direction] = freq_diff[pol] / 2 / GAMMA_NV * 1e6 * d[direction]
+                        delta_resonance[pol, direction] = (
+                            freq_diff[pol] / 2 / GAMMA_NV * 1e6 * d[direction]
+                        )
 
             else:
                 # Single frequency range - use frequency shift from zero field
@@ -310,7 +312,9 @@ class FitResult:
 
                 for pol in range(n_pol):
                     for direction in range(2):
-                        delta_resonance[pol, direction] = freq_shift[pol] / GAMMA_NV * 1e6 * d[direction]
+                        delta_resonance[pol, direction] = (
+                            freq_shift[pol] / GAMMA_NV * 1e6 * d[direction]
+                        )
 
         else:
             # Multiple center parameters (center_0, center_1, etc.)
@@ -355,7 +359,6 @@ class FitResult:
 
                     height, width = adjusted_height, adjusted_width
 
-
                 # Calculate frequency difference between frequency ranges
                 # Take the difference within each frequency range if multiple ranges exist
                 if low_freq_centers.shape[1] >= 2:
@@ -383,7 +386,9 @@ class FitResult:
 
                 for pol in range(freq_diff.shape[0]):
                     for direction in range(2):
-                        delta_resonance[pol, direction] = freq_diff[pol] / 2 / GAMMA_NV * 1e6 * d[direction]
+                        delta_resonance[pol, direction] = (
+                            freq_diff[pol] / 2 / GAMMA_NV * 1e6 * d[direction]
+                        )
 
             else:
                 raise ValueError(

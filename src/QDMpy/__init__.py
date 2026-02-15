@@ -10,7 +10,7 @@ the data processing pipeline to meet their specific experimental needs.
 
 from __future__ import annotations
 
-__version__ = '0.1.0a'
+__version__ = "0.1.0a"
 
 import logging
 import os
@@ -21,12 +21,12 @@ from typing import TYPE_CHECKING
 
 import matplotlib as mpl
 
-mpl.rcParams['figure.facecolor'] = 'white'
+mpl.rcParams["figure.facecolor"] = "white"
 
 PROJECT_PATH = Path(os.path.abspath(__file__)).parent
-CONFIG_PATH = Path().home() / '.config' / 'QDMpy'
-CONFIG_FILE = CONFIG_PATH / 'settings.toml'
-DESKTOP = Path().home() / 'Desktop'
+CONFIG_PATH = Path().home() / ".config" / "QDMpy"
+CONFIG_FILE = CONFIG_PATH / "settings.toml"
+DESKTOP = Path().home() / "Desktop"
 
 if TYPE_CHECKING:
     from QDMpy.settings import QDMpySettings
@@ -45,7 +45,7 @@ def make_configfile(reset: bool = False) -> None:
     CONFIG_PATH.mkdir(parents=True, exist_ok=True)
     if reset and CONFIG_FILE.exists():
         CONFIG_FILE.unlink()
-        logger.info(f'Deleted user config file {CONFIG_FILE}')
+        logger.info(f"Deleted user config file {CONFIG_FILE}")
 
 
 def reset_config() -> None:
@@ -53,15 +53,15 @@ def reset_config() -> None:
     from loguru import logger
 
     make_configfile(reset=True)
-    logger.info('Config reset to defaults')
+    logger.info("Config reset to defaults")
 
 
 def _configure_logging(settings: QDMpySettings) -> None:
     """Configure loguru and suppress noisy third-party loggers."""
     from loguru import logger
 
-    logging.getLogger('matplotlib').setLevel(logging.WARNING)
-    logging.getLogger('h5py').setLevel(logging.WARNING)
+    logging.getLogger("matplotlib").setLevel(logging.WARNING)
+    logging.getLogger("h5py").setLevel(logging.WARNING)
 
     logger.remove()
     logger.add(sys.stderr, level=settings.logging.log_level)
@@ -118,9 +118,9 @@ def test_data_location() -> Path:
         This function no longer contains hardcoded system-specific paths.
         Set the QDMPY_TEST_DATA environment variable to specify your test data location.
     """
-    test_data_env = os.environ.get('QDMPY_TEST_DATA')
+    test_data_env = os.environ.get("QDMPY_TEST_DATA")
     if test_data_env:
         return Path(test_data_env)
 
     # Default to a directory in the user's home folder
-    return Path.home() / 'QDMpy_test_data'
+    return Path.home() / "QDMpy_test_data"

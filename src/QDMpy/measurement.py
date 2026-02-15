@@ -105,7 +105,9 @@ class Measurement:
         try:
             logger.debug(f"ODMR processed data shape: {self.odmr.processed_data.shape}")
         except ValueError:
-            logger.warning("ODMR data has not been processed yet. Some functionality may be limited.")
+            logger.warning(
+                "ODMR data has not been processed yet. Some functionality may be limited."
+            )
 
         logger.debug(f"ODMR frequencies shape: {self.odmr.raw_data.frequencies.shape}")
 
@@ -333,7 +335,5 @@ if __name__ == "__main__":
     )
 
     # xarray: select first polarity, first freq_range, first freq_idx -> 2D (y, x)
-    plt.imshow(
-        measure.odmr.processed_data.data.isel(polarity=0, freq_range=0, freq_idx=0).values
-    )
+    plt.imshow(measure.odmr.processed_data.data.isel(polarity=0, freq_range=0, freq_idx=0).values)
     plt.show()

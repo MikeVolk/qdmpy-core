@@ -44,12 +44,12 @@ def normalize_pixel(pixel: NDArray) -> NDArray:
 def validate_array(data: NDArray, expected_dim: int, name: str) -> None:
     """Validate that an array has the expected number of dimensions."""
     if data is None:
-        raise ValueError(f'{name} cannot be None.')
+        raise ValueError(f"{name} cannot be None.")
     if not np.issubdtype(data.dtype, np.number):
-        raise ValueError(f'{name} must be a numeric array.')
+        raise ValueError(f"{name} must be a numeric array.")
     if data.ndim != expected_dim:
         raise ValueError(
-            f'{name} must have {expected_dim} dimensions. Got {data.ndim}.',
+            f"{name} must have {expected_dim} dimensions. Got {data.ndim}.",
         )
 
 
@@ -65,15 +65,15 @@ def guess_model(data: NDArray) -> Model:
     Raises:
         ModelGuessNotPossible: If the model cannot be reliably determined.
     """
-    logger.info('Trying to detect best fitting model for ODMR data.')
+    logger.info("Trying to detect best fitting model for ODMR data.")
     n_peaks, doubt, _ = guess_n_peaks(data)
 
     if not doubt:
         model = get_model_by_peaks(n_peaks)
-        logger.info(f'Detected model: {model.name}')
+        logger.info(f"Detected model: {model.name}")
         return model
     raise ModelGuessNotPossible(
-        'Guessing the model is not possible. Please select model manually.',
+        "Guessing the model is not possible. Please select model manually.",
     )
 
 
@@ -86,7 +86,7 @@ def guess_n_peaks(data: NDArray) -> tuple[int, bool, list[NDArray]]:
     Returns:
         Tuple of (n_peaks, doubt, peak_indices_list).
     """
-    validate_array(data, 4, 'data')
+    validate_array(data, 4, "data")
     # Median across pixels (axis 2) gives (n_pol, n_frange, n_freq)
     median_data = np.median(data, axis=2)
     indices = [
@@ -101,11 +101,11 @@ def guess_n_peaks(data: NDArray) -> tuple[int, bool, list[NDArray]]:
 def get_model_by_peaks(n_peaks: int) -> Model:
     """Retrieve the model instance based on the number of peaks."""
     for model_info in ModelRegistry.all().values():
-        model_class = model_info['class']
+        model_class = model_info["class"]
         model_instance = model_class()
         if model_instance.n_peaks == n_peaks:
             return model_instance
-    raise ValueError(f'No model found for {n_peaks} peaks.')
+    raise ValueError(f"No model found for {n_peaks} peaks.")
 
 
 def guess_initial_fit_parameters(data: NDArray, freq: NDArray, model: Model) -> NDArray:
@@ -120,16 +120,16 @@ def guess_initial_fit_parameters(data: NDArray, freq: NDArray, model: Model) -> 
         Initial parameters array (n_pol, n_frange, n_pixel, n_params).
     """
     parameter_guessers = {
-        'center': lambda: guess_center(data, freq),
-        'contrast': lambda: guess_contrast(data),
-        'width': lambda: guess_width(data, freq, DEFAULT_VMIN, DEFAULT_VMAX),
-        'offset': lambda: np.ones((data.shape[0], data.shape[1], data.shape[2])),
+        "center": lambda: guess_center(data, freq),
+        "contrast": lambda: guess_contrast(data),
+        "width": lambda: guess_width(data, freq, DEFAULT_VMIN, DEFAULT_VMAX),
+        "offset": lambda: np.ones((data.shape[0], data.shape[1], data.shape[2])),
     }
 
     fit_parameters = []
     for param in model.parameters_unique:
-        param_type = param.split('_')[0]
-        logger.info(f'Calculating initial guess for {param_type}')
+        param_type = param.split("_")[0]
+        logger.info(f"Calculating initial guess for {param_type}")
         if param_type in parameter_guessers:
             fit_parameters.append(parameter_guessers[param_type]())
         else:
@@ -211,7 +211,10 @@ def guess_width(data: NDArray, freq: NDArray, vmin: float, vmax: float) -> NDArr
         for r in range(n_frange):
             for px in prange(n_pixel):
                 widths[p, r, px] = guess_width_pixel(
-                    data[p, r, px, :], freq[r], vmin, vmax,
+                    data[p, r, px, :],
+                    freq[r],
+                    vmin,
+                    vmax,
                 )
     return widths
 

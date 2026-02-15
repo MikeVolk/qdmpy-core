@@ -46,7 +46,7 @@ class ODMR:
         Returns:
             Self for method chaining.
         """
-        logger.info('Loading data into ODMR instance.')
+        logger.info("Loading data into ODMR instance.")
         self._raw_data = ODMRData.from_numpy(raw_data, scan_dimensions, frequencies)
         self._processed_data = None
         self.is_processed = False
@@ -61,7 +61,7 @@ class ODMR:
         Returns:
             Self for method chaining.
         """
-        logger.info('Loading xarray data into ODMR instance.')
+        logger.info("Loading xarray data into ODMR instance.")
         self._raw_data = ODMRData(data)
         self._processed_data = None
         self.is_processed = False
@@ -70,9 +70,9 @@ class ODMR:
     def reset(self: Self) -> ODMR:
         """Reset to the raw data."""
         if self._raw_data is None:
-            logger.error('No raw data loaded. Cannot reset.')
-            raise ValueError('No raw data to reset to.')
-        logger.info('Resetting to raw data.')
+            logger.error("No raw data loaded. Cannot reset.")
+            raise ValueError("No raw data to reset to.")
+        logger.info("Resetting to raw data.")
         self._processed_data = None
         self.is_processed = False
         return self
@@ -80,9 +80,9 @@ class ODMR:
     def process_data(self: Self) -> ODMR:
         """Apply the processing pipeline to the raw data."""
         if self._raw_data is None:
-            logger.error('No data loaded.')
-            raise ValueError('No ODMRData loaded.')
-        logger.info('Processing data.')
+            logger.error("No data loaded.")
+            raise ValueError("No ODMRData loaded.")
+        logger.info("Processing data.")
         self._processed_data = self.processor_manager.process(self._raw_data)
         self.is_processed = True
         return self
@@ -91,14 +91,14 @@ class ODMR:
     def raw_data(self: Self) -> ODMRData:
         """Access the raw ODMRData."""
         if self._raw_data is None:
-            logger.error('No raw data loaded.')
-            raise ValueError('No raw data available.')
+            logger.error("No raw data loaded.")
+            raise ValueError("No raw data available.")
         return self._raw_data
 
     @property
     def processed_data(self: Self) -> ODMRData:
         """Access the processed ODMRData."""
         if self._processed_data is None:
-            logger.error('No data has been processed yet.')
-            raise ValueError('No processed data available.')
+            logger.error("No data has been processed yet.")
+            raise ValueError("No processed data available.")
         return self._processed_data

@@ -212,9 +212,7 @@ def process_command_handler(args: argparse.Namespace) -> int:
 
     # Check if output directory exists
     if output_path.exists() and not args.overwrite:
-        logger.error(
-            f"Output directory {output_dir} already exists. Use --overwrite to overwrite."
-        )
+        logger.error(f"Output directory {output_dir} already exists. Use --overwrite to overwrite.")
         return 1
 
     # Create output directory if it doesn't exist
@@ -287,7 +285,6 @@ def models_command_handler(args: argparse.Namespace) -> int:
         models[args.model_name]
         model_instance = ModelRegistry.get(args.model_name)
 
-
         if args.detailed:
             # Add more detailed information here
             for _param in model_instance.parameters_unique:
@@ -296,7 +293,6 @@ def models_command_handler(args: argparse.Namespace) -> int:
         # List all available models
         for name, _info in models.items():
             ModelRegistry.get(name)
-
 
     return 0
 
@@ -324,7 +320,6 @@ def info_command_handler(args: argparse.Namespace) -> int:
             logger.info(f"Analyzing directory: {path}")
             loader = MatlabLoader(data_folder=str(path))
             file_info = loader.get_file_list()
-
 
             if not args.summary:
                 for _i, _file in enumerate(file_info):

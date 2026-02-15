@@ -64,10 +64,10 @@ class MatlabLoader(BaseLoader):
             ValueError: If the MATLAB file contains an unsupported structure.
         """
         files = sorted(
-            f for f in os.listdir(self.data_folder) if f.endswith('.mat') and 'run_' in f
+            f for f in os.listdir(self.data_folder) if f.endswith(".mat") and "run_" in f
         )
         if not files:
-            raise FileNotFoundError('No valid MATLAB files found in the folder.')
+            raise FileNotFoundError("No valid MATLAB files found in the folder.")
 
         per_file_data: list[NDArray] = []
         rows: int = 0
@@ -85,15 +85,15 @@ class MatlabLoader(BaseLoader):
             per_file_data.append(stacked_data)
 
             try:
-                rows = int(np.squeeze(mat_data['imgNumRows']))
-                cols = int(np.squeeze(mat_data['imgNumCols']))
+                rows = int(np.squeeze(mat_data["imgNumRows"]))
+                cols = int(np.squeeze(mat_data["imgNumCols"]))
             except KeyError as e:
-                raise ValueError(f'Missing required key in MATLAB file: {e}') from e
+                raise ValueError(f"Missing required key in MATLAB file: {e}") from e
 
             try:
-                freq_list = np.squeeze(mat_data['freqList'])
-                if 'numFreqs' in mat_data:
-                    n_freqs = int(np.squeeze(mat_data['numFreqs']))
+                freq_list = np.squeeze(mat_data["freqList"])
+                if "numFreqs" in mat_data:
+                    n_freqs = int(np.squeeze(mat_data["numFreqs"]))
                     if n_freqs != len(freq_list):
                         frequencies = np.array([freq_list[:n_freqs], freq_list[n_freqs:]])
                     else:
@@ -101,10 +101,10 @@ class MatlabLoader(BaseLoader):
                 else:
                     frequencies = freq_list
             except KeyError as e:
-                raise ValueError(f'Missing required key in MATLAB file: {e}') from e
+                raise ValueError(f"Missing required key in MATLAB file: {e}") from e
 
         if frequencies is None:
-            raise ValueError('No frequency data found in MATLAB files.')
+            raise ValueError("No frequency data found in MATLAB files.")
 
         # Stack polarity axis from multiple files
         if len(per_file_data) == 1:
@@ -124,16 +124,16 @@ class MatlabLoader(BaseLoader):
         else:
             freq_ghz = frequencies / 1e9
 
-        polarity_labels = [f'pol_{i}' for i in range(n_pol)]
-        frange_labels = [f'frange_{i}' for i in range(n_frange)]
+        polarity_labels = [f"pol_{i}" for i in range(n_pol)]
+        frange_labels = [f"frange_{i}" for i in range(n_frange)]
 
         return xr.DataArray(
             raw_data,
-            dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
+            dims=("polarity", "freq_range", "y", "x", "freq_idx"),
             coords={
-                'polarity': polarity_labels,
-                'freq_range': frange_labels,
-                'freq_ghz': (['freq_range', 'freq_idx'], freq_ghz),
+                "polarity": polarity_labels,
+                "freq_range": frange_labels,
+                "freq_ghz": (["freq_range", "freq_idx"], freq_ghz),
             },
         )
 
@@ -147,15 +147,11 @@ class MatlabLoader(BaseLoader):
         Raises:
             ValueError: If the MATLAB file contains an unsupported number of image stacks.
         """
-        n_img_stacks = len([k for k in mat_file if 'imgStack' in k])
+        n_img_stacks = len([k for k in mat_file if "imgStack" in k])
         if n_img_stacks == 2:
-            return np.stack([mat_file['imgStack1'].T, mat_file['imgStack2'].T], axis=0)
+            return np.stack([mat_file["imgStack1"].T, mat_file["imgStack2"].T], axis=0)
         if n_img_stacks == 4:
-            stack_low = np.concatenate(
-                [mat_file['imgStack1'], mat_file['imgStack2']], axis=0
-            ).T
-            stack_high = np.concatenate(
-                [mat_file['imgStack3'], mat_file['imgStack4']], axis=0
-            ).T
+            stack_low = np.concatenate([mat_file["imgStack1"], mat_file["imgStack2"]], axis=0).T
+            stack_high = np.concatenate([mat_file["imgStack3"], mat_file["imgStack4"]], axis=0).T
             return np.stack([stack_low, stack_high], axis=0)
-        raise ValueError('Unsupported number of image stacks in MATLAB file.')
+        raise ValueError("Unsupported number of image stacks in MATLAB file.")
