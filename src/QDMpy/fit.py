@@ -29,7 +29,6 @@ from QDMpy.guess import (
 from QDMpy.models import Model, ModelRegistry
 from QDMpy.settings import ModelConstraintsSettings
 
-UNITS = {"center": "GHz", "width": "GHz", "contrast": "a.u.", "offset": "a.u."}
 CONSTRAINT_TYPES = ["FREE", "LOWER", "UPPER", "LOWER_UPPER"]
 ESTIMATOR_ID = {"LSE": 0, "MLE": 1}
 
@@ -39,33 +38,31 @@ class ConstraintManager:
 
     def __init__(
         self: Self,
-        model_params: list[str],
+        model: Model,
         settings: ModelConstraintsSettings,
-        units: dict[str, str],
     ) -> None:
-        """Initialize the constraint manager with model parameters and settings.
+        """Initialize the constraint manager from a model and settings.
 
         Args:
-            model_params: List of model parameter names to constrain.
+            model: Model instance providing parameter metadata.
             settings: ModelConstraintsSettings with constraint bounds and types.
-            units: Dictionary mapping parameter names to their units.
         """
         self._constraints: dict[str, list[Any]] = {}
-        self._units = units
-        self._initialize_constraints(model_params, settings)
+        self._model = model
+        self._initialize_constraints(settings)
 
     def _initialize_constraints(
         self: Self,
-        model_params: list[str],
         settings: ModelConstraintsSettings,
     ) -> None:
-        for param in model_params:
-            base_param = param.split("_")[0]
+        units = self._model.units
+        for param in self._model.parameters_unique:
+            base_param = self._model.parameter_types[param]
             self._constraints[param] = [
-                getattr(settings, f"{base_param}_min"),
-                getattr(settings, f"{base_param}_max"),
-                getattr(settings, f"{base_param}_type"),
-                self._units[base_param],
+                getattr(settings, f'{base_param}_min'),
+                getattr(settings, f'{base_param}_max'),
+                getattr(settings, f'{base_param}_type'),
+                units[param],
             ]
 
     def set_constraint(
@@ -115,10 +112,11 @@ class ConstraintManager:
         Returns:
             NDArray of shape (n_pixel, 2*n_params) with min/max bounds for each parameter.
         """
+        freq_params = set(self._model.frequency_parameters)
         constraints_list: list[float] = []
         for param in model_params:
             param_min, param_max = self._constraints[param][0], self._constraints[param][1]
-            if param.startswith("center"):
+            if param in freq_params:
                 param_min *= 1e9
                 param_max *= 1e9
             constraints_list.extend((param_min, param_max))
@@ -193,7 +191,7 @@ class FitManager:
         self._initial_parameter: NDArray | None = None
         self._reset_fit()
         self._constraint_manager = ConstraintManager(
-            self.model_params_unique, get_settings().model.constraints, UNITS
+            self._model, get_settings().model.constraints
         )
         if constraints:
             for param, constraint in constraints.items():
@@ -274,7 +272,7 @@ class FitManager:
             ) from e
         logger.debug("Setting model to %s, resetting fit results.", model_name)
         self._constraint_manager = ConstraintManager(
-            self.model_params_unique, get_settings().model.constraints, UNITS
+            self._model, get_settings().model.constraints
         )
         self._reset_fit()
         self._initial_parameter = None
@@ -418,7 +416,7 @@ class FitManager:
         result = np.zeros((n_pol, n_frange, n_pixel, self.n_parameter), dtype=np.float32)
 
         for idx, param_name in enumerate(self.model_params_unique):
-            param_type = param_name.split("_")[0]
+            param_type = self._model.parameter_types[param_name]
             logger.debug(f"Guessing {param_type} parameters")
 
             if param_type == "center":
@@ -571,8 +569,9 @@ class FitManager:
         initial_parameters_reshaped = initial_parameters.reshape((-1, self.n_parameter))
 
         # --- GHz → Hz boundary for pygpufit ---
+        freq_params = set(self._model.frequency_parameters)
         for idx, param_name in enumerate(self.model_params_unique):
-            if param_name.startswith("center"):
+            if param_name in freq_params:
                 initial_parameters_reshaped[:, idx] *= 1e9
 
         n_pixel = data_reshaped.shape[0]
@@ -607,9 +606,10 @@ class FitManager:
                 results[i] = self.reshape_result(result)
 
         if len(results) > 0 and not isinstance(results[0], float):
+            freq_params = set(self._model.frequency_parameters)
             fit_parameters = results[0]
             for idx, param_name in enumerate(self.model_params_unique):
-                if param_name.startswith("center"):
+                if param_name in freq_params:
                     fit_parameters[..., idx] /= 1e9
         return results
 

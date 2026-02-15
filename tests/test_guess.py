@@ -457,6 +457,7 @@ class TestGuessInitialFitParameters:
         """Test guessing parameters with an invalid parameter type."""
         mock_model = MagicMock()
         mock_model.parameters_unique = ['invalid_param']
+        mock_model.parameter_types = {'invalid_param': 'unknown_type'}
 
         with pytest.raises(ValueError) as excinfo:
             guess_initial_fit_parameters(sample_odmr_data, frequency_range, mock_model)

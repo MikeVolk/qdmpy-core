@@ -250,28 +250,27 @@ class TestModelClass:
 
     def test_model_func_abstract(self) -> None:
         """Test that the func method raises NotImplementedError if not implemented."""
-        # We can't instantiate an abstract class without implementing all methods,
-        # so we'll check the abstractmethod decorator directly
-
-        # Verify that the func method is decorated with @abstractmethod
         assert Model.func.__isabstractmethod__
 
-        # To test line 190 (raise NotImplementedError), we'll subclass Model and
-        # call the parent's func method
         class TestModelCallsParentFunc(Model):
             def __init__(self) -> None:
-                super().__init__("TEST", 1, ["param1"])
+                super().__init__('TEST', 1, ['param1'])
+
+            @property
+            def parameter_types(self) -> dict[str, str]:
+                return {'param1': 'center'}
+
+            @property
+            def frequency_parameters(self) -> list[str]:
+                return ['param1']
 
             def func(self, x, parameters):
-                # Call the parent's func method directly, which should raise NotImplementedError
                 return super().func(x, parameters)
 
-        # Create an instance and call func
         model = TestModelCallsParentFunc()
         x = np.array([1, 2, 3])
         params = np.array([1])
 
-        # Should raise NotImplementedError from the parent's func method
         with pytest.raises(NotImplementedError):
             model.func(x, params)
 
@@ -460,29 +459,41 @@ class TestModelRegistry:
 
     def test_registry_initial_state(self) -> None:
         """Test the initial state of the registry."""
-        # The registry should already contain the three models
         registry = ModelRegistry.all()
 
-        assert "ESR14N" in registry
-        assert "ESR15N" in registry
-        assert "ESRSINGLE" in registry
+        assert 'ESR14N' in registry
+        assert 'ESR15N' in registry
+        assert 'ESRSINGLE' in registry
 
-        assert registry["ESR14N"]["class"] == ESR14N
-        assert registry["ESR15N"]["class"] == ESR15N
-        assert registry["ESRSINGLE"]["class"] == ESRSINGLE
+        assert registry['ESR14N'] is ESR14N
+        assert registry['ESR15N'] is ESR15N
+        assert registry['ESRSINGLE'] is ESRSINGLE
 
     def test_register_new_model(self) -> None:
-        """Test registering a new model."""
-        # Create a mock model class
-        mock_model_class = MagicMock()
+        """Test registering a new model via decorator."""
 
-        # Register the mock model
-        ModelRegistry.register("MOCK_MODEL", {"class": mock_model_class, "hyp": 0.0})
+        @ModelRegistry.register
+        class MockModel(Model):
+            def __init__(self) -> None:
+                super().__init__('MOCK_MODEL', 1, ['center', 'width'])
 
-        # Check registration
+            @property
+            def parameter_types(self) -> dict[str, str]:
+                return {'center': 'center', 'width': 'width'}
+
+            @property
+            def frequency_parameters(self) -> list[str]:
+                return ['center']
+
+            def func(self, x, parameters):
+                return x
+
         registry = ModelRegistry.all()
-        assert "MOCK_MODEL" in registry
-        assert registry["MOCK_MODEL"]["class"] == mock_model_class
+        assert 'MOCK_MODEL' in registry
+        assert registry['MOCK_MODEL'] is MockModel
+
+        # Clean up
+        del ModelRegistry._registry['MOCK_MODEL']
 
     def test_get_model(self) -> None:
         """Test getting a model by name."""
@@ -503,18 +514,22 @@ class TestModelRegistry:
 
     def test_initialize_constraints_method(self) -> None:
         """Test the _initialize_constraints method of ModelRegistry."""
-        # We need to test line 294-305
-        # Create a test model derived from Model that will expose _initialize_constraints
-        from QDMpy.models import Model as QDMpyModel
 
-        class TestModelInitConstraints(QDMpyModel):
+        class TestModelInitConstraints(Model):
             def __init__(self) -> None:
-                super().__init__("TEST", 1, ["contrast_0", "width_0"])
+                super().__init__('TEST', 1, ['contrast_0', 'width_0'])
+
+            @property
+            def parameter_types(self) -> dict[str, str]:
+                return {'contrast_0': 'contrast', 'width_0': 'width'}
+
+            @property
+            def frequency_parameters(self) -> list[str]:
+                return []
 
             def func(self, x, parameters):
-                return x  # Dummy implementation
+                return x
 
-        # Use a patch to ensure SETTINGS contains the right structure
         mock_settings = QDMpySettings(
             model=ModelSettings(
                 constraints=ModelConstraintsSettings(
@@ -529,18 +544,69 @@ class TestModelRegistry:
         )
 
         with patch('QDMpy.models.get_settings', return_value=mock_settings):
-            # Access the protected method for testing
             constraints = ModelRegistry._initialize_constraints(
                 TestModelInitConstraints()
             )
 
-            # Verify the output has the right structure
             assert 'contrast_0' in constraints
             assert 'width_0' in constraints
             assert len(constraints['contrast_0']) == 3
-            assert constraints['contrast_0'][0] == 0.0  # min
-            assert constraints['contrast_0'][1] == 1.0  # max
-            assert constraints['contrast_0'][2] == 'FREE'  # type
+            assert constraints['contrast_0'][0] == 0.0
+            assert constraints['contrast_0'][1] == 1.0
+            assert constraints['contrast_0'][2] == 'FREE'
+
+
+class TestModelSelfDescribing:
+    """Tests for the self-describing model properties (QEP-005)."""
+
+    def test_parameter_types_esr14n(self) -> None:
+        model = ESR14N()
+        pt = model.parameter_types
+        assert pt['center'] == 'center'
+        assert pt['width'] == 'width'
+        assert pt['contrast_0'] == 'contrast'
+        assert pt['contrast_1'] == 'contrast'
+        assert pt['contrast_2'] == 'contrast'
+        assert pt['offset'] == 'offset'
+
+    def test_parameter_types_esr15n(self) -> None:
+        model = ESR15N()
+        pt = model.parameter_types
+        assert pt['center'] == 'center'
+        assert pt['width'] == 'width'
+        assert pt['contrast_0'] == 'contrast'
+        assert pt['contrast_1'] == 'contrast'
+        assert pt['offset'] == 'offset'
+
+    def test_parameter_types_esrsingle(self) -> None:
+        model = ESRSINGLE()
+        pt = model.parameter_types
+        assert pt['center'] == 'center'
+        assert pt['width'] == 'width'
+        assert pt['contrast'] == 'contrast'
+        assert pt['offset'] == 'offset'
+
+    def test_frequency_parameters(self) -> None:
+        for model_cls in [ESR14N, ESR15N, ESRSINGLE]:
+            model = model_cls()
+            assert model.frequency_parameters == ['center']
+
+    def test_units(self) -> None:
+        model = ESR14N()
+        units = model.units
+        assert units['center'] == 'GHz'
+        assert units['width'] == 'a.u.'
+        assert units['contrast_0'] == 'a.u.'
+        assert units['offset'] == 'a.u.'
+
+    def test_parameter_derives_from_parameter_types(self) -> None:
+        model = ESR14N()
+        expected = ['center', 'width', 'contrast', 'contrast', 'contrast', 'offset']
+        assert model.parameter == expected
+
+        model_single = ESRSINGLE()
+        expected_single = ['center', 'width', 'contrast', 'offset']
+        assert model_single.parameter == expected_single
 
 
 # Test the main demo function

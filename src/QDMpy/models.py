@@ -219,13 +219,37 @@ class Model(ABC):
         self.n_peaks = n_peaks
 
     @property
-    def parameter(self: Model) -> list[str]:
-        """Get the base parameter names without unique identifiers.
+    @abstractmethod
+    def parameter_types(self: Model) -> dict[str, str]:
+        """Map each unique parameter name to its type category.
 
         Returns:
-            List of base parameter names (e.g., 'width' from 'width_0').
+            Dict mapping param name -> type ('center', 'width', 'contrast', 'offset').
         """
-        return [i.split("_")[0] for i in self.parameters_unique]
+
+    @property
+    @abstractmethod
+    def frequency_parameters(self: Model) -> list[str]:
+        """Parameter names that are in frequency units (need GHz<->Hz conversion).
+
+        Returns:
+            List of parameter names in frequency units.
+        """
+
+    @property
+    def units(self: Model) -> dict[str, str]:
+        """Derive units from frequency_parameters."""
+        freq = set(self.frequency_parameters)
+        return {p: 'GHz' if p in freq else 'a.u.' for p in self.parameters_unique}
+
+    @property
+    def parameter(self: Model) -> list[str]:
+        """Get the base parameter type for each unique parameter.
+
+        Returns:
+            List of parameter type categories derived from parameter_types.
+        """
+        return [self.parameter_types[p] for p in self.parameters_unique]
 
     @abstractmethod
     def func(
@@ -280,7 +304,7 @@ class Model(ABC):
         """
         constraint_array = []
         for p in self.parameters_unique:
-            base_param = p.split("_")[0]
+            base_param = self.parameter_types[p]
             if base_param in constraint:
                 constraint_array.append(constraint[base_param][0])  # Lower bound
                 constraint_array.append(constraint[base_param][1])  # Upper bound
@@ -303,54 +327,32 @@ class Model(ABC):
 class ModelRegistry:
     """Registry for managing ODMR spectral models.
 
-    This class provides a central registry for all available models,
-    allowing models to be registered, retrieved, and listed. It acts as
-    a factory pattern for model instantiation and provides a single point
-    of access for all model types.
-
-    The registry is populated at module import time with the standard models
-    (ESR14N, ESR15N, ESRSINGLE) and can be extended with custom models.
-
-    Class Attributes:
-        _registry: Class-level dictionary storing model information.
+    Models are registered via the ``@ModelRegistry.register`` decorator.
+    The registry maps model names to their classes.
 
     Example:
-        >>> # Get available models
-        >>> models = ModelRegistry.all()
-        >>> print(list(models.keys()))
-        ['ESR14N', 'ESR15N', 'ESRSINGLE']
-
-        >>> # Get a specific model instance
         >>> model = ModelRegistry.get('ESR14N')
         >>> print(type(model).__name__)
         ESR14N
     """
 
-    _registry: ClassVar[dict[str, dict[str, Any]]] = {}
+    _registry: ClassVar[dict[str, type[Model]]] = {}
 
     @classmethod
-    def register(cls: type[ModelRegistry], name: str, model: dict[str, Any]) -> None:
-        """Register a model in the registry.
-
-        Adds a new model to the registry, making it available for retrieval
-        via the get() method. The model dictionary should contain at minimum
-        a 'class' key with the model class.
+    def register(cls: type[ModelRegistry], model_cls: type[Model]) -> type[Model]:
+        """Register a model class (usable as a decorator).
 
         Args:
-            name: Unique name for the model (e.g., 'ESR14N', 'CUSTOM_MODEL').
-            model: Dictionary containing model information with keys:
-                - 'class': The model class (must inherit from Model)
-                - 'hyp': Hyperfine splitting constant (optional)
-                - Additional metadata as needed
+            model_cls: A Model subclass to register. The model's ``name``
+                attribute (set during ``__init__``) is used as the registry key.
 
-        Example:
-            >>> class CustomModel(Model):
-            ...     # Implementation details
-            ...     pass
-            >>> ModelRegistry.register('CUSTOM', {'class': CustomModel, 'hyp': 0.001})
+        Returns:
+            The model class, unchanged.
         """
-        cls._registry[name] = model
-        logger.info(f"Registered model: {name}")
+        instance = model_cls()
+        cls._registry[instance.name] = model_cls
+        logger.info(f'Registered model: {instance.name}')
+        return model_cls
 
     @classmethod
     def get(cls: type[ModelRegistry], name: str) -> Model:
@@ -366,37 +368,22 @@ class ModelRegistry:
             KeyError: If the model name is not found in the registry.
         """
         if name not in cls._registry:
-            # Model not found
             error_msg = f"Model '{name}' not found in registry"
             raise KeyError(error_msg)
-        return cls._registry[name]["class"]()
+        return cls._registry[name]()
 
     @classmethod
-    def all(cls: type[ModelRegistry]) -> dict[str, dict[str, Any]]:
-        """Get all registered models.
-
-        Returns a copy of the internal registry dictionary containing all
-        registered models and their associated metadata.
+    def all(cls: type[ModelRegistry]) -> dict[str, type[Model]]:
+        """Get all registered model classes.
 
         Returns:
-            Dictionary mapping model names to model information dictionaries.
-            Each model dictionary contains 'class' and other metadata keys.
-
-        Example:
-            >>> registry = ModelRegistry.all()
-            >>> for name, info in registry.items():
-            ...     print(f"{name}: {info['class'].__name__}")
-            ESR14N: ESR14N
-            ESR15N: ESR15N
-            ESRSINGLE: ESRSINGLE
+            Dictionary mapping model names to model classes.
         """
         return cls._registry
 
     @classmethod
     def _initialize_constraints(cls: type[ModelRegistry], model: Model) -> dict[str, list[Any]]:
         """Initialize default constraints for model parameters.
-
-        Uses the constraints defined in the configuration settings.
 
         Args:
             model: The model for which to initialize constraints.
@@ -408,163 +395,125 @@ class ModelRegistry:
         constraints: dict[str, list[Any]] = {}
 
         for param in model.parameters_unique:
-            base_param = param.split("_")[0]
+            base_param = model.parameter_types[param]
             constraints[param] = [
-                getattr(settings, f"{base_param}_min"),
-                getattr(settings, f"{base_param}_max"),
-                getattr(settings, f"{base_param}_type"),
+                getattr(settings, f'{base_param}_min'),
+                getattr(settings, f'{base_param}_max'),
+                getattr(settings, f'{base_param}_type'),
             ]
         return constraints
 
 
+@ModelRegistry.register
 class ESR14N(Model):
-    """Model for NV centers with 14N nitrogen isotope.
-
-    This model represents ODMR spectra with three dips due to the hyperfine
-    interaction with the 14N nucleus (I=1). The three transitions correspond
-    to the mI = -1, 0, +1 spin states, creating a characteristic triplet pattern.
-
-    The model uses Lorentzian lineshapes and allows independent contrast values
-    for each of the three resonance lines, enabling fitting of spectra with
-    asymmetric intensities.
-
-    Attributes:
-        ahyp: Hyperfine splitting constant for 14N (AHYP_14N).
-    """
+    """Model for NV centers with 14N nitrogen isotope (3 hyperfine dips)."""
 
     def __init__(self: ESR14N) -> None:
-        """Initialize ESR14N model with 14N-specific parameters.
-
-        Sets up the model with 6 parameters: center frequency, width, three contrast
-        values (one for each hyperfine line), and baseline offset. The hyperfine
-        constant is set to the standard 14N value.
-        """
+        """Initialize ESR14N model with 14N-specific parameters."""
         super().__init__(
-            "ESR14N",
+            'ESR14N',
             3,
-            ["center", "width", "contrast_0", "contrast_1", "contrast_2", "offset"],
+            ['center', 'width', 'contrast_0', 'contrast_1', 'contrast_2', 'offset'],
         )
         self.ahyp = AHYP_14N
         self.model_id = 13
+
+    @property
+    def parameter_types(self: ESR14N) -> dict[str, str]:
+        """Map each parameter to its type category."""
+        return {
+            'center': 'center',
+            'width': 'width',
+            'contrast_0': 'contrast',
+            'contrast_1': 'contrast',
+            'contrast_2': 'contrast',
+            'offset': 'offset',
+        }
+
+    @property
+    def frequency_parameters(self: ESR14N) -> list[str]:
+        """Parameters in frequency units."""
+        return ['center']
 
     def func(
         self: ESR14N,
         x: NDArray[np.floating],
         parameters: NDArray[np.floating],
     ) -> NDArray[np.floating]:
-        """Calculate the 14N ODMR spectrum response.
-
-        Evaluates the ESR14N model function for the given frequency array
-        and parameter set, using the predefined 14N hyperfine constant.
-
-        Args:
-            x: Array of frequency values in GHz.
-            parameters: Parameter array with shape (N, 6) containing:
-                [center, width, contrast_-1, contrast_0, contrast_+1, offset].
-
-        Returns:
-            Model response array with normalized fluorescence intensity values.
-        """
+        """Evaluate the 14N triplet Lorentzian model."""
         return esr14n(x, parameters, self.ahyp)
 
 
+@ModelRegistry.register
 class ESR15N(Model):
-    """Model for NV centers with 15N nitrogen isotope.
-
-    This model represents ODMR spectra with two dips due to the hyperfine
-    interaction with the 15N nucleus (I=1/2). The two transitions correspond
-    to the mI = -1/2, +1/2 spin states, creating a characteristic doublet pattern.
-
-    The 15N isotope has a smaller hyperfine interaction compared to 14N, resulting
-    in a smaller splitting between the two resonance lines.
-
-    Attributes:
-        ahyp: Hyperfine splitting constant for 15N (AHYP_15N).
-    """
+    """Model for NV centers with 15N nitrogen isotope (2 hyperfine dips)."""
 
     def __init__(self: ESR15N) -> None:
-        """Initialize ESR15N model with 15N-specific parameters.
-
-        Sets up the model with 5 parameters: center frequency, width, two contrast
-        values (one for each hyperfine line), and baseline offset. The hyperfine
-        constant is set to the standard 15N value.
-        """
+        """Initialize ESR15N model with 15N-specific parameters."""
         super().__init__(
-            "ESR15N",
+            'ESR15N',
             2,
-            ["center", "width", "contrast_0", "contrast_1", "offset"],
+            ['center', 'width', 'contrast_0', 'contrast_1', 'offset'],
         )
         self.ahyp = AHYP_15N
         self.model_id = 14
+
+    @property
+    def parameter_types(self: ESR15N) -> dict[str, str]:
+        """Map each parameter to its type category."""
+        return {
+            'center': 'center',
+            'width': 'width',
+            'contrast_0': 'contrast',
+            'contrast_1': 'contrast',
+            'offset': 'offset',
+        }
+
+    @property
+    def frequency_parameters(self: ESR15N) -> list[str]:
+        """Parameters in frequency units."""
+        return ['center']
 
     def func(
         self: ESR15N,
         x: NDArray[np.floating],
         parameters: NDArray[np.floating],
     ) -> NDArray[np.floating]:
-        """Calculate the 15N ODMR spectrum response.
-
-        Evaluates the ESR15N model function for the given frequency array
-        and parameter set, using the predefined 15N hyperfine constant.
-
-        Args:
-            x: Array of frequency values in GHz.
-            parameters: Parameter array with shape (N, 5) containing:
-                [center, width, contrast_-1/2, contrast_+1/2, offset].
-
-        Returns:
-            Model response array with normalized fluorescence intensity values.
-        """
+        """Evaluate the 15N doublet Lorentzian model."""
         return esr15n(x, parameters, self.ahyp)
 
 
+@ModelRegistry.register
 class ESRSINGLE(Model):
-    """Model for a single ODMR resonance dip.
-
-    This model represents ODMR spectra with a single resonance dip,
-    without any hyperfine splitting. This is useful for systems where:
-    - Hyperfine structure is not resolved due to broadening
-    - Working with isotopically pure samples without hyperfine interaction
-    - Fitting individual components of more complex spectra
-    - Initial parameter estimation for more complex models
-
-    The model uses a simple Lorentzian lineshape for the resonance.
-    """
+    """Model for a single ODMR resonance dip (no hyperfine splitting)."""
 
     def __init__(self: ESRSINGLE) -> None:
-        """Initialize ESRSINGLE model with single resonance parameters.
-
-        Sets up the model with 4 parameters: center frequency, width, contrast,
-        and baseline offset. No hyperfine constant is needed for this model.
-        """
-        super().__init__("ESRSINGLE", 1, ["center", "width", "contrast", "offset"])
+        """Initialize ESRSINGLE model with single-dip parameters."""
+        super().__init__('ESRSINGLE', 1, ['center', 'width', 'contrast', 'offset'])
         self.model_id = 15
+
+    @property
+    def parameter_types(self: ESRSINGLE) -> dict[str, str]:
+        """Map each parameter to its type category."""
+        return {
+            'center': 'center',
+            'width': 'width',
+            'contrast': 'contrast',
+            'offset': 'offset',
+        }
+
+    @property
+    def frequency_parameters(self: ESRSINGLE) -> list[str]:
+        """Parameters in frequency units."""
+        return ['center']
 
     def func(
         self: ESRSINGLE,
         x: NDArray[np.floating],
         parameters: NDArray[np.floating],
     ) -> NDArray[np.floating]:
-        """Calculate the single resonance ODMR spectrum response.
-
-        Evaluates the ESRSINGLE model function for the given frequency array
-        and parameter set, producing a single Lorentzian dip.
-
-        Args:
-            x: Array of frequency values in GHz.
-            parameters: Parameter array with shape (N, 4) containing:
-                [center, width, contrast, offset].
-
-        Returns:
-            Model response array with normalized fluorescence intensity values.
-        """
+        """Evaluate the single Lorentzian model."""
         return esrsingle(x, parameters)
-
-
-# Register models
-ModelRegistry.register("ESR14N", {"class": ESR14N, "hyp": AHYP_14N})
-ModelRegistry.register("ESR15N", {"class": ESR15N, "hyp": AHYP_15N})
-ModelRegistry.register("ESRSINGLE", {"class": ESRSINGLE, "hyp": 0.0})
 
 
 def _main_demo() -> None:

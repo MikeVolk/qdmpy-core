@@ -100,9 +100,8 @@ def guess_n_peaks(data: NDArray) -> tuple[int, bool, list[NDArray]]:
 
 def get_model_by_peaks(n_peaks: int) -> Model:
     """Retrieve the model instance based on the number of peaks."""
-    for model_info in ModelRegistry.all().values():
-        model_class = model_info["class"]
-        model_instance = model_class()
+    for model_cls in ModelRegistry.all().values():
+        model_instance = model_cls()
         if model_instance.n_peaks == n_peaks:
             return model_instance
     raise ValueError(f"No model found for {n_peaks} peaks.")
@@ -128,7 +127,7 @@ def guess_initial_fit_parameters(data: NDArray, freq: NDArray, model: Model) -> 
 
     fit_parameters = []
     for param in model.parameters_unique:
-        param_type = param.split("_")[0]
+        param_type = model.parameter_types[param]
         logger.info(f"Calculating initial guess for {param_type}")
         if param_type in parameter_guessers:
             fit_parameters.append(parameter_guessers[param_type]())
