@@ -225,7 +225,8 @@ class FitResult:
                 n_pol, n_frange, n_pixels, _ = resonance.shape
                 resonance = np.squeeze(resonance, axis=-1)  # Remove last dimension
                 logger.debug(
-                    f"Squeezed center parameter from {self.parameters['center'].shape} to {resonance.shape}"
+                    f"Squeezed center parameter from "
+                    f"{self.parameters['center'].shape} to {resonance.shape}"
                 )
             elif len(resonance.shape) == 3:
                 n_pol, n_frange, n_pixels = resonance.shape
@@ -237,7 +238,8 @@ class FitResult:
                 n_pixels = resonance.shape[1]
                 resonance = resonance.reshape((n_pol, n_frange, n_pixels))
                 logger.debug(
-                    f"Reshaped center parameter from {self.parameters['center'].shape} to {resonance.shape}"
+                    f"Reshaped center parameter from "
+                    f"{self.parameters['center'].shape} to {resonance.shape}"
                 )
             else:
                 raise ValueError(f"Unexpected center parameter shape: {resonance.shape}")
@@ -269,7 +271,9 @@ class FitResult:
                         adjusted_height, adjusted_width = n_pixels, 1
 
                 logger.debug(
-                    f"Pixel count mismatch: data has {n_pixels} pixels, scan_dims suggest {expected_pixels}. Using ({adjusted_height}, {adjusted_width})"
+                    f"Pixel count mismatch: data has {n_pixels} pixels, "
+                    f"scan_dims suggest {expected_pixels}. "
+                    f"Using ({adjusted_height}, {adjusted_width})"
                 )
                 height, width = adjusted_height, adjusted_width
 
@@ -392,7 +396,8 @@ class FitResult:
 
             else:
                 raise ValueError(
-                    f"Insufficient center parameters for delta resonance calculation. Found: {len(center_params)}"
+                    f"Insufficient center parameters for delta resonance "
+                    f"calculation. Found: {len(center_params)}"
                 )
 
         logger.debug(f"Delta resonance computed with shape: {delta_resonance.shape}")
@@ -467,10 +472,12 @@ class FitResult:
         b111_induced = (neg_diff - pos_diff) / 2
 
         logger.debug(
-            f"B111 remanent field: mean={b111_remanent.mean():.2e} μT, std={b111_remanent.std():.2e} μT"
+            f"B111 remanent field: mean={b111_remanent.mean():.2e} μT, "
+            f"std={b111_remanent.std():.2e} μT"
         )
         logger.debug(
-            f"B111 induced field: mean={b111_induced.mean():.2e} μT, std={b111_induced.std():.2e} μT"
+            f"B111 induced field: mean={b111_induced.mean():.2e} μT, "
+            f"std={b111_induced.std():.2e} μT"
         )
 
         return b111_remanent, b111_induced
@@ -569,7 +576,8 @@ class FitResult:
             metrics.update(self.metadata["quality_metrics"])
 
         logger.info(
-            f"Fit quality metrics: mean_chi2={metrics['mean_chi2']:.3f}, n_pixels={metrics['n_pixels']}"
+            f"Fit quality metrics: mean_chi2={metrics['mean_chi2']:.3f}, "
+            f"n_pixels={metrics['n_pixels']}"
         )
 
         return metrics

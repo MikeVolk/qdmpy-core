@@ -328,7 +328,8 @@ class FitManager:
                 constraint_type = CONSTRAINT_TYPES[constraint_type]
             else:
                 raise ValueError(
-                    f"Invalid constraint type index: {constraint_type}. Must be 0-{len(CONSTRAINT_TYPES)-1}",
+                    f"Invalid constraint type index: {constraint_type}. "
+                    f"Must be 0-{len(CONSTRAINT_TYPES) - 1}",
                 )
 
         is_base_param = param == "contrast" and any(

@@ -306,8 +306,9 @@ class Measurement:
         )
 
         logger.info("ODMR fitting completed successfully")
+        n_pixels = np.prod(processed_data.scan_dimensions)
         logger.info(
-            f"Extracted {len(parameters)} parameters for {np.prod(processed_data.scan_dimensions)} pixels"
+            f"Extracted {len(parameters)} parameters for {n_pixels} pixels"
         )
         return result
 
