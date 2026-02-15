@@ -37,7 +37,28 @@ ignore = [
 ]
 
 [lint.per-file-ignores]
-"tests/*" = ["D100", "D101", "D103", "ANN101", "S101", "PT015", "B011"]  # Allow missing docstrings and test assertions in tests
+"tests/*" = [
+    # Docstrings - not needed in tests
+    "D100", "D101", "D102", "D103", "D104", "D105", "D107", "D205", "D414", "D415",
+    # Type annotations - less critical in tests
+    "ANN001", "ANN101", "ANN201", "ANN202", "ANN401",
+    # Test-specific patterns
+    "S101",  # assert
+    "PT015", "PT011", "PT009", "PT012",  # pytest assertions
+    "B011",  # assert False
+    # Magic values and constants in test data
+    "PLR2004",  # magic-value-comparison
+    # Variable naming in tests
+    "N806", "N803", "N802",  # non-lowercase variable names
+    # Exception handling is less critical in tests
+    "TRY003", "B904", "TRY300", "TRY301",
+    # Unused arguments in test fixtures
+    "ARG001", "ARG002", "ARG005",
+    # Print statements during debugging
+    "T201",
+    # Complexity - tests can be more complex for data setup
+    "C901", "PLR0912", "PLR0913", "PLR0915",
+]
 "**/__init__.py" = ["F401", "E402"]  # Ignore unused imports and module level imports not at top in __init__.py files
 "tutorial.ipynb" = ["ALL"]   # Ignore all errors in notebooks
 "test.ipynb" = ["ALL"]       # Ignore all errors in notebooks
