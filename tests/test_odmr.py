@@ -24,9 +24,7 @@ class test_odmr(unittest.TestCase):
 
         # Create test ODMRData instance
         self.odmr_data = ODMRData(
-            self.raw_data.copy(),
-            self.scan_dimensions.copy(),
-            self.frequencies.copy()
+            self.raw_data.copy(), self.scan_dimensions.copy(), self.frequencies.copy()
         )
 
         # Create ODMR instance with data
@@ -134,8 +132,7 @@ class test_odmr(unittest.TestCase):
     def test_reset_data(self):
         """Test resetting data to original state."""
         # Process the data first (use MagicMock to avoid dependencies on processor manager)
-        with patch.object(self.odmr.processor_manager, 'process',
-                         return_value=self.odmr_data):
+        with patch.object(self.odmr.processor_manager, "process", return_value=self.odmr_data):
             self.odmr.process_data()
             self.assertTrue(self.odmr.is_processed)
 
@@ -211,11 +208,10 @@ class test_odmr(unittest.TestCase):
         processed_data = ODMRData(
             self.raw_data.copy() * 0.5,  # Modify data for testing
             self.scan_dimensions.copy(),
-            self.frequencies.copy()
+            self.frequencies.copy(),
         )
 
-        with patch.object(self.odmr.processor_manager, 'process',
-                         return_value=processed_data):
+        with patch.object(self.odmr.processor_manager, "process", return_value=processed_data):
             # Process the data
             self.odmr.process_data()
 

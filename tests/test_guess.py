@@ -3,6 +3,7 @@
 These tests cover the model and parameter guessing functionality used for ODMR data
 processing and fitting.
 """
+
 from __future__ import annotations
 
 import os
@@ -16,8 +17,8 @@ import pytest
 # in the main codebase by simplifying the decorators and fixing the logic
 
 # Add the project root to sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
 # Import the module to test
 from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
@@ -53,14 +54,18 @@ def sample_odmr_data():
             for pixel in range(10):
                 for i in range(-5, 6):
                     if 0 <= center_idx1 + i < 100:
-                        data[pol, freq_range, center_idx1 + i, pixel] = 0.5 - 0.4 * np.exp(-0.5 * (i / 2)**2)
+                        data[pol, freq_range, center_idx1 + i, pixel] = 0.5 - 0.4 * np.exp(
+                            -0.5 * (i / 2) ** 2
+                        )
 
             # For ESR15N, create a second dip
             center_idx2 = 70
             for pixel in range(10):
                 for i in range(-5, 6):
                     if 0 <= center_idx2 + i < 100:
-                        data[pol, freq_range, center_idx2 + i, pixel] = 0.5 - 0.4 * np.exp(-0.5 * (i / 2)**2)
+                        data[pol, freq_range, center_idx2 + i, pixel] = 0.5 - 0.4 * np.exp(
+                            -0.5 * (i / 2) ** 2
+                        )
 
     return data
 
@@ -88,33 +93,33 @@ class TestValidateArray:
         """Test validation with correct dimensions."""
         data = np.zeros((2, 3, 4, 5))
         # Should not raise an exception
-        validate_array(data, 4, 'test_data')
+        validate_array(data, 4, "test_data")
 
     def test_validate_incorrect_dimensions(self):
         """Test validation with incorrect dimensions."""
         data = np.zeros((2, 3, 4))
         # Should raise a ValueError
         with pytest.raises(ValueError) as excinfo:
-            validate_array(data, 4, 'test_data')
-        assert 'must have 4 dimensions' in str(excinfo.value)
-        assert 'Got 3' in str(excinfo.value)
+            validate_array(data, 4, "test_data")
+        assert "must have 4 dimensions" in str(excinfo.value)
+        assert "Got 3" in str(excinfo.value)
 
     def test_none_array(self):
         """Test validation with None."""
         with pytest.raises(ValueError):
-            validate_array(None, 4, 'test_data')
+            validate_array(None, 4, "test_data")
 
     def test_non_numeric_array(self):
         """Test validation with a non-numeric array."""
-        data = np.array([['a', 'b'], ['c', 'd']])
+        data = np.array([["a", "b"], ["c", "d"]])
         with pytest.raises(ValueError):
-            validate_array(data, 2, 'test_data')
+            validate_array(data, 2, "test_data")
 
     def test_unexpected_dimensions(self):
         """Test validation with unexpected dimensions."""
         data = np.zeros((2, 3, 4))
         with pytest.raises(ValueError):
-            validate_array(data, 5, 'test_data')
+            validate_array(data, 5, "test_data")
 
 
 class TestGuessNPeaks:
@@ -126,7 +131,7 @@ class TestGuessNPeaks:
         mock_data = np.random.random((2, 3, 100, 10))
 
         # Mock the find_peaks function to return consistent results
-        with patch('QDMpy.guess.find_peaks') as mock_find_peaks:
+        with patch("QDMpy.guess.find_peaks") as mock_find_peaks:
             # Set up the mock to return 2 peaks for every call
             mock_find_peaks.return_value = (np.array([30, 70]), {})
 
@@ -144,7 +149,7 @@ class TestGuessNPeaks:
         mock_data = np.random.random((2, 3, 100, 10))
 
         # Mock the find_peaks function to return inconsistent results
-        with patch('QDMpy.guess.find_peaks') as mock_find_peaks:
+        with patch("QDMpy.guess.find_peaks") as mock_find_peaks:
             # Set up the mock to return different numbers of peaks
             # First polarity, first freq range: 2 peaks
             # First polarity, second freq range: 2 peaks
@@ -184,33 +189,33 @@ class TestGetModelByPeaks:
         model = get_model_by_peaks(1)
         assert isinstance(model, ESRSINGLE)
         assert model.n_peaks == 1
-        assert model.name == 'ESRSINGLE'
+        assert model.name == "ESRSINGLE"
 
     def test_get_model_two_peaks(self, model_instances):
         """Test getting the model for two peaks."""
         model = get_model_by_peaks(2)
         assert isinstance(model, ESR15N)
         assert model.n_peaks == 2
-        assert model.name == 'ESR15N'
+        assert model.name == "ESR15N"
 
     def test_get_model_three_peaks(self, model_instances):
         """Test getting the model for three peaks."""
         model = get_model_by_peaks(3)
         assert isinstance(model, ESR14N)
         assert model.n_peaks == 3
-        assert model.name == 'ESR14N'
+        assert model.name == "ESR14N"
 
     def test_get_model_invalid_peaks(self):
         """Test with an invalid number of peaks."""
         with pytest.raises(ValueError) as excinfo:
             get_model_by_peaks(4)  # No model registered with 4 peaks
-        assert 'No model found for 4 peaks' in str(excinfo.value)
+        assert "No model found for 4 peaks" in str(excinfo.value)
 
 
 class TestGuessModel:
     """Test cases for guess_model function."""
 
-    @patch('QDMpy.guess.guess_n_peaks')
+    @patch("QDMpy.guess.guess_n_peaks")
     def test_guess_model_no_doubt(self, mock_guess_n_peaks):
         """Test guessing model when there's no doubt."""
         # Mock the guess_n_peaks function to return no doubt
@@ -226,7 +231,7 @@ class TestGuessModel:
         assert isinstance(model, ESR15N)
         assert model.n_peaks == 2
 
-    @patch('QDMpy.guess.guess_n_peaks')
+    @patch("QDMpy.guess.guess_n_peaks")
     def test_guess_model_with_doubt(self, mock_guess_n_peaks):
         """Test guessing model when there's doubt."""
         # Mock the guess_n_peaks function to return doubt
@@ -385,7 +390,7 @@ class TestGuessCenterPixel:
         for i in range(-10, 11):
             idx = center_idx + i
             if 0 <= idx < 100:
-                pixel[idx] = 1.0 - 0.8 * np.exp(-0.5 * (i / 3)**2)
+                pixel[idx] = 1.0 - 0.8 * np.exp(-0.5 * (i / 3) ** 2)
 
         # Guess the center using the original function
         center = guess_center_pixel(pixel, frequency_range)
@@ -421,14 +426,14 @@ class TestGuessCenter:
         for i in range(-10, 11):
             idx = center_idx1 + i
             if 0 <= idx < 100:
-                data[0, 0, idx, 0] = 1.0 - 0.8 * np.exp(-0.5 * (i / 3)**2)
+                data[0, 0, idx, 0] = 1.0 - 0.8 * np.exp(-0.5 * (i / 3) ** 2)
 
         # Second pixel: center at index 75
         center_idx2 = 75
         for i in range(-10, 11):
             idx = center_idx2 + i
             if 0 <= idx < 100:
-                data[0, 0, idx, 1] = 1.0 - 0.8 * np.exp(-0.5 * (i / 3)**2)
+                data[0, 0, idx, 1] = 1.0 - 0.8 * np.exp(-0.5 * (i / 3) ** 2)
 
         # Calculate centers
         centers = guess_center(data, frequency_range)
@@ -450,7 +455,7 @@ class TestGuessWidthPixel:
         for i in range(-10, 11):
             idx = center_idx + i
             if 0 <= idx < 100:
-                pixel[idx] = 1.0 - 0.8 * np.exp(-0.5 * (i / 3)**2)
+                pixel[idx] = 1.0 - 0.8 * np.exp(-0.5 * (i / 3) ** 2)
 
         # Guess the width using the original function
         width = guess_width_pixel(pixel, frequency_range, DEFAULT_VMIN, DEFAULT_VMAX)
@@ -545,7 +550,7 @@ class TestGuessInitialFitParameters:
         """Test guessing parameters with an invalid parameter type."""
         # Create a mock model with an unsupported parameter
         mock_model = MagicMock()
-        mock_model.parameters_unique = ['invalid_param']
+        mock_model.parameters_unique = ["invalid_param"]
 
         # Should raise a ValueError
         with pytest.raises(ValueError) as excinfo:

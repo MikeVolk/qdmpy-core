@@ -3,6 +3,7 @@
 This test suite provides comprehensive testing for the model functions,
 Model class, and ModelRegistry in the QDMpy.models module.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -46,15 +47,19 @@ class TestModelFunctions:
 
         # Check output range - should be between 0 and 1 + offset
         assert np.all(result <= 1.0 + parameters[5])
-        assert np.all(result >= 1.0 + parameters[5] - (parameters[2] + parameters[3] + parameters[4]))
+        assert np.all(
+            result >= 1.0 + parameters[5] - (parameters[2] + parameters[3] + parameters[4])
+        )
 
     def test_esr14n_multiple_parameter_sets(self):
         """Test esr14n with multiple parameter sets."""
         x = np.linspace(2.87e9, 2.88e9, 50)
-        parameters = np.array([
-            [2.87e9, 2e6, 0.2, 0.3, 0.1, 0.0],
-            [2.875e9, 3e6, 0.1, 0.2, 0.3, 0.1],
-        ])
+        parameters = np.array(
+            [
+                [2.87e9, 2e6, 0.2, 0.3, 0.1, 0.0],
+                [2.875e9, 3e6, 0.1, 0.2, 0.3, 0.1],
+            ]
+        )
 
         result = esr14n(x, parameters)
 
@@ -117,10 +122,12 @@ class TestModelFunctions:
     def test_esr15n_multiple_parameter_sets(self):
         """Test esr15n with multiple parameter sets."""
         x = np.linspace(2.87e9, 2.88e9, 50)
-        parameters = np.array([
-            [2.87e9, 2e6, 0.2, 0.3, 0.0],
-            [2.875e9, 3e6, 0.3, 0.1, 0.1],
-        ])
+        parameters = np.array(
+            [
+                [2.87e9, 2e6, 0.2, 0.3, 0.0],
+                [2.875e9, 3e6, 0.3, 0.1, 0.1],
+            ]
+        )
 
         result = esr15n(x, parameters)
 
@@ -173,10 +180,12 @@ class TestModelFunctions:
     def test_esrsingle_multiple_parameter_sets(self):
         """Test esrsingle with multiple parameter sets."""
         x = np.linspace(2.87e9, 2.88e9, 50)
-        parameters = np.array([
-            [2.87e9, 2e6, 0.2, 0.0],
-            [2.875e9, 3e6, 0.3, 0.1],
-        ])
+        parameters = np.array(
+            [
+                [2.87e9, 2e6, 0.2, 0.0],
+                [2.875e9, 3e6, 0.3, 0.1],
+            ]
+        )
 
         result = esrsingle(x, parameters)
 
@@ -207,7 +216,7 @@ class TestModelClass:
     def test_model_abstract_class(self):
         """Test that Model cannot be instantiated directly."""
         with pytest.raises(TypeError):
-            Model('TestModel', 1, ['param1', 'param2'])
+            Model("TestModel", 1, ["param1", "param2"])
 
     def test_model_property_parameter(self):
         """Test the parameter property of the Model class."""
@@ -215,7 +224,7 @@ class TestModelClass:
         model = ESR14N()
 
         # Check that parameter strips the unique identifiers
-        expected = ['contrast', 'center', 'width', 'width', 'width', 'offset']
+        expected = ["contrast", "center", "width", "width", "width", "offset"]
         assert model.parameter == expected
 
     def test_model_property_n_parameters(self):
@@ -231,7 +240,7 @@ class TestModelClass:
     def test_model_repr(self):
         """Test the string representation of Model."""
         model = ESR14N()
-        expected = 'Model(ESR14N, n_parameters: 6, n_peaks: 3)'
+        expected = "Model(ESR14N, n_parameters: 6, n_peaks: 3)"
         assert repr(model) == expected
 
     def test_model_func_abstract(self):
@@ -246,7 +255,7 @@ class TestModelClass:
         # call the parent's func method
         class TestModelCallsParentFunc(Model):
             def __init__(self):
-                super().__init__('TEST', 1, ['param1'])
+                super().__init__("TEST", 1, ["param1"])
 
             def func(self, x, parameters):
                 # Call the parent's func method directly, which should raise NotImplementedError
@@ -268,10 +277,10 @@ class TestModelClass:
 
         # Create sample constraints
         constraints = {
-            'center': [2.8e9, 2.9e9, 'FREE'],
-            'width': [1e6, 1e7, 'FREE'],
-            'contrast': [0.0, 1.0, 'FREE'],
-            'offset': [-0.1, 0.1, 'FREE'],
+            "center": [2.8e9, 2.9e9, "FREE"],
+            "width": [1e6, 1e7, "FREE"],
+            "contrast": [0.0, 1.0, "FREE"],
+            "offset": [-0.1, 0.1, "FREE"],
         }
 
         # Test the get_constraint_array method directly
@@ -294,10 +303,10 @@ class TestModelClass:
         """Test the get_constraint_array method of Model."""
         model = ESR14N()
         constraints = {
-            'center': [2.8e9, 2.9e9],  # [min, max]
-            'width': [1e6, 1e7],
-            'contrast': [0.0, 1.0],
-            'offset': [-0.1, 0.1],
+            "center": [2.8e9, 2.9e9],  # [min, max]
+            "width": [1e6, 1e7],
+            "contrast": [0.0, 1.0],
+            "offset": [-0.1, 0.1],
         }
 
         constraint_array = model.get_constraint_array(constraints)
@@ -308,12 +317,18 @@ class TestModelClass:
         # Check that constraints are applied correctly
         # Order should match parameters_unique: ["contrast", "center", "width_0", "width_1", "width_2", "offset"]
         expected = [
-            0.0, 1.0,         # contrast min/max
-            2.8e9, 2.9e9,     # center min/max
-            1e6, 1e7,         # width_0 min/max
-            1e6, 1e7,         # width_1 min/max
-            1e6, 1e7,         # width_2 min/max
-            -0.1, 0.1,         # offset min/max
+            0.0,
+            1.0,  # contrast min/max
+            2.8e9,
+            2.9e9,  # center min/max
+            1e6,
+            1e7,  # width_0 min/max
+            1e6,
+            1e7,  # width_1 min/max
+            1e6,
+            1e7,  # width_2 min/max
+            -0.1,
+            0.1,  # offset min/max
         ]
         assert_array_equal(constraint_array, expected)
 
@@ -322,8 +337,8 @@ class TestModelClass:
         model = ESR14N()
         # Only provide some constraints
         constraints = {
-            'center': [2.8e9, 2.9e9],
-            'contrast': [0.0, 1.0],
+            "center": [2.8e9, 2.9e9],
+            "contrast": [0.0, 1.0],
         }
 
         constraint_array = model.get_constraint_array(constraints)
@@ -334,12 +349,18 @@ class TestModelClass:
         # Parameters not in constraints should have -inf/inf bounds
         # Order: ["contrast", "center", "width_0", "width_1", "width_2", "offset"]
         expected = [
-            0.0, 1.0,         # contrast min/max
-            2.8e9, 2.9e9,     # center min/max
-            -np.inf, np.inf,  # width_0 min/max (defaults)
-            -np.inf, np.inf,  # width_1 min/max (defaults)
-            -np.inf, np.inf,  # width_2 min/max (defaults)
-            -np.inf, np.inf,   # offset min/max (defaults)
+            0.0,
+            1.0,  # contrast min/max
+            2.8e9,
+            2.9e9,  # center min/max
+            -np.inf,
+            np.inf,  # width_0 min/max (defaults)
+            -np.inf,
+            np.inf,  # width_1 min/max (defaults)
+            -np.inf,
+            np.inf,  # width_2 min/max (defaults)
+            -np.inf,
+            np.inf,  # offset min/max (defaults)
         ]
 
         for i in range(len(expected)):
@@ -356,9 +377,16 @@ class TestESR14N:
         """Test initialization of ESR14N."""
         model = ESR14N()
 
-        assert model.name == 'ESR14N'
+        assert model.name == "ESR14N"
         assert model.n_peaks == 3
-        assert model.parameters_unique == ['contrast', 'center', 'width_0', 'width_1', 'width_2', 'offset']
+        assert model.parameters_unique == [
+            "contrast",
+            "center",
+            "width_0",
+            "width_1",
+            "width_2",
+            "offset",
+        ]
         assert model.ahyp == AHYP_14N
 
     def test_func(self):
@@ -381,9 +409,9 @@ class TestESR15N:
         """Test initialization of ESR15N."""
         model = ESR15N()
 
-        assert model.name == 'ESR15N'
+        assert model.name == "ESR15N"
         assert model.n_peaks == 2
-        assert model.parameters_unique == ['contrast', 'center', 'width_0', 'width_1', 'offset']
+        assert model.parameters_unique == ["contrast", "center", "width_0", "width_1", "offset"]
         assert model.ahyp == AHYP_15N
 
     def test_func(self):
@@ -406,9 +434,9 @@ class TestESRSINGLE:
         """Test initialization of ESRSINGLE."""
         model = ESRSINGLE()
 
-        assert model.name == 'ESRSINGLE'
+        assert model.name == "ESRSINGLE"
         assert model.n_peaks == 1
-        assert model.parameters_unique == ['contrast', 'center', 'width_0', 'offset']
+        assert model.parameters_unique == ["contrast", "center", "width_0", "offset"]
 
     def test_func(self):
         """Test the func method of ESRSINGLE."""
@@ -431,13 +459,13 @@ class TestModelRegistry:
         # The registry should already contain the three models
         registry = ModelRegistry.all()
 
-        assert 'ESR14N' in registry
-        assert 'ESR15N' in registry
-        assert 'ESRSINGLE' in registry
+        assert "ESR14N" in registry
+        assert "ESR15N" in registry
+        assert "ESRSINGLE" in registry
 
-        assert registry['ESR14N']['class'] == ESR14N
-        assert registry['ESR15N']['class'] == ESR15N
-        assert registry['ESRSINGLE']['class'] == ESRSINGLE
+        assert registry["ESR14N"]["class"] == ESR14N
+        assert registry["ESR15N"]["class"] == ESR15N
+        assert registry["ESRSINGLE"]["class"] == ESRSINGLE
 
     def test_register_new_model(self):
         """Test registering a new model."""
@@ -445,19 +473,19 @@ class TestModelRegistry:
         mock_model_class = MagicMock()
 
         # Register the mock model
-        ModelRegistry.register('MOCK_MODEL', {'class': mock_model_class, 'hyp': 0.0})
+        ModelRegistry.register("MOCK_MODEL", {"class": mock_model_class, "hyp": 0.0})
 
         # Check registration
         registry = ModelRegistry.all()
-        assert 'MOCK_MODEL' in registry
-        assert registry['MOCK_MODEL']['class'] == mock_model_class
+        assert "MOCK_MODEL" in registry
+        assert registry["MOCK_MODEL"]["class"] == mock_model_class
 
     def test_get_model(self):
         """Test getting a model by name."""
         # Get models by name
-        model_14n = ModelRegistry.get('ESR14N')
-        model_15n = ModelRegistry.get('ESR15N')
-        model_single = ModelRegistry.get('ESRSINGLE')
+        model_14n = ModelRegistry.get("ESR14N")
+        model_15n = ModelRegistry.get("ESR15N")
+        model_single = ModelRegistry.get("ESRSINGLE")
 
         # Check that they are instances of the correct classes
         assert isinstance(model_14n, ESR14N)
@@ -467,7 +495,7 @@ class TestModelRegistry:
     def test_get_nonexistent_model(self):
         """Test getting a model that doesn't exist."""
         with pytest.raises(KeyError):
-            ModelRegistry.get('NON_EXISTENT_MODEL')
+            ModelRegistry.get("NON_EXISTENT_MODEL")
 
     def test_initialize_constraints_method(self):
         """Test the _initialize_constraints method of ModelRegistry."""
@@ -477,32 +505,37 @@ class TestModelRegistry:
 
         class TestModelInitConstraints(QDMpyModel):
             def __init__(self):
-                super().__init__('TEST', 1, ['contrast_0', 'width_0'])
+                super().__init__("TEST", 1, ["contrast_0", "width_0"])
 
             def func(self, x, parameters):
                 return x  # Dummy implementation
 
         # Use a patch to ensure SETTINGS contains the right structure
-        with patch('QDMpy.models.SETTINGS', {
-            'fit': {'constraints': {
-                'contrast_min': 0.0,
-                'contrast_max': 1.0,
-                'contrast_type': 'FREE',
-                'width_min': 1e6,
-                'width_max': 1e7,
-                'width_type': 'FREE',
-            }},
-        }):
+        with patch(
+            "QDMpy.models.SETTINGS",
+            {
+                "fit": {
+                    "constraints": {
+                        "contrast_min": 0.0,
+                        "contrast_max": 1.0,
+                        "contrast_type": "FREE",
+                        "width_min": 1e6,
+                        "width_max": 1e7,
+                        "width_type": "FREE",
+                    }
+                },
+            },
+        ):
             # Access the protected method for testing
             constraints = ModelRegistry._initialize_constraints(TestModelInitConstraints())
 
             # Verify the output has the right structure
-            assert 'contrast_0' in constraints
-            assert 'width_0' in constraints
-            assert len(constraints['contrast_0']) == 3
-            assert constraints['contrast_0'][0] == 0.0  # min
-            assert constraints['contrast_0'][1] == 1.0  # max
-            assert constraints['contrast_0'][2] == 'FREE'  # type
+            assert "contrast_0" in constraints
+            assert "width_0" in constraints
+            assert len(constraints["contrast_0"]) == 3
+            assert constraints["contrast_0"][0] == 0.0  # min
+            assert constraints["contrast_0"][1] == 1.0  # max
+            assert constraints["contrast_0"][2] == "FREE"  # type
 
 
 # Test the path handling in direct import
@@ -515,18 +548,18 @@ def test_direct_import_handling():
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Get the project root (should be the directory containing tests/ and src/)
-    project_root = os.path.abspath(os.path.join(current_dir, '..'))
+    project_root = os.path.abspath(os.path.join(current_dir, ".."))
 
     # Ensure the directory structure is as expected
     assert os.path.exists(current_dir)
     assert os.path.isdir(project_root)
 
     # Check that src/QDMpy exists (not QDMpy directly in the root)
-    src_dir = os.path.join(project_root, 'src')
-    assert os.path.exists(src_dir), 'src directory not found'
+    src_dir = os.path.join(project_root, "src")
+    assert os.path.exists(src_dir), "src directory not found"
 
-    qdmpy_dir = os.path.join(src_dir, 'QDMpy')
-    assert os.path.exists(qdmpy_dir), 'QDMpy module not found in src'
+    qdmpy_dir = os.path.join(src_dir, "QDMpy")
+    assert os.path.exists(qdmpy_dir), "QDMpy module not found in src"
 
     # Create a test for path insertion (directly test logic, not actual insert)
     original_path = list(sys.path)
@@ -535,6 +568,7 @@ def test_direct_import_handling():
         # But we don't modify sys.path in tests
         test_path_with_insert = [project_root] + original_path
         assert project_root == test_path_with_insert[0]
+
 
 # Test the main demo function (lines 375-380)
 def test_main_demo_function():
@@ -547,15 +581,13 @@ def test_main_demo_function():
     # Capture stdout to verify the output
     captured_output = io.StringIO()
 
-    with patch('sys.stdout', captured_output):
+    with patch("sys.stdout", captured_output):
         _main_demo()
 
     # Verify the output matches what we expect
     output = captured_output.getvalue()
-    assert output == '4\n'
+    assert output == "4\n"
 
 
-
-
-if __name__ == '__main__':
-    pytest.main(['-v', 'tests/test_models.py'])
+if __name__ == "__main__":
+    pytest.main(["-v", "tests/test_models.py"])

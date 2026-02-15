@@ -1,5 +1,5 @@
-"""Test module for QDMpy.odmr.data
-"""
+"""Test module for QDMpy.odmr.data"""
+
 from __future__ import annotations
 
 import os
@@ -32,7 +32,7 @@ def sample_odmr_data(sample_data) -> ODMRData:
 @pytest.fixture
 def matlab_loader() -> MatlabLoader:
     """Provide a MatlabLoader instance for testing."""
-    test_data_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+    test_data_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
     return MatlabLoader(data_folder=test_data_path)
 
 
@@ -53,7 +53,7 @@ class TestODMRData:
     def test_init_with_metadata(self, sample_data):
         """Test initialization with metadata."""
         data, scan_dimensions, frequencies = sample_data
-        metadata = {'test_key': 'test_value'}
+        metadata = {"test_key": "test_value"}
         odmr_data = ODMRData(data, scan_dimensions, frequencies, metadata)
 
         assert odmr_data.metadata == metadata
@@ -73,9 +73,10 @@ class TestODMRData:
 
     def test_from_loader_error(self):
         """Test error handling in from_loader method."""
+
         class FailingLoader:
             def load(self, **kwargs):
-                raise ValueError('Test error')
+                raise ValueError("Test error")
 
         with pytest.raises(RuntimeError):
             ODMRData.from_loader(FailingLoader())

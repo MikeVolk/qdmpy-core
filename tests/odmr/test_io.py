@@ -1,5 +1,5 @@
-"""Test module for QDMpy.odmr.io
-"""
+"""Test module for QDMpy.odmr.io"""
+
 from __future__ import annotations
 
 import os
@@ -14,7 +14,7 @@ from QDMpy.odmr.io import BaseLoader, MatlabLoader
 @pytest.fixture
 def test_data_path() -> str:
     """Return the path to the test data directory."""
-    return os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+    return os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 
 
 class TestBaseLoader:
@@ -49,8 +49,8 @@ class TestMatlabLoader:
 
     def test_load_no_files(self):
         """Test load method with no valid files."""
-        with patch('os.listdir', return_value=[]):
-            loader = MatlabLoader(data_folder='/dummy/path')
+        with patch("os.listdir", return_value=[]):
+            loader = MatlabLoader(data_folder="/dummy/path")
             with pytest.raises(FileNotFoundError):
                 loader.load()
 
@@ -58,8 +58,8 @@ class TestMatlabLoader:
         """Test _process_mat_file with 2 image stacks."""
         # Mock data with 2 image stacks
         mock_data = {
-            'imgStack1': np.ones((10, 10)),
-            'imgStack2': np.ones((10, 10)) * 2,
+            "imgStack1": np.ones((10, 10)),
+            "imgStack2": np.ones((10, 10)) * 2,
         }
 
         result = MatlabLoader._process_mat_file(mock_data)
@@ -71,10 +71,10 @@ class TestMatlabLoader:
         """Test _process_mat_file with 4 image stacks."""
         # Mock data with 4 image stacks
         mock_data = {
-            'imgStack1': np.ones((5, 10)),
-            'imgStack2': np.ones((5, 10)) * 2,
-            'imgStack3': np.ones((5, 10)) * 3,
-            'imgStack4': np.ones((5, 10)) * 4,
+            "imgStack1": np.ones((5, 10)),
+            "imgStack2": np.ones((5, 10)) * 2,
+            "imgStack3": np.ones((5, 10)) * 3,
+            "imgStack4": np.ones((5, 10)) * 4,
         }
 
         result = MatlabLoader._process_mat_file(mock_data)
@@ -98,12 +98,12 @@ class TestMatlabLoader:
         """Test _process_mat_file with unsupported number of stacks."""
         # Mock data with 3 image stacks (unsupported)
         mock_data = {
-            'imgStack1': np.ones((10, 10)),
-            'imgStack2': np.ones((10, 10)) * 2,
-            'imgStack3': np.ones((10, 10)) * 3,
+            "imgStack1": np.ones((10, 10)),
+            "imgStack2": np.ones((10, 10)) * 2,
+            "imgStack3": np.ones((10, 10)) * 3,
         }
 
-        with pytest.raises(ValueError, match='Unsupported number of image stacks'):
+        with pytest.raises(ValueError, match="Unsupported number of image stacks"):
             MatlabLoader._process_mat_file(mock_data)
 
     def test_keys_missing_exception(self):
@@ -112,26 +112,26 @@ class TestMatlabLoader:
         # Just directly call the key validation code
 
         # Create a loader instance
-        loader = MatlabLoader(data_folder='/dummy/path')
+        loader = MatlabLoader(data_folder="/dummy/path")
 
         # Create a mock data dict missing the required keys
-        mock_data = {'some_other_key': 'value'}  # Missing imgNumRows and freqList
+        mock_data = {"some_other_key": "value"}  # Missing imgNumRows and freqList
 
         # Check for imgNumRows
-        with pytest.raises(ValueError, match='Missing required key'):
+        with pytest.raises(ValueError, match="Missing required key"):
             try:
                 img_shape = np.array(
                     [
-                        int(np.squeeze(mock_data['imgNumRows'])),
-                        int(np.squeeze(mock_data['imgNumCols'])),
+                        int(np.squeeze(mock_data["imgNumRows"])),
+                        int(np.squeeze(mock_data["imgNumCols"])),
                     ],
                 )
             except KeyError as e:
-                raise ValueError(f'Missing required key in MATLAB file: {e}')
+                raise ValueError(f"Missing required key in MATLAB file: {e}")
 
         # Check for freqList
-        with pytest.raises(ValueError, match='Missing required key'):
+        with pytest.raises(ValueError, match="Missing required key"):
             try:
-                frequencies = np.squeeze(mock_data['freqList'])
+                frequencies = np.squeeze(mock_data["freqList"])
             except KeyError as e:
-                raise ValueError(f'Missing required key in MATLAB file: {e}')
+                raise ValueError(f"Missing required key in MATLAB file: {e}")

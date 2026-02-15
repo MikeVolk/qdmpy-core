@@ -48,5 +48,5 @@ class TestExceptions(unittest.TestCase):
         self.assertIsInstance(context.exception, Exception)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

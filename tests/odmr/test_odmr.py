@@ -1,5 +1,5 @@
-"""Test module for QDMpy.odmr.odmr
-"""
+"""Test module for QDMpy.odmr.odmr"""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -67,7 +67,7 @@ class TestODMR:
     def test_reset_no_data(self):
         """Test reset method with no data."""
         odmr = ODMR()
-        with pytest.raises(ValueError, match='No raw data'):
+        with pytest.raises(ValueError, match="No raw data"):
             odmr.reset()
 
     def test_reset(self, sample_odmr_data):
@@ -89,7 +89,7 @@ class TestODMR:
     def test_process_data_no_data(self):
         """Test process_data method with no data."""
         odmr = ODMR()
-        with pytest.raises(ValueError, match='No ODMRData loaded'):
+        with pytest.raises(ValueError, match="No ODMRData loaded"):
             odmr.process_data()
 
     def test_process_data(self, sample_odmr_data):
@@ -114,7 +114,7 @@ class TestODMR:
     def test_raw_data_property_no_data(self):
         """Test raw_data property with no data."""
         odmr = ODMR()
-        with pytest.raises(ValueError, match='No raw data available'):
+        with pytest.raises(ValueError, match="No raw data available"):
             odmr.raw_data
 
     def test_raw_data_property(self, sample_odmr_data):
@@ -125,7 +125,7 @@ class TestODMR:
     def test_processed_data_property_no_data(self):
         """Test processed_data property with no processed data."""
         odmr = ODMR()
-        with pytest.raises(ValueError, match='No processed data available'):
+        with pytest.raises(ValueError, match="No processed data available"):
             odmr.processed_data
 
     def test_processed_data_property(self, sample_odmr_data):
@@ -146,11 +146,7 @@ class TestODMR:
         odmr = ODMR()
         odmr.processor_manager.add_processor(mock_processor)
 
-        result = (
-            odmr.load_data(data, scan_dimensions, frequencies)
-            .process_data()
-            .reset()
-        )
+        result = odmr.load_data(data, scan_dimensions, frequencies).process_data().reset()
 
         # The chain should end with the ODMR instance
         assert result is odmr

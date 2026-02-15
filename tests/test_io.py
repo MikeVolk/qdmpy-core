@@ -2,6 +2,7 @@
 
 These tests cover the functions for file loading and handling in the io module.
 """
+
 from __future__ import annotations
 
 import os
@@ -12,7 +13,7 @@ import numpy as np
 import pytest
 
 # Add the project root to sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.QDMpy.io import get_image, get_image_file, has_csv
 
@@ -26,44 +27,44 @@ class TestIO:
         assert not has_csv([])
 
         # No CSV files
-        assert not has_csv(['file.txt', 'image.jpg'])
+        assert not has_csv(["file.txt", "image.jpg"])
 
         # Contains CSV files
-        assert has_csv(['file.csv', 'image.jpg'])
-        assert has_csv(['FILE.CSV', 'image.jpg'])  # Case insensitive
+        assert has_csv(["file.csv", "image.jpg"])
+        assert has_csv(["FILE.CSV", "image.jpg"])  # Case insensitive
 
     def test_get_image_file(self):
         """Test get_image_file function."""
         # Test with CSV files
-        files = ['data.csv', 'image.jpg']
-        assert get_image_file(files) == 'data.csv'
+        files = ["data.csv", "image.jpg"]
+        assert get_image_file(files) == "data.csv"
 
         # Test with only JPG files
-        files = ['image1.jpg', 'image2.jpg']
-        assert get_image_file(files) == 'image1.jpg'
+        files = ["image1.jpg", "image2.jpg"]
+        assert get_image_file(files) == "image1.jpg"
 
         # Test with no suitable files
         with pytest.raises(ValueError):
-            get_image_file(['file1.txt', 'file2.txt'])
+            get_image_file(["file1.txt", "file2.txt"])
 
     def test_get_image(self):
         """Test get_image function with temporary files."""
         # Create a temporary directory
         with tempfile.TemporaryDirectory() as tmpdirname:
             # Create a test CSV file
-            csv_path = os.path.join(tmpdirname, 'test.csv')
+            csv_path = os.path.join(tmpdirname, "test.csv")
             test_data = np.array([[1, 2, 3], [4, 5, 6]])
-            np.savetxt(csv_path, test_data, delimiter=',')
+            np.savetxt(csv_path, test_data, delimiter=",")
 
             # Test loading the CSV file
-            img = get_image(tmpdirname, ['test.csv'])
+            img = get_image(tmpdirname, ["test.csv"])
             assert img.shape == (2, 3)
             assert np.array_equal(img, test_data)
 
             # Test with non-existent file
             with pytest.raises(ValueError):
-                get_image(tmpdirname, ['nonexistent.csv'])
+                get_image(tmpdirname, ["nonexistent.csv"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     pytest.main()

@@ -27,12 +27,11 @@ class TestUtils(unittest.TestCase):
 
         try:
             # Mock __package__ to None
-            with patch('QDMpy.utils.__package__', None):
+            with patch("QDMpy.utils.__package__", None):
                 # Mock os.path.dirname, abspath, and join to return known values
-                with patch('os.path.dirname', return_value='/fake/dir'), \
-                     patch('os.path.abspath', side_effect=['/fake/dir', '/fake/project']), \
-                     patch('os.path.join', return_value='/fake/project'):
-
+                with patch("os.path.dirname", return_value="/fake/dir"), patch(
+                    "os.path.abspath", side_effect=["/fake/dir", "/fake/project"]
+                ), patch("os.path.join", return_value="/fake/project"):
                     # Clear sys.path for testing
                     sys.path = []
 
@@ -40,7 +39,7 @@ class TestUtils(unittest.TestCase):
                     setup_package_paths()
 
                     # Check that the path was added
-                    self.assertIn('/fake/project', sys.path)
+                    self.assertIn("/fake/project", sys.path)
         finally:
             # Restore sys.path
             sys.path = original_path
@@ -50,21 +49,21 @@ class TestUtils(unittest.TestCase):
         # Test a range of values
         test_cases = [
             # Input, expected output
-            (0.0, '0.0'),
-            (1, '1.0'),
-            (1000, '1.0 K'),
-            (1234, '1.2 K'),
-            (1000000, '1.0 M'),
-            (1234567, '1.2 M'),
-            (1000000000, '1.0 B'),
-            (1234567890, '1.2 B'),
-            (1000000000000, '1.0 T'),
-            (1234567890123, '1.2 T'),
+            (0.0, "0.0"),
+            (1, "1.0"),
+            (1000, "1.0 K"),
+            (1234, "1.2 K"),
+            (1000000, "1.0 M"),
+            (1234567, "1.2 M"),
+            (1000000000, "1.0 B"),
+            (1234567890, "1.2 B"),
+            (1000000000000, "1.0 T"),
+            (1234567890123, "1.2 T"),
             # Test precision
-            (1234, '1.23 K', 2),
-            (1234, '1.234 K', 3),
+            (1234, "1.23 K", 2),
+            (1234, "1.234 K", 3),
             # Test negative numbers
-            (-1234, '-1.2 K'),
+            (-1234, "-1.2 K"),
         ]
 
         for test_case in test_cases:
@@ -186,5 +185,5 @@ class TestUtils(unittest.TestCase):
         self.assertAlmostEqual(result, expected)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

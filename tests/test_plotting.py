@@ -7,8 +7,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-@unittest.skipIf(importlib.util.find_spec("QDMpy._core") is None,
-                "QDMpy._core module not found - skipping plotting tests")
+@unittest.skipIf(
+    importlib.util.find_spec("QDMpy._core") is None,
+    "QDMpy._core module not found - skipping plotting tests",
+)
 class TestPlotting(unittest.TestCase):
     """Tests for plotting functions in QDMpy."""
 
@@ -16,7 +18,7 @@ class TestPlotting(unittest.TestCase):
         """Set up test fixtures."""
         # Create sample data for testing
         self.frequencies = np.linspace(2.87e9, 2.9e9, 100)
-        self.data = 1.0 - 0.1 * np.exp(-((self.frequencies - 2.885e9) / 1e7) ** 2)
+        self.data = 1.0 - 0.1 * np.exp(-(((self.frequencies - 2.885e9) / 1e7) ** 2))
 
         # Create a mock figure for testing
         self.fig = plt.figure()
@@ -28,7 +30,7 @@ class TestPlotting(unittest.TestCase):
     def tearDown(self):
         """Clean up after tests."""
         # Close all figures
-        plt.close('all')
+        plt.close("all")
 
         # Restore original plt.figure method
         plt.figure = self.original_figure
@@ -48,57 +50,57 @@ class TestFitResultPlotting(unittest.TestCase):
         # Create mock FitResult
         from unittest.mock import Mock
         import numpy as np
-        
+
         self.mock_result = Mock()
         self.mock_result.scan_dimensions = (10, 10)
         self.mock_result.pixel_spacing = 4e-6
-        self.mock_result.model_name = 'ESR15N'
-        
+        self.mock_result.model_name = "ESR15N"
+
         # Mock B-field calculation
         self.b_field_data = np.random.uniform(0, 0.01, (10, 10))  # Tesla
         self.mock_result.calculate_b_field.return_value = self.b_field_data
-        
+
         # Mock parameter maps
         self.center_data = np.random.normal(2.87e9, 1e6, (10, 10))
         self.width_data = np.random.normal(5e5, 1e4, (10, 10))
         self.contrast_data = np.random.uniform(0.01, 0.1, (10, 10))
-        
+
         def mock_get_parameter_map(param_name):
-            if param_name == 'center':
+            if param_name == "center":
                 return self.center_data
-            elif param_name == 'width_0':
+            elif param_name == "width_0":
                 return self.width_data
-            elif param_name == 'contrast':
+            elif param_name == "contrast":
                 return self.contrast_data
             else:
                 return np.random.random((10, 10))
-        
+
         self.mock_result.get_parameter_map.side_effect = mock_get_parameter_map
-        
+
         # Mock parameters dict for overview plot
         self.mock_result.parameters = {
-            'center': self.center_data.flatten(),
-            'width_0': self.width_data.flatten(),
-            'contrast': self.contrast_data.flatten(),
-            'chi2': np.random.exponential(1.0, 100)
+            "center": self.center_data.flatten(),
+            "width_0": self.width_data.flatten(),
+            "contrast": self.contrast_data.flatten(),
+            "chi2": np.random.exponential(1.0, 100),
         }
-        
+
         # Save original show function to restore later
         self.original_show = plt.show
         plt.show = lambda: None  # Disable showing plots during tests
 
     def tearDown(self):
         """Clean up after tests."""
-        plt.close('all')
+        plt.close("all")
         plt.show = self.original_show
 
     def test_plot_fit_result_field_map(self):
         """Test plot_fit_result_field_map function."""
         from QDMpy.plotting import plot_fit_result_field_map
-        
+
         # Should not raise any exceptions
         plot_fit_result_field_map(self.mock_result)
-        
+
         # Check that calculate_b_field was called
         self.mock_result.calculate_b_field.assert_called()
 
@@ -107,92 +109,87 @@ class TestFitResultPlotting(unittest.TestCase):
         from QDMpy.plotting import plot_fit_result_field_map
         import tempfile
         import os
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
             filename = os.path.join(tmpdir, "test_field_map.png")
-            
+
             # Test with custom filename
             plot_fit_result_field_map(self.mock_result, save=True, filename=filename)
-            
+
             # File should exist
             self.assertTrue(os.path.exists(filename))
 
     def test_plot_fit_result_field_map_custom_kwargs(self):
         """Test plot_fit_result_field_map with custom parameters."""
         from QDMpy.plotting import plot_fit_result_field_map
-        
+
         # Should accept custom kwargs
         plot_fit_result_field_map(
             self.mock_result,
             title="Custom Field Map",
             cmap="plasma",
-            colorbar_label="Custom Label (T)"
+            colorbar_label="Custom Label (T)",
         )
-        
+
         # Should not raise any exceptions
         self.mock_result.calculate_b_field.assert_called()
 
     def test_plot_fit_result_parameter_map(self):
         """Test plot_fit_result_parameter_map function."""
         from QDMpy.plotting import plot_fit_result_parameter_map
-        
+
         # Test with different parameters
-        plot_fit_result_parameter_map(self.mock_result, 'center')
-        self.mock_result.get_parameter_map.assert_called_with('center')
-        
-        plot_fit_result_parameter_map(self.mock_result, 'width_0')
-        self.mock_result.get_parameter_map.assert_called_with('width_0')
-        
-        plot_fit_result_parameter_map(self.mock_result, 'contrast')
-        self.mock_result.get_parameter_map.assert_called_with('contrast')
+        plot_fit_result_parameter_map(self.mock_result, "center")
+        self.mock_result.get_parameter_map.assert_called_with("center")
+
+        plot_fit_result_parameter_map(self.mock_result, "width_0")
+        self.mock_result.get_parameter_map.assert_called_with("width_0")
+
+        plot_fit_result_parameter_map(self.mock_result, "contrast")
+        self.mock_result.get_parameter_map.assert_called_with("contrast")
 
     def test_plot_fit_result_parameter_map_with_save(self):
         """Test plot_fit_result_parameter_map with save option."""
         from QDMpy.plotting import plot_fit_result_parameter_map
         import tempfile
         import os
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
             filename = os.path.join(tmpdir, "test_param_map.png")
-            
-            plot_fit_result_parameter_map(
-                self.mock_result, 
-                'center',
-                save=True, 
-                filename=filename
-            )
-            
+
+            plot_fit_result_parameter_map(self.mock_result, "center", save=True, filename=filename)
+
             # File should exist
             self.assertTrue(os.path.exists(filename))
 
     def test_plot_fit_result_parameter_map_custom_kwargs(self):
         """Test plot_fit_result_parameter_map with custom parameters."""
         from QDMpy.plotting import plot_fit_result_parameter_map
-        
+
         # Should accept custom kwargs
         plot_fit_result_parameter_map(
             self.mock_result,
-            'center',
+            "center",
             title="Custom Center Map",
             cmap="viridis",
-            colorbar_label="Custom Center (Hz)"
+            colorbar_label="Custom Center (Hz)",
         )
-        
+
         # Should call get_parameter_map
-        self.mock_result.get_parameter_map.assert_called_with('center')
+        self.mock_result.get_parameter_map.assert_called_with("center")
 
     def test_plot_fit_result_overview(self):
         """Test plot_fit_result_overview function."""
         from QDMpy.plotting import plot_fit_result_overview
-        
+
         # Should not raise any exceptions
         plot_fit_result_overview(self.mock_result)
-        
+
         # Should call both B-field calculation and parameter maps
         self.mock_result.calculate_b_field.assert_called()
-        
+
         # Should call get_parameter_map for available parameters
-        expected_calls = ['center', 'width_0', 'contrast', 'chi2']
+        expected_calls = ["center", "width_0", "contrast", "chi2"]
         for param in expected_calls:
             self.mock_result.get_parameter_map.assert_any_call(param)
 
@@ -201,32 +198,28 @@ class TestFitResultPlotting(unittest.TestCase):
         from QDMpy.plotting import plot_fit_result_overview
         import tempfile
         import os
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
             filename = os.path.join(tmpdir, "test_overview.png")
-            
-            plot_fit_result_overview(
-                self.mock_result,
-                save=True,
-                filename=filename
-            )
-            
+
+            plot_fit_result_overview(self.mock_result, save=True, filename=filename)
+
             # File should exist
             self.assertTrue(os.path.exists(filename))
 
     def test_plot_fit_result_overview_limited_parameters(self):
         """Test plot_fit_result_overview with limited available parameters."""
         from QDMpy.plotting import plot_fit_result_overview
-        
+
         # Modify mock to have fewer parameters
         self.mock_result.parameters = {
-            'center': self.center_data.flatten(),
-            'contrast': self.contrast_data.flatten()
+            "center": self.center_data.flatten(),
+            "contrast": self.contrast_data.flatten(),
         }
-        
+
         # Should still work with fewer parameters
         plot_fit_result_overview(self.mock_result)
-        
+
         # Should still call B-field calculation
         self.mock_result.calculate_b_field.assert_called()
 
@@ -236,47 +229,47 @@ class TestFitResultPlotting(unittest.TestCase):
         from QDMpy.plotting import (
             plot_fit_result_field_map,
             plot_fit_result_parameter_map,
-            plot_fit_result_overview
+            plot_fit_result_overview,
         )
-        
+
         # Create a real FitResult object
         n_pixels = 100
         parameters = {
-            'center': np.random.normal(2.87e9, 1e6, n_pixels),
-            'width_0': np.random.normal(5e5, 1e4, n_pixels),
-            'contrast': np.random.uniform(0.01, 0.1, n_pixels),
-            'offset': np.random.normal(0, 0.01, n_pixels),
-            'chi2': np.random.exponential(1.0, n_pixels),
-            'states': np.random.choice([0, 1], n_pixels, p=[0.9, 0.1])
+            "center": np.random.normal(2.87e9, 1e6, n_pixels),
+            "width_0": np.random.normal(5e5, 1e4, n_pixels),
+            "contrast": np.random.uniform(0.01, 0.1, n_pixels),
+            "offset": np.random.normal(0, 0.01, n_pixels),
+            "chi2": np.random.exponential(1.0, n_pixels),
+            "states": np.random.choice([0, 1], n_pixels, p=[0.9, 0.1]),
         }
-        
+
         result = FitResult(
             parameters=parameters,
             scan_dimensions=(10, 10),
             pixel_spacing=4e-6,
             model_name="ESR15N",
-            metadata={'test': True}
+            metadata={"test": True},
         )
-        
+
         # All plotting functions should work without errors
         plot_fit_result_field_map(result)
-        plot_fit_result_parameter_map(result, 'center')
-        plot_fit_result_parameter_map(result, 'width_0')
-        plot_fit_result_parameter_map(result, 'contrast')
+        plot_fit_result_parameter_map(result, "center")
+        plot_fit_result_parameter_map(result, "width_0")
+        plot_fit_result_parameter_map(result, "contrast")
         plot_fit_result_overview(result)
 
     def test_plotting_error_handling(self):
         """Test error handling in plotting functions."""
         from QDMpy.plotting import plot_fit_result_parameter_map
-        
+
         # Test with invalid parameter name
         def mock_get_parameter_map_error(param_name):
-            if param_name == 'invalid_param':
+            if param_name == "invalid_param":
                 raise KeyError(f"Parameter '{param_name}' not found")
             return np.random.random((10, 10))
-        
+
         self.mock_result.get_parameter_map.side_effect = mock_get_parameter_map_error
-        
+
         # Should propagate the KeyError
         with self.assertRaises(KeyError):
-            plot_fit_result_parameter_map(self.mock_result, 'invalid_param')
+            plot_fit_result_parameter_map(self.mock_result, "invalid_param")

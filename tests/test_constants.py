@@ -42,5 +42,5 @@ class TestConstants(unittest.TestCase):
         self.assertLess(constants.DEFAULT_VMAX, 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

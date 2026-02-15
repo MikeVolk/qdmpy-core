@@ -1,5 +1,5 @@
-"""Test module for QDMpy.odmr.processors
-"""
+"""Test module for QDMpy.odmr.processors"""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -35,10 +35,10 @@ def sample_odmr_data():
     # not the same mock object
     def create_new_instance(*args, **kwargs):
         new_mock = MagicMock()
-        new_mock.data = kwargs.get('data', np.copy(mock_data.data))
-        new_mock.scan_dimensions = kwargs.get('scan_dimensions', np.copy(mock_data.scan_dimensions))
-        new_mock.frequencies = kwargs.get('frequencies', np.copy(mock_data.frequencies))
-        new_mock.metadata = kwargs.get('metadata', mock_data.metadata.copy())
+        new_mock.data = kwargs.get("data", np.copy(mock_data.data))
+        new_mock.scan_dimensions = kwargs.get("scan_dimensions", np.copy(mock_data.scan_dimensions))
+        new_mock.frequencies = kwargs.get("frequencies", np.copy(mock_data.frequencies))
+        new_mock.metadata = kwargs.get("metadata", mock_data.metadata.copy())
         return new_mock
 
     # Set up the class mock to return a new instance
@@ -64,16 +64,16 @@ class TestNormalizationProcessor:
     def test_init_default(self):
         """Test initialization with default parameters."""
         processor = NormalizationProcessor()
-        assert processor.method == 'max'
+        assert processor.method == "max"
 
     def test_init_custom(self):
         """Test initialization with custom parameters."""
-        processor = NormalizationProcessor(method='custom')
-        assert processor.method == 'custom'
+        processor = NormalizationProcessor(method="custom")
+        assert processor.method == "custom"
 
     def test_process_max_method(self, sample_odmr_data):
         """Test process method with 'max' normalization."""
-        processor = NormalizationProcessor(method='max')
+        processor = NormalizationProcessor(method="max")
         result = processor.process(sample_odmr_data)
 
         # Check the result is a new instance
@@ -87,11 +87,11 @@ class TestNormalizationProcessor:
         np.testing.assert_allclose(result.data, expected)
 
         # Check metadata is updated
-        assert result.metadata['normalized'] == True
+        assert result.metadata["normalized"] == True
 
     def test_process_unsupported_method(self, sample_odmr_data):
         """Test process method with unsupported normalization method."""
-        processor = NormalizationProcessor(method='unsupported')
+        processor = NormalizationProcessor(method="unsupported")
         with pytest.raises(NotImplementedError):
             processor.process(sample_odmr_data)
 
@@ -127,8 +127,8 @@ class TestBinningProcessor:
         assert result.data.shape[2] < sample_odmr_data.data.shape[2]
 
         # Check metadata is updated
-        assert result.metadata['binned'] == True
-        assert result.metadata['bin_factor'] == 2
+        assert result.metadata["binned"] == True
+        assert result.metadata["bin_factor"] == 2
 
 
 class TestOutlierProcessor:
@@ -161,8 +161,8 @@ class TestOutlierProcessor:
         assert np.isnan(result.data[0, 0, 0, 0])
 
         # Check metadata is updated
-        assert 'outlier_masking' in result.metadata
-        assert result.metadata['outlier_masking']['threshold'] == 0.1
+        assert "outlier_masking" in result.metadata
+        assert result.metadata["outlier_masking"]["threshold"] == 0.1
 
 
 class TestFluorescenceCorrectionProcessor:
@@ -183,8 +183,8 @@ class TestFluorescenceCorrectionProcessor:
         # Mock the analyze_fluorescence_effects function
         mock_baseline_corrected = np.ones_like(sample_odmr_data.data[:, :, 0:1, :]) * 0.1
         monkeypatch.setattr(
-            'QDMpy.odmr.processors.analyze_fluorescence_effects',
-            lambda data, pixel_idx=None: (0, mock_baseline_corrected)
+            "QDMpy.odmr.processors.analyze_fluorescence_effects",
+            lambda data, pixel_idx=None: (0, mock_baseline_corrected),
         )
 
         # Process the data with default correction factor
@@ -202,17 +202,17 @@ class TestFluorescenceCorrectionProcessor:
         np.testing.assert_allclose(result.data, expected_data)
 
         # Check metadata is updated
-        assert 'fluorescence_correction' in result.metadata
-        assert result.metadata['fluorescence_correction']['factor'] == 0.2
-        assert result.metadata['fluorescence_correction']['applied'] is True
+        assert "fluorescence_correction" in result.metadata
+        assert result.metadata["fluorescence_correction"]["factor"] == 0.2
+        assert result.metadata["fluorescence_correction"]["applied"] is True
 
     def test_process_with_override_factor(self, sample_odmr_data, monkeypatch):
         """Test process method with override correction factor."""
         # Mock the analyze_fluorescence_effects function
         mock_baseline_corrected = np.ones_like(sample_odmr_data.data[:, :, 0:1, :]) * 0.1
         monkeypatch.setattr(
-            'QDMpy.odmr.processors.analyze_fluorescence_effects',
-            lambda data, pixel_idx=None: (0, mock_baseline_corrected)
+            "QDMpy.odmr.processors.analyze_fluorescence_effects",
+            lambda data, pixel_idx=None: (0, mock_baseline_corrected),
         )
 
         # Process the data with override correction factor
@@ -227,15 +227,15 @@ class TestFluorescenceCorrectionProcessor:
         np.testing.assert_allclose(result.data, expected_data)
 
         # Check metadata is updated
-        assert result.metadata['fluorescence_correction']['factor'] == 0.5
+        assert result.metadata["fluorescence_correction"]["factor"] == 0.5
 
     def test_process_with_legacy_param(self, sample_odmr_data, monkeypatch):
         """Test process method with legacy glob_fluorescence parameter."""
         # Mock the analyze_fluorescence_effects function
         mock_baseline_corrected = np.ones_like(sample_odmr_data.data[:, :, 0:1, :]) * 0.1
         monkeypatch.setattr(
-            'QDMpy.odmr.processors.analyze_fluorescence_effects',
-            lambda data, pixel_idx=None: (0, mock_baseline_corrected)
+            "QDMpy.odmr.processors.analyze_fluorescence_effects",
+            lambda data, pixel_idx=None: (0, mock_baseline_corrected),
         )
 
         # Process the data with legacy parameter
@@ -250,7 +250,7 @@ class TestFluorescenceCorrectionProcessor:
         np.testing.assert_allclose(result.data, expected_data)
 
         # Check metadata is updated
-        assert result.metadata['fluorescence_correction']['factor'] == 0.3
+        assert result.metadata["fluorescence_correction"]["factor"] == 0.3
 
 
 class TestFluorescenceAnalysis:
@@ -321,11 +321,11 @@ class TestODMRProcessorManager:
 
         # Add mock processors that each append to metadata
         processor1 = MagicMock()
-        processor1.__class__.__name__ = 'MockProcessor1'
+        processor1.__class__.__name__ = "MockProcessor1"
         processor1.process.return_value = sample_odmr_data
 
         processor2 = MagicMock()
-        processor2.__class__.__name__ = 'MockProcessor2'
+        processor2.__class__.__name__ = "MockProcessor2"
         processor2.process.return_value = sample_odmr_data
 
         manager.add_processor(processor1)
@@ -353,5 +353,5 @@ class TestODMRProcessorManager:
 
         processor_names = manager.list_processors()
         assert len(processor_names) == 2
-        assert processor_names[0] == 'NormalizationProcessor'
-        assert processor_names[1] == 'BinningProcessor'
+        assert processor_names[0] == "NormalizationProcessor"
+        assert processor_names[1] == "BinningProcessor"
