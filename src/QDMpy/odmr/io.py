@@ -15,6 +15,7 @@ Key capabilities include:
 This IO layer decouples the higher-level analysis code from the specifics of
 data file formats, allowing for consistent processing regardless of data source.
 """
+
 from __future__ import annotations
 
 import os
@@ -91,13 +92,9 @@ class MatlabLoader(BaseLoader):
             FileNotFoundError: If no valid MATLAB files are found in the folder.
             ValueError: If the MATLAB file contains an unsupported structure.
         """
-        files = [
-            f
-            for f in os.listdir(self.data_folder)
-            if f.endswith('.mat') and 'run_' in f
-        ]
+        files = [f for f in os.listdir(self.data_folder) if f.endswith(".mat") and "run_" in f]
         if not files:
-            raise FileNotFoundError('No valid MATLAB files found in the folder.')
+            raise FileNotFoundError("No valid MATLAB files found in the folder.")
 
         raw_data, img_shape, frequencies = None, None, None
 
@@ -112,26 +109,32 @@ class MatlabLoader(BaseLoader):
             # Process MATLAB data into raw data arrays
             stacked_data = self._process_mat_file(mat_data)
             raw_data = (
-                stacked_data
-                if raw_data is None
-                else np.stack((raw_data, stacked_data), axis=0)
+                stacked_data if raw_data is None else np.stack((raw_data, stacked_data), axis=0)
             )
 
             try:
                 img_shape = np.array(
                     [
-                        int(np.squeeze(mat_data['imgNumRows'])),
-                        int(np.squeeze(mat_data['imgNumCols'])),
+                        int(np.squeeze(mat_data["imgNumRows"])),
+                        int(np.squeeze(mat_data["imgNumCols"])),
                     ],
                 )
             except KeyError as e:
-                raise ValueError(f'Missing required key in MATLAB file: {e}')
+                raise ValueError(f"Missing required key in MATLAB file: {e}")
 
             try:
                 # Keep original dtype for frequencies to maintain precision
-                frequencies = np.squeeze(mat_data['freqList'])
+                frequencies = np.squeeze(mat_data["freqList"])
+
+                # Apply old codebase logic: split frequencies if needed
+                if "numFreqs" in mat_data:
+                    n_freqs = int(np.squeeze(mat_data["numFreqs"]))
+                    if n_freqs != len(frequencies):
+                        # Split into frequency ranges like old codebase
+                        frequencies = np.array([frequencies[:n_freqs], frequencies[n_freqs:]])
+
             except KeyError as e:
-                raise ValueError(f'Missing required key in MATLAB file: {e}')
+                raise ValueError(f"Missing required key in MATLAB file: {e}")
 
         return raw_data, img_shape, frequencies
 
@@ -152,19 +155,21 @@ class MatlabLoader(BaseLoader):
         Raises:
             ValueError: If the MATLAB file contains an unsupported number of image stacks.
         """
-        n_img_stacks = len([k for k in mat_file if 'imgStack' in k])
+        n_img_stacks = len([k for k in mat_file if "imgStack" in k])
         if n_img_stacks == 2:
-            return np.stack([mat_file['imgStack1'].T, mat_file['imgStack2'].T], axis=0)
+            return np.stack([mat_file["imgStack1"].T, mat_file["imgStack2"].T], axis=0)
         if n_img_stacks == 4:
             return np.stack(
                 [
                     np.concatenate(
-                        [mat_file['imgStack1'].T, mat_file['imgStack2'].T], axis=0,
+                        [mat_file["imgStack1"].T, mat_file["imgStack2"].T],
+                        axis=0,
                     ),
                     np.concatenate(
-                        [mat_file['imgStack3'].T, mat_file['imgStack4'].T], axis=0,
+                        [mat_file["imgStack3"].T, mat_file["imgStack4"].T],
+                        axis=0,
                     ),
                 ],
                 axis=0,
             )
-        raise ValueError('Unsupported number of image stacks in MATLAB file.')
+        raise ValueError("Unsupported number of image stacks in MATLAB file.")

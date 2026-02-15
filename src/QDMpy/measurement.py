@@ -13,6 +13,7 @@ for working with Quantum Diamond Microscope (QDM) experiments. Key capabilities 
 The Measurement class integrates data from the ODMR module with optical images and
 provides a unified interface for analysis and visualization of QDM experiments.
 """
+
 from __future__ import annotations
 
 import logging
@@ -33,7 +34,7 @@ if not __package__:
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Go one level up to the package root
-    package_root = os.path.abspath(os.path.join(current_dir, '..'))
+    package_root = os.path.abspath(os.path.join(current_dir, ".."))
     # Add to path if not already there
     if package_root not in sys.path:
         sys.path.insert(0, package_root)
@@ -73,7 +74,7 @@ class Measurement:
         laser_image: NDArray,
         output_directory: str | Path | PathLike,
         pixel_spacing: float = 4e-6,
-        fit_model: str = 'auto',
+        fit_model: str = "auto",
     ) -> None:
         """Initialize the Measurement object.
 
@@ -91,7 +92,7 @@ class Measurement:
             ValueError: If the ODMR instance is not properly initialized or if image shapes
                        don't match the ODMR data.
         """
-        LOG.info('Initializing Measurement object.')
+        LOG.info("Initializing Measurement object.")
         LOG.info('Output directory: "%s"', output_directory)
 
         self.output_directory = Path(output_directory)
@@ -99,7 +100,7 @@ class Measurement:
         self.metadata: dict[str, Any] = {}
 
         # Store the ODMR instance
-        LOG.debug('Setting ODMR data.')
+        LOG.debug("Setting ODMR data.")
         self.odmr = odmr
 
         # Validate ODMR data availability
@@ -107,30 +108,30 @@ class Measurement:
             # Use public property instead of accessing protected member
             _ = self.odmr.raw_data
         except ValueError:
-            raise ValueError('ODMR instance has no raw data')
+            raise ValueError("ODMR instance has no raw data")
 
         # Validate ODMR instance data
-        LOG.debug('ODMR raw data shape: %s', self.odmr.raw_data.shape)
+        LOG.debug("ODMR raw data shape: %s", self.odmr.raw_data.shape)
 
         # Check if data has been processed
         try:
-            LOG.debug('ODMR processed data shape: %s', self.odmr.processed_data.shape)
+            LOG.debug("ODMR processed data shape: %s", self.odmr.processed_data.shape)
         except ValueError:
-            LOG.warning('ODMR data has not been processed yet. Some functionality may be limited.')
+            LOG.warning("ODMR data has not been processed yet. Some functionality may be limited.")
 
-        LOG.debug('ODMR frequencies shape: %s', self.odmr.raw_data.frequencies.shape)
+        LOG.debug("ODMR frequencies shape: %s", self.odmr.raw_data.frequencies.shape)
 
         # Initialize outlier mask
-        LOG.debug('Initializing outlier mask.')
+        LOG.debug("Initializing outlier mask.")
         self._outliers: NDArray | None = np.ones(self.odmr.raw_data.shape, dtype=bool)
 
         # Store light and laser images
-        LOG.debug('Storing light and laser images.')
+        LOG.debug("Storing light and laser images.")
         self.light_image = light_image
         self.laser_image = laser_image
 
         # Initialize B111 field and fit model
-        LOG.debug('Initializing B111 field and fit model.')
+        LOG.debug("Initializing B111 field and fit model.")
         self._B111: NDArray | None = None
         # Store default fit model preference
         self._fit_model = fit_model
@@ -141,9 +142,11 @@ class Measurement:
         Returns:
             str: A human-readable string representation of the Measurement.
         """
-        return (f"Measurement(odmr={self.odmr}, "
-                f"output_directory='{self.output_directory}', "
-                f"pixel_spacing={self.pixel_spacing} m)")
+        return (
+            f"Measurement(odmr={self.odmr}, "
+            f"output_directory='{self.output_directory}', "
+            f"pixel_spacing={self.pixel_spacing} m)"
+        )
 
     def __repr__(self) -> str:
         """Return a developer string representation of the Measurement object.
@@ -151,35 +154,33 @@ class Measurement:
         Returns:
             str: A detailed string representation for debugging and development.
         """
-        return (f"Measurement(odmr={self.odmr!r}, "
-                f"light_image.shape={self.light_image.shape}, "
-                f"laser_image.shape={self.laser_image.shape}, "
-                f"output_directory='{self.output_directory}', "
-                f"pixel_spacing={self.pixel_spacing})")
+        return (
+            f"Measurement(odmr={self.odmr!r}, "
+            f"light_image.shape={self.light_image.shape}, "
+            f"laser_image.shape={self.laser_image.shape}, "
+            f"output_directory='{self.output_directory}', "
+            f"pixel_spacing={self.pixel_spacing})"
+        )
 
-    def fit_odmr(
-        self,
-        model_name: str | None = None,
-        **kwargs: Any
-    ) -> 'FitResult':
+    def fit_odmr(self, model_name: str | None = None, **kwargs: Any) -> "FitResult":
         """Fit ODMR spectra and return results object.
-        
+
         This method performs spectral fitting on the processed ODMR data using
         the specified model and returns a FitResult object containing the results
         and analysis methods.
-        
+
         Args:
             model_name: Name of the model to use for fitting. Options are:
                 - "ESR14N": For 14N isotope (3 peaks)
-                - "ESR15N": For 15N isotope (2 peaks)  
+                - "ESR15N": For 15N isotope (2 peaks)
                 - "ESRSINGLE": For single resonance
                 - None: Automatic model selection based on data analysis
-            **kwargs: Additional arguments passed to FitManager (e.g., constraints, 
+            **kwargs: Additional arguments passed to FitManager (e.g., constraints,
                 estimator settings)
-        
+
         Returns:
             FitResult object containing fit results and analysis methods
-            
+
         Raises:
             ValueError: If ODMR data hasn't been processed yet
             ImportError: If required fitting dependencies are not available
@@ -193,6 +194,7 @@ class Measurement:
             LOG.info("Auto-detecting optimal model for ODMR data...")
             try:
                 from QDMpy.guess import guess_model
+
                 processed_data = self.odmr.processed_data
                 # Use mean spectrum for model detection
                 mean_spectrum = np.mean(processed_data.data, axis=(0, 1, 2))
@@ -212,12 +214,12 @@ class Measurement:
                 raise ValueError("ODMR data must be processed before fitting")
         except (AttributeError, ValueError):
             raise ValueError(
-                "ODMR data must be processed before fitting. "
-                "Call odmr.process_data() first."
+                "ODMR data must be processed before fitting. " "Call odmr.process_data() first."
             )
 
         # Check for fitting dependencies
         from QDMpy import PYGPUFIT_PRESENT
+
         if not PYGPUFIT_PRESENT:
             raise ImportError(
                 "pyGpufit is required for fitting but not available. "
@@ -230,7 +232,7 @@ class Measurement:
             data=processed_data.data,
             frequencies=processed_data.frequencies,
             model_name=model_name,
-            **kwargs
+            **kwargs,
         )
 
         # Perform the fitting
@@ -242,47 +244,58 @@ class Measurement:
 
         # Get all available parameters from FitManager
         parameters = {}
-        for param_name in ['center', 'width_0', 'contrast', 'offset', 'chi2', 'states']:
+
+        # Get model-specific parameters first
+        model_params = fit_manager.model_params_unique
+        for param_name in model_params:
             try:
                 parameters[param_name] = fit_manager.get_param(param_name)
-            except (KeyError, AttributeError):
+            except (KeyError, AttributeError, ValueError):
+                LOG.debug("Parameter '%s' not available for model %s", param_name, model_name)
+                continue
+
+        # Add fitting metadata if available
+        for param_name in ["chi2"]:
+            try:
+                parameters[param_name] = fit_manager.get_param(param_name)
+            except (KeyError, AttributeError, ValueError):
                 LOG.debug("Parameter '%s' not available for model %s", param_name, model_name)
                 continue
 
         # Add any model-specific parameters
         if model_name == "ESR14N":
             # 14N has multiple width parameters
-            for width_param in ['width_1', 'width_2']:
+            for width_param in ["width_1", "width_2"]:
                 try:
                     parameters[width_param] = fit_manager.get_param(width_param)
                 except (KeyError, AttributeError):
                     continue
         elif model_name == "ESR15N":
-            # 15N has width_1 parameter
+            # 15N has width parameter
             try:
-                parameters['width_1'] = fit_manager.get_param('width_1')
+                parameters["width"] = fit_manager.get_param("width")
             except (KeyError, AttributeError):
                 pass
 
         # Calculate quality metrics
         quality_metrics = {}
-        if 'chi2' in parameters and 'states' in parameters:
-            chi2_values = parameters['chi2']
-            states_values = parameters['states']
+        if "chi2" in parameters and "states" in parameters:
+            chi2_values = parameters["chi2"]
+            states_values = parameters["states"]
             quality_metrics = {
-                'mean_chi2': float(np.mean(chi2_values)),
-                'median_chi2': float(np.median(chi2_values)),
-                'std_chi2': float(np.std(chi2_values)),
-                'convergence_rate': float(np.mean(states_values == 0)),
-                'n_pixels': int(chi2_values.size),
-                'n_converged': int(np.sum(states_values == 0))
+                "mean_chi2": float(np.mean(chi2_values)),
+                "median_chi2": float(np.median(chi2_values)),
+                "std_chi2": float(np.std(chi2_values)),
+                "convergence_rate": float(np.mean(states_values == 0)),
+                "n_pixels": int(chi2_values.size),
+                "n_converged": int(np.sum(states_values == 0)),
             }
 
         # Prepare metadata
         metadata = {
-            'fit_timestamp': __import__('datetime').datetime.now().isoformat(),
-            'quality_metrics': quality_metrics,
-            'fit_settings': kwargs  # Store any additional fitting parameters
+            "fit_timestamp": __import__("datetime").datetime.now().isoformat(),
+            "quality_metrics": quality_metrics,
+            "fit_settings": kwargs,  # Store any additional fitting parameters
         }
 
         # Create lightweight FitResult with extracted data only
@@ -291,16 +304,19 @@ class Measurement:
             scan_dimensions=tuple(processed_data.scan_dimensions),
             pixel_spacing=self.pixel_spacing,
             model_name=model_name,
-            metadata=metadata
+            metadata=metadata,
         )
 
         LOG.info("ODMR fitting completed successfully")
-        LOG.info("Extracted %d parameters for %d pixels",
-                len(parameters), np.prod(processed_data.scan_dimensions))
+        LOG.info(
+            "Extracted %d parameters for %d pixels",
+            len(parameters),
+            np.prod(processed_data.scan_dimensions),
+        )
         return result
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import numpy as np
 
     from QDMpy.odmr.data import ODMRData
@@ -322,7 +338,7 @@ if __name__ == '__main__':
     dummy_laser = np.ones((10, 10))
 
     # Create output directory
-    output_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'tests', 'output')
+    output_dir = os.path.join(os.path.dirname(__file__), "..", "..", "tests", "output")
     os.makedirs(output_dir, exist_ok=True)
 
     measure = Measurement(
@@ -333,5 +349,10 @@ if __name__ == '__main__':
     )
 
     import matplotlib.pyplot as plt
-    plt.imshow(measure.odmr.processed_data.data[0,0,:,0].reshape(measure.odmr.processed_data.scan_dimensions))
+
+    plt.imshow(
+        measure.odmr.processed_data.data[0, 0, :, 0].reshape(
+            measure.odmr.processed_data.scan_dimensions
+        )
+    )
     plt.show()

@@ -3,6 +3,7 @@
 This module defines the command-line interface structure for QDMpy,
 including the argument parsing, subcommands, and execution logic.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -18,7 +19,7 @@ from QDMpy.models import ModelRegistry
 
 def setup_logging(debug: bool = False) -> None:
     """Configure logging for the QDMpy CLI.
-    
+
     Args:
         debug: Whether to enable debug logging
     """
@@ -33,10 +34,10 @@ def setup_logging(debug: bool = False) -> None:
 
 def create_parser(version: str) -> argparse.ArgumentParser:
     """Create the argument parser for the QDMpy CLI.
-    
+
     Args:
         version: The QDMpy version string
-    
+
     Returns:
         The configured argument parser
     """
@@ -96,7 +97,7 @@ def create_parser(version: str) -> argparse.ArgumentParser:
 
 def _configure_process_parser(parser: argparse.ArgumentParser) -> None:
     """Configure the parser for the 'process' command.
-    
+
     Args:
         parser: The argument parser to configure
     """
@@ -106,25 +107,29 @@ def _configure_process_parser(parser: argparse.ArgumentParser) -> None:
         type=str,
     )
     parser.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         help="Output directory for results (default: input_path/results)",
         type=str,
     )
     parser.add_argument(
-        "-b", "--bin-factor",
+        "-b",
+        "--bin-factor",
         help="Spatial binning factor (default: 1)",
         type=int,
         default=1,
     )
     parser.add_argument(
-        "-m", "--model",
+        "-m",
+        "--model",
         help="ODMR fitting model (default: auto)",
         type=str,
         choices=list(ModelRegistry.all().keys()) + ["auto"],
         default="auto",
     )
     parser.add_argument(
-        "-gf", "--global-fluorescence",
+        "-gf",
+        "--global-fluorescence",
         help="Global fluorescence correction value (default: 0.2)",
         type=float,
         default=0.2,
@@ -145,7 +150,7 @@ def _configure_process_parser(parser: argparse.ArgumentParser) -> None:
 
 def _configure_models_parser(parser: argparse.ArgumentParser) -> None:
     """Configure the parser for the 'models' command.
-    
+
     Args:
         parser: The argument parser to configure
     """
@@ -166,7 +171,7 @@ def _configure_models_parser(parser: argparse.ArgumentParser) -> None:
 
 def _configure_info_parser(parser: argparse.ArgumentParser) -> None:
     """Configure the parser for the 'info' command.
-    
+
     Args:
         parser: The argument parser to configure
     """
@@ -186,10 +191,10 @@ def _configure_info_parser(parser: argparse.ArgumentParser) -> None:
 
 def process_command(args: argparse.Namespace) -> int:
     """Process a CLI command based on parsed arguments.
-    
+
     Args:
         args: Parsed command-line arguments
-    
+
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
@@ -205,10 +210,10 @@ def process_command(args: argparse.Namespace) -> int:
 
 def process_command_handler(args: argparse.Namespace) -> int:
     """Handle the 'process' command.
-    
+
     Args:
         args: Command-line arguments
-    
+
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
@@ -226,7 +231,9 @@ def process_command_handler(args: argparse.Namespace) -> int:
 
     # Check if output directory exists
     if output_path.exists() and not args.overwrite:
-        CLI_LOGGER.error(f"Output directory {output_dir} already exists. Use --overwrite to overwrite.")
+        CLI_LOGGER.error(
+            f"Output directory {output_dir} already exists. Use --overwrite to overwrite."
+        )
         return 1
 
     # Create output directory if it doesn't exist
@@ -273,16 +280,17 @@ def process_command_handler(args: argparse.Namespace) -> int:
         CLI_LOGGER.error(f"Error processing data: {e!s}")
         if args.debug:
             import traceback
+
             traceback.print_exc()
         return 1
 
 
 def models_command_handler(args: argparse.Namespace) -> int:
     """Handle the 'models' command.
-    
+
     Args:
         args: Command-line arguments
-    
+
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
@@ -323,10 +331,10 @@ def models_command_handler(args: argparse.Namespace) -> int:
 
 def info_command_handler(args: argparse.Namespace) -> int:
     """Handle the 'info' command.
-    
+
     Args:
         args: Command-line arguments
-    
+
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
@@ -365,5 +373,6 @@ def info_command_handler(args: argparse.Namespace) -> int:
         CLI_LOGGER.error(f"Error analyzing data: {e!s}")
         if args.debug:
             import traceback
+
             traceback.print_exc()
         return 1

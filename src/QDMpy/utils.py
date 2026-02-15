@@ -12,6 +12,7 @@ This module provides essential utility functions used throughout the QDMpy packa
 These utilities serve as the underlying infrastructure for the higher-level
 functionality provided by other modules in the package.
 """
+
 from __future__ import annotations
 
 import logging
@@ -36,14 +37,15 @@ def setup_package_paths() -> None:
         current_dir = os.path.dirname(os.path.abspath(__file__))
 
         # Go one level up to the package root
-        package_root = os.path.abspath(os.path.join(current_dir, '..'))
+        package_root = os.path.abspath(os.path.join(current_dir, ".."))
 
         # Add to path if not already there
         if package_root not in sys.path:
             sys.path.insert(0, package_root)
 
+
 # Unit prefixes for millify function
-MILLNAMES = ['n', 'μ', 'm', '', ' K', ' M', ' B', ' T']
+MILLNAMES = ["n", "μ", "m", "", " K", " M", " B", " T"]
 
 
 def millify(n: float, sign: int = 1) -> str:
@@ -58,10 +60,11 @@ def millify(n: float, sign: int = 1) -> str:
     """
     # Calculate the appropriate unit index
     millidx = max(
-        0, min(len(MILLNAMES) - 1, int(np.floor(0 if n == 0 else np.log10(abs(n)) / 3))),
+        0,
+        min(len(MILLNAMES) - 1, int(np.floor(0 if n == 0 else np.log10(abs(n)) / 3))),
     )
 
-    return f'{n / 10 ** (3 * millidx):.{sign}f}{MILLNAMES[millidx + 3]}'
+    return f"{n / 10 ** (3 * millidx):.{sign}f}{MILLNAMES[millidx + 3]}"
 
 
 def idx2rc(idx: ArrayLike, shape: tuple[int, ...]) -> tuple[NDArray, NDArray]:
@@ -204,5 +207,5 @@ def main() -> None:
     np.array([1, 2, 5, 10])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

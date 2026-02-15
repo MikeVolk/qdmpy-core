@@ -8,6 +8,7 @@ Optically Detected Magnetic Resonance (ODMR) data from Quantum Diamond Microscop
 Note: This interface is maintained for backwards compatibility.
 New users should use the 'qdmpy' command-line interface instead.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -23,7 +24,7 @@ from QDMpy.cli import CLI_LOGGER
 
 def setup_logging(debug: bool = False) -> None:
     """Configure logging for the QDMpy CLI.
-    
+
     Args:
         debug: Whether to enable debug logging
     """
@@ -51,55 +52,55 @@ def main(argv: list[str] = None) -> int:
     start_time = time.time()
 
     parser = argparse.ArgumentParser(
-        description='Calculate the B111 field from ODMR data recorded with QDMio made QDM',
+        description="Calculate the B111 field from ODMR data recorded with QDMio made QDM",
     )
     parser.add_argument(
-        '-i',
-        '--input',
-        help='Input path, location of the QDM data files and LED/laser images.',
+        "-i",
+        "--input",
+        help="Input path, location of the QDM data files and LED/laser images.",
         required=True,
     )
     parser.add_argument(
-        '-o',
-        '--output',
-        help='Output directory for results (default: input_path/results)',
+        "-o",
+        "--output",
+        help="Output directory for results (default: input_path/results)",
         required=False,
     )
     parser.add_argument(
-        '-b',
-        '--binfactor',
+        "-b",
+        "--binfactor",
         type=int,
-        help='Binning factor of the ODMR data. Default: 1',
+        help="Binning factor of the ODMR data. Default: 1",
         default=1,
         required=False,
     )
     parser.add_argument(
-        '-m',
-        '--model',
+        "-m",
+        "--model",
         type=str,
         help="Type of model used in the experiment. Default: 'auto'",
-        default='auto',
+        default="auto",
         required=False,
     )
     parser.add_argument(
-        '-gf',
-        '--globalfluorescence',
+        "-gf",
+        "--globalfluorescence",
         type=float,
-        help='Global fluorescence of the sample. Default: 0.2',
+        help="Global fluorescence of the sample. Default: 0.2",
         default=0.2,
         required=False,
     )
     parser.add_argument(
-        '--debug',
-        help='Sets logging to DEBUG level',
-        action='store_true',
+        "--debug",
+        help="Sets logging to DEBUG level",
+        action="store_true",
         default=False,
         required=False,
     )
     parser.add_argument(
-        '--overwrite',
-        help='Overwrite existing results',
-        action='store_true',
+        "--overwrite",
+        help="Overwrite existing results",
+        action="store_true",
         default=False,
         required=False,
     )
@@ -110,8 +111,7 @@ def main(argv: list[str] = None) -> int:
 
         # Show warning about deprecated interface
         CLI_LOGGER.warning(
-            "This command-line interface is deprecated. "
-            "Please use 'qdmpy process' instead."
+            "This command-line interface is deprecated. " "Please use 'qdmpy process' instead."
         )
 
         # Determine output directory
@@ -120,7 +120,9 @@ def main(argv: list[str] = None) -> int:
 
         # Check if output directory exists
         if output_path.exists() and not args.overwrite:
-            CLI_LOGGER.error(f"Output directory {output_dir} already exists. Use --overwrite to overwrite.")
+            CLI_LOGGER.error(
+                f"Output directory {output_dir} already exists. Use --overwrite to overwrite."
+            )
             return 1
 
         # Create output directory if it doesn't exist
@@ -160,11 +162,12 @@ def main(argv: list[str] = None) -> int:
 
     except Exception as e:
         CLI_LOGGER.error(f"Error processing data: {e!s}")
-        if getattr(args, 'debug', False):
+        if getattr(args, "debug", False):
             import traceback
+
             traceback.print_exc()
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

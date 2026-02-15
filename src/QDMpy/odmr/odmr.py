@@ -1,6 +1,6 @@
 """Core ODMR spectroscopy management for QDM analysis.
 
-This module provides the central `ODMR` class which orchestrates all aspects of 
+This module provides the central `ODMR` class which orchestrates all aspects of
 Optically Detected Magnetic Resonance (ODMR) data handling. Key capabilities include:
 
 - Data lifecycle: Managing raw and processed spectral data from acquisition to analysis
@@ -11,7 +11,7 @@ Optically Detected Magnetic Resonance (ODMR) data handling. Key capabilities inc
 - Outlier detection: Identifying and handling anomalous spectral data
 - Fluorescence correction: Compensating for illumination variations across samples
 
-The ODMR class integrates with ODMRData for storage and ODMRProcessorManager for 
+The ODMR class integrates with ODMRData for storage and ODMRProcessorManager for
 applying configurable processing pipelines to raw spectroscopic data.
 """
 
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 # Add the `src` directory to sys.path for local imports if the script is run directly
 if not __package__:
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(current_dir, '../..'))
+    project_root = os.path.abspath(os.path.join(current_dir, "../.."))
     sys.path.insert(0, project_root)
 
 from QDMpy.odmr.data import ODMRData
@@ -70,7 +70,10 @@ class ODMR:
         self.processor_manager = ODMRProcessorManager()
 
     def load_data(
-        self, raw_data: NDArray, scan_dimensions: NDArray, frequencies: NDArray,
+        self,
+        raw_data: NDArray,
+        scan_dimensions: NDArray,
+        frequencies: NDArray,
     ) -> ODMR:
         """Load raw ODMR data into the instance.
 
@@ -92,7 +95,7 @@ class ODMR:
             _processed_data: Resets to None.
             is_processed: Resets to False.
         """
-        LOG.info('Loading data into ODMR instance.')
+        LOG.info("Loading data into ODMR instance.")
         self._raw_data = ODMRData(raw_data, scan_dimensions, frequencies)
         self._processed_data = None
         self.is_processed = False
@@ -110,9 +113,9 @@ class ODMR:
             ValueError: If no raw data is loaded.
         """
         if self._raw_data is None:
-            LOG.error('No raw data loaded. Cannot reset.')
-            raise ValueError('No raw data to reset to.')
-        LOG.info('Resetting to raw data.')
+            LOG.error("No raw data loaded. Cannot reset.")
+            raise ValueError("No raw data to reset to.")
+        LOG.info("Resetting to raw data.")
         self._processed_data = None
         self.is_processed = False
         return self
@@ -130,9 +133,9 @@ class ODMR:
             ValueError: If no raw data is loaded.
         """
         if self._raw_data is None:
-            LOG.error('No data loaded.')
-            raise ValueError('No ODMRData loaded.')
-        LOG.info('Processing data.')
+            LOG.error("No data loaded.")
+            raise ValueError("No ODMRData loaded.")
+        LOG.info("Processing data.")
         self._processed_data = self.processor_manager.process(self._raw_data)
         self.is_processed = True
         return self
@@ -148,8 +151,8 @@ class ODMR:
             ValueError: If no raw data is loaded.
         """
         if self._raw_data is None:
-            LOG.error('No raw data loaded.')
-            raise ValueError('No raw data available.')
+            LOG.error("No raw data loaded.")
+            raise ValueError("No raw data available.")
         return self._raw_data
 
     @property
@@ -163,8 +166,8 @@ class ODMR:
             ValueError: If no processing has been performed yet.
         """
         if self._processed_data is None:
-            LOG.error('No data has been processed yet.')
-            raise ValueError('No processed data available.')
+            LOG.error("No data has been processed yet.")
+            raise ValueError("No processed data available.")
         return self._processed_data
 
 
@@ -188,7 +191,7 @@ if __name__ == "__main__":
     print(odmr.processed_data.shape)
 
     plt.plot(odmr.processed_data.frequencies, odmr.processed_data.data[0, 0, 0, :])
-    plt.xlabel('Frequency (GHz)')
-    plt.ylabel('Signal (a.u.)')
-    plt.title('Processed ODMR Signal')
+    plt.xlabel("Frequency (GHz)")
+    plt.ylabel("Signal (a.u.)")
+    plt.title("Processed ODMR Signal")
     plt.show()

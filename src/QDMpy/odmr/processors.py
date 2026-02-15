@@ -171,7 +171,8 @@ class BinningProcessor(BaseProcessor):
         reshape_data = data.data.reshape(
             data.data.shape[0],
             data.data.shape[1],
-            rows, cols,
+            rows,
+            cols,
             data.data.shape[-1],
         )
 
@@ -191,9 +192,9 @@ class BinningProcessor(BaseProcessor):
         metadata["bin_factor"] = self.bin_factor
 
         new_scan_dimensions = (
-            int(data.scan_dimensions[0]/self.bin_factor),
-            int(data.scan_dimensions[1]/self.bin_factor),
-                                )
+            int(data.scan_dimensions[0] / self.bin_factor),
+            int(data.scan_dimensions[1] / self.bin_factor),
+        )
 
         return data.__class__(
             data=binned,
@@ -346,7 +347,9 @@ def analyze_fluorescence_effects(
                 np.square(data.data - np.nanmean(data.data, axis=2, keepdims=True)), axis=-1
             )
             delta_copy = delta.copy()
-            delta_copy[delta_copy > 0.001] = np.nan  # Mask high values to find a representative pixel
+            delta_copy[delta_copy > 0.001] = (
+                np.nan
+            )  # Mask high values to find a representative pixel
 
             # Check if all values are NaN
             if np.all(np.isnan(delta_copy)):

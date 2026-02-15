@@ -12,6 +12,7 @@ offers several advantages:
 
 Each exception is documented with its purpose and typical usage scenarios.
 """
+
 from __future__ import annotations
 
 

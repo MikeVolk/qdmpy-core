@@ -4,6 +4,7 @@ This package provides command-line tools for interacting with QDMpy functionalit
 The entry point 'qdmpy' provides access to various subcommands for processing and
 analyzing Quantum Diamond Microscopy data.
 """
+
 from __future__ import annotations
 
 import logging
@@ -13,12 +14,13 @@ from importlib.metadata import version as get_version
 # Set up logging specifically for the CLI
 CLI_LOGGER = logging.getLogger("QDMpy.cli")
 
+
 # Define the main entry point function that will be called by the 'qdmpy' command
 def main() -> int:
     """Main entry point for the QDMpy CLI.
-    
+
     This function delegates to subcommands defined in the CLI package.
-    
+
     Returns:
         int: Exit code (0 for success, non-zero for errors)
     """
@@ -37,7 +39,7 @@ def main() -> int:
     args = parser.parse_args()
 
     # Show help if no command provided
-    if not hasattr(args, 'func'):
+    if not hasattr(args, "func"):
         parser.print_help()
         return 2
 
@@ -52,5 +54,6 @@ def main() -> int:
         if args.debug:
             # Print full traceback in debug mode
             import traceback
+
             traceback.print_exc()
         return 1

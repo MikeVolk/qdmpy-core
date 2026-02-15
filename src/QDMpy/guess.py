@@ -24,7 +24,7 @@ from scipy.signal import find_peaks
 # Add the `src` directory to sys.path for local imports if the script is run directly
 if not __package__:
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(current_dir, '..'))
+    project_root = os.path.abspath(os.path.join(current_dir, ".."))
     sys.path.insert(0, project_root)
 
 from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN, PROMINENCE
@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from QDMpy.models import Model
 
 LOG = logging.getLogger(__name__)
+
 
 @njit(fastmath=True)
 def normalize_pixel(pixel: NDArray) -> NDArray:
@@ -69,7 +70,7 @@ def validate_array(data: NDArray, expected_dim: int, name: str) -> None:
         raise ValueError(f"{name} must be a numeric array.")
     if data.ndim != expected_dim:
         raise ValueError(
-            f'{name} must have {expected_dim} dimensions. Got {data.ndim}.',
+            f"{name} must have {expected_dim} dimensions. Got {data.ndim}.",
         )
 
 
@@ -88,15 +89,15 @@ def guess_model(data: NDArray) -> Model:
     Raises:
         ModelGuessNotPossible: If the model cannot be reliably determined.
     """
-    LOG.info('Trying to detect best fitting model for ODMR data.')
+    LOG.info("Trying to detect best fitting model for ODMR data.")
     n_peaks, doubt, _ = guess_n_peaks(data)
 
     if not doubt:
         model = get_model_by_peaks(n_peaks)
-        LOG.info(f'Detected model: {model.name}')
+        LOG.info(f"Detected model: {model.name}")
         return model
     raise ModelGuessNotPossible(
-        'Guessing the model is not possible. Please select model manually.',
+        "Guessing the model is not possible. Please select model manually.",
     )
 
 
@@ -119,7 +120,7 @@ def guess_n_peaks(data: NDArray) -> tuple[int, bool, list[NDArray]]:
     Raises:
         ValueError: If the data array does not have 4 dimensions.
     """
-    validate_array(data, 4, 'data')
+    validate_array(data, 4, "data")
     median_data = np.median(data, axis=3)
     indices = [
         find_peaks(-median_data[p, f], prominence=PROMINENCE)[0]
@@ -143,11 +144,11 @@ def get_model_by_peaks(n_peaks: int) -> Model:
         ValueError: If no model matches the given number of peaks.
     """
     for model_info in ModelRegistry.all().values():
-        model_class = model_info['class']
+        model_class = model_info["class"]
         model_instance = model_class()
         if model_instance.n_peaks == n_peaks:
             return model_instance
-    raise ValueError(f'No model found for {n_peaks} peaks.')
+    raise ValueError(f"No model found for {n_peaks} peaks.")
 
 
 def guess_initial_fit_parameters(data: NDArray, freq: NDArray, model: Model) -> NDArray:
@@ -167,14 +168,16 @@ def guess_initial_fit_parameters(data: NDArray, freq: NDArray, model: Model) -> 
     """
     # Define parameter guessers for each parameter type
     parameter_guessers = {
-        'center': lambda: guess_center(data, freq),
-        'contrast': lambda: guess_contrast(data),
-        'width': lambda: guess_width(data, freq, DEFAULT_VMIN, DEFAULT_VMAX),
-        'offset': lambda: np.ones((
-            data.shape[0],
-            data.shape[1],
-            data.shape[3],
-        )),  # Default offset is 1
+        "center": lambda: guess_center(data, freq),
+        "contrast": lambda: guess_contrast(data),
+        "width": lambda: guess_width(data, freq, DEFAULT_VMIN, DEFAULT_VMAX),
+        "offset": lambda: np.ones(
+            (
+                data.shape[0],
+                data.shape[1],
+                data.shape[3],
+            )
+        ),  # Default offset is 1
     }
 
     # Initialize list for parameter arrays
@@ -182,8 +185,8 @@ def guess_initial_fit_parameters(data: NDArray, freq: NDArray, model: Model) -> 
 
     # Guess each parameter defined in the model
     for param in model.parameters_unique:
-        param_type = param.split('_')[0]  # Extract parameter type (e.g., 'width')
-        LOG.info(f'Calculating initial guess for {param_type}')
+        param_type = param.split("_")[0]  # Extract parameter type (e.g., 'width')
+        LOG.info(f"Calculating initial guess for {param_type}")
         if param_type in parameter_guessers:
             fit_parameters.append(parameter_guessers[param_type]())
         else:
@@ -206,10 +209,10 @@ def guess_contrast(data: NDArray) -> NDArray:
     Returns:
         NDArray: 3D array of contrast values (n_polarity, n_range, n_pixels).
     """
-    amp = np.zeros((data.shape[0], data.shape[1], data.shape[3]))
+    amp = np.zeros((data.shape[0], data.shape[1], data.shape[2]))
     for polarity in range(data.shape[0]):
         for freq_range in range(data.shape[1]):
-            for pixel in prange(data.shape[3]):
+            for pixel in prange(data.shape[2]):
                 amp[polarity, freq_range, pixel] = guess_contrast_pixel(
                     data[polarity, freq_range, :, pixel],
                 )
@@ -244,15 +247,17 @@ def guess_center(data: NDArray, freq: NDArray) -> NDArray:
     Returns:
         NDArray: 3D array of center frequencies (n_polarity, n_range, n_pixels).
     """
-    centers = np.zeros((
-        data.shape[0],
-        data.shape[1],
-        data.shape[3],
-    ))  # Result shape: (n_polarity, n_range, n_pixels)
+    centers = np.zeros(
+        (
+            data.shape[0],
+            data.shape[1],
+            data.shape[2],
+        )
+    )  # Result shape: (n_polarity, n_range, n_pixels)
     for p in range(data.shape[0]):
         for r in range(data.shape[1]):
-            for px in prange(data.shape[3]):
-                centers[p, r, px] = guess_center_pixel(data[p, r, :, px], freq)
+            for px in prange(data.shape[2]):
+                centers[p, r, px] = guess_center_pixel(data[p, r, :, px], freq[r])
     return centers
 
 
@@ -285,16 +290,21 @@ def guess_width(data: NDArray, freq: NDArray, vmin: float, vmax: float) -> NDArr
     Returns:
         NDArray: 3D array of widths (n_polarity, n_range, n_pixels).
     """
-    widths = np.zeros((
-        data.shape[0],
-        data.shape[1],
-        data.shape[3],
-    ))  # Result shape: (n_polarity, n_range, n_pixels)
+    widths = np.zeros(
+        (
+            data.shape[0],
+            data.shape[1],
+            data.shape[2],
+        )
+    )  # Result shape: (n_polarity, n_range, n_pixels)
     for p in range(data.shape[0]):
         for r in range(data.shape[1]):
-            for px in prange(data.shape[3]):
+            for px in prange(data.shape[2]):
                 widths[p, r, px] = guess_width_pixel(
-                    data[p, r, :, px], freq, vmin, vmax,
+                    data[p, r, :, px],
+                    freq[r],
+                    vmin,
+                    vmax,
                 )
     return widths
 
@@ -319,7 +329,7 @@ def guess_width_pixel(pixel: NDArray, freq: NDArray, vmin: float, vmax: float) -
     return abs(freq[ridx] - freq[lidx])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from QDMpy.models import ModelRegistry
     from QDMpy.odmr.data import ODMRData
     from QDMpy.odmr.io import MatlabLoader
@@ -327,7 +337,7 @@ if __name__ == '__main__':
     from QDMpy.odmr.processors import BinningProcessor, ODMRProcessorManager
 
     # Step 1: Load ODMR data
-    loader = MatlabLoader(data_folder='/home/mike/git/QDMpy/tests/data')
+    loader = MatlabLoader(data_folder="/home/mike/git/QDMpy/tests/data")
     raw_data, scan_dims, freqs = loader.load()
     odmr_data = ODMRData(data=raw_data, scan_dimensions=scan_dims, frequencies=freqs)
 
@@ -345,7 +355,9 @@ if __name__ == '__main__':
 
     model = get_model_by_peaks(n_peaks)
     fit_parameters = guess_initial_fit_parameters(
-        odmr.processed_data.data, freqs, model,
+        odmr.processed_data.data,
+        freqs,
+        model,
     )
     # print(f"Guessed initial fit parameters: {fit_parameters}")
     # print(fit_parameters[0, 0, 100])

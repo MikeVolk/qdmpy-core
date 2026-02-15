@@ -100,24 +100,22 @@ class ConstraintManager:
         """Get the current constraints."""
         return self._constraints
 
-    def to_array(
-        self: ConstraintManager, n_pixel: int, model_params: list[str]
-    ) -> NDArray:
+    def to_array(self: ConstraintManager, n_pixel: int, model_params: list[str]) -> NDArray:
         """Convert constraints to array format for external libraries."""
         constraints_list: list[float] = []
         for param in model_params:
-            constraints_list.extend(
-                (self._constraints[param][0], self._constraints[param][1])
-            )
+            param_min, param_max = self._constraints[param][0], self._constraints[param][1]
+            # Convert center frequency constraints from GHz to Hz for pygpufit models
+            if param.startswith("center"):
+                param_min *= 1e9
+                param_max *= 1e9
+            constraints_list.extend((param_min, param_max))
         return np.tile(constraints_list, (n_pixel, 1))
 
     def get_constraint_types(self, model_params: list[str]) -> NDArray:
         """Get constraint types as integer array."""
         return np.array(
-            [
-                CONSTRAINT_TYPES.index(self._constraints[param][2])
-                for param in model_params
-            ],
+            [CONSTRAINT_TYPES.index(self._constraints[param][2]) for param in model_params],
             dtype=np.int32,
         )
 
@@ -134,7 +132,7 @@ class FitManager:
 
     Attributes:
         data (NDArray): 3D array of spectral data (n_polarity, n_frange, n_pixel, n_frequencies)
-        f_ghz (NDArray): Frequency values in GHz
+        f_ghz (NDArray): Frequency values in GHz (converted from input Hz)
         _model (Model): Selected model for fitting (ESR14N, ESR15N, or ESRSINGLE)
         _initial_parameter (NDArray): Initial guess parameters for fitting
         _fit_results (NDArray): Fitted parameters after fitting
@@ -168,10 +166,12 @@ class FitManager:
             ModelGuessNotPossible: If model_name is 'auto' but model cannot be determined
         """
         self._data = data
-        self.f_ghz = frequencies
+        # Convert frequencies from Hz to GHz for consistent units throughout
+        self.f_ghz = frequencies / 1e9
         LOG.debug(
             "Initializing FitManager instance with data: %s at %s frequencies.",
-            self.data.shape, frequencies.shape,
+            self.data.shape,
+            frequencies.shape,
         )
 
         # Determine and set the model
@@ -214,7 +214,9 @@ class FitManager:
         Returns:
             str: A string representation of the FitManager object
         """
-        return f"FitManager(data: {self.data.shape}, f: {self.f_ghz.shape}, model: {self._model.name})"
+        return (
+            f"FitManager(data: {self.data.shape}, f: {self.f_ghz.shape}, model: {self._model.name})"
+        )
 
     @property
     def data(self: FitManager) -> NDArray:
@@ -292,10 +294,11 @@ class FitManager:
         )
         # Reinitialize constraint manager with new model parameters
         self._constraint_manager = ConstraintManager(
-            self.model_params_unique, SETTINGS["fit"]["constraints"], UNITS
+            self.model_params_unique, SETTINGS["model"]["constraints"], UNITS
         )
         self._reset_fit()
-        self._initial_parameter = self.get_initial_parameter()
+        # Reset initial parameters to None - they will be computed lazily when needed
+        self._initial_parameter = None
 
     @property
     def model_params(self: FitManager) -> list[str]:
@@ -363,22 +366,24 @@ class FitManager:
 
         if is_base_param:
             # Apply to all numbered variants
-            contrast_params = [
-                p for p in self.model_params_unique if p.startswith("contrast_")
-            ]
+            contrast_params = [p for p in self.model_params_unique if p.startswith("contrast_")]
             for contrast_param in contrast_params:
                 LOG.debug(
                     "Setting constraints for %s: vmin=%s, vmax=%s, type=%s",
-                    contrast_param, vmin, vmax, constraint_type,
+                    contrast_param,
+                    vmin,
+                    vmax,
+                    constraint_type,
                 )
-                self._constraint_manager.set_constraint(
-                    contrast_param, vmin, vmax, constraint_type
-                )
+                self._constraint_manager.set_constraint(contrast_param, vmin, vmax, constraint_type)
         else:
             # Handle normal parameters
             LOG.debug(
                 "Setting constraints for %s: vmin=%s, vmax=%s, type=%s",
-                param, vmin, vmax, constraint_type,
+                param,
+                vmin,
+                vmax,
+                constraint_type,
             )
             self._constraint_manager.set_constraint(param, vmin, vmax, constraint_type)
 
@@ -438,10 +443,8 @@ class FitManager:
         Returns:
             NDArray: Initial parameter values
         """
-        n_pol, n_frange, _, n_pixel = self.data.shape
-        result = np.zeros(
-            (n_pol, n_frange, n_pixel, self.n_parameter), dtype=np.float32
-        )
+        n_pol, n_frange, n_pixel, _ = self.data.shape
+        result = np.zeros((n_pol, n_frange, n_pixel, self.n_parameter), dtype=np.float32)
 
         # Process each parameter in the model's unique parameter list
         for idx, param_name in enumerate(self.model_params_unique):
@@ -453,9 +456,7 @@ class FitManager:
             elif param_type == "contrast":
                 param_values = guess_contrast(self.data)
             elif param_type == "width":
-                param_values = guess_width(
-                    self.data, self.f_ghz, DEFAULT_VMIN, DEFAULT_VMAX
-                )
+                param_values = guess_width(self.data, self.f_ghz, DEFAULT_VMIN, DEFAULT_VMAX)
             elif param_type == "offset":
                 param_values = np.zeros((n_pol, n_frange, n_pixel))
             else:
@@ -569,7 +570,9 @@ class FitManager:
             freq_max = self.f_ghz[irange].max()
             LOG.info(
                 "Fitting frequency range %s from %.3f-%.3f GHz",
-                irange, freq_min, freq_max,
+                irange,
+                freq_min,
+                freq_max,
             )
 
             results = self.fit_frange(
@@ -590,9 +593,7 @@ class FitManager:
                 self._fit_results = np.stack((self._fit_results, results[0]))
                 self._states = np.stack((self._states, results[1]))
                 self._chi_squares = np.stack((self._chi_squares, results[2]))
-                self._number_iterations = np.stack(
-                    (self._number_iterations, results[3])
-                )
+                self._number_iterations = np.stack((self._number_iterations, results[3]))
                 self._execution_time = np.stack((self._execution_time, results[4]))
 
             LOG.info("Fit finished in %.2f seconds", results[4])
@@ -628,25 +629,34 @@ class FitManager:
         if not PYGPUFIT_PRESENT:
             raise ImportError("pyGpufit is required for fitting but not installed")
 
+        # Store original data shape for result reshaping
+        self._current_data_shape = data.shape
+
         # Reshape data for pyGpufit
         n_pol, n_pix, n_freqs = data.shape
         data_reshaped = data.reshape((-1, n_freqs))
         initial_parameters_reshaped = initial_parameters.reshape((-1, self.n_parameter))
+
+        # Convert center frequency parameters from GHz to Hz for pygpufit models
+        for idx, param_name in enumerate(self.model_params_unique):
+            if param_name.startswith("center"):
+                initial_parameters_reshaped[:, idx] *= 1e9
+
         n_pixel = data_reshaped.shape[0]
 
         # Prepare constraints
         constraints = self.get_constraints_array(n_pixel)
         constraint_types = self.get_constraint_types()
 
-        # Execute fit
+        # Execute fit - convert frequencies back to Hz for pygpufit models
         results = gf.fit_constrained(
             data=np.ascontiguousarray(data_reshaped, dtype=np.float32),
-            user_info=np.ascontiguousarray(freq, dtype=np.float32),
+            user_info=np.ascontiguousarray(
+                freq * 1e9, dtype=np.float32
+            ),  # Convert GHz to Hz for models
             constraints=np.ascontiguousarray(constraints, dtype=np.float32),
             constraint_types=constraint_types,
-            initial_parameters=np.ascontiguousarray(
-                initial_parameters_reshaped, dtype=np.float32
-            ),
+            initial_parameters=np.ascontiguousarray(initial_parameters_reshaped, dtype=np.float32),
             weights=None,
             model_id=self._model.model_id,
             max_number_iterations=SETTINGS["fit"]["max_number_iterations"],
@@ -668,6 +678,14 @@ class FitManager:
         for i, result in enumerate(results):
             if not isinstance(result, float):
                 results[i] = self.reshape_result(result)
+
+        # Convert center frequency results from Hz back to GHz for consistency
+        if len(results) > 0 and not isinstance(results[0], float):
+            fit_parameters = results[0]  # First result is fitted parameters
+            for idx, param_name in enumerate(self.model_params_unique):
+                if param_name.startswith("center"):
+                    fit_parameters[..., idx] /= 1e9
+
         return results
 
     def reshape_result(self: FitManager, result: NDArray) -> NDArray:
@@ -679,6 +697,8 @@ class FitManager:
         Returns:
             NDArray: Reshaped result array
         """
-        n_pol, n_pix, _ = self.data.shape[0], self.data.shape[3], None
+        # Use the shape of the data that was actually passed to fit_frange
+        # _current_data_shape has shape (n_polarity, n_pixel, n_frequencies)
+        n_pol, n_pix = self._current_data_shape[0], self._current_data_shape[1]
         result_reshaped = result.reshape((n_pol, n_pix, -1))
         return np.squeeze(result_reshaped)

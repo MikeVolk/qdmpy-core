@@ -13,6 +13,7 @@ used in Quantum Diamond Microscopy analysis. Key capabilities include:
 This module serves as the boundary between the file system and the data structures
 used by the QDMpy analysis pipeline.
 """
+
 from __future__ import annotations
 
 import logging
@@ -36,7 +37,7 @@ def has_csv(lst: Sequence[str | bytes | os.PathLike[Any]]) -> bool:
     Returns:
         True if at least one file has a .csv extension, False otherwise.
     """
-    return any('.csv' in str(s).lower() for s in lst)
+    return any(".csv" in str(s).lower() for s in lst)
 
 
 def get_image_file(lst: Sequence[str | bytes | os.PathLike[Any]]) -> str:
@@ -54,12 +55,12 @@ def get_image_file(lst: Sequence[str | bytes | os.PathLike[Any]]) -> str:
         ValueError: If no suitable image files are found.
     """
     if has_csv(lst):
-        filtered_lst = [s for s in lst if '.csv' in str(s).lower()]
+        filtered_lst = [s for s in lst if ".csv" in str(s).lower()]
     else:
-        filtered_lst = [s for s in lst if '.jpg' in str(s).lower()]
+        filtered_lst = [s for s in lst if ".jpg" in str(s).lower()]
 
     if not filtered_lst:
-        raise ValueError('No suitable image files found in the list')
+        raise ValueError("No suitable image files found in the list")
 
     return str(filtered_lst[0])
 
@@ -88,10 +89,10 @@ def get_image(
         image_file = get_image_file(lst)
         file_path = os.path.join(folder_str, image_file)
 
-        if image_file.lower().endswith('.csv'):
+        if image_file.lower().endswith(".csv"):
             # Try different delimiters for CSV files
             try:
-                img = np.loadtxt(file_path, delimiter=',')
+                img = np.loadtxt(file_path, delimiter=",")
             except ValueError:
                 # Fall back to default delimiter (whitespace)
                 img = np.loadtxt(file_path)
@@ -100,4 +101,4 @@ def get_image(
 
         return np.array(img)
     except Exception as e:
-        raise ValueError(f'Failed to load image: {e!s}')
+        raise ValueError(f"Failed to load image: {e!s}")

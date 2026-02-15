@@ -1,7 +1,7 @@
 """Data structures for ODMR spectroscopy in QDM analysis.
 
 This module provides the `ODMRData` class, which serves as the fundamental data structure
-for handling Optically Detected Magnetic Resonance (ODMR) spectroscopic measurements. 
+for handling Optically Detected Magnetic Resonance (ODMR) spectroscopic measurements.
 Key capabilities include:
 
 - Dimensional organization: Managing multi-dimensional data (spatial, spectral, polarization)
@@ -28,7 +28,7 @@ from numpy.typing import NDArray
 # Add the `src` directory to sys.path for local imports if the script is run directly
 if not __package__:
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(current_dir, '../..'))
+    project_root = os.path.abspath(os.path.join(current_dir, "../.."))
     sys.path.insert(0, project_root)
 
 
@@ -97,15 +97,15 @@ class ODMRData:
         Raises:
             RuntimeError: If the loader fails to fetch data.
         """
-        LOG.info(f'Loading ODMR data using loader: {loader.__class__.__name__}')
+        LOG.info(f"Loading ODMR data using loader: {loader.__class__.__name__}")
         try:
             raw_data, scan_dimensions, frequencies = loader.load(**(loader_args or {}))
             return cls(raw_data, scan_dimensions, frequencies)
         except Exception as e:
             LOG.exception(
-                f'Failed to load data using loader {loader.__class__.__name__}: {e}',
+                f"Failed to load data using loader {loader.__class__.__name__}: {e}",
             )
-            raise RuntimeError(f'Data loading failed: {e}')
+            raise RuntimeError(f"Data loading failed: {e}")
 
     @property
     def shape(self) -> tuple[int, ...]:

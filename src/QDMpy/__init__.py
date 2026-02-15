@@ -7,9 +7,10 @@ processing ODMR spectra, fitting spectral data to models, and creating visualiza
 The package is designed to be modular and extensible, allowing users to customize
 the data processing pipeline to meet their specific experimental needs.
 """
+
 from __future__ import annotations
 
-__version__ = '0.1.0a'
+__version__ = "0.1.0a"
 
 import logging
 import os
@@ -22,29 +23,29 @@ from typing import Any
 import matplotlib as mpl
 import tomli
 
-mpl.rcParams['figure.facecolor'] = 'white'
+mpl.rcParams["figure.facecolor"] = "white"
 
 PROJECT_PATH = Path(os.path.abspath(__file__)).parent
-CONFIG_PATH = Path().home() / '.config' / 'QDMpy'
-CONFIG_FILE = CONFIG_PATH / 'config.ini'
-CONFIG_INI = PROJECT_PATH / 'config.ini'
-DESKTOP = Path().home() / 'Desktop'
+CONFIG_PATH = Path().home() / ".config" / "QDMpy"
+CONFIG_FILE = CONFIG_PATH / "config.ini"
+CONFIG_INI = PROJECT_PATH / "config.ini"
+DESKTOP = Path().home() / "Desktop"
 
 SRC_PATH = PROJECT_PATH.parent
 sys.path.append(str(SRC_PATH))
 
 ### LOGGING ###
-logging.getLogger('matplotlib').setLevel(logging.WARNING)
-logging.getLogger('h5py').setLevel(logging.WARNING)
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
+logging.getLogger("h5py").setLevel(logging.WARNING)
 
-logging_conf = Path(PROJECT_PATH, 'logging.conf')
+logging_conf = Path(PROJECT_PATH, "logging.conf")
 fileConfig(logging_conf)
 
-LOG = logging.getLogger('QDMpy')
+LOG = logging.getLogger("QDMpy")
 
-LOG.info('WELCOME TO QDMpy')
-LOG.debug('QDMpy version %s installed at %s', __version__, PROJECT_PATH)
-LOG.debug('QDMpy config file %s', CONFIG_FILE)
+LOG.info("WELCOME TO QDMpy")
+LOG.debug("QDMpy version %s installed at %s", __version__, PROJECT_PATH)
+LOG.debug("QDMpy config file %s", CONFIG_FILE)
 
 
 ############################### configfile stuff ######################################
@@ -70,8 +71,8 @@ def load_config(file: Path | str = CONFIG_FILE) -> dict:
     Returns:
         Dictionary with the config file contents.
     """
-    LOG.info('Loading config file: %s', file)
-    with open(file, 'rb') as file_obj:
+    LOG.info("Loading config file: %s", file)
+    with open(file, "rb") as file_obj:
         return tomli.load(file_obj)
 
 
@@ -82,7 +83,7 @@ def reset_config() -> None:
     from the package's internal config.ini file.
     """
     make_configfile(reset=True)
-    LOG.info('Config file reset')
+    LOG.info("Config file reset")
 
 
 make_configfile()
@@ -91,33 +92,33 @@ SETTINGS = load_config()
 ############################### CHECK IF pygpufit IS INSTALLED ###############################
 import importlib.util
 
-package = 'pygpufit'
+package = "pygpufit"
 # find_spec will look for the package
 PYGPUFIT_PRESENT = importlib.util.find_spec(package) is not None
 
-if PYGPUFIT_PRESENT is None or sys.platform == 'darwin':
+if PYGPUFIT_PRESENT is None or sys.platform == "darwin":
     LOG.error(
         "Can't import pyGpufit. The package is necessary for most of the calculations. "
         "Functionality of QDMpy will be greatly diminished.",
     )
-    wheel_path = os.path.join(SRC_PATH, 'pyGpufit', 'win', 'pyGpufit-1.2.0-py2.py3-none-any.whl')
+    wheel_path = os.path.join(SRC_PATH, "pyGpufit", "win", "pyGpufit-1.2.0-py2.py3-none-any.whl")
     LOG.error(
-        'try running:\n>>> pip install --no-index --find-links=%s pyGpufit',
+        "try running:\n>>> pip install --no-index --find-links=%s pyGpufit",
         wheel_path,
     )
 else:
     import pygpufit.gpufit as gf
 
-    LOG.info('CUDA available: %s', gf.cuda_available())
+    LOG.info("CUDA available: %s", gf.cuda_available())
     runtime, driver = gf.get_cuda_version()
-    LOG.info('CUDA versions runtime: %s, driver: %s', runtime, driver)
+    LOG.info("CUDA versions runtime: %s, driver: %s", runtime, driver)
 
 
 # Import important modules
 from . import io
 
-if __name__ == '__main__':
-    LOG.info('This is a module. It is not meant to be run as a script.')
+if __name__ == "__main__":
+    LOG.info("This is a module. It is not meant to be run as a script.")
     sys.exit(0)
 
 
@@ -136,9 +137,9 @@ def test_data_location() -> Path:
         This function no longer contains hardcoded system-specific paths.
         Set the QDMPY_TEST_DATA environment variable to specify your test data location.
     """
-    test_data_env = os.environ.get('QDMPY_TEST_DATA')
+    test_data_env = os.environ.get("QDMPY_TEST_DATA")
     if test_data_env:
         return Path(test_data_env)
-    
+
     # Default to a directory in the user's home folder
-    return Path.home() / 'QDMpy_test_data'
+    return Path.home() / "QDMpy_test_data"

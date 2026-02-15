@@ -5,6 +5,7 @@ spectra from Nitrogen-Vacancy (NV) centers in diamond. It includes models for di
 nitrogen isotopes (14N and 15N) and different configurations, along with a registry
 system for managing and retrieving models.
 """
+
 from __future__ import annotations
 
 import logging
@@ -141,9 +142,7 @@ def esr15n(
     return np.array(out)
 
 
-def esrsingle(
-    x: NDArray[np.floating], parameter: NDArray[np.floating]
-) -> NDArray[np.floating]:
+def esrsingle(x: NDArray[np.floating], parameter: NDArray[np.floating]) -> NDArray[np.floating]:
     """Evaluate the ESRSINGLE model for single resonance systems.
 
     This function calculates the ODMR spectrum response for systems with a single
@@ -212,9 +211,7 @@ class Model(ABC):
         >>> Model: ESR14N, Parameters: 6
     """
 
-    def __init__(
-        self: Model, name: str, n_peaks: int, parameters_unique: list[str]
-    ) -> None:
+    def __init__(self: Model, name: str, n_peaks: int, parameters_unique: list[str]) -> None:
         """Initialize a model with basic properties.
 
         Args:
@@ -233,7 +230,7 @@ class Model(ABC):
         Returns:
             List of base parameter names (e.g., 'width' from 'width_0').
         """
-        return [i.split('_')[0] for i in self.parameters_unique]
+        return [i.split("_")[0] for i in self.parameters_unique]
 
     @abstractmethod
     def func(
@@ -266,9 +263,7 @@ class Model(ABC):
         """
         return len(self.parameters_unique)
 
-    def get_constraint_array(
-        self: Model, constraint: dict[str, Any]
-    ) -> NDArray[np.floating]:
+    def get_constraint_array(self: Model, constraint: dict[str, Any]) -> NDArray[np.floating]:
         """Create an array of constraints for model parameters.
 
         Converts a dictionary of parameter constraints into a flattened array
@@ -290,14 +285,14 @@ class Model(ABC):
         """
         constraint_array = []
         for p in self.parameters_unique:
-            base_param = p.split('_')[0]
+            base_param = p.split("_")[0]
             if base_param in constraint:
                 constraint_array.append(constraint[base_param][0])  # Lower bound
                 constraint_array.append(constraint[base_param][1])  # Upper bound
             else:
                 # Default constraints if not specified
                 constraint_array.append(-np.inf)  # No lower bound
-                constraint_array.append(np.inf)   # No upper bound
+                constraint_array.append(np.inf)  # No upper bound
 
         return np.array(constraint_array)
 
@@ -307,10 +302,7 @@ class Model(ABC):
         Returns:
             String describing the model's key properties.
         """
-        return (
-            f'Model({self.name}, n_parameters: {self.n_parameters}, '
-            f'n_peaks: {self.n_peaks})'
-        )
+        return f"Model({self.name}, n_parameters: {self.n_parameters}, " f"n_peaks: {self.n_peaks})"
 
 
 class ModelRegistry:
@@ -363,7 +355,7 @@ class ModelRegistry:
             >>> ModelRegistry.register('CUSTOM', {'class': CustomModel, 'hyp': 0.001})
         """
         cls._registry[name] = model
-        LOG.info('Registered model: %s', name)
+        LOG.info("Registered model: %s", name)
 
     @classmethod
     def get(cls: type[ModelRegistry], name: str) -> Model:
@@ -382,7 +374,7 @@ class ModelRegistry:
             # Model not found
             error_msg = f"Model '{name}' not found in registry"
             raise KeyError(error_msg)
-        return cls._registry[name]['class']()
+        return cls._registry[name]["class"]()
 
     @classmethod
     def all(cls: type[ModelRegistry]) -> dict[str, dict[str, Any]]:
@@ -406,9 +398,7 @@ class ModelRegistry:
         return cls._registry
 
     @classmethod
-    def _initialize_constraints(
-        cls: type[ModelRegistry], model: Model
-    ) -> dict[str, list[Any]]:
+    def _initialize_constraints(cls: type[ModelRegistry], model: Model) -> dict[str, list[Any]]:
         """Initialize default constraints for model parameters.
 
         Uses the constraints defined in the configuration settings.
@@ -419,17 +409,18 @@ class ModelRegistry:
         Returns:
             Dictionary mapping parameter names to constraint lists.
         """
-        settings = SETTINGS['fit']['constraints']
+        settings = SETTINGS["fit"]["constraints"]
         constraints: dict[str, list[Any]] = {}
 
         for param in model.parameters_unique:
-            base_param = param.split('_')[0]
+            base_param = param.split("_")[0]
             constraints[param] = [
-                settings[f'{base_param}_min'],
-                settings[f'{base_param}_max'],
-                settings[f'{base_param}_type'],
+                settings[f"{base_param}_min"],
+                settings[f"{base_param}_max"],
+                settings[f"{base_param}_type"],
             ]
         return constraints
+
 
 class ESR14N(Model):
     """Model for NV centers with 14N nitrogen isotope.
@@ -445,6 +436,7 @@ class ESR14N(Model):
     Attributes:
         ahyp: Hyperfine splitting constant for 14N (AHYP_14N).
     """
+
     def __init__(self: ESR14N) -> None:
         """Initialize ESR14N model with 14N-specific parameters.
 
@@ -453,11 +445,12 @@ class ESR14N(Model):
         constant is set to the standard 14N value.
         """
         super().__init__(
-            'ESR14N',
+            "ESR14N",
             3,
-            ['contrast', 'center', 'width_0', 'width_1', 'width_2', 'offset'],
+            ["center", "width", "contrast_0", "contrast_1", "contrast_2", "offset"],
         )
-        self.ahyp = AHYP_14N
+        self.ahyp = AHYP_14N * 1e9  # Convert GHz to Hz for pygpufit models
+        self.model_id = 13
 
     def func(
         self: ESR14N,
@@ -493,6 +486,7 @@ class ESR15N(Model):
     Attributes:
         ahyp: Hyperfine splitting constant for 15N (AHYP_15N).
     """
+
     def __init__(self: ESR15N) -> None:
         """Initialize ESR15N model with 15N-specific parameters.
 
@@ -501,9 +495,12 @@ class ESR15N(Model):
         constant is set to the standard 15N value.
         """
         super().__init__(
-            'ESR15N', 2, ['contrast', 'center', 'width_0', 'width_1', 'offset'],
+            "ESR15N",
+            2,
+            ["center", "width", "contrast_0", "contrast_1", "offset"],
         )
-        self.ahyp = AHYP_15N
+        self.ahyp = AHYP_15N * 1e9  # Convert GHz to Hz for pygpufit models
+        self.model_id = 14
 
     def func(
         self: ESR15N,
@@ -538,13 +535,15 @@ class ESRSINGLE(Model):
 
     The model uses a simple Lorentzian lineshape for the resonance.
     """
+
     def __init__(self: ESRSINGLE) -> None:
         """Initialize ESRSINGLE model with single resonance parameters.
 
         Sets up the model with 4 parameters: center frequency, width, contrast,
         and baseline offset. No hyperfine constant is needed for this model.
         """
-        super().__init__('ESRSINGLE', 1, ['contrast', 'center', 'width_0', 'offset'])
+        super().__init__("ESRSINGLE", 1, ["center", "width", "contrast", "offset"])
+        self.model_id = 15
 
     def func(
         self: ESRSINGLE,
@@ -568,17 +567,19 @@ class ESRSINGLE(Model):
 
 
 # Register models
-ModelRegistry.register('ESR14N', {'class': ESR14N, 'hyp': AHYP_14N})
-ModelRegistry.register('ESR15N', {'class': ESR15N, 'hyp': AHYP_15N})
-ModelRegistry.register('ESRSINGLE', {'class': ESRSINGLE, 'hyp': 0.0})
+ModelRegistry.register("ESR14N", {"class": ESR14N, "hyp": AHYP_14N})
+ModelRegistry.register("ESR15N", {"class": ESR15N, "hyp": AHYP_15N})
+ModelRegistry.register("ESRSINGLE", {"class": ESRSINGLE, "hyp": 0.0})
+
 
 def _main_demo() -> None:
     """Demo function that shows model usage when module is run as script."""
-    model = ModelRegistry.get('ESRSINGLE')
+    model = ModelRegistry.get("ESRSINGLE")
     # Print model parameters
     import sys
-    sys.stdout.write(f'{model.n_parameters}\n')
+
+    sys.stdout.write(f"{model.n_parameters}\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     _main_demo()

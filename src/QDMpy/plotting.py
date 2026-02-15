@@ -1,6 +1,6 @@
 """Visualization module for QDMpy.
 
-This module provides a comprehensive set of plotting functions for visualizing data from 
+This module provides a comprehensive set of plotting functions for visualizing data from
 Quantum Diamond Microscopy (QDM) measurements. It includes capabilities for:
 
 - Plotting raw and processed ODMR spectra
@@ -12,6 +12,7 @@ Quantum Diamond Microscopy (QDM) measurements. It includes capabilities for:
 The functions handle data in various formats, including multi-dimensional arrays
 representing spatial, spectral, and polarization dimensions.
 """
+
 from __future__ import annotations
 
 import itertools
@@ -32,18 +33,15 @@ if TYPE_CHECKING:
 # Import for runtime usage
 from QDMpy import models
 
-FREQ_LABEL = 'f [GHz]'
-CONTRAST_LABEL = 'c [%]'
+FREQ_LABEL = "f [GHz]"
+CONTRAST_LABEL = "c [%]"
 
 
 def plot_fit_result_field_map(
-    result: 'FitResult',
-    save: bool = False,
-    filename: str | None = None,
-    **kwargs: Any
+    result: "FitResult", save: bool = False, filename: str | None = None, **kwargs: Any
 ) -> None:
     """Plot magnetic field map from FitResult.
-    
+
     Args:
         result: FitResult object containing fitted parameters
         save: Whether to save the plot to file
@@ -55,11 +53,11 @@ def plot_fit_result_field_map(
 
     # Set up default plot parameters
     plot_kwargs = {
-        'title': f'Magnetic Field Map ({result.model_name})',
-        'pixel_spacing': result.pixel_spacing,
-        'colorbar_label': 'Magnetic Field (T)',
-        'cmap': 'viridis',
-        **kwargs
+        "title": f"Magnetic Field Map ({result.model_name})",
+        "pixel_spacing": result.pixel_spacing,
+        "colorbar_label": "Magnetic Field (T)",
+        "cmap": "viridis",
+        **kwargs,
     }
 
     # Create the plot
@@ -73,40 +71,40 @@ def plot_fit_result_field_map(
     im = ax.imshow(
         b_field,
         extent=extent,
-        origin='lower',
-        cmap=plot_kwargs.get('cmap', 'viridis'),
-        aspect='equal'
+        origin="lower",
+        cmap=plot_kwargs.get("cmap", "viridis"),
+        aspect="equal",
     )
 
     # Add colorbar
     cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label(plot_kwargs.get('colorbar_label', 'Magnetic Field (T)'))
+    cbar.set_label(plot_kwargs.get("colorbar_label", "Magnetic Field (T)"))
 
     # Set labels and title
-    ax.set_xlabel('x [μm]')
-    ax.set_ylabel('y [μm]')
-    ax.set_title(plot_kwargs.get('title', 'Magnetic Field Map'))
+    ax.set_xlabel("x [μm]")
+    ax.set_ylabel("y [μm]")
+    ax.set_title(plot_kwargs.get("title", "Magnetic Field Map"))
 
     plt.tight_layout()
 
     if save:
         if filename is None:
             filename = f"b_field_map_{result.model_name}.png"
-        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        plt.savefig(filename, dpi=300, bbox_inches="tight")
         print(f"Magnetic field map saved to: {filename}")
 
     plt.show()
 
 
 def plot_fit_result_parameter_map(
-    result: 'FitResult',
+    result: "FitResult",
     param_name: str,
     save: bool = False,
     filename: str | None = None,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> None:
     """Plot spatial map of fitted parameter from FitResult.
-    
+
     Args:
         result: FitResult object containing fitted parameters
         param_name: Name of parameter to plot (e.g., 'center', 'width_0', 'contrast')
@@ -119,24 +117,24 @@ def plot_fit_result_parameter_map(
 
     # Set up default plot parameters based on parameter type
     param_labels = {
-        'center': 'Resonance Center (Hz)',
-        'width_0': 'Linewidth (Hz)',
-        'width_1': 'Linewidth 1 (Hz)',
-        'width_2': 'Linewidth 2 (Hz)',
-        'contrast': 'ODMR Contrast',
-        'offset': 'Baseline Offset',
-        'chi2': 'Fit Quality (χ²)',
-        'states': 'Fit State'
+        "center": "Resonance Center (Hz)",
+        "width_0": "Linewidth (Hz)",
+        "width_1": "Linewidth 1 (Hz)",
+        "width_2": "Linewidth 2 (Hz)",
+        "contrast": "ODMR Contrast",
+        "offset": "Baseline Offset",
+        "chi2": "Fit Quality (χ²)",
+        "states": "Fit State",
     }
 
     default_title = f'{param_name.replace("_", " ").title()} Map ({result.model_name})'
     default_colorbar_label = param_labels.get(param_name, param_name.title())
 
     plot_kwargs = {
-        'title': default_title,
-        'colorbar_label': default_colorbar_label,
-        'cmap': 'viridis',
-        **kwargs
+        "title": default_title,
+        "colorbar_label": default_colorbar_label,
+        "cmap": "viridis",
+        **kwargs,
     }
 
     # Create the plot
@@ -150,39 +148,36 @@ def plot_fit_result_parameter_map(
     im = ax.imshow(
         param_map,
         extent=extent,
-        origin='lower',
-        cmap=plot_kwargs.get('cmap', 'viridis'),
-        aspect='equal'
+        origin="lower",
+        cmap=plot_kwargs.get("cmap", "viridis"),
+        aspect="equal",
     )
 
     # Add colorbar
     cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label(plot_kwargs.get('colorbar_label', param_name.title()))
+    cbar.set_label(plot_kwargs.get("colorbar_label", param_name.title()))
 
     # Set labels and title
-    ax.set_xlabel('x [μm]')
-    ax.set_ylabel('y [μm]')
-    ax.set_title(plot_kwargs.get('title', f'{param_name} Map'))
+    ax.set_xlabel("x [μm]")
+    ax.set_ylabel("y [μm]")
+    ax.set_title(plot_kwargs.get("title", f"{param_name} Map"))
 
     plt.tight_layout()
 
     if save:
         if filename is None:
             filename = f"{param_name}_map_{result.model_name}.png"
-        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        plt.savefig(filename, dpi=300, bbox_inches="tight")
         print(f"Parameter map saved to: {filename}")
 
     plt.show()
 
 
 def plot_fit_result_overview(
-    result: 'FitResult',
-    save: bool = False,
-    filename: str | None = None,
-    **kwargs: Any
+    result: "FitResult", save: bool = False, filename: str | None = None, **kwargs: Any
 ) -> None:
     """Plot overview of fit results with multiple parameter maps.
-    
+
     Args:
         result: FitResult object containing fitted parameters
         save: Whether to save the plot to file
@@ -190,7 +185,7 @@ def plot_fit_result_overview(
         **kwargs: Additional arguments for plot customization
     """
     # Parameters to plot (if available)
-    plot_params = ['center', 'width_0', 'contrast', 'chi2']
+    plot_params = ["center", "width_0", "contrast", "chi2"]
     available_params = [p for p in plot_params if p in result.parameters]
 
     # Add magnetic field
@@ -200,7 +195,7 @@ def plot_fit_result_overview(
     ncols = min(3, n_plots)
     nrows = (n_plots + ncols - 1) // ncols
 
-    fig, axes = plt.subplots(nrows, ncols, figsize=(4*ncols, 4*nrows))
+    fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 4 * nrows))
     # Ensure axes is always a list for consistent indexing
     if nrows == 1 and ncols == 1:
         axes = [axes]
@@ -216,10 +211,10 @@ def plot_fit_result_overview(
 
     # Plot magnetic field first
     ax = axes[plot_idx]
-    im = ax.imshow(b_field, extent=extent, origin='lower', cmap='viridis', aspect='equal')
-    ax.set_title('Magnetic Field (T)')
-    ax.set_xlabel('x [μm]')
-    ax.set_ylabel('y [μm]')
+    im = ax.imshow(b_field, extent=extent, origin="lower", cmap="viridis", aspect="equal")
+    ax.set_title("Magnetic Field (T)")
+    ax.set_xlabel("x [μm]")
+    ax.set_ylabel("y [μm]")
     plt.colorbar(im, ax=ax)
     plot_idx += 1
 
@@ -231,10 +226,10 @@ def plot_fit_result_overview(
         ax = axes[plot_idx]
         param_map = result.get_parameter_map(param)
 
-        im = ax.imshow(param_map, extent=extent, origin='lower', cmap='viridis', aspect='equal')
+        im = ax.imshow(param_map, extent=extent, origin="lower", cmap="viridis", aspect="equal")
         ax.set_title(f'{param.replace("_", " ").title()}')
-        ax.set_xlabel('x [μm]')
-        ax.set_ylabel('y [μm]')
+        ax.set_xlabel("x [μm]")
+        ax.set_ylabel("y [μm]")
         plt.colorbar(im, ax=ax)
         plot_idx += 1
 
@@ -242,13 +237,13 @@ def plot_fit_result_overview(
     for i in range(plot_idx, len(axes)):
         axes[i].set_visible(False)
 
-    plt.suptitle(f'Fit Results Overview ({result.model_name})', fontsize=14)
+    plt.suptitle(f"Fit Results Overview ({result.model_name})", fontsize=14)
     plt.tight_layout()
 
     if save:
         if filename is None:
             filename = f"fit_overview_{result.model_name}.png"
-        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        plt.savefig(filename, dpi=300, bbox_inches="tight")
         print(f"Fit overview saved to: {filename}")
 
     plt.show()
@@ -273,10 +268,10 @@ def plot_light_img(
         ax,
         img,
         data,
-        cmap='bone',
-        interpolation='none',
-        origin='lower',
-        aspect='equal',
+        cmap="bone",
+        interpolation="none",
+        origin="lower",
+        aspect="equal",
         zorder=0,
         **plt_props,
     )
@@ -301,10 +296,10 @@ def plot_fluorescence(
         ax,
         img,
         data,
-        cmap='inferno',
-        interpolation='none',
-        origin='lower',
-        aspect='equal',
+        cmap="inferno",
+        interpolation="none",
+        origin="lower",
+        aspect="equal",
         zorder=0,
         **plt_props,
     )
@@ -329,10 +324,10 @@ def plot_laser_img(
         ax,
         img,
         data,
-        cmap='magma',
-        interpolation='none',
-        origin='lower',
-        aspect='equal',
+        cmap="magma",
+        interpolation="none",
+        origin="lower",
+        aspect="equal",
         zorder=0,
         **plt_props,
     )
@@ -407,8 +402,8 @@ def plot_quality_data(
 
     """
     norm = get_color_norm(data.min(), data.max())
-    plt_props['norm'] = norm
-    plt_props['cmap'] = 'inferno'
+    plt_props["norm"] = norm
+    plt_props["cmap"] = "inferno"
     return update_img(ax, img, data, **plt_props)
 
 
@@ -429,12 +424,14 @@ def plot_data(
     """
     norm = get_color_norm(data.min(), data.max())
     # plt_props["cmap"] = ""
-    plt_props['norm'] = norm
+    plt_props["norm"] = norm
     return update_img(ax, img, data, **plt_props)
 
 
 def get_vmin_vmax(
-    img: mpl.image.AxesImage, percentile: float, use_percentile: bool,
+    img: mpl.image.AxesImage,
+    percentile: float,
+    use_percentile: bool,
 ) -> tuple[float, float]:
     """Get the vmin and vmax for the colorbar of the image.
 
@@ -483,7 +480,7 @@ def plot_overlay(
     ax: plt.Axes,
     data: np.ndarray,
     img: mpl.image.AxesImage | None | None = None,
-    normtype: str = 'simple',
+    normtype: str = "simple",
     **plt_props: Any,
 ) -> mpl.image.AxesImage:
     """Args:
@@ -496,10 +493,10 @@ def plot_overlay(
     Returns:
 
     """
-    if normtype == 'simple':
-        plt_props['alpha'] = double_norm(data)
+    if normtype == "simple":
+        plt_props["alpha"] = double_norm(data)
     else:
-        raise NotImplementedError(f'Normalization type {normtype} not implemented.')
+        raise NotImplementedError(f"Normalization type {normtype} not implemented.")
     return update_img(ax, img, data, **plt_props)
 
 
@@ -519,14 +516,16 @@ def plot_outlier(
 
     """
     data = data.astype(float)
-    plt_props['cmap'] = 'gist_rainbow'
-    plt_props['alpha'] = data
-    plt_props['zorder'] = 3
+    plt_props["cmap"] = "gist_rainbow"
+    plt_props["alpha"] = data
+    plt_props["zorder"] = 3
     return update_img(ax, img, data, **plt_props)
 
 
 def update_clim(
-    img: mpl.image.AxesImage, vmin: float, vmax: float,
+    img: mpl.image.AxesImage,
+    vmin: float,
+    vmax: float,
 ) -> mpl.image.AxesImage:
     """Update the colorbar limits of the image.
 
@@ -565,9 +564,12 @@ def update_cbar(
         mn, mx = 0, 1
     else:
         mn, mx = data.min(), data.max()
-    
+
     extent = detect_extent(
-        vmin=vmin, vmax=vmax, mn=mn, mx=mx,
+        vmin=vmin,
+        vmax=vmax,
+        mn=mn,
+        mx=mx,
     )
 
     label = cax.get_ylabel()
@@ -588,16 +590,19 @@ def detect_extent(vmin: float, vmax: float, mn: float, mx: float) -> str:
     Returns: str: "neither", "min", "max", "both"
     """
     if vmin == mn and vmax == mx:
-        return 'neither'
+        return "neither"
     if vmin > mn and vmax < mx:
-        return 'both'
+        return "both"
     if vmin > mn:
-        return 'min'
-    return 'max'
+        return "min"
+    return "max"
 
 
 def update_img(
-    ax: plt.Axes, img: mpl.image.AxesImage | None, data: np.ndarray, **plt_props: Any,
+    ax: plt.Axes,
+    img: mpl.image.AxesImage | None,
+    data: np.ndarray,
+    **plt_props: Any,
 ) -> mpl.image.AxesImage:
     """Args:
       ax: plt.Axes:
@@ -608,15 +613,15 @@ def update_img(
     Returns:
 
     """
-    data_dimensions = plt_props.pop('data_dimensions', data.shape)
-    plt_props['extent'] = [0, data_dimensions[1], 0, data_dimensions[0]]
-    plt_props['origin'] = 'lower'
-    plt_props['aspect'] = 'equal'
+    data_dimensions = plt_props.pop("data_dimensions", data.shape)
+    plt_props["extent"] = [0, data_dimensions[1], 0, data_dimensions[0]]
+    plt_props["origin"] = "lower"
+    plt_props["aspect"] = "equal"
     if img is None:
         img = ax.imshow(data, **plt_props)
     else:
-        if 'alpha' in plt_props:
-            img.set_alpha(plt_props['alpha'])
+        if "alpha" in plt_props:
+            img.set_alpha(plt_props["alpha"])
         img.set_data(data)
     return img
 
@@ -643,12 +648,13 @@ def check_fit_pixel(qdm_obj: Measurement, idx: int) -> tuple[plt.Figure, plt.Axe
     """
     # noinspection PyTypeChecker
     f, ax = plt.subplots(1, 2, figsize=(10, 4), sharex=False, sharey=True)
-    polarities = ['+', '-']
+    polarities = ["+", "-"]
     model = [None, models.esrsingle, models.esr15n, models.esr14n][qdm_obj.model_name]
-    lst = ['pol/side', *qdm_obj.fit.model_params, 'chi2']
+    lst = ["pol/side", *qdm_obj.fit.model_params, "chi2"]
 
     for p, frange in itertools.product(
-        range(qdm_obj.odmr.n_pol), range(qdm_obj.odmr.n_frange),
+        range(qdm_obj.odmr.n_pol),
+        range(qdm_obj.odmr.n_frange),
     ):
         f_new = np.linspace(min(qdm_obj.odmr.f_ghz[frange]), max(qdm_obj.odmr.f_ghz[frange]), 200)
 
@@ -658,33 +664,35 @@ def check_fit_pixel(qdm_obj: Measurement, idx: int) -> tuple[plt.Figure, plt.Axe
         ax[frange].plot(
             qdm_obj.odmr.f_ghz[frange],
             qdm_obj.odmr.data[p, frange, [idx]][0],
-            'k',
-            marker=['o', '^'][p],
+            "k",
+            marker=["o", "^"][p],
             markersize=5,
-            mfc='w',
-            label=f'data: {polarities[p]}',
-            ls='',
+            mfc="w",
+            label=f"data: {polarities[p]}",
+            ls="",
         )
-        (line,) = ax[frange].plot(f_new, m_initial[0], label='initial guess', alpha=0.5, ls=':')
-        ax[frange].plot(f_new, m_fit[0], color=line.get_color(), label='fit')
+        (line,) = ax[frange].plot(f_new, m_initial[0], label="initial guess", alpha=0.5, ls=":")
+        ax[frange].plot(f_new, m_fit[0], color=line.get_color(), label="fit")
         ax[frange].legend(
             ncol=2,
             bbox_to_anchor=(0.0, 1.02, 1.0, 0.102),
-            loc='lower left',
-            mode='expand',
+            loc="lower left",
+            mode="expand",
             borderaxespad=0.0,
         )
 
-        line = ' '.join([f'{v:>8.5f}' for v in qdm_obj.fit.model_params[p, frange, idx]])
-        line += f' {qdm_obj.fit._chi_squares[p, frange, idx]:>8.2e}'
+        line = " ".join([f"{v:>8.5f}" for v in qdm_obj.fit.model_params[p, frange, idx]])
+        line += f" {qdm_obj.fit._chi_squares[p, frange, idx]:>8.2e}"
 
     for a in ax.flat:
-        a.set(xlabel=FREQ_LABEL, ylabel='ODMR contrast [a.u.]')
+        a.set(xlabel=FREQ_LABEL, ylabel="ODMR contrast [a.u.]")
     return f, ax
 
 
 def plot_fit_params(
-    qdm_obj: Measurement, param: str, save: str | bool = False,
+    qdm_obj: Measurement,
+    param: str,
+    save: str | bool = False,
 ) -> plt.Figure:
     """Args:
       qdm_obj:
@@ -696,27 +704,27 @@ def plot_fit_params(
     """
     data = qdm_obj.get_param(param)
 
-    if param == 'contrast':
+    if param == "contrast":
         data = data.mean(axis=2)
-    if 'contrast' in param:
+    if "contrast" in param:
         data *= 100
-    if param == 'width':
+    if param == "width":
         data *= 1000
 
     labels = {
-        'center': FREQ_LABEL,
-        'resonance': FREQ_LABEL,
-        'width': 'f [MHz]',
-        'contrast': 'mean(c) [%]',
-        'contrast_0': CONTRAST_LABEL,
-        'contrast_1': CONTRAST_LABEL,
-        'contrast_2': CONTRAST_LABEL,
-        'chi2': 'chi$^2$',
+        "center": FREQ_LABEL,
+        "resonance": FREQ_LABEL,
+        "width": "f [MHz]",
+        "contrast": "mean(c) [%]",
+        "contrast_0": CONTRAST_LABEL,
+        "contrast_1": CONTRAST_LABEL,
+        "contrast_2": CONTRAST_LABEL,
+        "chi2": "chi$^2$",
     }
 
     # noinspection PyTypeChecker
     f, ax = plt.subplots(2, 2, figsize=(15, 8), sharex=True, sharey=True)
-    f.suptitle(f'{param}')
+    f.suptitle(f"{param}")
 
     # determine min and max of the plot
     vminl = np.min(np.sort(data[:, 0].flat)[50:-50])
@@ -725,24 +733,24 @@ def plot_fit_params(
     vmaxr = np.max(np.sort(data[:, 1].flat)[50:-50])
 
     # positive field direction
-    ax[0, 0].set_title(r'B$^+_\mathrm{lf}$')
-    ax[0, 0].imshow(data[0, 0], origin='lower', vmin=vminl, vmax=vmaxl)
-    ax[0, 1].set_title(r'B$^+_\mathrm{hf}$')
-    ax[0, 1].imshow(data[0, 1], origin='lower', vmin=vminr, vmax=vmaxr)
+    ax[0, 0].set_title(r"B$^+_\mathrm{lf}$")
+    ax[0, 0].imshow(data[0, 0], origin="lower", vmin=vminl, vmax=vmaxl)
+    ax[0, 1].set_title(r"B$^+_\mathrm{hf}$")
+    ax[0, 1].imshow(data[0, 1], origin="lower", vmin=vminr, vmax=vmaxr)
 
     # negative field direction
-    ax[1, 0].set_title(r'B$^-_\mathrm{lf}$')
-    c = ax[1, 0].imshow(data[1, 0], origin='lower', vmin=vminl, vmax=vmaxl)
+    ax[1, 0].set_title(r"B$^-_\mathrm{lf}$")
+    c = ax[1, 0].imshow(data[1, 0], origin="lower", vmin=vminl, vmax=vmaxl)
     cb = plt.colorbar(c, ax=ax[:, 0], shrink=0.9)
     cb.ax.set_ylabel(labels[param])
 
-    ax[1, 1].set_title(r'B$^-_\mathrm{hf}$')
-    c = ax[1, 1].imshow(data[1, 1], origin='lower', vmin=vminr, vmax=vmaxr)
+    ax[1, 1].set_title(r"B$^-_\mathrm{hf}$")
+    c = ax[1, 1].imshow(data[1, 1], origin="lower", vmin=vminr, vmax=vmaxr)
     cb = plt.colorbar(c, ax=ax[:, 1], shrink=0.9)
     cb.ax.set_ylabel(labels[param])
 
     for a in ax.flat:
-        a.set(xlabel='px', ylabel='px')
+        a.set(xlabel="px", ylabel="px")
 
     if save:
         f.savefig(save)
