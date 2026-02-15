@@ -91,3 +91,9 @@ src/tst.py
 
 # Large test data
 tests/data/MIL2_FOV1/
+
+# Claude proposals
+/proposals/
+
+# Claude configuration
+CLAUDE.md
