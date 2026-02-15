@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import sys
 import unittest
-from unittest.mock import patch
 
 import numpy as np
 
@@ -13,36 +11,11 @@ from QDMpy.utils import (
     polyfit2d,
     rc2idx,
     rms,
-    setup_package_paths,
 )
 
 
 class TestUtils(unittest.TestCase):
     """Tests for utility functions in QDMpy.utils."""
-
-    def test_setup_package_paths(self):
-        """Test adding package paths to sys.path."""
-        # Mock sys.path for testing
-        original_path = sys.path.copy()
-
-        try:
-            # Mock __package__ to None
-            with patch("QDMpy.utils.__package__", None):
-                # Mock os.path.dirname, abspath, and join to return known values
-                with patch("os.path.dirname", return_value="/fake/dir"), patch(
-                    "os.path.abspath", side_effect=["/fake/dir", "/fake/project"]
-                ), patch("os.path.join", return_value="/fake/project"):
-                    # Clear sys.path for testing
-                    sys.path = []
-
-                    # Call the function
-                    setup_package_paths()
-
-                    # Check that the path was added
-                    self.assertIn("/fake/project", sys.path)
-        finally:
-            # Restore sys.path
-            sys.path = original_path
 
     def test_millify(self):
         """Test millify function for human-readable numbers."""

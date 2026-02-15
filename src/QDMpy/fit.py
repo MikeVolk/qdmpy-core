@@ -17,7 +17,7 @@ import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
 
-from QDMpy import PYGPUFIT_PRESENT, SETTINGS
+from QDMpy import get_settings, is_pygpufit_available
 from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
 from QDMpy.exceptions import ModelGuessNotPossible
 from QDMpy.guess import (
@@ -28,9 +28,6 @@ from QDMpy.guess import (
 )
 from QDMpy.models import Model, ModelRegistry
 from QDMpy.settings import ModelConstraintsSettings
-
-if PYGPUFIT_PRESENT:
-    import pygpufit.gpufit as gf
 
 UNITS = {'center': 'GHz', 'width': 'GHz', 'contrast': 'a.u.', 'offset': 'a.u.'}
 CONSTRAINT_TYPES = ['FREE', 'LOWER', 'UPPER', 'LOWER_UPPER']
@@ -157,12 +154,12 @@ class FitManager:
         self._initial_parameter: NDArray | None = None
         self._reset_fit()
         self._constraint_manager = ConstraintManager(
-            self.model_params_unique, SETTINGS.model.constraints, UNITS
+            self.model_params_unique, get_settings().model.constraints, UNITS
         )
         if constraints:
             for param, constraint in constraints.items():
                 self.set_constraints(param, **constraint, reset_fit=False)
-        self.estimator_id = ESTIMATOR_ID[SETTINGS.fit.estimator]
+        self.estimator_id = ESTIMATOR_ID[get_settings().fit.estimator]
 
     @property
     def _flat_data(self) -> NDArray:
@@ -228,7 +225,7 @@ class FitManager:
             )
         logger.debug('Setting model to %s, resetting fit results.', model_name)
         self._constraint_manager = ConstraintManager(
-            self.model_params_unique, SETTINGS.model.constraints, UNITS
+            self.model_params_unique, get_settings().model.constraints, UNITS
         )
         self._reset_fit()
         self._initial_parameter = None
@@ -368,7 +365,7 @@ class FitManager:
         return self._fitted
 
     def fit_odmr(self, refit: bool = False) -> None:
-        if not PYGPUFIT_PRESENT:
+        if not is_pygpufit_available():
             raise ImportError('pyGpufit is required for fitting but not installed')
         if self._fitted and not refit:
             logger.debug('Already fitted')
@@ -416,8 +413,10 @@ class FitManager:
         freq: NDArray,
         initial_parameters: NDArray,
     ) -> list[NDArray]:
-        if not PYGPUFIT_PRESENT:
+        if not is_pygpufit_available():
             raise ImportError('pyGpufit is required for fitting but not installed')
+
+        import pygpufit.gpufit as gf
 
         self._current_data_shape = data.shape
         n_pol, n_pix, n_freqs = data.shape
@@ -441,8 +440,8 @@ class FitManager:
             initial_parameters=np.ascontiguousarray(initial_parameters_reshaped, dtype=np.float32),
             weights=None,
             model_id=self._model.model_id,
-            max_number_iterations=SETTINGS.fit.max_number_iterations,
-            tolerance=SETTINGS.fit.tolerance,
+            max_number_iterations=get_settings().fit.max_number_iterations,
+            tolerance=get_settings().fit.tolerance,
             estimator_id=self.estimator_id,
         )
         return list(results)

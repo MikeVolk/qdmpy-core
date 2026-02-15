@@ -6,16 +6,12 @@ These tests cover the functions for file loading and handling in the io module.
 from __future__ import annotations
 
 import os
-import sys
 import tempfile
 
 import numpy as np
 import pytest
 
-# Add the project root to sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from src.QDMpy.io import get_image, get_image_file, has_csv
+from QDMpy.io import get_image, get_image_file, has_csv
 
 
 class TestIO:

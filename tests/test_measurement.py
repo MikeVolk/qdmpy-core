@@ -270,7 +270,7 @@ class TestMeasurement:
                 }
                 mock_fit_instance.get_param.side_effect = lambda param: test_params.get(param, None)
 
-                with patch('QDMpy.PYGPUFIT_PRESENT', True):
+                with patch('QDMpy.is_pygpufit_available', return_value=True):
                     result = measurement.fit_odmr()
 
                 mock_guess.assert_called_once()
@@ -310,7 +310,7 @@ class TestMeasurement:
             }
             mock_fit_instance.get_param.side_effect = lambda param: test_params.get(param, None)
 
-            with patch('QDMpy.PYGPUFIT_PRESENT', True):
+            with patch('QDMpy.is_pygpufit_available', return_value=True):
                 result = measurement.fit_odmr(model_name='ESR14N')
 
             args, kwargs = mock_fit_manager.call_args
@@ -361,7 +361,7 @@ class TestMeasurement:
                 'chi2': np.random.random(25),
             }.get(param, None)
 
-            with patch('QDMpy.PYGPUFIT_PRESENT', True):
+            with patch('QDMpy.is_pygpufit_available', return_value=True):
                 result = measurement.fit_odmr()
 
             args, kwargs = mock_fit_manager.call_args
@@ -399,7 +399,7 @@ class TestMeasurement:
             }
             mock_fit_instance.get_param.side_effect = lambda param: test_params.get(param, None)
 
-            with patch('QDMpy.PYGPUFIT_PRESENT', True):
+            with patch('QDMpy.is_pygpufit_available', return_value=True):
                 result = measurement.fit_odmr()
 
             assert 'fit_timestamp' in result.metadata

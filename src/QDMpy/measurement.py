@@ -207,9 +207,9 @@ class Measurement:
             )
 
         # Check for fitting dependencies
-        from QDMpy import PYGPUFIT_PRESENT
+        from QDMpy import is_pygpufit_available
 
-        if not PYGPUFIT_PRESENT:
+        if not is_pygpufit_available():
             raise ImportError(
                 "pyGpufit is required for fitting but not available. "
                 "Please install pyGpufit to enable fitting functionality."

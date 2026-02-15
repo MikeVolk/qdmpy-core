@@ -528,7 +528,7 @@ class TestModelRegistry:
             ),
         )
 
-        with patch('QDMpy.models.SETTINGS', mock_settings):
+        with patch('QDMpy.models.get_settings', return_value=mock_settings):
             # Access the protected method for testing
             constraints = ModelRegistry._initialize_constraints(
                 TestModelInitConstraints()
@@ -543,39 +543,7 @@ class TestModelRegistry:
             assert constraints['contrast_0'][2] == 'FREE'  # type
 
 
-# Test the path handling in direct import
-def test_direct_import_handling():
-    """Test the import path handling logic with simple test code."""
-    import os
-    import sys
-
-    # Get the current test file's directory
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Get the project root (should be the directory containing tests/ and src/)
-    project_root = os.path.abspath(os.path.join(current_dir, ".."))
-
-    # Ensure the directory structure is as expected
-    assert os.path.exists(current_dir)
-    assert os.path.isdir(project_root)
-
-    # Check that src/QDMpy exists (not QDMpy directly in the root)
-    src_dir = os.path.join(project_root, "src")
-    assert os.path.exists(src_dir), "src directory not found"
-
-    qdmpy_dir = os.path.join(src_dir, "QDMpy")
-    assert os.path.exists(qdmpy_dir), "QDMpy module not found in src"
-
-    # Create a test for path insertion (directly test logic, not actual insert)
-    original_path = list(sys.path)
-    if project_root not in original_path:
-        # In a real scenario, this would be: sys.path.insert(0, project_root)
-        # But we don't modify sys.path in tests
-        test_path_with_insert = [project_root] + original_path
-        assert project_root == test_path_with_insert[0]
-
-
-# Test the main demo function (lines 375-380)
+# Test the main demo function
 def test_main_demo_function():
     """Test the _main_demo function that shows model usage."""
     import io

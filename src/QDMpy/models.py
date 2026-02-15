@@ -17,13 +17,8 @@ import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 
-# Handle paths for direct script execution
-from QDMpy.utils import setup_package_paths
-
-setup_package_paths()
-
-from QDMpy import SETTINGS  # noqa: E402
-from QDMpy.constants import AHYP_14N, AHYP_15N  # noqa: E402
+from QDMpy import get_settings
+from QDMpy.constants import AHYP_14N, AHYP_15N
 
 
 def esr14n(
@@ -409,7 +404,7 @@ class ModelRegistry:
         Returns:
             Dictionary mapping parameter names to constraint lists.
         """
-        settings = SETTINGS.model.constraints
+        settings = get_settings().model.constraints
         constraints: dict[str, list[Any]] = {}
 
         for param in model.parameters_unique:

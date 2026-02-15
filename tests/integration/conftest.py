@@ -6,16 +6,13 @@ that validate the new QDMpy codebase against reference data generated from
 the old codebase.
 """
 
-import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import numpy as np
 import pytest
 
-# Add project root to path for importing validation utilities
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 # Import validation utilities if available
 try:

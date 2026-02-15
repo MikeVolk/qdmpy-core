@@ -15,31 +15,8 @@ functionality provided by other modules in the package.
 
 from __future__ import annotations
 
-import os
-import sys
-
 import numpy as np
-from loguru import logger
 from numpy.typing import ArrayLike, NDArray
-
-
-def setup_package_paths() -> None:
-    """Add package paths to sys.path for local imports.
-
-    This function should be called when a module is run directly to ensure
-    that imports from the package will work correctly.
-    """
-    # Only run when module is not part of a package
-    if not __package__:
-        # Get the current file's directory
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-
-        # Go one level up to the package root
-        package_root = os.path.abspath(os.path.join(current_dir, ".."))
-
-        # Add to path if not already there
-        if package_root not in sys.path:
-            sys.path.insert(0, package_root)
 
 
 # Unit prefixes for millify function

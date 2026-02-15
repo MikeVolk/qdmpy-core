@@ -10,34 +10,26 @@ the data processing pipeline to meet their specific experimental needs.
 
 from __future__ import annotations
 
-__version__ = "0.1.0a"
+__version__ = '0.1.0a'
 
 import logging
 import os
 import sys
+from functools import cache
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import matplotlib as mpl
-from loguru import logger
 
-mpl.rcParams["figure.facecolor"] = "white"
+mpl.rcParams['figure.facecolor'] = 'white'
 
 PROJECT_PATH = Path(os.path.abspath(__file__)).parent
-CONFIG_PATH = Path().home() / ".config" / "QDMpy"
-CONFIG_FILE = CONFIG_PATH / "settings.toml"
-DESKTOP = Path().home() / "Desktop"
+CONFIG_PATH = Path().home() / '.config' / 'QDMpy'
+CONFIG_FILE = CONFIG_PATH / 'settings.toml'
+DESKTOP = Path().home() / 'Desktop'
 
-SRC_PATH = PROJECT_PATH.parent
-sys.path.append(str(SRC_PATH))
-
-### LOGGING ###
-# Suppress noisy third-party loggers
-logging.getLogger("matplotlib").setLevel(logging.WARNING)
-logging.getLogger("h5py").setLevel(logging.WARNING)
-
-logger.info("WELCOME TO QDMpy")
-logger.debug(f"QDMpy version {__version__} installed at {PROJECT_PATH}")
-logger.debug(f"QDMpy config file {CONFIG_FILE}")
+if TYPE_CHECKING:
+    from QDMpy.settings import QDMpySettings
 
 
 ############################### configfile stuff ######################################
@@ -48,61 +40,67 @@ def make_configfile(reset: bool = False) -> None:
       reset: If True, removes the user config file so Pydantic defaults take over.
 
     """
+    from loguru import logger
+
     CONFIG_PATH.mkdir(parents=True, exist_ok=True)
     if reset and CONFIG_FILE.exists():
         CONFIG_FILE.unlink()
-        logger.info(f"Deleted user config file {CONFIG_FILE}")
+        logger.info(f'Deleted user config file {CONFIG_FILE}')
 
 
 def reset_config() -> None:
-    """Resets the config to default settings.
+    """Resets the config to default settings."""
+    from loguru import logger
 
-    This removes the user config file, causing Pydantic settings to use defaults.
-    """
     make_configfile(reset=True)
-    logger.info("Config reset to defaults")
+    logger.info('Config reset to defaults')
 
 
-# Import settings before any other QDMpy modules
-from QDMpy.settings import QDMpySettings
+def _configure_logging(settings: QDMpySettings) -> None:
+    """Configure loguru and suppress noisy third-party loggers."""
+    from loguru import logger
 
-make_configfile()
-SETTINGS: QDMpySettings = QDMpySettings()
+    logging.getLogger('matplotlib').setLevel(logging.WARNING)
+    logging.getLogger('h5py').setLevel(logging.WARNING)
 
-# Wire loguru logging to the configured level
-logger.remove()
-logger.add(sys.stderr, level=SETTINGS.logging.log_level)
+    logger.remove()
+    logger.add(sys.stderr, level=settings.logging.log_level)
 
-############################### CHECK IF pygpufit IS INSTALLED ###############################
-import importlib.util
 
-package = "pygpufit"
-# find_spec will look for the package
-PYGPUFIT_PRESENT = importlib.util.find_spec(package) is not None
+_settings: QDMpySettings | None = None
 
-if PYGPUFIT_PRESENT is None or sys.platform == "darwin":
-    logger.error(
-        "Can't import pyGpufit. The package is necessary for most of the calculations. "
-        "Functionality of QDMpy will be greatly diminished."
-    )
-    wheel_path = os.path.join(SRC_PATH, "pyGpufit", "win", "pyGpufit-1.2.0-py2.py3-none-any.whl")
-    logger.error(
-        f"try running:\n>>> pip install --no-index --find-links={wheel_path} pyGpufit"
-    )
-else:
-    import pygpufit.gpufit as gf
 
-    logger.info(f"CUDA available: {gf.cuda_available()}")
-    runtime, driver = gf.get_cuda_version()
-    logger.info(f"CUDA versions runtime: {runtime}, driver: {driver}")
+def get_settings() -> QDMpySettings:
+    """Return the lazily-initialised application settings singleton."""
+    global _settings
+    if _settings is None:
+        from QDMpy.settings import QDMpySettings
+
+        make_configfile()
+        _settings = QDMpySettings()
+        _configure_logging(_settings)
+    return _settings
+
+
+def reset_settings() -> None:
+    """Clear the cached settings so the next ``get_settings()`` re-reads config."""
+    global _settings
+    _settings = None
+
+
+@cache
+def is_pygpufit_available() -> bool:
+    """Return True if the pygpufit GPU fitting library can be imported."""
+    try:
+        import pygpufit.gpufit
+    except ImportError:
+        return False
+    else:
+        return True
 
 
 # Import important modules
 from . import io
-
-if __name__ == "__main__":
-    logger.info("This is a module. It is not meant to be run as a script.")
-    sys.exit(0)
 
 
 def test_data_location() -> Path:
@@ -120,9 +118,9 @@ def test_data_location() -> Path:
         This function no longer contains hardcoded system-specific paths.
         Set the QDMPY_TEST_DATA environment variable to specify your test data location.
     """
-    test_data_env = os.environ.get("QDMPY_TEST_DATA")
+    test_data_env = os.environ.get('QDMPY_TEST_DATA')
     if test_data_env:
         return Path(test_data_env)
 
     # Default to a directory in the user's home folder
-    return Path.home() / "QDMpy_test_data"
+    return Path.home() / 'QDMpy_test_data'
