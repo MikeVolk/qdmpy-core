@@ -331,3 +331,180 @@ class TestFitResult:
             # Verify B-field was saved
             assert "b_field" in loaded_data
             np.testing.assert_array_equal(loaded_data["b_field"], original_b_field)
+
+
+class TestResolveSpatialDims:
+    """Tests for FitResult._resolve_spatial_dims."""
+
+    def _make_result(self, scan_dims: tuple[int, int]) -> FitResult:
+        n = scan_dims[0] * scan_dims[1]
+        return FitResult(
+            parameters={"center": np.zeros(n), "chi2": np.zeros(n)},
+            scan_dimensions=scan_dims,
+            pixel_spacing=4e-6,
+            model_name="ESR15N",
+        )
+
+    def test_matching_pixel_count(self) -> None:
+        result = self._make_result((10, 10))
+        assert result._resolve_spatial_dims(100) == (10, 10)
+
+    def test_mismatched_square(self) -> None:
+        result = self._make_result((10, 10))
+        h, w = result._resolve_spatial_dims(36)
+        assert h * w == 36
+        assert h == 6 and w == 6
+
+    def test_rectangular_aspect_ratio(self) -> None:
+        result = self._make_result((10, 20))
+        h, w = result._resolve_spatial_dims(50)
+        assert h * w == 50
+        assert w / h >= 1.0
+
+    def test_prime_pixel_count(self) -> None:
+        result = self._make_result((10, 10))
+        h, w = result._resolve_spatial_dims(17)
+        assert h * w == 17
+        assert (h, w) == (1, 17) or (h, w) == (17, 1)
+
+
+class TestNormalizeResonanceShape:
+    """Tests for FitResult._normalize_resonance_shape."""
+
+    def _make_result(self) -> FitResult:
+        return FitResult(
+            parameters={"center": np.zeros(100), "chi2": np.zeros(100)},
+            scan_dimensions=(10, 10),
+            pixel_spacing=4e-6,
+            model_name="ESR15N",
+        )
+
+    def test_4d_input(self) -> None:
+        result = self._make_result()
+        arr = np.ones((2, 2, 50, 1))
+        res, n_pol, n_frange, n_pix = result._normalize_resonance_shape(arr)
+        assert res.shape == (2, 2, 50)
+        assert n_pol == 2 and n_frange == 2 and n_pix == 50
+
+    def test_3d_input(self) -> None:
+        result = self._make_result()
+        arr = np.ones((2, 2, 50))
+        res, n_pol, n_frange, n_pix = result._normalize_resonance_shape(arr)
+        assert res.shape == (2, 2, 50)
+        assert n_pol == 2 and n_frange == 2 and n_pix == 50
+
+    def test_2d_input(self) -> None:
+        result = self._make_result()
+        arr = np.ones((4, 50))
+        res, n_pol, n_frange, n_pix = result._normalize_resonance_shape(arr)
+        assert res.shape == (2, 2, 50)
+        assert n_pol == 2 and n_frange == 2 and n_pix == 50
+
+    def test_invalid_shape_raises(self) -> None:
+        result = self._make_result()
+        arr = np.ones((50,))
+        with pytest.raises(ValueError, match="Unexpected center parameter shape"):
+            result._normalize_resonance_shape(arr)
+
+
+class TestCalcDeltaFromSingleCenter:
+    """Tests for FitResult._calc_delta_from_single_center."""
+
+    def _make_result(self) -> FitResult:
+        return FitResult(
+            parameters={"center": np.zeros(4), "chi2": np.zeros(4)},
+            scan_dimensions=(2, 2),
+            pixel_spacing=4e-6,
+            model_name="ESR15N",
+        )
+
+    def test_two_frequency_ranges(self) -> None:
+        result = self._make_result()
+        resonance = np.array([
+            [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
+            [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
+        ])
+        delta = result._calc_delta_from_single_center(resonance, 2, 2, 2, 2)
+        assert delta.shape == (2, 2, 2, 2)
+        expected_diff = 0.04 / 2 / GAMMA_NV * 1e6
+        np.testing.assert_allclose(delta[0, 0], -expected_diff, rtol=1e-10)
+        np.testing.assert_allclose(delta[0, 1], expected_diff, rtol=1e-10)
+
+    def test_single_frequency_range(self) -> None:
+        result = self._make_result()
+        freq = D_ZFS + 0.01
+        resonance = np.array([
+            [[freq, freq, freq, freq]],
+            [[freq, freq, freq, freq]],
+        ])
+        delta = result._calc_delta_from_single_center(resonance, 2, 1, 2, 2)
+        assert delta.shape == (2, 2, 2, 2)
+        expected_shift = 0.01 / GAMMA_NV * 1e6
+        np.testing.assert_allclose(delta[0, 0], -expected_shift, rtol=1e-10)
+        np.testing.assert_allclose(delta[0, 1], expected_shift, rtol=1e-10)
+
+
+class TestCalcDeltaFromMultiCenters:
+    """Tests for FitResult._calc_delta_from_multi_centers."""
+
+    def _make_result(self) -> FitResult:
+        return FitResult(
+            parameters={"center_0": np.zeros(4), "center_1": np.zeros(4), "chi2": np.zeros(4)},
+            scan_dimensions=(2, 2),
+            pixel_spacing=4e-6,
+            model_name="ESR15N",
+        )
+
+    def test_two_centers_single_frange(self) -> None:
+        result = self._make_result()
+        low = np.array([[[2.85, 2.85, 2.85, 2.85]]])
+        high = np.array([[[2.89, 2.89, 2.89, 2.89]]])
+        center_params = {"center_0": low, "center_1": high}
+        delta = result._calc_delta_from_multi_centers(center_params, 2, 2)
+        assert delta.shape == (1, 2, 2, 2)
+        expected_diff = 0.04 / 2 / GAMMA_NV * 1e6
+        np.testing.assert_allclose(delta[0, 0], -expected_diff, rtol=1e-10)
+        np.testing.assert_allclose(delta[0, 1], expected_diff, rtol=1e-10)
+
+    def test_insufficient_centers_raises(self) -> None:
+        result = self._make_result()
+        with pytest.raises(ValueError, match="Insufficient center parameters"):
+            result._calc_delta_from_multi_centers({"center_0": np.zeros((1, 1, 4))}, 2, 2)
+
+    def test_two_centers_multi_frange(self) -> None:
+        result = self._make_result()
+        low = np.array([[[2.85, 2.85, 2.85, 2.85], [2.86, 2.86, 2.86, 2.86]]])
+        high = np.array([[[2.88, 2.88, 2.88, 2.88], [2.89, 2.89, 2.89, 2.89]]])
+        center_params = {"center_0": low, "center_1": high}
+        delta = result._calc_delta_from_multi_centers(center_params, 2, 2)
+        assert delta.shape == (1, 2, 2, 2)
+
+
+class TestComputeDeltaResonanceOrchestrator:
+    """Integration tests for the rewritten _compute_delta_resonance."""
+
+    def test_3d_center_two_franges(self) -> None:
+        center = np.array([
+            [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
+            [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
+        ])
+        result = FitResult(
+            parameters={"center": center, "chi2": np.zeros(4)},
+            scan_dimensions=(2, 2),
+            pixel_spacing=4e-6,
+            model_name="ESR15N",
+        )
+        delta = result._compute_delta_resonance()
+        assert delta.shape == (2, 2, 2, 2)
+
+    def test_multi_center_params(self) -> None:
+        low = np.array([[[2.85, 2.85, 2.85, 2.85]]])
+        high = np.array([[[2.89, 2.89, 2.89, 2.89]]])
+        result = FitResult(
+            parameters={"center_0": low, "center_1": high, "chi2": np.zeros(4)},
+            scan_dimensions=(2, 2),
+            pixel_spacing=4e-6,
+            model_name="ESR15N",
+        )
+        delta = result._compute_delta_resonance()
+        assert delta.shape == (1, 2, 2, 2)

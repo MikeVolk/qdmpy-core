@@ -200,205 +200,177 @@ class FitResult:
             self._delta_resonance_cache = self._compute_delta_resonance()
         return self._delta_resonance_cache
 
-    def _compute_delta_resonance(self: Self) -> NDArray:  # noqa: C901, PLR0912, PLR0915
-        """Compute frequency difference between resonance peaks.
+    def _resolve_spatial_dims(self: Self, n_pixels: int) -> tuple[int, int]:
+        """Resolve spatial dimensions from pixel count.
 
-        Implements the exact calculation from the old QDM class:
-        delta_resonance = (resonance[:, 1] - resonance[:, 0]) / 2 / GAMMA * d
-        where resonance[:, 1] is high freq range, resonance[:, 0] is low freq range
-        and d = [-1, 1] for negative and positive field directions
+        If n_pixels matches scan_dimensions, returns them directly.
+        Otherwise finds the factor pair closest to the original aspect ratio.
+
+        Args:
+            n_pixels: Total number of pixels in the data.
 
         Returns:
-            Array with shape (n_pol, 2, height, width) for spatial maps
+            Tuple of (height, width) for spatial reshaping.
+        """
+        height, width = self.scan_dimensions
+        if n_pixels == height * width:
+            return height, width
+
+        aspect_ratio = width / height
+        factors = []
+        for i in range(1, int(np.sqrt(n_pixels)) + 1):
+            if n_pixels % i == 0:
+                factors.append((i, n_pixels // i))
+
+        if factors:
+            best_height, best_width = min(
+                factors, key=lambda f: abs(f[1] / f[0] - aspect_ratio)
+            )
+        else:
+            best_height = int(np.sqrt(n_pixels))
+            best_width = n_pixels // best_height
+            if best_height * best_width != n_pixels:
+                best_height, best_width = n_pixels, 1
+
+        logger.debug(
+            f"Pixel count mismatch: data has {n_pixels} pixels, "
+            f"scan_dims suggest {height * width}. Using ({best_height}, {best_width})"
+        )
+        return best_height, best_width
+
+    def _normalize_resonance_shape(
+        self: Self, resonance: NDArray
+    ) -> tuple[NDArray, int, int, int]:
+        """Normalize resonance array to 3D (n_pol, n_frange, n_pixels).
+
+        Handles 4D (squeeze), 3D (passthrough), and 2D (reshape with n_pol=2).
+
+        Args:
+            resonance: Center parameter array of varying dimensionality.
+
+        Returns:
+            Tuple of (resonance_3d, n_pol, n_frange, n_pixels).
+
+        Raises:
+            ValueError: If resonance has an unexpected number of dimensions.
+        """
+        if resonance.ndim == 4:
+            n_pol, n_frange, n_pixels, _ = resonance.shape
+            resonance = np.squeeze(resonance, axis=-1)
+            logger.debug(f"Squeezed 4D resonance to shape {resonance.shape}")
+        elif resonance.ndim == 3:
+            n_pol, n_frange, n_pixels = resonance.shape
+        elif resonance.ndim == 2:
+            n_pol = 2
+            n_frange = resonance.shape[0] // n_pol
+            n_pixels = resonance.shape[1]
+            resonance = resonance.reshape((n_pol, n_frange, n_pixels))
+            logger.debug(f"Reshaped 2D resonance to shape {resonance.shape}")
+        else:
+            raise ValueError(f"Unexpected center parameter shape: {resonance.shape}")
+
+        return resonance, n_pol, n_frange, n_pixels
+
+    def _calc_delta_from_single_center(
+        self: Self,
+        resonance: NDArray,
+        n_pol: int,
+        n_frange: int,
+        height: int,
+        width: int,
+    ) -> NDArray:
+        """Calculate delta resonance from a single center parameter.
+
+        For n_frange >= 2, computes frequency difference between ranges.
+        For n_frange < 2, computes shift from zero-field splitting (D_ZFS).
+
+        Args:
+            resonance: 3D array (n_pol, n_frange, n_pixels).
+            n_pol: Number of polarities.
+            n_frange: Number of frequency ranges.
+            height: Spatial height dimension.
+            width: Spatial width dimension.
+
+        Returns:
+            Array with shape (n_pol, 2, height, width).
+        """
+        d = np.array([-1, 1]).reshape(1, 2, 1, 1)
+
+        if n_frange >= 2:
+            freq_diff = (resonance[:, 1] - resonance[:, 0]).reshape(n_pol, height, width)
+            return freq_diff[:, np.newaxis, :, :] / 2 / GAMMA_NV * 1e6 * d
+
+        freq_shift = (resonance[:, 0] - D_ZFS).reshape(n_pol, height, width)
+        return freq_shift[:, np.newaxis, :, :] / GAMMA_NV * 1e6 * d
+
+    def _calc_delta_from_multi_centers(
+        self: Self,
+        center_params: dict[str, NDArray],
+        height: int,
+        width: int,
+    ) -> NDArray:
+        """Calculate delta resonance from multiple center parameters (center_0, center_1, ...).
+
+        Args:
+            center_params: Dictionary of center parameter arrays keyed by name.
+            height: Spatial height dimension.
+            width: Spatial width dimension.
+
+        Returns:
+            Array with shape (n_pol, 2, height, width).
+
+        Raises:
+            ValueError: If fewer than 2 center parameters are provided.
+        """
+        if len(center_params) < 2:
+            raise ValueError(
+                f"Insufficient center parameters for delta resonance "
+                f"calculation. Found: {len(center_params)}"
+            )
+
+        sorted_items = sorted(
+            center_params.items(),
+            key=lambda x: int(x[0].split("_")[1]) if "_" in x[0] else 0,
+        )
+        low_freq = sorted_items[0][1]
+        high_freq = sorted_items[1][1]
+
+        if low_freq.shape[1] >= 2:
+            freq_diff = (
+                (high_freq[:, 1] - low_freq[:, 0])
+                + (high_freq[:, 0] - low_freq[:, 1])
+            ) / 2
+        else:
+            freq_diff = high_freq[:, 0] - low_freq[:, 0]
+
+        n_pol = freq_diff.shape[0]
+        freq_diff = freq_diff.reshape(n_pol, height, width)
+        d = np.array([-1, 1]).reshape(1, 2, 1, 1)
+        return freq_diff[:, np.newaxis, :, :] / 2 / GAMMA_NV * 1e6 * d
+
+    def _compute_delta_resonance(self: Self) -> NDArray:
+        """Compute frequency difference between resonance peaks.
+
+        Returns:
+            Array with shape (n_pol, 2, height, width) for spatial maps.
         """
         logger.debug("Computing delta resonance for B111 calculations")
 
-        # Look for single 'center' parameter with multiple frequency ranges
         if "center" in self.parameters:
-            # Standard case: center parameter with shape (n_pol, n_frange, n_pixels)
             resonance = self.parameters["center"]
             logger.debug(f"Center parameter shape: {resonance.shape}")
-
-            # Handle variable shapes from fit results
-            if len(resonance.shape) == 4:
-                # Shape is (n_pol, n_frange, n_pixels, 1) - squeeze last dimension
-                n_pol, n_frange, n_pixels, _ = resonance.shape
-                resonance = np.squeeze(resonance, axis=-1)  # Remove last dimension
-                logger.debug(
-                    f"Squeezed center parameter from "
-                    f"{self.parameters['center'].shape} to {resonance.shape}"
-                )
-            elif len(resonance.shape) == 3:
-                n_pol, n_frange, n_pixels = resonance.shape
-            elif len(resonance.shape) == 2:
-                # Shape might be (n_pol * n_frange, n_pixels) - reshape to 3D
-                n_pol = 2  # assume 2 polarities
-                total_pol_frange = resonance.shape[0]
-                n_frange = total_pol_frange // n_pol
-                n_pixels = resonance.shape[1]
-                resonance = resonance.reshape((n_pol, n_frange, n_pixels))
-                logger.debug(
-                    f"Reshaped center parameter from "
-                    f"{self.parameters['center'].shape} to {resonance.shape}"
-                )
-            else:
-                raise ValueError(f"Unexpected center parameter shape: {resonance.shape}")
-
-            # Calculate actual spatial dimensions from pixel count and scan_dimensions ratio
-            height, width = self.scan_dimensions
-            expected_pixels = height * width
-
-            if n_pixels != expected_pixels:
-                # Find the best 2D factorization of n_pixels
-                # Try to find factors closest to the original aspect ratio
-                aspect_ratio = width / height
-
-                # Find all factor pairs
-                factors = []
-                for i in range(1, int(np.sqrt(n_pixels)) + 1):
-                    if n_pixels % i == 0:
-                        factors.append((i, n_pixels // i))
-
-                if factors:
-                    # Choose factor pair with aspect ratio closest to original
-                    best_factors = min(factors, key=lambda f: abs(f[1] / f[0] - aspect_ratio))
-                    adjusted_height, adjusted_width = best_factors
-                else:
-                    # Fallback: use sqrt approach
-                    adjusted_height = int(np.sqrt(n_pixels))
-                    adjusted_width = n_pixels // adjusted_height
-                    if adjusted_height * adjusted_width != n_pixels:
-                        adjusted_height, adjusted_width = n_pixels, 1
-
-                logger.debug(
-                    f"Pixel count mismatch: data has {n_pixels} pixels, "
-                    f"scan_dims suggest {expected_pixels}. "
-                    f"Using ({adjusted_height}, {adjusted_width})"
-                )
-                height, width = adjusted_height, adjusted_width
-
-            if n_frange >= 2:
-                # We have at least 2 frequency ranges (low and high)
-                # Calculate difference: high_freq - low_freq
-                freq_diff = resonance[:, 1] - resonance[:, 0]  # Shape: (n_pol, n_pixels)
-
-                # Reshape to spatial dimensions
-                freq_diff = freq_diff.reshape(
-                    (n_pol, height, width)
-                )  # Shape: (n_pol, height, width)
-
-                # Convert to magnetic field and apply polarity factor
-                # Original formula: (resonance[:, 1] - resonance[:, 0]) / 2 / GAMMA * d
-                d = np.array([-1, 1])  # negative and positive field directions
-
-                # Broadcast to create (n_pol, 2, height, width)
-                # where the "2" dimension represents [negative_diff, positive_diff]
-                delta_resonance = np.zeros((n_pol, 2, height, width))
-
-                for pol in range(n_pol):
-                    for direction in range(2):
-                        delta_resonance[pol, direction] = (
-                            freq_diff[pol] / 2 / GAMMA_NV * 1e6 * d[direction]
-                        )
-
-            else:
-                # Single frequency range - use frequency shift from zero field
-                zero_field_freq = D_ZFS
-                freq_shift = resonance[:, 0] - zero_field_freq  # Shape: (n_pol, n_pixels)
-
-                # Reshape to spatial dimensions
-                freq_shift = freq_shift.reshape(
-                    (n_pol, height, width)
-                )  # Shape: (n_pol, height, width)
-
-                d = np.array([-1, 1])
-                delta_resonance = np.zeros((n_pol, 2, height, width))
-
-                for pol in range(n_pol):
-                    for direction in range(2):
-                        delta_resonance[pol, direction] = (
-                            freq_shift[pol] / GAMMA_NV * 1e6 * d[direction]
-                        )
-
+            resonance, n_pol, n_frange, n_pixels = self._normalize_resonance_shape(resonance)
+            height, width = self._resolve_spatial_dims(n_pixels)
+            delta_resonance = self._calc_delta_from_single_center(
+                resonance, n_pol, n_frange, height, width
+            )
         else:
-            # Multiple center parameters (center_0, center_1, etc.)
-            center_params = {k: v for k, v in self.parameters.items() if k.startswith("center")}
-
-            if len(center_params) >= 2:
-                # Sort parameters by index to ensure correct order
-                sorted_items = sorted(
-                    center_params.items(),
-                    key=lambda x: int(x[0].split("_")[1]) if "_" in x[0] else 0,
-                )
-
-                # Assume first is low freq, second is high freq
-                low_freq_centers = sorted_items[0][1]  # Shape: (n_pol, n_frange, n_pixels)
-                high_freq_centers = sorted_items[1][1]  # Shape: (n_pol, n_frange, n_pixels)
-
-                # Get actual pixel count
-                n_pixels = low_freq_centers.shape[-1]
-                height, width = self.scan_dimensions
-                expected_pixels = height * width
-
-                if n_pixels != expected_pixels:
-                    # Find the best 2D factorization of n_pixels
-                    aspect_ratio = width / height
-
-                    # Find all factor pairs
-                    factors = []
-                    for i in range(1, int(np.sqrt(n_pixels)) + 1):
-                        if n_pixels % i == 0:
-                            factors.append((i, n_pixels // i))
-
-                    if factors:
-                        # Choose factor pair with aspect ratio closest to original
-                        best_factors = min(factors, key=lambda f: abs(f[1] / f[0] - aspect_ratio))
-                        adjusted_height, adjusted_width = best_factors
-                    else:
-                        # Fallback: use sqrt approach
-                        adjusted_height = int(np.sqrt(n_pixels))
-                        adjusted_width = n_pixels // adjusted_height
-                        if adjusted_height * adjusted_width != n_pixels:
-                            adjusted_height, adjusted_width = n_pixels, 1
-
-                    height, width = adjusted_height, adjusted_width
-
-                # Calculate frequency difference between frequency ranges
-                # Take the difference within each frequency range if multiple ranges exist
-                if low_freq_centers.shape[1] >= 2:
-                    # Use difference between high and low frequency ranges
-                    freq_diff_low = (
-                        high_freq_centers[:, 1] - low_freq_centers[:, 0]
-                    )  # Cross-range difference
-                    freq_diff_high = (
-                        high_freq_centers[:, 0] - low_freq_centers[:, 1]
-                    )  # Cross-range difference
-                    freq_diff = (freq_diff_low + freq_diff_high) / 2  # Average
-                else:
-                    # Simple difference between the two center parameters
-                    freq_diff = (
-                        high_freq_centers[:, 0] - low_freq_centers[:, 0]
-                    )  # Shape: (n_pol, n_pixels)
-
-                # Reshape to spatial dimensions
-                freq_diff = freq_diff.reshape(
-                    (freq_diff.shape[0], height, width)
-                )  # Shape: (n_pol, height, width)
-
-                d = np.array([-1, 1])
-                delta_resonance = np.zeros((freq_diff.shape[0], 2, height, width))
-
-                for pol in range(freq_diff.shape[0]):
-                    for direction in range(2):
-                        delta_resonance[pol, direction] = (
-                            freq_diff[pol] / 2 / GAMMA_NV * 1e6 * d[direction]
-                        )
-
-            else:
-                raise ValueError(
-                    f"Insufficient center parameters for delta resonance "
-                    f"calculation. Found: {len(center_params)}"
-                )
+            center_params = {
+                k: v for k, v in self.parameters.items() if k.startswith("center")
+            }
+            n_pixels = next(iter(center_params.values())).shape[-1]
+            height, width = self._resolve_spatial_dims(n_pixels)
+            delta_resonance = self._calc_delta_from_multi_centers(center_params, height, width)
 
         logger.debug(f"Delta resonance computed with shape: {delta_resonance.shape}")
         return delta_resonance
