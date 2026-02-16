@@ -6,8 +6,6 @@ Model class, and ModelRegistry in the QDMpy.models module.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
@@ -543,17 +541,16 @@ class TestModelRegistry:
             ),
         )
 
-        with patch('QDMpy.models.get_settings', return_value=mock_settings):
-            constraints = ModelRegistry._initialize_constraints(
-                TestModelInitConstraints()
-            )
+        constraints = ModelRegistry._initialize_constraints(
+            TestModelInitConstraints(), settings=mock_settings
+        )
 
-            assert 'contrast_0' in constraints
-            assert 'width_0' in constraints
-            assert len(constraints['contrast_0']) == 3
-            assert constraints['contrast_0'][0] == 0.0
-            assert constraints['contrast_0'][1] == 1.0
-            assert constraints['contrast_0'][2] == 'FREE'
+        assert 'contrast_0' in constraints
+        assert 'width_0' in constraints
+        assert len(constraints['contrast_0']) == 3
+        assert constraints['contrast_0'][0] == 0.0
+        assert constraints['contrast_0'][1] == 1.0
+        assert constraints['contrast_0'][2] == 'FREE'
 
 
 class TestModelSelfDescribing:

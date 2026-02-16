@@ -19,6 +19,7 @@ from numpy.typing import NDArray
 
 from QDMpy import get_settings
 from QDMpy.constants import AHYP_14N, AHYP_15N
+from QDMpy.settings import QDMpySettings
 
 
 def esr14n(
@@ -382,24 +383,29 @@ class ModelRegistry:
         return cls._registry
 
     @classmethod
-    def _initialize_constraints(cls: type[ModelRegistry], model: Model) -> dict[str, list[Any]]:
+    def _initialize_constraints(
+        cls: type[ModelRegistry],
+        model: Model,
+        settings: QDMpySettings | None = None,
+    ) -> dict[str, list[Any]]:
         """Initialize default constraints for model parameters.
 
         Args:
             model: The model for which to initialize constraints.
+            settings: Optional QDMpySettings instance (defaults to global get_settings()).
 
         Returns:
             Dictionary mapping parameter names to constraint lists.
         """
-        settings = get_settings().model.constraints
+        resolved = (settings or get_settings()).model.constraints
         constraints: dict[str, list[Any]] = {}
 
         for param in model.parameters_unique:
             base_param = model.parameter_types[param]
             constraints[param] = [
-                getattr(settings, f'{base_param}_min'),
-                getattr(settings, f'{base_param}_max'),
-                getattr(settings, f'{base_param}_type'),
+                getattr(resolved, f'{base_param}_min'),
+                getattr(resolved, f'{base_param}_max'),
+                getattr(resolved, f'{base_param}_type'),
             ]
         return constraints
 

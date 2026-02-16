@@ -27,7 +27,7 @@ from QDMpy.guess import (
     guess_width,
 )
 from QDMpy.models import Model, ModelRegistry
-from QDMpy.settings import ModelConstraintsSettings
+from QDMpy.settings import ModelConstraintsSettings, QDMpySettings
 
 CONSTRAINT_TYPES = ["FREE", "LOWER", "UPPER", "LOWER_UPPER"]
 ESTIMATOR_ID = {"LSE": 0, "MLE": 1}
@@ -155,6 +155,9 @@ class FitManager:
         frequencies: NDArray,
         model_name: str = "auto",
         constraints: dict[str, Any] | None = None,
+        *,
+        settings: QDMpySettings | None = None,
+        gpu_available: bool | None = None,
     ) -> None:
         """Initialize a fitting instance for ODMR data.
 
@@ -163,7 +166,13 @@ class FitManager:
             frequencies: Frequency array in GHz, shape (n_frange, n_freq).
             model_name: Model name ('auto', 'ESR14N', 'ESR15N', 'ESRSINGLE').
             constraints: Optional dict of custom constraints.
+            settings: Optional QDMpySettings instance (defaults to global get_settings()).
+            gpu_available: Optional GPU availability override (defaults to is_pygpufit_available()).
         """
+        self._settings = settings or get_settings()
+        self._gpu_available = (
+            gpu_available if gpu_available is not None else is_pygpufit_available()
+        )
         self._data_xr = data
         self.f_ghz = np.atleast_2d(frequencies)
         logger.debug(
@@ -191,12 +200,12 @@ class FitManager:
         self._initial_parameter: NDArray | None = None
         self._reset_fit()
         self._constraint_manager = ConstraintManager(
-            self._model, get_settings().model.constraints
+            self._model, self._settings.model.constraints
         )
         if constraints:
             for param, constraint in constraints.items():
                 self.set_constraints(param, **constraint, reset_fit=False)
-        self.estimator_id = ESTIMATOR_ID[get_settings().fit.estimator]
+        self.estimator_id = ESTIMATOR_ID[self._settings.fit.estimator]
 
     @property
     def _flat_data(self: Self) -> NDArray:
@@ -272,7 +281,7 @@ class FitManager:
             ) from e
         logger.debug("Setting model to %s, resetting fit results.", model_name)
         self._constraint_manager = ConstraintManager(
-            self._model, get_settings().model.constraints
+            self._model, self._settings.model.constraints
         )
         self._reset_fit()
         self._initial_parameter = None
@@ -499,7 +508,7 @@ class FitManager:
         Raises:
             ImportError: If pyGpufit is not installed.
         """
-        if not is_pygpufit_available():
+        if not self._gpu_available:
             raise ImportError("pyGpufit is required for fitting but not installed")
         if self._fitted and not refit:
             logger.debug("Already fitted")
@@ -558,7 +567,7 @@ class FitManager:
         Raises:
             ImportError: If pyGpufit is not installed.
         """
-        if not is_pygpufit_available():
+        if not self._gpu_available:
             raise ImportError("pyGpufit is required for fitting but not installed")
 
         import pygpufit.gpufit as gf
@@ -586,8 +595,8 @@ class FitManager:
             initial_parameters=np.ascontiguousarray(initial_parameters_reshaped, dtype=np.float32),
             weights=None,
             model_id=self._model.model_id,
-            max_number_iterations=get_settings().fit.max_number_iterations,
-            tolerance=get_settings().fit.tolerance,
+            max_number_iterations=self._settings.fit.max_number_iterations,
+            tolerance=self._settings.fit.tolerance,
             estimator_id=self.estimator_id,
         )
         return list(results)
