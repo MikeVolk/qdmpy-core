@@ -13,7 +13,7 @@ import pytest
 import xarray as xr
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 
-from QDMpy.fit import CONSTRAINT_TYPES, ConstraintManager, FitManager
+from QDMpy.fit import CONSTRAINT_TYPES, ConstraintManager, FitManager, ParameterGuesser
 from QDMpy.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
 from QDMpy.settings import (
     FitSettings,
@@ -664,6 +664,50 @@ def test_set_free_constraints_complex_model(sample_data, sample_frequencies) -> 
 
     for param in fit.model_params_unique:
         assert fit.constraints[param][2] == 'FREE'
+
+
+class TestParameterGuesser:
+    """Tests for the ParameterGuesser class."""
+
+    def test_shape_correctness(self, sample_data, sample_frequencies) -> None:
+        """Test that guess returns correctly shaped arrays for each model."""
+        for model_name in ['ESRSINGLE', 'ESR15N', 'ESR14N']:
+            model = ModelRegistry.get(model_name)
+            guesser = ParameterGuesser(model, np.atleast_2d(sample_frequencies))
+            fit = FitManager(
+                sample_data, sample_frequencies,
+                model_name=model_name, settings=MOCK_SETTINGS,
+            )
+            result = guesser.guess(fit._flat_data)
+            expected_shape = (2, 1, 4, model.n_parameters)
+            assert result.shape == expected_shape, f"Failed for {model_name}"
+
+    def test_caching_behavior(self, sample_data, sample_frequencies) -> None:
+        """Test that repeated calls return the same cached object."""
+        model = ModelRegistry.get('ESRSINGLE')
+        guesser = ParameterGuesser(model, np.atleast_2d(sample_frequencies))
+        fit = FitManager(
+            sample_data, sample_frequencies,
+            model_name='ESRSINGLE', settings=MOCK_SETTINGS,
+        )
+        first = guesser.guess(fit._flat_data)
+        second = guesser.guess(fit._flat_data)
+        assert first is second
+
+    def test_reset_clears_cache(self, sample_data, sample_frequencies) -> None:
+        """Test that reset clears the cache so next call recomputes."""
+        model = ModelRegistry.get('ESRSINGLE')
+        guesser = ParameterGuesser(model, np.atleast_2d(sample_frequencies))
+        fit = FitManager(
+            sample_data, sample_frequencies,
+            model_name='ESRSINGLE', settings=MOCK_SETTINGS,
+        )
+        first = guesser.guess(fit._flat_data)
+        guesser.reset()
+        assert guesser._cache is None
+        second = guesser.guess(fit._flat_data)
+        assert first is not second
+        assert_array_equal(first, second)
 
 
 if __name__ == '__main__':
