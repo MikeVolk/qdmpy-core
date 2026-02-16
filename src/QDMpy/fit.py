@@ -137,6 +137,71 @@ class ConstraintManager:
         )
 
 
+class ParameterGuesser:
+    """Generates initial parameter guesses for ODMR fitting.
+
+    Encapsulates parameter estimation logic with built-in caching.
+    The cache is invalidated when reset() is called (e.g. after data
+    or model changes).
+
+    Attributes:
+        _model: The Model instance providing parameter metadata.
+        _f_ghz: Frequency values in GHz (2D: n_frange x n_freq).
+        _cache: Cached initial parameter array, or None.
+    """
+
+    def __init__(self: Self, model: Model, f_ghz: NDArray) -> None:
+        """Initialize the parameter guesser.
+
+        Args:
+            model: Model instance providing parameter metadata.
+            f_ghz: Frequency values in GHz, shape (n_frange, n_freq).
+        """
+        self._model = model
+        self._f_ghz = f_ghz
+        self._cache: NDArray | None = None
+
+    def guess(self: Self, flat_data: NDArray) -> NDArray:
+        """Generate initial parameter guesses, using cache if available.
+
+        Args:
+            flat_data: 4D numpy array (n_pol, n_frange, n_pixel, n_freq).
+
+        Returns:
+            NDArray with shape (n_pol, n_frange, n_pixel, n_params).
+        """
+        if self._cache is not None:
+            return self._cache
+
+        n_pol, n_frange, n_pixel, _ = flat_data.shape
+        n_params = self._model.n_parameters
+        result = np.zeros((n_pol, n_frange, n_pixel, n_params), dtype=np.float32)
+
+        for idx, param_name in enumerate(self._model.parameters_unique):
+            param_type = self._model.parameter_types[param_name]
+            logger.debug(f"Guessing {param_type} parameters")
+
+            if param_type == 'center':
+                param_values = guess_center(flat_data, self._f_ghz)
+            elif param_type == 'contrast':
+                param_values = guess_contrast(flat_data)
+            elif param_type == 'width':
+                param_values = guess_width(flat_data, self._f_ghz, DEFAULT_VMIN, DEFAULT_VMAX)
+            elif param_type == 'offset':
+                param_values = np.zeros((n_pol, n_frange, n_pixel))
+            else:
+                raise ValueError(f"Unknown parameter type: {param_type}")
+
+            result[:, :, :, idx] = param_values
+
+        self._cache = np.ascontiguousarray(result, dtype=np.float32)
+        return self._cache
+
+    def reset(self: Self) -> None:
+        """Clear the cached initial parameters."""
+        self._cache = None
+
+
 class FitManager:
     """Manages fitting operations for ODMR spectral data.
 
@@ -197,7 +262,7 @@ class FitManager:
                 ) from e
 
         logger.info(f"Using model: {self._model.name}")
-        self._initial_parameter: NDArray | None = None
+        self._guesser = ParameterGuesser(self._model, self.f_ghz)
         self._reset_fit()
         self._constraint_manager = ConstraintManager(
             self._model, self._settings.model.constraints
@@ -236,7 +301,7 @@ class FitManager:
             dims=self._data_xr.dims,
             coords=self._data_xr.coords,
         )
-        self._initial_parameter = None
+        self._guesser.reset()
         self._reset_fit()
 
     def _reset_fit(self: Self) -> None:
@@ -283,8 +348,8 @@ class FitManager:
         self._constraint_manager = ConstraintManager(
             self._model, self._settings.model.constraints
         )
+        self._guesser = ParameterGuesser(self._model, self.f_ghz)
         self._reset_fit()
-        self._initial_parameter = None
 
     @property
     def model_params(self: Self) -> list[str]:
@@ -403,45 +468,21 @@ class FitManager:
 
     @property
     def initial_parameter(self: Self) -> NDArray:
-        """Get initial parameter guesses (cached).
+        """Get initial parameter guesses (cached via ParameterGuesser).
 
         Returns:
             NDArray with shape (n_pol, n_frange, n_pixel, n_params).
         """
-        if self._initial_parameter is None:
-            self._initial_parameter = self.get_initial_parameter()
-        return self._initial_parameter
+        return self._guesser.guess(self._flat_data)
 
     def get_initial_parameter(self: Self) -> NDArray:
-        """Generate initial parameter guesses.
-
-        Extracts numpy from xarray, flattens spatial dims for numba functions.
+        """Generate initial parameter guesses (always recomputes, no cache).
 
         Returns:
             NDArray with shape (n_pol, n_frange, n_pixel, n_params).
         """
-        flat = self._flat_data  # (n_pol, n_frange, n_pixel, n_freq)
-        n_pol, n_frange, n_pixel, _ = flat.shape
-        result = np.zeros((n_pol, n_frange, n_pixel, self.n_parameter), dtype=np.float32)
-
-        for idx, param_name in enumerate(self.model_params_unique):
-            param_type = self._model.parameter_types[param_name]
-            logger.debug(f"Guessing {param_type} parameters")
-
-            if param_type == "center":
-                param_values = guess_center(flat, self.f_ghz)
-            elif param_type == "contrast":
-                param_values = guess_contrast(flat)
-            elif param_type == "width":
-                param_values = guess_width(flat, self.f_ghz, DEFAULT_VMIN, DEFAULT_VMAX)
-            elif param_type == "offset":
-                param_values = np.zeros((n_pol, n_frange, n_pixel))
-            else:
-                raise ValueError(f"Unknown parameter type: {param_type}")
-
-            result[:, :, :, idx] = param_values
-
-        return np.ascontiguousarray(result, dtype=np.float32)
+        self._guesser.reset()
+        return self._guesser.guess(self._flat_data)
 
     @property
     def parameter(self: Self) -> NDArray:
