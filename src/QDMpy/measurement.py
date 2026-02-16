@@ -16,7 +16,6 @@ provides a unified interface for analysis and visualization of QDM experiments.
 
 from __future__ import annotations
 
-import contextlib
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -261,19 +260,6 @@ class Measurement:
             except (KeyError, AttributeError, ValueError):
                 logger.debug(f"Parameter '{param_name}' not available for model {model_name}")
                 continue
-
-        # Add any model-specific parameters
-        if model_name == "ESR14N":
-            # 14N has multiple width parameters
-            for width_param in ["width_1", "width_2"]:
-                try:
-                    parameters[width_param] = fit_manager.get_param(width_param)
-                except (KeyError, AttributeError):
-                    continue
-        elif model_name == "ESR15N":
-            # 15N has width parameter
-            with contextlib.suppress(KeyError, AttributeError):
-                parameters["width"] = fit_manager.get_param("width")
 
         # Calculate quality metrics
         quality_metrics = {}

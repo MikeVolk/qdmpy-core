@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 
 from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
-from QDMpy.exceptions import ModelGuessNotPossible
+from QDMpy.exceptions import ModelGuessNotPossibleError
 from QDMpy.guess import (
     get_model_by_peaks,
     guess_center,
@@ -212,7 +212,7 @@ class TestGuessModel:
         mock_guess_n_peaks.return_value = (2, True, [])
         data = np.zeros((2, 3, 10, 100))
 
-        with pytest.raises(ModelGuessNotPossible):
+        with pytest.raises(ModelGuessNotPossibleError):
             guess_model(data)
 
 
@@ -457,6 +457,7 @@ class TestGuessInitialFitParameters:
         """Test guessing parameters with an invalid parameter type."""
         mock_model = MagicMock()
         mock_model.parameters_unique = ['invalid_param']
+        mock_model.parameter_types = {'invalid_param': 'unknown_type'}
 
         with pytest.raises(ValueError) as excinfo:
             guess_initial_fit_parameters(sample_odmr_data, frequency_range, mock_model)

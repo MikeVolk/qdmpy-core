@@ -14,7 +14,7 @@ import xarray as xr
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 
 from QDMpy.fit import CONSTRAINT_TYPES, ConstraintManager, FitManager
-from QDMpy.models import ESR14N, ESR15N, ESRSINGLE, ModelRegistry
+from QDMpy.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
 from QDMpy.settings import (
     FitSettings,
     ModelConstraintsSettings,
@@ -296,12 +296,41 @@ class TestParamMethods:
             fit._param_idx('invalid_param')
 
 
+def _make_test_model(
+    params: list[str],
+    param_types: dict[str, str],
+    freq_params: list[str],
+) -> Model:
+    """Create a concrete Model subclass for ConstraintManager tests."""
+
+    class _TestModel(Model):
+        def __init__(self) -> None:
+            super().__init__('TEST', 1, params)
+
+        @property
+        def parameter_types(self) -> dict[str, str]:
+            return param_types
+
+        @property
+        def frequency_parameters(self) -> list[str]:
+            return freq_params
+
+        def func(self, x, parameters):
+            return x
+
+    return _TestModel()
+
+
 class TestConstraintManager:
     """Test the ConstraintManager class."""
 
     def test_initialization(self) -> None:
         """Test initialization of the ConstraintManager."""
-        model_params = ['center', 'width_0', 'contrast', 'offset']
+        model = _make_test_model(
+            ['center', 'width_0', 'contrast', 'offset'],
+            {'center': 'center', 'width_0': 'width', 'contrast': 'contrast', 'offset': 'offset'},
+            ['center'],
+        )
         settings = ModelConstraintsSettings(
             center_min=2.8,
             center_max=2.9,
@@ -316,9 +345,8 @@ class TestConstraintManager:
             offset_max=0.1,
             offset_type='LOWER_UPPER',
         )
-        units = {'center': 'GHz', 'width': 'GHz', 'contrast': 'a.u.', 'offset': 'a.u.'}
 
-        constraint_manager = ConstraintManager(model_params, settings, units)
+        constraint_manager = ConstraintManager(model, settings)
         constraints = constraint_manager.get_constraints()
         assert len(constraints) == 4
 
@@ -330,11 +358,15 @@ class TestConstraintManager:
         assert constraints['width_0'][0] == 0.001
         assert constraints['width_0'][1] == 0.01
         assert constraints['width_0'][2] == 'LOWER'
-        assert constraints['width_0'][3] == 'GHz'
+        assert constraints['width_0'][3] == 'a.u.'
 
     def test_set_constraint(self) -> None:
         """Test setting constraints."""
-        model_params = ['center', 'width_0', 'contrast', 'offset']
+        model = _make_test_model(
+            ['center', 'width_0', 'contrast', 'offset'],
+            {'center': 'center', 'width_0': 'width', 'contrast': 'contrast', 'offset': 'offset'},
+            ['center'],
+        )
         settings = ModelConstraintsSettings(
             center_min=2.8,
             center_max=2.9,
@@ -349,9 +381,8 @@ class TestConstraintManager:
             offset_max=0.1,
             offset_type='FREE',
         )
-        units = {'center': 'GHz', 'width': 'GHz', 'contrast': 'a.u.', 'offset': 'a.u.'}
 
-        constraint_manager = ConstraintManager(model_params, settings, units)
+        constraint_manager = ConstraintManager(model, settings)
         constraint_manager.set_constraint(
             'center', vmin=2.85, vmax=2.88, constraint_type='LOWER_UPPER'
         )
@@ -374,7 +405,11 @@ class TestConstraintManager:
 
     def test_to_array(self) -> None:
         """Test conversion to constraint array."""
-        model_params = ['contrast', 'center', 'width_0', 'offset']
+        model = _make_test_model(
+            ['contrast', 'center', 'width_0', 'offset'],
+            {'contrast': 'contrast', 'center': 'center', 'width_0': 'width', 'offset': 'offset'},
+            ['center'],
+        )
         settings = ModelConstraintsSettings(
             center_min=2.8,
             center_max=2.9,
@@ -389,9 +424,9 @@ class TestConstraintManager:
             offset_max=0.1,
             offset_type='FREE',
         )
-        units = {'center': 'GHz', 'width': 'GHz', 'contrast': 'a.u.', 'offset': 'a.u.'}
 
-        constraint_manager = ConstraintManager(model_params, settings, units)
+        constraint_manager = ConstraintManager(model, settings)
+        model_params = model.parameters_unique
         constraints_array = constraint_manager.to_array(2, model_params)
 
         assert constraints_array.shape == (2, 8)
@@ -401,7 +436,7 @@ class TestConstraintManager:
             1.0,  # contrast_max
             2.8e9,  # center_min (GHz * 1e9 → Hz in to_array)
             2.9e9,  # center_max
-            0.001,  # width_min (GHz, passed through)
+            0.001,  # width_min (passed through)
             0.01,  # width_max
             -0.1,  # offset_min
             0.1,  # offset_max
@@ -411,7 +446,11 @@ class TestConstraintManager:
 
     def test_get_constraint_types(self) -> None:
         """Test getting constraint types as array."""
-        model_params = ['contrast', 'center', 'width_0', 'offset']
+        model = _make_test_model(
+            ['contrast', 'center', 'width_0', 'offset'],
+            {'contrast': 'contrast', 'center': 'center', 'width_0': 'width', 'offset': 'offset'},
+            ['center'],
+        )
         settings = ModelConstraintsSettings(
             center_min=2.8,
             center_max=2.9,
@@ -426,9 +465,9 @@ class TestConstraintManager:
             offset_max=0.1,
             offset_type='LOWER_UPPER',
         )
-        units = {'center': 'GHz', 'width': 'GHz', 'contrast': 'a.u.', 'offset': 'a.u.'}
 
-        constraint_manager = ConstraintManager(model_params, settings, units)
+        constraint_manager = ConstraintManager(model, settings)
+        model_params = model.parameters_unique
         constraint_types = constraint_manager.get_constraint_types(model_params)
 
         expected_types = [
@@ -527,32 +566,12 @@ def test_get_param_invalid(sample_data, sample_frequencies) -> None:
 
 
 def test_constraint_manager_missing_settings() -> None:
-    """Test ConstraintManager initialization with missing settings."""
-    model_params = ['center', 'width_0', 'contrast', 'offset']
-    incomplete_settings = ModelConstraintsSettings(
-        center_min=2.8,
-        center_max=2.9,
-        center_type='FREE',
-        width_min=0.001,
-        width_max=0.01,
-        width_type='FREE',
-        contrast_min=0.0,
-        contrast_max=1.0,
-        contrast_type='FREE',
-        offset_min=-0.1,
-        offset_max=0.1,
-        offset_type='FREE',
+    """Test ConstraintManager initialization with all settings provided."""
+    model = _make_test_model(
+        ['center', 'width_0', 'contrast', 'offset'],
+        {'center': 'center', 'width_0': 'width', 'contrast': 'contrast', 'offset': 'offset'},
+        ['center'],
     )
-    units = {'center': 'GHz', 'width': 'GHz', 'contrast': 'a.u.', 'offset': 'a.u.'}
-
-    # This should succeed since all settings are provided
-    cm = ConstraintManager(model_params, incomplete_settings, units)
-    assert len(cm.get_constraints()) == 4
-
-
-def test_to_array_zero_pixels() -> None:
-    """Test ConstraintManager.to_array with zero pixels."""
-    model_params = ['center', 'width_0', 'contrast', 'offset']
     settings = ModelConstraintsSettings(
         center_min=2.8,
         center_max=2.9,
@@ -567,9 +586,35 @@ def test_to_array_zero_pixels() -> None:
         offset_max=0.1,
         offset_type='FREE',
     )
-    units = {'center': 'GHz', 'width': 'GHz', 'contrast': 'a.u.', 'offset': 'a.u.'}
-    constraint_manager = ConstraintManager(model_params, settings, units)
 
+    cm = ConstraintManager(model, settings)
+    assert len(cm.get_constraints()) == 4
+
+
+def test_to_array_zero_pixels() -> None:
+    """Test ConstraintManager.to_array with zero pixels."""
+    model = _make_test_model(
+        ['center', 'width_0', 'contrast', 'offset'],
+        {'center': 'center', 'width_0': 'width', 'contrast': 'contrast', 'offset': 'offset'},
+        ['center'],
+    )
+    settings = ModelConstraintsSettings(
+        center_min=2.8,
+        center_max=2.9,
+        center_type='FREE',
+        width_min=0.001,
+        width_max=0.01,
+        width_type='FREE',
+        contrast_min=0.0,
+        contrast_max=1.0,
+        contrast_type='FREE',
+        offset_min=-0.1,
+        offset_max=0.1,
+        offset_type='FREE',
+    )
+    constraint_manager = ConstraintManager(model, settings)
+
+    model_params = model.parameters_unique
     constraints_array = constraint_manager.to_array(0, model_params)
     assert constraints_array.shape == (0, len(model_params) * 2)
 
