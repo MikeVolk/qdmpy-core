@@ -153,70 +153,54 @@ class Measurement:
             f"pixel_spacing={self.pixel_spacing})"
         )
 
-    def fit_odmr(  # noqa: C901, PLR0912, PLR0915
-        self: Self,
-        model_name: str | None = None,
-        *,
-        constraints: dict[str, Any] | None = None,
-    ) -> FitResult:
-        """Fit ODMR spectra and return results object.
-
-        This method performs spectral fitting on the processed ODMR data using
-        the specified model and returns a FitResult object containing the results
-        and analysis methods.
+    def _detect_model(self: Self, model_name: str | None) -> str:
+        """Detect or validate the ODMR fitting model name.
 
         Args:
-            model_name: Name of the model to use for fitting. Options are:
-                - "ESR14N": For 14N isotope (3 peaks)
-                - "ESR15N": For 15N isotope (2 peaks)
-                - "ESRSINGLE": For single resonance
-                - None: Automatic model selection based on data analysis
-            **kwargs: Additional arguments passed to FitManager (e.g., constraints,
-                estimator settings)
+            model_name: Explicit model name, or None for auto-detection.
 
         Returns:
-            FitResult object containing fit results and analysis methods
+            Resolved model name string.
+        """
+        if model_name is not None:
+            return model_name
+
+        logger.info("Auto-detecting optimal model for ODMR data...")
+        try:
+            from QDMpy.guess import guess_model
+
+            processed_data = self.odmr.processed_data
+            values = processed_data.data.values
+            n_pol, n_frange = values.shape[0], values.shape[1]
+            n_freq = values.shape[-1]
+            flat_data = values.reshape(n_pol, n_frange, -1, n_freq)
+            detected = guess_model(flat_data)
+            logger.info(f"Auto-detected model: {detected.name}")
+            return detected.name
+        except Exception as e:
+            logger.warning(f"Model auto-detection failed: {e}. Using default.")
+            return self._fit_model
+
+    def _validate_fit_prerequisites(self: Self) -> Any:
+        """Validate that processed data and GPU fitting are available.
+
+        Returns:
+            The ProcessedData object.
 
         Raises:
-            ValueError: If ODMR data hasn't been processed yet
-            ImportError: If required fitting dependencies are not available
+            ValueError: If ODMR data hasn't been processed.
+            ImportError: If pyGpufit is not available.
         """
-        # Import here to avoid circular imports
-        from QDMpy.fit import FitManager
-        from QDMpy.result import FitResult
-
-        # Auto-detect model if none specified
-        if model_name is None:
-            logger.info("Auto-detecting optimal model for ODMR data...")
-            try:
-                from QDMpy.guess import guess_model
-
-                processed_data = self.odmr.processed_data
-                # Extract 4D numpy (n_pol, n_frange, n_pixel, n_freq) for guess_model
-                values = processed_data.data.values
-                n_pol, n_frange = values.shape[0], values.shape[1]
-                n_freq = values.shape[-1]
-                flat_data = values.reshape(n_pol, n_frange, -1, n_freq)
-                detected_model = guess_model(flat_data)
-                model_name = detected_model.name
-                logger.info(f"Auto-detected model: {model_name}")
-            except Exception as e:
-                logger.warning(f"Model auto-detection failed: {e}. Using default.")
-                model_name = self._fit_model
-
-        logger.info(f"Starting ODMR fitting with model: {model_name}")
-
-        # Validate that data has been processed
         try:
             processed_data = self.odmr.processed_data
             if processed_data is None:
                 raise ValueError("ODMR data must be processed before fitting")
         except (AttributeError, ValueError) as e:
             raise ValueError(
-                "ODMR data must be processed before fitting. " "Call odmr.process_data() first."
+                "ODMR data must be processed before fitting. "
+                "Call odmr.process_data() first."
             ) from e
 
-        # Check for fitting dependencies
         from QDMpy import is_pygpufit_available
 
         if not is_pygpufit_available():
@@ -224,65 +208,97 @@ class Measurement:
                 "pyGpufit is required for fitting but not available. "
                 "Please install pyGpufit to enable fitting functionality."
             )
+        return processed_data
 
-        # Initialize FitManager with processed data
-        logger.debug(f"Initializing FitManager with data shape: {processed_data.data.shape}")
+    @staticmethod
+    def _extract_fit_parameters(
+        fit_manager: Any, model_name: str
+    ) -> dict[str, NDArray]:
+        """Extract fitted parameters and chi2 from a FitManager.
+
+        Args:
+            fit_manager: A fitted FitManager instance.
+            model_name: Model name (for logging).
+
+        Returns:
+            Dictionary of parameter name to NDArray.
+        """
+        parameters: dict[str, NDArray] = {}
+        for param_name in [*fit_manager.model_params_unique, 'chi2']:
+            try:
+                parameters[param_name] = fit_manager.get_param(param_name)
+            except (KeyError, AttributeError, ValueError):
+                logger.debug(f"Parameter '{param_name}' not available for model {model_name}")
+        return parameters
+
+    @staticmethod
+    def _compute_quality_metrics(parameters: dict[str, NDArray]) -> dict[str, float]:
+        """Compute fit quality metrics from extracted parameters.
+
+        Args:
+            parameters: Dictionary containing at least 'chi2' and optionally 'states'.
+
+        Returns:
+            Dictionary of quality metric names to values (empty if chi2/states missing).
+        """
+        if 'chi2' not in parameters or 'states' not in parameters:
+            return {}
+        chi2_values = parameters['chi2']
+        states_values = parameters['states']
+        return {
+            'mean_chi2': float(np.mean(chi2_values)),
+            'median_chi2': float(np.median(chi2_values)),
+            'std_chi2': float(np.std(chi2_values)),
+            'convergence_rate': float(np.mean(states_values == 0)),
+            'n_pixels': int(chi2_values.size),
+            'n_converged': int(np.sum(states_values == 0)),
+        }
+
+    def fit_odmr(
+        self: Self,
+        model_name: str | None = None,
+        *,
+        constraints: dict[str, Any] | None = None,
+    ) -> FitResult:
+        """Fit ODMR spectra and return results object.
+
+        Args:
+            model_name: Model name or None for auto-detection.
+            constraints: Optional parameter constraints for fitting.
+
+        Returns:
+            FitResult object containing fit results and analysis methods.
+
+        Raises:
+            ValueError: If ODMR data hasn't been processed yet.
+            ImportError: If required fitting dependencies are not available.
+        """
+        from QDMpy.fit import FitManager
+        from QDMpy.result import FitResult
+
+        model_name = self._detect_model(model_name)
+        logger.info(f"Starting ODMR fitting with model: {model_name}")
+        processed_data = self._validate_fit_prerequisites()
+
         fit_manager = FitManager(
             data=processed_data.data,
             frequencies=processed_data.frequencies,
             model_name=model_name,
             constraints=constraints,
         )
-
-        # Perform the fitting
-        logger.info("Executing ODMR spectral fitting...")
         fit_manager.fit_odmr()
 
-        # Extract fit results data (no heavy object references)
-        logger.debug("Extracting fit results data...")
+        parameters = self._extract_fit_parameters(fit_manager, model_name)
+        quality_metrics = self._compute_quality_metrics(parameters)
 
-        # Get all available parameters from FitManager
-        parameters = {}
+        import datetime
 
-        # Get model-specific parameters first
-        model_params = fit_manager.model_params_unique
-        for param_name in model_params:
-            try:
-                parameters[param_name] = fit_manager.get_param(param_name)
-            except (KeyError, AttributeError, ValueError):
-                logger.debug(f"Parameter '{param_name}' not available for model {model_name}")
-                continue
-
-        # Add fitting metadata if available
-        for param_name in ["chi2"]:
-            try:
-                parameters[param_name] = fit_manager.get_param(param_name)
-            except (KeyError, AttributeError, ValueError):
-                logger.debug(f"Parameter '{param_name}' not available for model {model_name}")
-                continue
-
-        # Calculate quality metrics
-        quality_metrics = {}
-        if "chi2" in parameters and "states" in parameters:
-            chi2_values = parameters["chi2"]
-            states_values = parameters["states"]
-            quality_metrics = {
-                "mean_chi2": float(np.mean(chi2_values)),
-                "median_chi2": float(np.median(chi2_values)),
-                "std_chi2": float(np.std(chi2_values)),
-                "convergence_rate": float(np.mean(states_values == 0)),
-                "n_pixels": int(chi2_values.size),
-                "n_converged": int(np.sum(states_values == 0)),
-            }
-
-        # Prepare metadata
         metadata = {
-            "fit_timestamp": __import__("datetime").datetime.now().isoformat(),
-            "quality_metrics": quality_metrics,
-            "fit_settings": {"constraints": constraints},
+            'fit_timestamp': datetime.datetime.now().isoformat(),
+            'quality_metrics': quality_metrics,
+            'fit_settings': {'constraints': constraints},
         }
 
-        # Create lightweight FitResult with extracted data only
         result = FitResult(
             parameters=parameters,
             scan_dimensions=tuple(processed_data.scan_dimensions),
@@ -292,9 +308,9 @@ class Measurement:
         )
 
         logger.info("ODMR fitting completed successfully")
-        n_pixels = np.prod(processed_data.scan_dimensions)
         logger.info(
-            f"Extracted {len(parameters)} parameters for {n_pixels} pixels"
+            f"Extracted {len(parameters)} parameters for "
+            f"{np.prod(processed_data.scan_dimensions)} pixels"
         )
         return result
 

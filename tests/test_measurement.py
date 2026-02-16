@@ -405,3 +405,105 @@ class TestMeasurement:
             assert 'fit_timestamp' in result.metadata
             assert 'quality_metrics' in result.metadata
             assert 'fit_settings' in result.metadata
+
+
+class TestDetectModel:
+    """Tests for Measurement._detect_model."""
+
+    def test_explicit_model_name(self, sample_odmr, sample_images, temp_output_dir) -> None:
+        light_image, laser_image = sample_images
+        m = Measurement(
+            odmr=sample_odmr, light_image=light_image,
+            laser_image=laser_image, output_directory=temp_output_dir,
+        )
+        assert m._detect_model('ESR14N') == 'ESR14N'
+
+    def test_auto_detect_success(self, sample_odmr, sample_images, temp_output_dir) -> None:
+        light_image, laser_image = sample_images
+        m = Measurement(
+            odmr=sample_odmr, light_image=light_image,
+            laser_image=laser_image, output_directory=temp_output_dir,
+        )
+        with patch('QDMpy.guess.guess_model') as mock_guess:
+            mock_guess.return_value = type('M', (), {'name': 'ESR15N'})()
+            assert m._detect_model(None) == 'ESR15N'
+
+    def test_auto_detect_fallback(self, sample_odmr, sample_images, temp_output_dir) -> None:
+        light_image, laser_image = sample_images
+        m = Measurement(
+            odmr=sample_odmr, light_image=light_image,
+            laser_image=laser_image, output_directory=temp_output_dir,
+            fit_model='ESRSINGLE',
+        )
+        with patch('QDMpy.guess.guess_model', side_effect=RuntimeError('fail')):
+            assert m._detect_model(None) == 'ESRSINGLE'
+
+
+class TestValidateFitPrerequisites:
+    """Tests for Measurement._validate_fit_prerequisites."""
+
+    def test_no_processed_data(self, sample_odmr_data, sample_images, temp_output_dir) -> None:
+        light_image, laser_image = sample_images
+        odmr = ODMR(sample_odmr_data)
+        m = Measurement(
+            odmr=odmr, light_image=light_image,
+            laser_image=laser_image, output_directory=temp_output_dir,
+        )
+        with pytest.raises(ValueError, match='ODMR data must be processed'):
+            m._validate_fit_prerequisites()
+
+    def test_no_pygpufit(self, sample_odmr, sample_images, temp_output_dir) -> None:
+        light_image, laser_image = sample_images
+        m = Measurement(
+            odmr=sample_odmr, light_image=light_image,
+            laser_image=laser_image, output_directory=temp_output_dir,
+        )
+        with patch('QDMpy.is_pygpufit_available', return_value=False):
+            with pytest.raises(ImportError, match='pyGpufit is required'):
+                m._validate_fit_prerequisites()
+
+
+class TestExtractFitParameters:
+    """Tests for Measurement._extract_fit_parameters."""
+
+    def test_extracts_model_params_and_chi2(self) -> None:
+        from unittest.mock import MagicMock
+        fm = MagicMock()
+        fm.model_params_unique = ['center', 'width']
+        params = {
+            'center': np.array([1.0, 2.0]),
+            'width': np.array([0.1, 0.2]),
+            'chi2': np.array([0.5, 0.6]),
+        }
+        fm.get_param.side_effect = lambda p: params[p]
+        result = Measurement._extract_fit_parameters(fm, 'TEST')
+        assert set(result.keys()) == {'center', 'width', 'chi2'}
+
+    def test_skips_unavailable_params(self) -> None:
+        from unittest.mock import MagicMock
+        fm = MagicMock()
+        fm.model_params_unique = ['center', 'missing']
+        fm.get_param.side_effect = lambda p: ({'center': np.array([1.0])}[p]
+                                               if p in {'center'} else (_ for _ in ()).throw(KeyError(p)))
+        result = Measurement._extract_fit_parameters(fm, 'TEST')
+        assert 'center' in result
+        assert 'missing' not in result
+
+
+class TestComputeQualityMetrics:
+    """Tests for Measurement._compute_quality_metrics."""
+
+    def test_with_chi2_and_states(self) -> None:
+        params = {
+            'chi2': np.array([1.0, 2.0, 3.0]),
+            'states': np.array([0, 0, 1]),
+        }
+        metrics = Measurement._compute_quality_metrics(params)
+        assert metrics['mean_chi2'] == pytest.approx(2.0)
+        assert metrics['n_pixels'] == 3
+        assert metrics['n_converged'] == 2
+        assert metrics['convergence_rate'] == pytest.approx(2.0 / 3.0)
+
+    def test_empty_when_missing_keys(self) -> None:
+        assert Measurement._compute_quality_metrics({'chi2': np.array([1.0])}) == {}
+        assert Measurement._compute_quality_metrics({}) == {}
