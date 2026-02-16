@@ -15,8 +15,7 @@ representing spatial, spectral, and polarization dimensions.
 
 from __future__ import annotations
 
-import itertools
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -26,14 +25,7 @@ from matplotlib import colors
 from QDMpy.utils import double_norm
 
 if TYPE_CHECKING:
-    from QDMpy.measurement import Measurement
     from QDMpy.result import FitResult
-
-# Import for runtime usage
-from QDMpy import models
-
-FREQ_LABEL = "f [GHz]"
-CONTRAST_LABEL = "c [%]"
 
 
 def plot_fit_result_field_map(
@@ -328,6 +320,7 @@ def update_line(
     x: np.ndarray,
     y: np.ndarray | None = None,
     line: plt.Line2D | None = None,
+    **plt_props: Any,  # noqa: ANN401
 ) -> plt.Line2D | None:
     """Update or create a line plot on axes.
 
@@ -357,6 +350,7 @@ def update_marker(
     x: np.ndarray,
     y: np.ndarray,
     line: plt.Line2D | None = None,
+    **plt_props: Any,  # noqa: ANN401
 ) -> plt.Line2D:
     """Update or create a marker plot on axes.
 
@@ -591,7 +585,7 @@ def update_img(
     ax: plt.Axes,
     img: mpl.image.AxesImage | None,
     data: np.ndarray,
-    **plt_props,
+    **plt_props: Any,  # noqa: ANN401
 ) -> mpl.image.AxesImage:
     """Update or create image plot on axes.
 
@@ -628,123 +622,3 @@ def toggle_img(img: mpl.image.AxesImage | None = None) -> None:
     img.set_visible(not img.get_visible())
 
 
-def check_fit_pixel(qdm_obj: Measurement, idx: int) -> tuple[plt.Figure, plt.Axes]:
-    """Check fit results for a specific pixel.
-
-    Args:
-        qdm_obj: Measurement object containing ODMR data and fit results.
-        idx: Pixel index to check.
-
-    Returns:
-        Tuple of (Figure, Axes) containing the fit comparison plot.
-    """
-    # noinspection PyTypeChecker
-    f, ax = plt.subplots(1, 2, figsize=(10, 4), sharex=False, sharey=True)
-    polarities = ["+", "-"]
-    model = [None, models.esrsingle, models.esr15n, models.esr14n][qdm_obj.model_name]
-
-    for p, frange in itertools.product(
-        range(qdm_obj.odmr.n_pol),
-        range(qdm_obj.odmr.n_frange),
-    ):
-        f_new = np.linspace(min(qdm_obj.odmr.f_ghz[frange]), max(qdm_obj.odmr.f_ghz[frange]), 200)
-
-        m_initial = model(parameter=qdm_obj.fit.initial_parameter[p, frange, [idx]], x=f_new)
-        m_fit = model(parameter=qdm_obj.fit.model_params[p, frange, [idx]], x=f_new)
-
-        ax[frange].plot(
-            qdm_obj.odmr.f_ghz[frange],
-            qdm_obj.odmr.data[p, frange, [idx]][0],
-            "k",
-            marker=["o", "^"][p],
-            markersize=5,
-            mfc="w",
-            label=f"data: {polarities[p]}",
-            ls="",
-        )
-        (line,) = ax[frange].plot(f_new, m_initial[0], label="initial guess", alpha=0.5, ls=":")
-        ax[frange].plot(f_new, m_fit[0], color=line.get_color(), label="fit")
-        ax[frange].legend(
-            ncol=2,
-            bbox_to_anchor=(0.0, 1.02, 1.0, 0.102),
-            loc="lower left",
-            mode="expand",
-            borderaxespad=0.0,
-        )
-
-        line = " ".join([f"{v:>8.5f}" for v in qdm_obj.fit.model_params[p, frange, idx]])
-        line += f" {qdm_obj.fit._chi_squares[p, frange, idx]:>8.2e}"
-
-    for a in ax.flat:
-        a.set(xlabel=FREQ_LABEL, ylabel="ODMR contrast [a.u.]")
-    return f, ax
-
-
-def plot_fit_params(
-    qdm_obj: Measurement,
-    param: str,
-    save: str | bool = False,
-) -> plt.Figure:
-    """Plot spatial maps of fitted parameters across polarities and field ranges.
-
-    Args:
-        qdm_obj: Measurement object containing fit results.
-        param: Parameter name to plot (e.g., "contrast", "center", "width").
-        save: Whether to save the figure (can be bool or filename).
-
-    Returns:
-        Matplotlib Figure object containing the parameter maps.
-    """
-    data = qdm_obj.get_param(param)
-
-    if param == "contrast":
-        data = data.mean(axis=2)
-    if "contrast" in param:
-        data *= 100
-    if param == "width":
-        data *= 1000
-
-    labels = {
-        "center": FREQ_LABEL,
-        "resonance": FREQ_LABEL,
-        "width": "f [MHz]",
-        "contrast": "mean(c) [%]",
-        "contrast_0": CONTRAST_LABEL,
-        "contrast_1": CONTRAST_LABEL,
-        "contrast_2": CONTRAST_LABEL,
-        "chi2": "chi$^2$",
-    }
-
-    # noinspection PyTypeChecker
-    f, ax = plt.subplots(2, 2, figsize=(15, 8), sharex=True, sharey=True)
-    f.suptitle(f"{param}")
-
-    # determine min and max of the plot
-    vminl = np.min(np.sort(data[:, 0].flat)[50:-50])
-    vmaxl = np.max(np.sort(data[:, 0].flat)[50:-50])
-    vminr = np.min(np.sort(data[:, 1].flat)[50:-50])
-    vmaxr = np.max(np.sort(data[:, 1].flat)[50:-50])
-
-    # positive field direction
-    ax[0, 0].set_title(r"B$^+_\mathrm{lf}$")
-    ax[0, 0].imshow(data[0, 0], origin="lower", vmin=vminl, vmax=vmaxl)
-    ax[0, 1].set_title(r"B$^+_\mathrm{hf}$")
-    ax[0, 1].imshow(data[0, 1], origin="lower", vmin=vminr, vmax=vmaxr)
-
-    # negative field direction
-    ax[1, 0].set_title(r"B$^-_\mathrm{lf}$")
-    c = ax[1, 0].imshow(data[1, 0], origin="lower", vmin=vminl, vmax=vmaxl)
-    cb = plt.colorbar(c, ax=ax[:, 0], shrink=0.9)
-    cb.ax.set_ylabel(labels[param])
-
-    ax[1, 1].set_title(r"B$^-_\mathrm{hf}$")
-    c = ax[1, 1].imshow(data[1, 1], origin="lower", vmin=vminr, vmax=vmaxr)
-    cb = plt.colorbar(c, ax=ax[:, 1], shrink=0.9)
-    cb.ax.set_ylabel(labels[param])
-
-    for a in ax.flat:
-        a.set(xlabel="px", ylabel="px")
-
-    if save:
-        f.savefig(save)
-    return f
