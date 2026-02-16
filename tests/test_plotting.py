@@ -121,19 +121,12 @@ class TestFitResultPlotting(unittest.TestCase):
             # File should exist
             assert os.path.exists(filename)
 
-    def test_plot_fit_result_field_map_custom_kwargs(self) -> None:
-        """Test plot_fit_result_field_map with custom parameters."""
+    def test_plot_fit_result_field_map_basic_call(self) -> None:
+        """Test plot_fit_result_field_map basic invocation."""
         from QDMpy.plotting import plot_fit_result_field_map
 
-        # Should accept custom kwargs
-        plot_fit_result_field_map(
-            self.mock_result,
-            title="Custom Field Map",
-            cmap="plasma",
-            colorbar_label="Custom Label (T)",
-        )
+        plot_fit_result_field_map(self.mock_result)
 
-        # Should not raise any exceptions
         self.mock_result.calculate_b_field.assert_called()
 
     def test_plot_fit_result_parameter_map(self) -> None:
@@ -165,20 +158,12 @@ class TestFitResultPlotting(unittest.TestCase):
             # File should exist
             assert os.path.exists(filename)
 
-    def test_plot_fit_result_parameter_map_custom_kwargs(self) -> None:
-        """Test plot_fit_result_parameter_map with custom parameters."""
+    def test_plot_fit_result_parameter_map_basic_call(self) -> None:
+        """Test plot_fit_result_parameter_map basic invocation."""
         from QDMpy.plotting import plot_fit_result_parameter_map
 
-        # Should accept custom kwargs
-        plot_fit_result_parameter_map(
-            self.mock_result,
-            "center",
-            title="Custom Center Map",
-            cmap="viridis",
-            colorbar_label="Custom Center (Hz)",
-        )
+        plot_fit_result_parameter_map(self.mock_result, "center")
 
-        # Should call get_parameter_map
         self.mock_result.get_parameter_map.assert_called_with("center")
 
     def test_plot_fit_result_overview(self) -> None:

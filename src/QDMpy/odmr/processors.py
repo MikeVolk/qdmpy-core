@@ -87,7 +87,7 @@ class BinningProcessor(BaseProcessor):
         from QDMpy.odmr.data import ODMRData
 
         logger.debug(f"Binning data with factor: {self.bin_factor}")
-        binned = data.data.coarsen(y=self.bin_factor, x=self.bin_factor, boundary="trim").mean()
+        binned = data.data.coarsen(y=self.bin_factor, x=self.bin_factor, boundary="trim").mean()  # type: ignore[attr-defined]
 
         metadata = data.metadata.copy()
         metadata["binned"] = True

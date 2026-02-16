@@ -7,9 +7,6 @@ including the argument parsing, subcommands, and execution logic.
 from __future__ import annotations
 
 import argparse
-import os
-import time
-from pathlib import Path
 
 from loguru import logger
 
@@ -198,70 +195,10 @@ def process_command_handler(args: argparse.Namespace) -> int:
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
-    start_time = time.time()
-
-    # Log the command parameters
-    logger.info(f"Processing data from: {args.input_path}")
-    logger.info(f"Binning factor: {args.bin_factor}")
-    logger.info(f"Model: {args.model}")
-    logger.info(f"Global fluorescence: {args.global_fluorescence}")
-
-    # Determine output directory
-    output_dir = args.output if args.output else os.path.join(args.input_path, "results")
-    output_path = Path(output_dir)
-
-    # Check if output directory exists
-    if output_path.exists() and not args.overwrite:
-        logger.error(f"Output directory {output_dir} already exists. Use --overwrite to overwrite.")
-        return 1
-
-    # Create output directory if it doesn't exist
-    if not output_path.exists():
-        logger.info(f"Creating output directory: {output_dir}")
-        output_path.mkdir(parents=True)
-
-    try:
-        # Import here to avoid slow imports when running other commands
-        from QDMpy._core.qdm_old import QDM
-
-        logger.info("Loading and processing data...")
-
-        # Create QDM object from data
-        qdm_obj = QDM.from_qdmio(args.input_path, model_name=args.model)
-
-        # Apply binning if requested
-        if args.bin_factor > 1:
-            logger.info(f"Applying spatial binning with factor {args.bin_factor}...")
-            qdm_obj.bin_data(bin_factor=args.bin_factor)
-
-        # Apply global fluorescence correction
-        logger.info(f"Applying global fluorescence correction ({args.global_fluorescence})...")
-        qdm_obj.correct_glob_fluorescence(glob_fluorescence=args.global_fluorescence)
-
-        # Fit ODMR data
-        logger.info("Fitting ODMR spectra...")
-        qdm_obj.fit_odmr()
-
-        # Export results
-        logger.info(f"Exporting results to {output_dir}...")
-        qdm_obj.export_qdmio(output_path=output_dir)
-
-        # Generate plots if not disabled
-        if not args.no_plots:
-            logger.info("Generating plots...")
-            # Add plot generation here
-
-    except Exception as e:
-        logger.error(f"Error processing data: {e!s}")
-        if args.debug:
-            import traceback
-
-            traceback.print_exc()
-        return 1
-    else:
-        elapsed_time = time.time() - start_time
-        logger.info(f"Processing completed successfully in {elapsed_time:.2f} seconds")
-        return 0
+    raise NotImplementedError(
+        "The 'process' command is not yet available in the refactored codebase. "
+        "See QDMpy documentation for the current API."
+    )
 
 
 def models_command_handler(args: argparse.Namespace) -> int:
@@ -306,35 +243,7 @@ def info_command_handler(args: argparse.Namespace) -> int:
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
-    path = Path(args.data_path)
-
-    if not path.exists():
-        logger.error(f"Path does not exist: {path}")
-        return 1
-
-    try:
-        # Import the loader
-        from QDMpy.odmr.io import MatlabLoader
-
-        if path.is_dir():
-            logger.info(f"Analyzing directory: {path}")
-            loader = MatlabLoader(data_folder=str(path))
-            file_info = loader.get_file_list()
-
-            if not args.summary:
-                for _i, _file in enumerate(file_info):
-                    pass
-        else:
-            logger.info(f"Analyzing file: {path}")
-
-            # Add more file-specific analysis here
-
-    except Exception as e:
-        logger.error(f"Error analyzing data: {e!s}")
-        if args.debug:
-            import traceback
-
-            traceback.print_exc()
-        return 1
-    else:
-        return 0
+    raise NotImplementedError(
+        "The 'info' command is not yet available in the refactored codebase. "
+        "See QDMpy documentation for the current API."
+    )

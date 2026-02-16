@@ -207,6 +207,8 @@ class Model(ABC):
         >>> Model: ESR14N, Parameters: 6
     """
 
+    model_id: int
+
     def __init__(self: Model, name: str, n_peaks: int, parameters_unique: list[str]) -> None:
         """Initialize a model with basic properties.
 
@@ -350,7 +352,7 @@ class ModelRegistry:
         Returns:
             The model class, unchanged.
         """
-        instance = model_cls()
+        instance = model_cls()  # type: ignore[call-arg]
         cls._registry[instance.name] = model_cls
         logger.info(f'Registered model: {instance.name}')
         return model_cls
@@ -371,7 +373,7 @@ class ModelRegistry:
         if name not in cls._registry:
             error_msg = f"Model '{name}' not found in registry"
             raise KeyError(error_msg)
-        return cls._registry[name]()
+        return cls._registry[name]()  # type: ignore[call-arg]
 
     @classmethod
     def all(cls: type[ModelRegistry]) -> dict[str, type[Model]]:

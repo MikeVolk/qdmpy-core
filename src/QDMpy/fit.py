@@ -578,11 +578,15 @@ class FitManager:
                 self._number_iterations = results[3]
                 self._execution_time = results[4]
             else:
-                self._fit_results = np.stack((self._fit_results, results[0]))
-                self._states = np.stack((self._states, results[1]))
-                self._chi_squares = np.stack((self._chi_squares, results[2]))
-                self._number_iterations = np.stack((self._number_iterations, results[3]))
-                self._execution_time = np.stack((self._execution_time, results[4]))
+                self._fit_results = np.stack([cast(NDArray, self._fit_results), results[0]])
+                self._states = np.stack([cast(NDArray, self._states), results[1]])
+                self._chi_squares = np.stack([cast(NDArray, self._chi_squares), results[2]])
+                self._number_iterations = np.stack(
+                    [cast(NDArray, self._number_iterations), results[3]]
+                )
+                self._execution_time = np.stack(
+                    [cast(NDArray, self._execution_time), results[4]]
+                )
 
             logger.info(f"Fit finished in {results[4]:.2f} seconds")
 

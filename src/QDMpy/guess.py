@@ -101,7 +101,7 @@ def guess_n_peaks(data: NDArray) -> tuple[int, bool, list[NDArray]]:
 def get_model_by_peaks(n_peaks: int) -> Model:
     """Retrieve the model instance based on the number of peaks."""
     for model_cls in ModelRegistry.all().values():
-        model_instance = model_cls()
+        model_instance = model_cls()  # type: ignore[call-arg]
         if model_instance.n_peaks == n_peaks:
             return model_instance
     raise ValueError(f"No model found for {n_peaks} peaks.")
@@ -151,7 +151,7 @@ def guess_contrast(data: NDArray) -> NDArray:
     amp = np.zeros((n_pol, n_frange, n_pixel))
     for p in range(n_pol):
         for r in range(n_frange):
-            for px in prange(n_pixel):
+            for px in prange(n_pixel):  # type: ignore[not-iterable]
                 amp[p, r, px] = guess_contrast_pixel(data[p, r, px, :])
     return amp
 
@@ -178,7 +178,7 @@ def guess_center(data: NDArray, freq: NDArray) -> NDArray:
     centers = np.zeros((n_pol, n_frange, n_pixel))
     for p in range(n_pol):
         for r in range(n_frange):
-            for px in prange(n_pixel):
+            for px in prange(n_pixel):  # type: ignore[not-iterable]
                 centers[p, r, px] = guess_center_pixel(data[p, r, px, :], freq[r])
     return centers
 
@@ -208,7 +208,7 @@ def guess_width(data: NDArray, freq: NDArray, vmin: float, vmax: float) -> NDArr
     widths = np.zeros((n_pol, n_frange, n_pixel))
     for p in range(n_pol):
         for r in range(n_frange):
-            for px in prange(n_pixel):
+            for px in prange(n_pixel):  # type: ignore[not-iterable]
                 widths[p, r, px] = guess_width_pixel(
                     data[p, r, px, :],
                     freq[r],

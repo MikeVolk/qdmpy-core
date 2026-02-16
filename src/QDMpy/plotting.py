@@ -15,9 +15,10 @@ representing spatial, spectral, and polarization dimensions.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-import matplotlib as mpl
+import matplotlib.image
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import colors
@@ -42,13 +43,9 @@ def plot_fit_result_field_map(
     # Calculate magnetic field from fit results
     b_field = result.calculate_b_field()
 
-    # Set up default plot parameters
-    plot_kwargs = {
-        "title": f"Magnetic Field Map ({result.model_name})",
-        "pixel_spacing": result.pixel_spacing,
-        "colorbar_label": "Magnetic Field (T)",
-        "cmap": "viridis",
-    }
+    title = f"Magnetic Field Map ({result.model_name})"
+    cmap = "viridis"
+    colorbar_label = "Magnetic Field (T)"
 
     # Create the plot
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -62,18 +59,18 @@ def plot_fit_result_field_map(
         b_field,
         extent=extent,
         origin="lower",
-        cmap=plot_kwargs.get("cmap", "viridis"),
+        cmap=cmap,
         aspect="equal",
     )
 
     # Add colorbar
     cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label(plot_kwargs.get("colorbar_label", "Magnetic Field (T)"))
+    cbar.set_label(colorbar_label)
 
     # Set labels and title
     ax.set_xlabel("x [μm]")
     ax.set_ylabel("y [μm]")
-    ax.set_title(plot_kwargs.get("title", "Magnetic Field Map"))
+    ax.set_title(title)
 
     plt.tight_layout()
 
@@ -115,14 +112,9 @@ def plot_fit_result_parameter_map(
         "states": "Fit State",
     }
 
-    default_title = f'{param_name.replace("_", " ").title()} Map ({result.model_name})'
-    default_colorbar_label = param_labels.get(param_name, param_name.title())
-
-    plot_kwargs = {
-        "title": default_title,
-        "colorbar_label": default_colorbar_label,
-        "cmap": "viridis",
-    }
+    title = f'{param_name.replace("_", " ").title()} Map ({result.model_name})'
+    colorbar_label = param_labels.get(param_name, param_name.title())
+    cmap = "viridis"
 
     # Create the plot
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -136,18 +128,18 @@ def plot_fit_result_parameter_map(
         param_map,
         extent=extent,
         origin="lower",
-        cmap=plot_kwargs.get("cmap", "viridis"),
+        cmap=cmap,
         aspect="equal",
     )
 
     # Add colorbar
     cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label(plot_kwargs.get("colorbar_label", param_name.title()))
+    cbar.set_label(colorbar_label)
 
     # Set labels and title
     ax.set_xlabel("x [μm]")
     ax.set_ylabel("y [μm]")
-    ax.set_title(plot_kwargs.get("title", f"{param_name} Map"))
+    ax.set_title(title)
 
     plt.tight_layout()
 
@@ -234,8 +226,8 @@ def plot_fit_result_overview(
 def plot_light_img(
     ax: plt.Axes,
     data: np.ndarray,
-    img: mpl.image.AxesImage | None = None,
-) -> mpl.image.AxesImage:
+    img: matplotlib.image.AxesImage | None = None,
+) -> matplotlib.image.AxesImage:
     """Plot light image on axes.
 
     Args:
@@ -262,8 +254,8 @@ def plot_light_img(
 def plot_fluorescence(
     ax: plt.Axes,
     data: np.ndarray,
-    img: mpl.image.AxesImage | None = None,
-) -> mpl.image.AxesImage:
+    img: matplotlib.image.AxesImage | None = None,
+) -> matplotlib.image.AxesImage:
     """Plot fluorescence image on axes.
 
     Args:
@@ -290,8 +282,8 @@ def plot_fluorescence(
 def plot_laser_img(
     ax: plt.Axes,
     data: np.ndarray,
-    img: mpl.image.AxesImage | None = None,
-) -> mpl.image.AxesImage:
+    img: matplotlib.image.AxesImage | None = None,
+) -> matplotlib.image.AxesImage:
     """Plot laser image on axes.
 
     Args:
@@ -374,8 +366,8 @@ def update_marker(
 def plot_quality_data(
     ax: plt.Axes,
     data: np.ndarray,
-    img: mpl.image.AxesImage | None = None,
-) -> mpl.image.AxesImage:
+    img: matplotlib.image.AxesImage | None = None,
+) -> matplotlib.image.AxesImage:
     """Plot quality data on axes with normalized colors.
 
     Args:
@@ -394,8 +386,8 @@ def plot_quality_data(
 def plot_data(
     ax: plt.Axes,
     data: np.ndarray,
-    img: mpl.image.AxesImage | None = None,
-) -> mpl.image.AxesImage:
+    img: matplotlib.image.AxesImage | None = None,
+) -> matplotlib.image.AxesImage:
     """Plot data on axes with normalized colors.
 
     Args:
@@ -412,14 +404,14 @@ def plot_data(
 
 
 def get_vmin_vmax(
-    img: mpl.image.AxesImage,
+    img: matplotlib.image.AxesImage,
     percentile: float,
     use_percentile: bool,
 ) -> tuple[float, float]:
     """Get the vmin and vmax for the colorbar of the image.
 
     Args:
-      img: mpl.image.AxesImage: The image to get the vmin and vmax from
+      img: matplotlib.image.AxesImage: The image to get the vmin and vmax from
       percentile: float: The percentile to use for the vmin and vmax
       use_percentile: bool: Whether to use the percentile or not
 
@@ -464,9 +456,9 @@ def get_color_norm(vmin: float, vmax: float) -> colors.Normalize:
 def plot_overlay(
     ax: plt.Axes,
     data: np.ndarray,
-    img: mpl.image.AxesImage | None = None,
+    img: matplotlib.image.AxesImage | None = None,
     normtype: str = "simple",
-) -> mpl.image.AxesImage:
+) -> matplotlib.image.AxesImage:
     """Plot overlay image with normalized alpha channel.
 
     Args:
@@ -489,8 +481,8 @@ def plot_overlay(
 def plot_outlier(
     ax: plt.Axes,
     data: np.ndarray,
-    img: mpl.image.AxesImage | None = None,
-) -> mpl.image.AxesImage:
+    img: matplotlib.image.AxesImage | None = None,
+) -> matplotlib.image.AxesImage:
     """Plot outlier mask on axes.
 
     Args:
@@ -507,18 +499,18 @@ def plot_outlier(
 
 
 def update_clim(
-    img: mpl.image.AxesImage,
+    img: matplotlib.image.AxesImage,
     vmin: float,
     vmax: float,
-) -> mpl.image.AxesImage:
+) -> matplotlib.image.AxesImage:
     """Update the colorbar limits of the image.
 
     Args:
-      img: mpl.image.AxesImage: The image to update
+      img: matplotlib.image.AxesImage: The image to update
       vmin: float: The new vmin
       vmax: float: The new vmax
 
-    Returns: mpl.image.AxesImage: The updated image
+    Returns: matplotlib.image.AxesImage: The updated image
     """
     norm = get_color_norm(vmin, vmax)
     img.set(norm=norm)
@@ -526,11 +518,11 @@ def update_clim(
 
 
 def update_cbar(
-    img: mpl.image.AxesImage,
+    img: matplotlib.image.AxesImage,
     cax: plt.Axes,
     vmin: float,
     vmax: float,
-    original_cax_locator: object,
+    original_cax_locator: Callable[..., Any],
 ) -> None:
     """Update colorbar limits and appearance.
 
@@ -583,10 +575,10 @@ def detect_extent(vmin: float, vmax: float, mn: float, mx: float) -> str:
 
 def update_img(
     ax: plt.Axes,
-    img: mpl.image.AxesImage | None,
+    img: matplotlib.image.AxesImage | None,
     data: np.ndarray,
     **plt_props: Any,  # noqa: ANN401
-) -> mpl.image.AxesImage:
+) -> matplotlib.image.AxesImage:
     """Update or create image plot on axes.
 
     Args:
@@ -611,7 +603,7 @@ def update_img(
     return img
 
 
-def toggle_img(img: mpl.image.AxesImage | None = None) -> None:
+def toggle_img(img: matplotlib.image.AxesImage | None = None) -> None:
     """Toggle visibility of image.
 
     Args:

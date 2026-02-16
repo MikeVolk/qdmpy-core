@@ -12,10 +12,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_settings import (
     BaseSettings,
-    DotEnvSettingsSource,
-    EnvSettingsSource,
-    InitSettingsSource,
-    SecretsSettingsSource,
+    PydanticBaseSettingsSource,
     SettingsConfigDict,
     TomlConfigSettingsSource,
 )
@@ -174,12 +171,12 @@ class QDMpySettings(BaseSettings):
     def settings_customise_sources(
         cls,
         settings_cls: type[BaseSettings],
-        init_settings: InitSettingsSource,
-        env_settings: EnvSettingsSource,
-        dotenv_settings: DotEnvSettingsSource,
-        file_secret_settings: SecretsSettingsSource,
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
         **kwargs: Any,
-    ) -> tuple[InitSettingsSource | EnvSettingsSource | TomlConfigSettingsSource | None, ...]:
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
         """Customize settings sources with TOML file support.
 
         Priority (highest to lowest):
