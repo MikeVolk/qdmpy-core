@@ -18,17 +18,19 @@ The FitResult class handles:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Self
+from typing import Any
 
 import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
+from typing_extensions import Self
 
 from QDMpy.constants import D_ZFS, GAMMA_NV
-from QDMpy.exceptions import DataLoadError, DataShapeError, ParameterError
+from QDMpy.exceptions import DataLoadError, DataShapeError, DataValidationError, ParameterError
 
 
-class FitResult:
+class FitResult(BaseModel):
     """Contains ODMR fitting results and provides analysis methods.
 
     This class encapsulates the results from ODMR spectral fitting using a
@@ -50,37 +52,40 @@ class FitResult:
         metadata: Additional fitting metadata (quality metrics, etc.)
     """
 
-    def __init__(
-        self: Self,
-        parameters: dict[str, NDArray],
-        scan_dimensions: tuple[int, int],
-        pixel_spacing: float,
-        model_name: str,
-        metadata: dict[str, Any] | None = None,
-    ) -> None:
-        """Initialize FitResult with extracted fit data.
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-        Args:
-            parameters: Dictionary of fitted parameters with keys like 'center',
-                       'width_0', 'contrast', 'offset', 'chi2', 'states'
-            scan_dimensions: Spatial dimensions as (height, width)
-            pixel_spacing: Physical spacing between pixels in meters
-            model_name: Name of the model used for fitting
-            metadata: Optional additional metadata dictionary
-        """
-        self.parameters = parameters
-        self.scan_dimensions = scan_dimensions
-        self.pixel_spacing = pixel_spacing
-        self.model_name = model_name
-        self.metadata = metadata or {}
+    parameters: dict[str, NDArray]
+    scan_dimensions: tuple[int, int]
+    pixel_spacing: float = Field(gt=0)
+    model_name: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
-        # Cache for expensive calculations
-        self._b_field_cache: NDArray | None = None
-        self._delta_resonance_cache: NDArray | None = None
-        self._b111_cache: tuple[NDArray, NDArray] | None = None
+    _b_field_cache: NDArray | None = PrivateAttr(default=None)
+    _delta_resonance_cache: NDArray | None = PrivateAttr(default=None)
+    _b111_cache: tuple[NDArray, NDArray] | None = PrivateAttr(default=None)
 
-        logger.info(f"FitResult initialized with model: {model_name}")
-        logger.debug(f"Available parameters: {list(parameters.keys())}")
+    @field_validator('scan_dimensions')
+    @classmethod
+    def validate_scan_dimensions(cls: type[FitResult], v: tuple[int, int]) -> tuple[int, int]:
+        """Validate that scan dimensions are positive."""
+        if v[0] <= 0 or v[1] <= 0:
+            msg = f'scan_dimensions must be positive, got {v}'
+            raise DataValidationError(msg)
+        return v
+
+    @field_validator('parameters')
+    @classmethod
+    def validate_parameters(cls: type[FitResult], v: dict[str, NDArray]) -> dict[str, NDArray]:
+        """Validate that parameters dict is not empty."""
+        if not v:
+            msg = 'parameters dict must not be empty'
+            raise DataValidationError(msg)
+        return v
+
+    def model_post_init(self: Self, __context: object) -> None:
+        """Log initialization after Pydantic validation."""
+        logger.info(f"FitResult initialized with model: {self.model_name}")
+        logger.debug(f"Available parameters: {list(self.parameters.keys())}")
 
     def __repr__(self: Self) -> str:
         """Return string representation of FitResult."""
@@ -165,7 +170,7 @@ class FitResult:
             Array of parameter values
 
         Raises:
-            KeyError: If parameter name is not found
+            ParameterError: If parameter name is not found
         """
         if param_name not in self.parameters:
             available = list(self.parameters.keys())
@@ -255,7 +260,7 @@ class FitResult:
             Tuple of (resonance_3d, n_pol, n_frange, n_pixels).
 
         Raises:
-            ValueError: If resonance has an unexpected number of dimensions.
+            DataShapeError: If resonance has an unexpected number of dimensions.
         """
         if resonance.ndim == 4:  # noqa: PLR2004
             n_pol, n_frange, n_pixels, _ = resonance.shape
@@ -324,7 +329,7 @@ class FitResult:
             Array with shape (n_pol, 2, height, width).
 
         Raises:
-            ValueError: If fewer than 2 center parameters are provided.
+            DataShapeError: If fewer than 2 center parameters are provided.
         """
         if len(center_params) < 2:  # noqa: PLR2004
             msg = (
@@ -517,7 +522,7 @@ class FitResult:
         centers_map = self.get_parameter_map("center")
 
         # Calculate magnetic field: |B| = |f_center - D| / gamma
-        # Centers are in GHz, GAMMA_NV is GHz/T, D_ZFS is GHz → result in T
+        # Centers are in GHz, GAMMA_NV is GHz/T, D_ZFS is GHz -> result in T
         b_field = np.abs(centers_map - D_ZFS) / GAMMA_NV
 
         logger.debug(f"B-field calculation: mean={b_field.mean():.2e} T, std={b_field.std():.2e} T")

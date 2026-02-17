@@ -20,6 +20,7 @@ from numpy.typing import NDArray
 from QDMpy import get_settings, is_pygpufit_available
 from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
 from QDMpy.exceptions import (
+    DataValidationError,
     DependencyError,
     FitNotPerformedError,
     ModelGuessNotPossibleError,
@@ -247,6 +248,7 @@ class FitManager:
         self._gpu_available = (
             gpu_available if gpu_available is not None else is_pygpufit_available()
         )
+        self._validate_inputs(data, frequencies)
         self._data_xr = data
         self.f_ghz = np.atleast_2d(frequencies)
         logger.debug(
@@ -280,6 +282,43 @@ class FitManager:
             for param, constraint in constraints.items():
                 self.set_constraints(param, **constraint, reset_fit=False)
         self.estimator_id = ESTIMATOR_ID[self._settings.fit.estimator]
+
+    @staticmethod
+    def _validate_inputs(data: xr.DataArray, frequencies: NDArray) -> None:
+        """Validate data and frequency inputs at construction boundary.
+
+        Args:
+            data: xr.DataArray of ODMR spectral data.
+            frequencies: Frequency array in GHz.
+
+        Raises:
+            DataValidationError: If inputs fail validation.
+        """
+        if data.size == 0:
+            msg = 'Cannot fit empty data array'
+            raise DataValidationError(msg)
+
+        freq_2d = np.atleast_2d(frequencies)
+        n_freq_data = data.sizes.get('freq_idx', data.shape[-1])
+        n_freq_array = freq_2d.shape[-1]
+        if n_freq_data != n_freq_array:
+            msg = (
+                f'Data freq_idx dimension ({n_freq_data}) must match '
+                f'frequency count ({n_freq_array})'
+            )
+            raise DataValidationError(msg)
+
+        min_freq_points = 10
+        if n_freq_array < min_freq_points:
+            msg = (
+                f'Need at least {min_freq_points} frequency points '
+                f'for fitting, got {n_freq_array}'
+            )
+            raise DataValidationError(msg)
+
+        from QDMpy.odmr.validation import validate_frequencies
+
+        validate_frequencies(freq_2d)
 
     @property
     def _flat_data(self: Self) -> NDArray:

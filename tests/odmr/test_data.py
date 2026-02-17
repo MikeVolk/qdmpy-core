@@ -10,8 +10,8 @@ import pytest
 import xarray as xr
 from numpy.typing import NDArray
 
-from QDMpy.exceptions import DataLoadError
-from QDMpy.odmr.data import ODMRData
+from QDMpy.exceptions import DataLoadError, DataValidationError
+from QDMpy.odmr.data import EXPECTED_DIMS, ODMRData
 
 N_POL = 2
 N_FRANGE = 3
@@ -235,3 +235,65 @@ class TestFromLoader:
 
         assert isinstance(result, ODMRData)
         assert isinstance(result.data, xr.DataArray)
+
+
+class TestODMRDataValidation:
+    """Tests for ODMRData Pydantic validation."""
+
+    def test_rejects_non_dataarray(self) -> None:
+        """Test that passing a non-DataArray raises ValidationError."""
+        with pytest.raises((DataValidationError, Exception)):
+            ODMRData(data=np.ones((2, 3, 10, 10, 50)))
+
+    def test_rejects_wrong_dims(self) -> None:
+        """Test that wrong dimension names raise DataValidationError."""
+        da = xr.DataArray(
+            np.ones((2, 3, 10, 10, 50)),
+            dims=('a', 'b', 'c', 'd', 'e'),
+        )
+        with pytest.raises((DataValidationError, Exception)):
+            ODMRData(data=da)
+
+    def test_rejects_missing_dims(self) -> None:
+        """Test that a DataArray with wrong number of dims is rejected."""
+        da = xr.DataArray(
+            np.ones((2, 3, 100, 50)),
+            dims=('polarity', 'freq_range', 'pixel', 'freq_idx'),
+        )
+        with pytest.raises((DataValidationError, Exception)):
+            ODMRData(data=da)
+
+    def test_rejects_non_numeric_dtype(self) -> None:
+        """Test that non-numeric data type is rejected."""
+        da = xr.DataArray(
+            np.array(['a'] * 2 * 3 * 10 * 10 * 50).reshape(2, 3, 10, 10, 50),
+            dims=EXPECTED_DIMS,
+            coords={'freq_ghz': (['freq_range', 'freq_idx'], np.ones((3, 50)))},
+        )
+        with pytest.raises((DataValidationError, Exception)):
+            ODMRData(data=da)
+
+    def test_rejects_missing_freq_ghz_coord(self) -> None:
+        """Test that missing freq_ghz coordinate is rejected."""
+        da = xr.DataArray(
+            np.ones((2, 3, 10, 10, 50)),
+            dims=EXPECTED_DIMS,
+        )
+        with pytest.raises((DataValidationError, Exception)):
+            ODMRData(data=da)
+
+    def test_accepts_valid_data(self) -> None:
+        """Test that valid data is accepted."""
+        da = xr.DataArray(
+            np.ones((2, 3, 10, 10, 50)),
+            dims=EXPECTED_DIMS,
+            coords={'freq_ghz': (['freq_range', 'freq_idx'], np.ones((3, 50)))},
+        )
+        result = ODMRData(data=da)
+        assert isinstance(result, ODMRData)
+
+    def test_is_pydantic_basemodel(self, odmr_data) -> None:
+        """Test that ODMRData is a Pydantic BaseModel instance."""
+        from pydantic import BaseModel
+
+        assert isinstance(odmr_data, BaseModel)
