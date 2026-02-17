@@ -254,13 +254,13 @@ class FitResult:
         Raises:
             ValueError: If resonance has an unexpected number of dimensions.
         """
-        if resonance.ndim == 4:
+        if resonance.ndim == 4:  # noqa: PLR2004
             n_pol, n_frange, n_pixels, _ = resonance.shape
             resonance = np.squeeze(resonance, axis=-1)
             logger.debug(f"Squeezed 4D resonance to shape {resonance.shape}")
-        elif resonance.ndim == 3:
+        elif resonance.ndim == 3:  # noqa: PLR2004
             n_pol, n_frange, n_pixels = resonance.shape
-        elif resonance.ndim == 2:
+        elif resonance.ndim == 2:  # noqa: PLR2004
             n_pol = 2
             n_frange = resonance.shape[0] // n_pol
             n_pixels = resonance.shape[1]
@@ -296,7 +296,7 @@ class FitResult:
         """
         d = np.array([-1, 1]).reshape(1, 2, 1, 1)
 
-        if n_frange >= 2:
+        if n_frange >= 2:  # noqa: PLR2004
             freq_diff = (resonance[:, 1] - resonance[:, 0]).reshape(n_pol, height, width)
             return freq_diff[:, np.newaxis, :, :] / 2 / GAMMA_NV * 1e6 * d
 
@@ -322,7 +322,7 @@ class FitResult:
         Raises:
             ValueError: If fewer than 2 center parameters are provided.
         """
-        if len(center_params) < 2:
+        if len(center_params) < 2:  # noqa: PLR2004
             raise ValueError(
                 f"Insufficient center parameters for delta resonance "
                 f"calculation. Found: {len(center_params)}"
@@ -335,7 +335,7 @@ class FitResult:
         low_freq = sorted_items[0][1]
         high_freq = sorted_items[1][1]
 
-        if low_freq.shape[1] >= 2:
+        if low_freq.shape[1] >= 2:  # noqa: PLR2004
             freq_diff = (
                 (high_freq[:, 1] - low_freq[:, 0])
                 + (high_freq[:, 0] - low_freq[:, 1])
@@ -411,8 +411,8 @@ class FitResult:
 
         # Handle the expected shape: (n_pol, 2, height, width)
         # where the "2" dimension represents [negative_diff, positive_diff]
-        if delta_res.ndim == 4:  # (n_pol, 2, height, width)
-            if delta_res.shape[1] == 2:  # (n_pol, 2, height, width)
+        if delta_res.ndim == 4:  # noqa: PLR2004 — (n_pol, 2, height, width)
+            if delta_res.shape[1] == 2:  # noqa: PLR2004 — (n_pol, 2, height, width)
                 # The "2" dimension is the negative/positive difference
                 neg_difference = delta_res[:, 0, :, :]  # (n_pol, height, width)
                 pos_difference = delta_res[:, 1, :, :]  # (n_pol, height, width)
@@ -421,7 +421,7 @@ class FitResult:
                 neg_diff = np.mean(neg_difference, axis=0)  # (height, width)
                 pos_diff = np.mean(pos_difference, axis=0)  # (height, width)
 
-            elif delta_res.shape[0] == 2:  # (2, n_pol, height, width)
+            elif delta_res.shape[0] == 2:  # noqa: PLR2004 — (2, n_pol, height, width)
                 # The first dimension is negative/positive difference
                 neg_difference = delta_res[0]  # (n_pol, height, width)
                 pos_difference = delta_res[1]  # (n_pol, height, width)
@@ -432,7 +432,7 @@ class FitResult:
             else:
                 raise ValueError(f"Cannot interpret delta_resonance shape: {delta_res.shape}")
 
-        elif delta_res.ndim == 3:  # (2, height, width)
+        elif delta_res.ndim == 3:  # noqa: PLR2004 — (2, height, width)
             neg_diff = delta_res[0]  # (height, width)
             pos_diff = delta_res[1]  # (height, width)
 
@@ -509,7 +509,7 @@ class FitResult:
         # Get center frequencies and reshape to spatial map
         centers_map = self.get_parameter_map("center")
 
-        # Calculate magnetic field: |B| = |f_center - D| / γ
+        # Calculate magnetic field: |B| = |f_center - D| / gamma
         # Centers are in GHz, GAMMA_NV is GHz/T, D_ZFS is GHz → result in T
         b_field = np.abs(centers_map - D_ZFS) / GAMMA_NV
 
@@ -601,7 +601,7 @@ class FitResult:
         logger.info(f"Fit results saved to: {filepath}")
 
     @classmethod
-    def load_results(cls, filepath: str | Path) -> dict[str, Any]:
+    def load_results(cls: type[FitResult], filepath: str | Path) -> dict[str, Any]:
         """Load saved fit results from file.
 
         Args:

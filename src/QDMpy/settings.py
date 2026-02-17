@@ -7,7 +7,7 @@ supporting TOML files, environment variables, and programmatic overrides.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_settings import (
@@ -169,13 +169,13 @@ class QDMpySettings(BaseSettings):
 
     @classmethod
     def settings_customise_sources(
-        cls,
+        cls: type[QDMpySettings],
         settings_cls: type[BaseSettings],
         init_settings: PydanticBaseSettingsSource,
         env_settings: PydanticBaseSettingsSource,
-        dotenv_settings: PydanticBaseSettingsSource,
-        file_secret_settings: PydanticBaseSettingsSource,
-        **kwargs: Any,
+        dotenv_settings: PydanticBaseSettingsSource,  # noqa: ARG003
+        file_secret_settings: PydanticBaseSettingsSource,  # noqa: ARG003
+        **kwargs: object,  # noqa: ARG003
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         """Customize settings sources with TOML file support.
 

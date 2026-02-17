@@ -73,7 +73,7 @@ _settings: QDMpySettings | None = None
 
 def get_settings() -> QDMpySettings:
     """Return the lazily-initialised application settings singleton."""
-    global _settings
+    global _settings  # noqa: PLW0603 — module singleton pattern
     if _settings is None:
         from QDMpy.settings import QDMpySettings
 
@@ -85,7 +85,7 @@ def get_settings() -> QDMpySettings:
 
 def reset_settings() -> None:
     """Clear the cached settings so the next ``get_settings()`` re-reads config."""
-    global _settings
+    global _settings  # noqa: PLW0603 — module singleton pattern
     _settings = None
 
 

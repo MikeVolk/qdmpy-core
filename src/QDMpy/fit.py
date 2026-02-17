@@ -214,7 +214,7 @@ class FitManager:
         f_ghz: Frequency values in GHz (2D: n_frange x n_freq).
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self: Self,
         data: xr.DataArray,
         frequencies: NDArray,
@@ -313,6 +313,7 @@ class FitManager:
         self._execution_time: NDArray | None = None
 
     def __repr__(self: Self) -> str:
+        """Return a developer-friendly string representation."""
         return (
             f"FitManager(data: {self._data_xr.shape}, "
             f"f: {self.f_ghz.shape}, model: {self._model.name})"

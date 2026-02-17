@@ -152,10 +152,12 @@ class MatlabLoader(BaseLoader):
         Raises:
             ValueError: If the MATLAB file contains an unsupported number of image stacks.
         """
+        DUAL_POLARITY_STACKS = 2  # noqa: N806
+        QUAD_POLARITY_STACKS = 4  # noqa: N806
         n_img_stacks = len([k for k in mat_file if "imgStack" in k])
-        if n_img_stacks == 2:
+        if n_img_stacks == DUAL_POLARITY_STACKS:
             return np.stack([mat_file["imgStack1"].T, mat_file["imgStack2"].T], axis=0)
-        if n_img_stacks == 4:
+        if n_img_stacks == QUAD_POLARITY_STACKS:
             stack_low = np.concatenate([mat_file["imgStack1"], mat_file["imgStack2"]], axis=0).T
             stack_high = np.concatenate([mat_file["imgStack3"], mat_file["imgStack4"]], axis=0).T
             return np.stack([stack_low, stack_high], axis=0)

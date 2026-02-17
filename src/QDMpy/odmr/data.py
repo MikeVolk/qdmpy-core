@@ -53,7 +53,7 @@ class ODMRData:
 
     @classmethod
     def from_loader(
-        cls,
+        cls: type[ODMRData],
         loader: BaseLoader,
         loader_args: dict[str, Any] | None = None,
     ) -> ODMRData:
@@ -79,7 +79,7 @@ class ODMRData:
 
     @classmethod
     def from_numpy(
-        cls,
+        cls: type[ODMRData],
         data: NDArray,
         scan_dimensions: tuple[int, int],
         frequencies: NDArray,

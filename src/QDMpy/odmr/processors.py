@@ -198,8 +198,9 @@ def analyze_fluorescence_effects(
                 np.square(flat_data - np.nanmean(flat_data, axis=2, keepdims=True)),
                 axis=-1,
             )
+            fluorescence_delta_threshold = 0.001
             delta_copy = delta.copy()
-            delta_copy[delta_copy > 0.001] = np.nan
+            delta_copy[delta_copy > fluorescence_delta_threshold] = np.nan
 
             if np.all(np.isnan(delta_copy)):
                 logger.warning("All values in delta_copy are NaN. Using middle pixel.")

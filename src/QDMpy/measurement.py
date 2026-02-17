@@ -30,6 +30,8 @@ from QDMpy.odmr.odmr import ODMR
 if TYPE_CHECKING:
     from os import PathLike
 
+    from QDMpy.fit import FitManager
+    from QDMpy.odmr.data import ODMRData
     from QDMpy.result import FitResult
 
 
@@ -175,13 +177,14 @@ class Measurement:
             n_freq = values.shape[-1]
             flat_data = values.reshape(n_pol, n_frange, -1, n_freq)
             detected = guess_model(flat_data)
-            logger.info(f"Auto-detected model: {detected.name}")
-            return detected.name
         except Exception as e:
             logger.warning(f"Model auto-detection failed: {e}. Using default.")
             return self._fit_model
+        else:
+            logger.info(f"Auto-detected model: {detected.name}")
+            return detected.name
 
-    def _validate_fit_prerequisites(self: Self) -> Any:
+    def _validate_fit_prerequisites(self: Self) -> ODMRData:
         """Validate that processed data and GPU fitting are available.
 
         Returns:
@@ -193,8 +196,6 @@ class Measurement:
         """
         try:
             processed_data = self.odmr.processed_data
-            if processed_data is None:
-                raise ValueError("ODMR data must be processed before fitting")
         except (AttributeError, ValueError) as e:
             raise ValueError(
                 "ODMR data must be processed before fitting. "
@@ -212,7 +213,7 @@ class Measurement:
 
     @staticmethod
     def _extract_fit_parameters(
-        fit_manager: Any, model_name: str
+        fit_manager: FitManager, model_name: str
     ) -> dict[str, NDArray]:
         """Extract fitted parameters and chi2 from a FitManager.
 
