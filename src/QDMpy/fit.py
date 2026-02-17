@@ -19,7 +19,13 @@ from numpy.typing import NDArray
 
 from QDMpy import get_settings, is_pygpufit_available
 from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
-from QDMpy.exceptions import ModelGuessNotPossibleError
+from QDMpy.exceptions import (
+    DependencyError,
+    FitNotPerformedError,
+    ModelGuessNotPossibleError,
+    ModelNotFoundError,
+    ParameterError,
+)
 from QDMpy.guess import (
     guess_center,
     guess_contrast,
@@ -81,7 +87,8 @@ class ConstraintManager:
             constraint_type: Type of constraint ('FREE', 'LOWER', 'UPPER', 'LOWER_UPPER').
         """
         if param not in self._constraints:
-            raise ValueError(f"Unknown parameter: {param}")
+            msg = f"Unknown parameter: {param}"
+            raise ParameterError(msg)
         current = self._constraints[param]
         if vmin is not None:
             current[0] = vmin
@@ -89,7 +96,8 @@ class ConstraintManager:
             current[1] = vmax
         if constraint_type is not None:
             if constraint_type not in CONSTRAINT_TYPES:
-                raise ValueError(f"Invalid constraint type: {constraint_type}")
+                msg = f"Invalid constraint type: {constraint_type}"
+                raise ParameterError(msg)
             current[2] = constraint_type
 
     def get_constraints(self: Self) -> dict[str, list[Any]]:
@@ -190,7 +198,8 @@ class ParameterGuesser:
             elif param_type == 'offset':
                 param_values = np.zeros((n_pol, n_frange, n_pixel))
             else:
-                raise ValueError(f"Unknown parameter type: {param_type}")
+                msg = f"Unknown parameter type: {param_type}"
+                raise ParameterError(msg)
 
             result[:, :, :, idx] = param_values
 
@@ -257,9 +266,9 @@ class FitManager:
             try:
                 self._model = ModelRegistry.get(model_name.upper())
             except KeyError as e:
-                raise ValueError(
-                    f"Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}",
-                ) from e
+                available = list(ModelRegistry.all().keys())
+                msg = f"Unknown model: {model_name}. Choose from: {available}"
+                raise ModelNotFoundError(msg) from e
 
         logger.info(f"Using model: {self._model.name}")
         self._guesser = ParameterGuesser(self._model, self.f_ghz)
@@ -342,9 +351,8 @@ class FitManager:
         try:
             self._model = ModelRegistry.get(model_name.upper())
         except KeyError as e:
-            raise ValueError(
-                f"Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}",
-            ) from e
+            msg = f"Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}"
+            raise ModelNotFoundError(msg) from e
         logger.debug("Setting model to %s, resetting fit results.", model_name)
         self._constraint_manager = ConstraintManager(
             self._model, self._settings.model.constraints
@@ -400,10 +408,11 @@ class FitManager:
             if 0 <= constraint_type < len(CONSTRAINT_TYPES):
                 constraint_type = CONSTRAINT_TYPES[constraint_type]
             else:
-                raise ValueError(
+                msg = (
                     f"Invalid constraint type index: {constraint_type}. "
-                    f"Must be 0-{len(CONSTRAINT_TYPES) - 1}",
+                    f"Must be 0-{len(CONSTRAINT_TYPES) - 1}"
                 )
+                raise ParameterError(msg)
 
         is_base_param = param == "contrast" and any(
             "contrast_" in p for p in self.model_params_unique
@@ -496,7 +505,8 @@ class FitManager:
             ValueError: If no fit has been performed yet.
         """
         if not self.fitted:
-            raise ValueError("No fit has been performed yet. Call fit_odmr() first.")
+            msg = "No fit has been performed yet. Call fit_odmr() first."
+            raise FitNotPerformedError(msg)
         return cast(NDArray, self._fit_results)
 
     def get_param(self: Self, param: str) -> NDArray:
@@ -512,7 +522,8 @@ class FitManager:
             ValueError: If no fit has been performed yet.
         """
         if not self.fitted:
-            raise ValueError("No fit has been performed yet. Call fit_odmr() first.")
+            msg = "No fit has been performed yet. Call fit_odmr() first."
+            raise FitNotPerformedError(msg)
         if param in {"chi2", "chi_squares", "chi_squared"}:
             return cast(NDArray, self._chi_squares)
         idx = self._param_idx(param)
@@ -529,7 +540,8 @@ class FitManager:
         if not idx:
             idx = [i for i, p in enumerate(self.model_params_unique) if p == parameter]
         if not idx:
-            raise ValueError(f"Unknown parameter: {parameter}")
+            msg = f"Unknown parameter: {parameter}"
+            raise ParameterError(msg)
         return idx
 
     @property
@@ -551,7 +563,8 @@ class FitManager:
             ImportError: If pyGpufit is not installed.
         """
         if not self._gpu_available:
-            raise ImportError("pyGpufit is required for fitting but not installed")
+            msg = "pyGpufit is required for fitting but not installed"
+            raise DependencyError(msg)
         if self._fitted and not refit:
             logger.debug("Already fitted")
             return
@@ -614,7 +627,8 @@ class FitManager:
             ImportError: If pyGpufit is not installed.
         """
         if not self._gpu_available:
-            raise ImportError("pyGpufit is required for fitting but not installed")
+            msg = "pyGpufit is required for fitting but not installed"
+            raise DependencyError(msg)
 
         import pygpufit.gpufit as gf
 

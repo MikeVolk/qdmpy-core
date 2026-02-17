@@ -10,6 +10,7 @@ import pytest
 import xarray as xr
 from numpy.typing import NDArray
 
+from QDMpy.exceptions import DataLoadError
 from QDMpy.odmr.data import ODMRData
 
 N_POL = 2
@@ -209,7 +210,7 @@ class TestFromLoader:
             def load(self, **kwargs) -> NoReturn:
                 raise ValueError('intentional test error')
 
-        with pytest.raises(RuntimeError, match='Data loading failed'):
+        with pytest.raises(DataLoadError, match='Data loading failed'):
             ODMRData.from_loader(_FailingLoader())
 
     def test_from_loader_with_real_data(self) -> None:
@@ -229,7 +230,7 @@ class TestFromLoader:
 
         try:
             result = ODMRData.from_loader(loader)
-        except RuntimeError:
+        except (RuntimeError, DataLoadError):
             pytest.skip('Loader failed to load test data')
 
         assert isinstance(result, ODMRData)

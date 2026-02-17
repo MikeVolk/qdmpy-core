@@ -11,6 +11,7 @@ import tempfile
 import numpy as np
 import pytest
 
+from QDMpy.exceptions import DataLoadError
 from QDMpy.io import get_image, get_image_file, has_csv
 
 
@@ -40,7 +41,7 @@ class TestIO:
         assert get_image_file(files) == "image1.jpg"
 
         # Test with no suitable files
-        with pytest.raises(ValueError):
+        with pytest.raises(DataLoadError):
             get_image_file(["file1.txt", "file2.txt"])
 
     def test_get_image(self) -> None:
@@ -58,7 +59,7 @@ class TestIO:
             assert np.array_equal(img, test_data)
 
             # Test with non-existent file
-            with pytest.raises(ValueError):
+            with pytest.raises(DataLoadError):
                 get_image(tmpdirname, ["nonexistent.csv"])
 
 

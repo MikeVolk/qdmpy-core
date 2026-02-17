@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from QDMpy.exceptions import DataLoadError
 from QDMpy.odmr.io import BaseLoader, MatlabLoader
 
 
@@ -55,7 +56,7 @@ class TestMatlabLoader:
         """Test load method with no valid files."""
         with patch('os.listdir', return_value=[]):
             loader = MatlabLoader(data_folder='/dummy/path')
-            with pytest.raises(FileNotFoundError):
+            with pytest.raises(DataLoadError):
                 loader.load()
 
     def test_process_mat_file_2stacks(self) -> None:
@@ -102,14 +103,14 @@ class TestMatlabLoader:
             'imgStack3': np.ones((10, 10)) * 3,
         }
 
-        with pytest.raises(ValueError, match='Unsupported number of image stacks'):
+        with pytest.raises(DataLoadError, match='Unsupported number of image stacks'):
             MatlabLoader._process_mat_file(mock_data)
 
     def test_keys_missing_exception(self) -> None:
-        """Test that ValueError is raised when keys are missing from data."""
+        """Test that DataLoadError is raised when keys are missing from data."""
         mock_data = {'some_other_key': 'value'}
 
-        with pytest.raises(ValueError, match='Missing required key'):
+        with pytest.raises(DataLoadError, match='Missing required key'):
             try:
                 np.array(
                     [
@@ -118,10 +119,10 @@ class TestMatlabLoader:
                     ],
                 )
             except KeyError as e:
-                raise ValueError(f'Missing required key in MATLAB file: {e}')
+                raise DataLoadError(f'Missing required key in MATLAB file: {e}')
 
-        with pytest.raises(ValueError, match='Missing required key'):
+        with pytest.raises(DataLoadError, match='Missing required key'):
             try:
                 np.squeeze(mock_data['freqList'])
             except KeyError as e:
-                raise ValueError(f'Missing required key in MATLAB file: {e}')
+                raise DataLoadError(f'Missing required key in MATLAB file: {e}')

@@ -1,41 +1,94 @@
-"""Custom exceptions for error handling in QDMpy.
+"""Domain-specific exceptions for QDMpy.
 
-This module defines domain-specific exceptions that provide precise error information
-for QDMpy operations. Using these custom exceptions instead of generic Python exceptions
-offers several advantages:
-
-- Context-specific error messages: Clearer indication of what went wrong
-- Hierarchical organization: Exceptions grouped by functional domain
-- Consistent error handling: Standard patterns for different error types
-- Better debugging: More informative tracebacks with contextual information
-- Enhanced error recovery: Specific exception types allow targeted exception handling
-
-Each exception is documented with its purpose and typical usage scenarios.
+Hierarchy:
+    QDMpyError
+    +-- DataError
+    |   +-- DataLoadError
+    |   +-- DataNotLoadedError
+    |   +-- DataValidationError
+    |       +-- DataShapeError
+    +-- FittingError
+    |   +-- FitNotPerformedError
+    |   +-- FitConvergenceError
+    |   +-- ModelNotFoundError
+    |   +-- ModelGuessNotPossibleError
+    |   +-- ParameterError
+    +-- ConfigurationError
+    +-- DependencyError
 """
 
 from __future__ import annotations
 
 
-class CantImportError(Exception):
-    """Exception raised when a required module or package cannot be imported.
-
-    This exception is typically raised when the QDMpy package attempts to
-    import a required dependency that is not available.
-    """
+class QDMpyError(Exception):
+    """Base exception for all QDMpy errors."""
 
 
-class WrongFileNumberError(Exception):
-    """Exception raised when an incorrect number of files is provided.
-
-    This exception is typically raised during data loading operations when
-    the number of provided files doesn't match the expected number.
-    """
+# --- Data Errors ---
 
 
-class ModelGuessNotPossibleError(Exception):
-    """Exception raised when automatic model selection fails.
+class DataError(QDMpyError):
+    """Base for data-related errors."""
 
-    This exception is raised when QDMpy cannot automatically determine an
-    appropriate model for the provided ODMR data, usually due to ambiguous
-    spectral features or poor signal quality.
-    """
+
+class DataLoadError(DataError):
+    """Failed to load data from file or source."""
+
+
+class DataNotLoadedError(DataError):
+    """Data has not been loaded or is not available."""
+
+
+class DataValidationError(DataError):
+    """Data failed validation checks."""
+
+
+class DataShapeError(DataValidationError):
+    """Data array has unexpected shape or dimensions."""
+
+
+# --- Fitting Errors ---
+
+
+class FittingError(QDMpyError):
+    """Base for fitting-related errors."""
+
+
+class FitNotPerformedError(FittingError):
+    """Attempted to access fit results before fitting."""
+
+
+class FitConvergenceError(FittingError):
+    """Fit did not converge within allowed iterations."""
+
+
+class ModelNotFoundError(FittingError):
+    """Requested model is not registered."""
+
+
+class ModelGuessNotPossibleError(FittingError):
+    """Cannot determine appropriate model from data."""
+
+
+class ParameterError(FittingError):
+    """Invalid or unknown fitting parameter."""
+
+
+# --- Configuration Errors ---
+
+
+class ConfigurationError(QDMpyError):
+    """Invalid or missing configuration."""
+
+
+# --- Dependency Errors ---
+
+
+class DependencyError(QDMpyError):
+    """Required dependency is not available."""
+
+
+# --- Deprecated Aliases ---
+
+CantImportError = DependencyError
+WrongFileNumberError = DataValidationError

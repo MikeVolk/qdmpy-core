@@ -17,6 +17,8 @@ from numpy.typing import NDArray
 from scipy.io import loadmat
 from typing_extensions import Self
 
+from QDMpy.exceptions import DataLoadError
+
 
 class BaseLoader(ABC):
     """Abstract base class for ODMR data loaders.
@@ -72,7 +74,8 @@ class MatlabLoader(BaseLoader):
             f for f in os.listdir(self.data_folder) if f.endswith(".mat") and "run_" in f
         )
         if not files:
-            raise FileNotFoundError("No valid MATLAB files found in the folder.")
+            msg = "No valid MATLAB files found in the folder."
+            raise DataLoadError(msg)
 
         per_file_data: list[NDArray] = []
         rows: int = 0
@@ -93,7 +96,8 @@ class MatlabLoader(BaseLoader):
                 rows = int(np.squeeze(mat_data["imgNumRows"]))
                 cols = int(np.squeeze(mat_data["imgNumCols"]))
             except KeyError as e:
-                raise ValueError(f"Missing required key in MATLAB file: {e}") from e
+                msg = f"Missing required key in MATLAB file: {e}"
+                raise DataLoadError(msg) from e
 
             try:
                 freq_list = np.squeeze(mat_data["freqList"])
@@ -106,10 +110,12 @@ class MatlabLoader(BaseLoader):
                 else:
                     frequencies = freq_list
             except KeyError as e:
-                raise ValueError(f"Missing required key in MATLAB file: {e}") from e
+                msg = f"Missing required key in MATLAB file: {e}"
+                raise DataLoadError(msg) from e
 
         if frequencies is None:
-            raise ValueError("No frequency data found in MATLAB files.")
+            msg = "No frequency data found in MATLAB files."
+            raise DataLoadError(msg)
 
         # Stack polarity axis from multiple files
         if len(per_file_data) == 1:
@@ -161,4 +167,5 @@ class MatlabLoader(BaseLoader):
             stack_low = np.concatenate([mat_file["imgStack1"], mat_file["imgStack2"]], axis=0).T
             stack_high = np.concatenate([mat_file["imgStack3"], mat_file["imgStack4"]], axis=0).T
             return np.stack([stack_low, stack_high], axis=0)
-        raise ValueError("Unsupported number of image stacks in MATLAB file.")
+        msg = "Unsupported number of image stacks in MATLAB file."
+        raise DataLoadError(msg)

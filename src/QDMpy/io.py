@@ -24,6 +24,8 @@ import matplotlib.image as mpimg
 import numpy as np
 from numpy.typing import NDArray
 
+from QDMpy.exceptions import DataLoadError
+
 
 def has_csv(lst: Sequence[str | bytes | os.PathLike[Any]]) -> bool:
     """Check if a list of files contains a CSV file.
@@ -57,7 +59,8 @@ def get_image_file(lst: Sequence[str | bytes | os.PathLike[Any]]) -> str:
         filtered_lst = [s for s in lst if ".jpg" in str(s).lower()]
 
     if not filtered_lst:
-        raise ValueError("No suitable image files found in the list")
+        msg = "No suitable image files found in the list"
+        raise DataLoadError(msg)
 
     return str(filtered_lst[0])
 
@@ -98,4 +101,5 @@ def get_image(
 
         return np.array(img)
     except Exception as e:
-        raise ValueError(f"Failed to load image: {e!s}") from e
+        msg = f"Failed to load image: {e!s}"
+        raise DataLoadError(msg) from e

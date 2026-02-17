@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from QDMpy.constants import D_ZFS, GAMMA_NV
+from QDMpy.exceptions import DataLoadError, DataShapeError, ParameterError
 from QDMpy.result import FitResult
 
 
@@ -111,7 +112,7 @@ class TestFitResult:
             parameters=params, scan_dimensions=(10, 10), pixel_spacing=4e-6, model_name="ESR15N"
         )
 
-        with pytest.raises(KeyError, match="No linewidth parameter found"):
+        with pytest.raises(ParameterError, match="No linewidth parameter found"):
             _ = result.linewidths
 
     def test_contrasts_property(self, sample_fit_result) -> None:
@@ -174,7 +175,7 @@ class TestFitResult:
 
     def test_get_parameter_invalid_param(self, sample_fit_result) -> None:
         """Test get_parameter with invalid parameter name."""
-        with pytest.raises(KeyError, match="Parameter 'nonexistent' not found"):
+        with pytest.raises(ParameterError, match="Parameter 'nonexistent' not found"):
             sample_fit_result.get_parameter("nonexistent")
 
     def test_get_parameter_map_reshaping(self, sample_fit_result) -> None:
@@ -306,7 +307,7 @@ class TestFitResult:
 
     def test_load_results_file_not_found(self) -> None:
         """Test loading results from non-existent file."""
-        with pytest.raises(FileNotFoundError, match="Results file not found"):
+        with pytest.raises(DataLoadError, match="Results file not found"):
             FitResult.load_results("nonexistent_file.npz")
 
     def test_save_load_roundtrip(self, sample_fit_result) -> None:
@@ -403,7 +404,7 @@ class TestNormalizeResonanceShape:
     def test_invalid_shape_raises(self) -> None:
         result = self._make_result()
         arr = np.ones((50,))
-        with pytest.raises(ValueError, match="Unexpected center parameter shape"):
+        with pytest.raises(DataShapeError, match="Unexpected center parameter shape"):
             result._normalize_resonance_shape(arr)
 
 
@@ -468,7 +469,7 @@ class TestCalcDeltaFromMultiCenters:
 
     def test_insufficient_centers_raises(self) -> None:
         result = self._make_result()
-        with pytest.raises(ValueError, match="Insufficient center parameters"):
+        with pytest.raises(DataShapeError, match="Insufficient center parameters"):
             result._calc_delta_from_multi_centers({"center_0": np.zeros((1, 1, 4))}, 2, 2)
 
     def test_two_centers_multi_frange(self) -> None:

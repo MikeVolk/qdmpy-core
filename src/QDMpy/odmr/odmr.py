@@ -11,6 +11,7 @@ from loguru import logger
 from numpy.typing import NDArray
 from typing_extensions import Self
 
+from QDMpy.exceptions import DataNotLoadedError
 from QDMpy.odmr.data import ODMRData
 from QDMpy.odmr.processors import ODMRProcessorManager
 
@@ -76,7 +77,8 @@ class ODMR:
         """Reset to the raw data."""
         if self._raw_data is None:
             logger.error("No raw data loaded. Cannot reset.")
-            raise ValueError("No raw data to reset to.")
+            msg = "No raw data to reset to."
+            raise DataNotLoadedError(msg)
         logger.info("Resetting to raw data.")
         self._processed_data = None
         self.is_processed = False
@@ -86,7 +88,8 @@ class ODMR:
         """Apply the processing pipeline to the raw data."""
         if self._raw_data is None:
             logger.error("No data loaded.")
-            raise ValueError("No ODMRData loaded.")
+            msg = "No ODMRData loaded."
+            raise DataNotLoadedError(msg)
         logger.info("Processing data.")
         self._processed_data = self.processor_manager.process(self._raw_data)
         self.is_processed = True
@@ -97,7 +100,8 @@ class ODMR:
         """Access the raw ODMRData."""
         if self._raw_data is None:
             logger.error("No raw data loaded.")
-            raise ValueError("No raw data available.")
+            msg = "No raw data available."
+            raise DataNotLoadedError(msg)
         return self._raw_data
 
     @property
@@ -105,5 +109,6 @@ class ODMR:
         """Access the processed ODMRData."""
         if self._processed_data is None:
             logger.error("No data has been processed yet.")
-            raise ValueError("No processed data available.")
+            msg = "No processed data available."
+            raise DataNotLoadedError(msg)
         return self._processed_data

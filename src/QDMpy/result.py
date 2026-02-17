@@ -25,6 +25,7 @@ from loguru import logger
 from numpy.typing import NDArray
 
 from QDMpy.constants import D_ZFS, GAMMA_NV
+from QDMpy.exceptions import DataLoadError, DataShapeError, ParameterError
 
 
 class FitResult:
@@ -115,7 +116,8 @@ class FitResult:
         width = self.parameters.get("width")
         if width is not None:
             return width
-        raise KeyError("No linewidth parameter found ('width_0' or 'width')")
+        msg = "No linewidth parameter found ('width_0' or 'width')"
+        raise ParameterError(msg)
 
     @property
     def contrasts(self: Self) -> NDArray:
@@ -167,7 +169,8 @@ class FitResult:
         """
         if param_name not in self.parameters:
             available = list(self.parameters.keys())
-            raise KeyError(f"Parameter '{param_name}' not found. Available: {available}")
+            msg = f"Parameter '{param_name}' not found. Available: {available}"
+            raise ParameterError(msg)
         return self.parameters[param_name]
 
     def get_parameter_map(self: Self, param_name: str) -> NDArray:
@@ -267,7 +270,8 @@ class FitResult:
             resonance = resonance.reshape((n_pol, n_frange, n_pixels))
             logger.debug(f"Reshaped 2D resonance to shape {resonance.shape}")
         else:
-            raise ValueError(f"Unexpected center parameter shape: {resonance.shape}")
+            msg = f"Unexpected center parameter shape: {resonance.shape}"
+            raise DataShapeError(msg)
 
         return resonance, n_pol, n_frange, n_pixels
 
@@ -323,10 +327,11 @@ class FitResult:
             ValueError: If fewer than 2 center parameters are provided.
         """
         if len(center_params) < 2:  # noqa: PLR2004
-            raise ValueError(
+            msg = (
                 f"Insufficient center parameters for delta resonance "
                 f"calculation. Found: {len(center_params)}"
             )
+            raise DataShapeError(msg)
 
         sorted_items = sorted(
             center_params.items(),
@@ -430,14 +435,16 @@ class FitResult:
                 neg_diff = np.mean(neg_difference, axis=0)  # (height, width)
                 pos_diff = np.mean(pos_difference, axis=0)  # (height, width)
             else:
-                raise ValueError(f"Cannot interpret delta_resonance shape: {delta_res.shape}")
+                msg = f"Cannot interpret delta_resonance shape: {delta_res.shape}"
+                raise DataShapeError(msg)
 
         elif delta_res.ndim == 3:  # noqa: PLR2004 — (2, height, width)
             neg_diff = delta_res[0]  # (height, width)
             pos_diff = delta_res[1]  # (height, width)
 
         else:
-            raise ValueError(f"Unexpected delta_resonance shape: {delta_res.shape}")
+            msg = f"Unexpected delta_resonance shape: {delta_res.shape}"
+            raise DataShapeError(msg)
 
         # Apply the exact B111 calculation from old QDM class
         b111_remanent = (neg_diff + pos_diff) / 2
@@ -618,7 +625,8 @@ class FitResult:
         filepath = Path(filepath)
 
         if not filepath.exists():
-            raise FileNotFoundError(f"Results file not found: {filepath}")
+            msg = f"Results file not found: {filepath}"
+            raise DataLoadError(msg)
 
         data = np.load(filepath, allow_pickle=True)
 

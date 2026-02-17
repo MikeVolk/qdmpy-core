@@ -5,7 +5,7 @@ from typing import NoReturn
 
 import pytest
 
-from QDMpy.exceptions import CantImportError, ModelGuessNotPossibleError, WrongFileNumberError
+from QDMpy.exceptions import CantImportError, ModelGuessNotPossibleError, QDMpyError, WrongFileNumberError
 
 
 class TestExceptions(unittest.TestCase):
@@ -23,6 +23,7 @@ class TestExceptions(unittest.TestCase):
 
         # Verify inheritance
         assert isinstance(context.value, Exception)
+        assert isinstance(context.value, QDMpyError)
 
     def test_wrong_file_number(self) -> NoReturn:
         """Test WrongFileNumberError."""
@@ -36,6 +37,7 @@ class TestExceptions(unittest.TestCase):
 
         # Verify inheritance
         assert isinstance(context.value, Exception)
+        assert isinstance(context.value, QDMpyError)
 
     def test_model_guess_not_possible(self) -> NoReturn:
         """Test ModelGuessNotPossibleError."""
@@ -49,6 +51,7 @@ class TestExceptions(unittest.TestCase):
 
         # Verify inheritance
         assert isinstance(context.value, Exception)
+        assert isinstance(context.value, QDMpyError)
 
 
 if __name__ == "__main__":

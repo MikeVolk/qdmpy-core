@@ -75,7 +75,10 @@ class ODMRData:
             return cls(data)
         except Exception as e:
             logger.exception(f"Failed to load data using loader {loader.__class__.__name__}: {e}")
-            raise RuntimeError(f"Data loading failed: {e}") from e
+            from QDMpy.exceptions import DataLoadError
+
+            msg = f"Data loading failed: {e}"
+            raise DataLoadError(msg) from e
 
     @classmethod
     def from_numpy(

@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from QDMpy.exceptions import DataNotLoadedError
 from QDMpy.odmr.data import ODMRData
 from QDMpy.odmr.odmr import ODMR
 from QDMpy.odmr.processors import ODMRProcessorManager
@@ -66,7 +67,7 @@ class TestODMR:
     def test_reset_no_data(self) -> None:
         """Test reset method with no data."""
         odmr = ODMR()
-        with pytest.raises(ValueError, match='No raw data'):
+        with pytest.raises(DataNotLoadedError, match='No raw data'):
             odmr.reset()
 
     def test_reset(self, sample_odmr_data) -> None:
@@ -83,7 +84,7 @@ class TestODMR:
     def test_process_data_no_data(self) -> None:
         """Test process_data method with no data."""
         odmr = ODMR()
-        with pytest.raises(ValueError, match='No ODMRData loaded'):
+        with pytest.raises(DataNotLoadedError, match='No ODMRData loaded'):
             odmr.process_data()
 
     def test_process_data(self, sample_odmr_data) -> None:
@@ -104,7 +105,7 @@ class TestODMR:
     def test_raw_data_property_no_data(self) -> None:
         """Test raw_data property with no data."""
         odmr = ODMR()
-        with pytest.raises(ValueError, match='No raw data available'):
+        with pytest.raises(DataNotLoadedError, match='No raw data available'):
             odmr.raw_data
 
     def test_raw_data_property(self, sample_odmr_data) -> None:
@@ -115,7 +116,7 @@ class TestODMR:
     def test_processed_data_property_no_data(self) -> None:
         """Test processed_data property with no processed data."""
         odmr = ODMR()
-        with pytest.raises(ValueError, match='No processed data available'):
+        with pytest.raises(DataNotLoadedError, match='No processed data available'):
             odmr.processed_data
 
     def test_processed_data_property(self, sample_odmr_data) -> None:

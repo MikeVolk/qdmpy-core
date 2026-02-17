@@ -18,7 +18,13 @@ from numpy.typing import NDArray
 from scipy.signal import find_peaks
 
 from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN, PROMINENCE
-from QDMpy.exceptions import ModelGuessNotPossibleError
+from QDMpy.exceptions import (
+    DataShapeError,
+    DataValidationError,
+    ModelGuessNotPossibleError,
+    ModelNotFoundError,
+    ParameterError,
+)
 from QDMpy.models import ModelRegistry
 
 if TYPE_CHECKING:
@@ -44,13 +50,14 @@ def normalize_pixel(pixel: NDArray) -> NDArray:
 def validate_array(data: NDArray, expected_dim: int, name: str) -> None:
     """Validate that an array has the expected number of dimensions."""
     if data is None:
-        raise ValueError(f"{name} cannot be None.")
+        msg = f"{name} cannot be None."
+        raise DataValidationError(msg)
     if not np.issubdtype(data.dtype, np.number):
-        raise ValueError(f"{name} must be a numeric array.")
+        msg = f"{name} must be a numeric array."
+        raise DataValidationError(msg)
     if data.ndim != expected_dim:
-        raise ValueError(
-            f"{name} must have {expected_dim} dimensions. Got {data.ndim}.",
-        )
+        msg = f"{name} must have {expected_dim} dimensions. Got {data.ndim}."
+        raise DataShapeError(msg)
 
 
 def guess_model(data: NDArray) -> Model:
@@ -72,9 +79,8 @@ def guess_model(data: NDArray) -> Model:
         model = get_model_by_peaks(n_peaks)
         logger.info(f"Detected model: {model.name}")
         return model
-    raise ModelGuessNotPossibleError(
-        "Guessing the model is not possible. Please select model manually.",
-    )
+    msg = "Guessing the model is not possible. Please select model manually."
+    raise ModelGuessNotPossibleError(msg)
 
 
 def guess_n_peaks(data: NDArray) -> tuple[int, bool, list[NDArray]]:
@@ -104,7 +110,8 @@ def get_model_by_peaks(n_peaks: int) -> Model:
         model_instance = model_cls()  # type: ignore[call-arg]
         if model_instance.n_peaks == n_peaks:
             return model_instance
-    raise ValueError(f"No model found for {n_peaks} peaks.")
+    msg = f"No model found for {n_peaks} peaks."
+    raise ModelNotFoundError(msg)
 
 
 def guess_initial_fit_parameters(data: NDArray, freq: NDArray, model: Model) -> NDArray:
@@ -132,7 +139,8 @@ def guess_initial_fit_parameters(data: NDArray, freq: NDArray, model: Model) -> 
         if param_type in parameter_guessers:
             fit_parameters.append(parameter_guessers[param_type]())
         else:
-            raise ValueError(f"Parameter '{param}' has no defined guess method.")
+            msg = f"Parameter '{param}' has no defined guess method."
+            raise ParameterError(msg)
 
     return np.stack(fit_parameters, axis=-1)
 

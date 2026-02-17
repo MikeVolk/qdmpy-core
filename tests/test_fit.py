@@ -13,6 +13,7 @@ import pytest
 import xarray as xr
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 
+from QDMpy.exceptions import FitNotPerformedError, ModelNotFoundError, ParameterError
 from QDMpy.fit import CONSTRAINT_TYPES, ConstraintManager, FitManager, ParameterGuesser
 from QDMpy.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
 from QDMpy.settings import (
@@ -125,7 +126,7 @@ class TestFitInitialization:
 
     def test_init_with_invalid_model(self, sample_data, sample_frequencies) -> None:
         """Test initialization with an invalid model name."""
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(ModelNotFoundError) as excinfo:
             FitManager(
                 sample_data, sample_frequencies,
                 model_name='INVALID_MODEL', settings=MOCK_SETTINGS,
@@ -177,7 +178,7 @@ class TestFitProperties:
         assert fit.model_name == 'ESR15N'
         assert isinstance(fit.model, ESR15N)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ModelNotFoundError):
             fit.model_name = 'INVALID_MODEL'
 
 
@@ -205,10 +206,10 @@ class TestConstraintsMethods:
         """Test set_constraints with invalid constraint type."""
         fit = FitManager(sample_data, sample_frequencies, settings=MOCK_SETTINGS)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ParameterError):
             fit.set_constraints('center', constraint_type='INVALID_TYPE')
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ParameterError):
             fit.set_constraints('center', constraint_type=10)
 
     def test_set_free_constraints(self, sample_data, sample_frequencies) -> None:
@@ -295,7 +296,7 @@ class TestParamMethods:
         assert fit._param_idx('center') == [0]
         assert fit._param_idx('resonance') == [0]
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ParameterError):
             fit._param_idx('invalid_param')
 
 
@@ -400,10 +401,10 @@ class TestConstraintManager:
         assert constraints['width_0'][1] == 0.01
         assert constraints['width_0'][2] == 'FREE'
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ParameterError):
             constraint_manager.set_constraint('invalid_param', vmin=1.0)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ParameterError):
             constraint_manager.set_constraint('center', constraint_type='INVALID')
 
     def test_to_array(self) -> None:
@@ -542,7 +543,7 @@ def test_set_constraints_missing_param(sample_data, sample_frequencies) -> None:
     """Test set_constraints with a missing parameter."""
     fit = FitManager(sample_data, sample_frequencies, settings=MOCK_SETTINGS)
 
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(ParameterError) as excinfo:
         fit.set_constraints('non_existent_param', vmin=0, vmax=1)
     assert 'Unknown parameter' in str(excinfo.value)
 
@@ -552,13 +553,13 @@ def test_get_param_invalid(sample_data, sample_frequencies) -> None:
     fit = FitManager(sample_data, sample_frequencies, settings=MOCK_SETTINGS)
 
     # get_param checks fitted status first
-    with pytest.raises(ValueError, match='No fit has been performed yet'):
+    with pytest.raises(FitNotPerformedError, match='No fit has been performed yet'):
         fit.get_param('invalid_param')
 
-    # When fitted, unknown param raises ValueError
+    # When fitted, unknown param raises ParameterError
     fit._fitted = True
     fit._fit_results = np.zeros((2, 1, 4, fit.n_parameter))
-    with pytest.raises(ValueError, match='Unknown parameter'):
+    with pytest.raises(ParameterError, match='Unknown parameter'):
         fit.get_param('invalid_param')
 
 

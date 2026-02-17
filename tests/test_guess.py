@@ -12,7 +12,13 @@ import numpy as np
 import pytest
 
 from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
-from QDMpy.exceptions import ModelGuessNotPossibleError
+from QDMpy.exceptions import (
+    DataShapeError,
+    DataValidationError,
+    ModelGuessNotPossibleError,
+    ModelNotFoundError,
+    ParameterError,
+)
 from QDMpy.guess import (
     get_model_by_peaks,
     guess_center,
@@ -99,26 +105,26 @@ class TestValidateArray:
     def test_validate_incorrect_dimensions(self) -> None:
         """Test validation with incorrect dimensions."""
         data = np.zeros((2, 3, 4))
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(DataShapeError) as excinfo:
             validate_array(data, 4, 'test_data')
         assert 'must have 4 dimensions' in str(excinfo.value)
         assert 'Got 3' in str(excinfo.value)
 
     def test_none_array(self) -> None:
         """Test validation with None."""
-        with pytest.raises(ValueError):
+        with pytest.raises(DataValidationError):
             validate_array(None, 4, 'test_data')
 
     def test_non_numeric_array(self) -> None:
         """Test validation with a non-numeric array."""
         data = np.array([['a', 'b'], ['c', 'd']])
-        with pytest.raises(ValueError):
+        with pytest.raises(DataValidationError):
             validate_array(data, 2, 'test_data')
 
     def test_unexpected_dimensions(self) -> None:
         """Test validation with unexpected dimensions."""
         data = np.zeros((2, 3, 4))
-        with pytest.raises(ValueError):
+        with pytest.raises(DataShapeError):
             validate_array(data, 5, 'test_data')
 
 
@@ -158,7 +164,7 @@ class TestGuessNPeaks:
     def test_incorrect_dimensions(self) -> None:
         """Test with incorrect dimensions."""
         data = np.zeros((2, 3, 4))
-        with pytest.raises(ValueError):
+        with pytest.raises(DataShapeError):
             guess_n_peaks(data)
 
 
@@ -188,7 +194,7 @@ class TestGetModelByPeaks:
 
     def test_get_model_invalid_peaks(self) -> None:
         """Test with an invalid number of peaks."""
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(ModelNotFoundError) as excinfo:
             get_model_by_peaks(4)
         assert 'No model found for 4 peaks' in str(excinfo.value)
 
@@ -459,6 +465,6 @@ class TestGuessInitialFitParameters:
         mock_model.parameters_unique = ['invalid_param']
         mock_model.parameter_types = {'invalid_param': 'unknown_type'}
 
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(ParameterError) as excinfo:
             guess_initial_fit_parameters(sample_odmr_data, frequency_range, mock_model)
         assert "Parameter 'invalid_param' has no defined guess method" in str(excinfo.value)

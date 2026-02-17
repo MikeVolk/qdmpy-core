@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from QDMpy.exceptions import DataValidationError
 from QDMpy.odmr.data import ODMRData
 from QDMpy.odmr.processors import (
     BaseProcessor,
@@ -83,10 +84,10 @@ class TestBinningProcessor:
 
     def test_init_invalid(self) -> None:
         """Test initialization with invalid parameters."""
-        with pytest.raises(ValueError):
+        with pytest.raises(DataValidationError):
             BinningProcessor(bin_factor=0)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(DataValidationError):
             BinningProcessor(bin_factor=-1)
 
     def test_process(self, sample_odmr_data) -> None:

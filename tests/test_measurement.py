@@ -12,6 +12,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+from QDMpy.exceptions import DataNotLoadedError, DependencyError
 from QDMpy.measurement import Measurement
 from QDMpy.odmr.data import ODMRData
 from QDMpy.odmr.odmr import ODMR
@@ -107,7 +108,7 @@ class TestMeasurement:
         light_image, laser_image = sample_images
         empty_odmr = ODMR()
 
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(DataNotLoadedError) as excinfo:
             Measurement(
                 odmr=empty_odmr,
                 light_image=light_image,
@@ -332,7 +333,7 @@ class TestMeasurement:
             output_directory=temp_output_dir,
         )
 
-        with pytest.raises(ValueError, match='ODMR data must be processed'):
+        with pytest.raises(DataNotLoadedError, match='ODMR data must be processed'):
             measurement.fit_odmr()
 
     def test_fit_odmr_data_extraction(self, sample_odmr, sample_images, temp_output_dir) -> None:
@@ -449,7 +450,7 @@ class TestValidateFitPrerequisites:
             odmr=odmr, light_image=light_image,
             laser_image=laser_image, output_directory=temp_output_dir,
         )
-        with pytest.raises(ValueError, match='ODMR data must be processed'):
+        with pytest.raises(DataNotLoadedError, match='ODMR data must be processed'):
             m._validate_fit_prerequisites()
 
     def test_no_pygpufit(self, sample_odmr, sample_images, temp_output_dir) -> None:
@@ -459,7 +460,7 @@ class TestValidateFitPrerequisites:
             laser_image=laser_image, output_directory=temp_output_dir,
         )
         with patch('QDMpy.is_pygpufit_available', return_value=False):
-            with pytest.raises(ImportError, match='pyGpufit is required'):
+            with pytest.raises(DependencyError, match='pyGpufit is required'):
                 m._validate_fit_prerequisites()
 
 

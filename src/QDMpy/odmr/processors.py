@@ -78,8 +78,11 @@ class BinningProcessor(BaseProcessor):
         Raises:
             ValueError: If bin_factor is not greater than 0.
         """
+        from QDMpy.exceptions import DataValidationError
+
         if bin_factor <= 0:
-            raise ValueError("Bin factor must be greater than 0.")
+            msg = "Bin factor must be greater than 0."
+            raise DataValidationError(msg)
         self.bin_factor = bin_factor
 
     def process(self: Self, data: ODMRData) -> ODMRData:

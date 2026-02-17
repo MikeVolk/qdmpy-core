@@ -25,6 +25,7 @@ from loguru import logger
 from numpy.typing import NDArray
 from typing_extensions import Self
 
+from QDMpy.exceptions import DataNotLoadedError, DependencyError
 from QDMpy.odmr.odmr import ODMR
 
 if TYPE_CHECKING:
@@ -98,8 +99,9 @@ class Measurement:
         try:
             # Use public property instead of accessing protected member
             _ = self.odmr.raw_data
-        except ValueError as e:
-            raise ValueError("ODMR instance has no raw data") from e
+        except (ValueError, DataNotLoadedError) as e:
+            msg = "ODMR instance has no raw data"
+            raise DataNotLoadedError(msg) from e
 
         # Validate ODMR instance data
         logger.debug(f"ODMR raw data shape: {self.odmr.raw_data.shape}")
@@ -107,7 +109,7 @@ class Measurement:
         # Check if data has been processed
         try:
             logger.debug(f"ODMR processed data shape: {self.odmr.processed_data.shape}")
-        except ValueError:
+        except (ValueError, DataNotLoadedError):
             logger.warning(
                 "ODMR data has not been processed yet. Some functionality may be limited."
             )
@@ -191,24 +193,26 @@ class Measurement:
             The ProcessedData object.
 
         Raises:
-            ValueError: If ODMR data hasn't been processed.
-            ImportError: If pyGpufit is not available.
+            DataNotLoadedError: If ODMR data hasn't been processed.
+            DependencyError: If pyGpufit is not available.
         """
         try:
             processed_data = self.odmr.processed_data
-        except (AttributeError, ValueError) as e:
-            raise ValueError(
+        except (AttributeError, ValueError, DataNotLoadedError) as e:
+            msg = (
                 "ODMR data must be processed before fitting. "
                 "Call odmr.process_data() first."
-            ) from e
+            )
+            raise DataNotLoadedError(msg) from e
 
         from QDMpy import is_pygpufit_available
 
         if not is_pygpufit_available():
-            raise ImportError(
+            msg = (
                 "pyGpufit is required for fitting but not available. "
                 "Please install pyGpufit to enable fitting functionality."
             )
+            raise DependencyError(msg)
         return processed_data
 
     @staticmethod
