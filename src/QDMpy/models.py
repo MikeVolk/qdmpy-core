@@ -373,6 +373,7 @@ class ModelRegistry:
         if name not in cls._registry:
             error_msg = f"Model '{name}' not found in registry"
             raise KeyError(error_msg)
+        logger.debug(f"Instantiating model: {name}")
         return cls._registry[name]()  # type: ignore[call-arg]
 
     @classmethod
@@ -409,6 +410,7 @@ class ModelRegistry:
                 getattr(resolved, f'{base_param}_max'),
                 getattr(resolved, f'{base_param}_type'),
             ]
+        logger.debug(f"Initialized constraints for {model.name}: {list(constraints.keys())}")
         return constraints
 
 

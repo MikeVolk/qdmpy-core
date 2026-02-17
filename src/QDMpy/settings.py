@@ -140,6 +140,10 @@ class LoggingSettings(BaseModel):
     log_level: Literal["TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="WARNING", description="Log level"
     )
+    log_file: str | None = Field(
+        default=None,
+        description="Optional file path for persistent log output (supports rotation)",
+    )
 
     model_config = ConfigDict(extra="ignore")
 

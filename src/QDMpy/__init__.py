@@ -67,6 +67,14 @@ def _configure_logging(settings: QDMpySettings) -> None:
     logger.remove()
     logger.add(sys.stderr, level=settings.logging.log_level)
 
+    if settings.logging.log_file:
+        logger.add(
+            settings.logging.log_file,
+            level=settings.logging.log_level,
+            rotation="10 MB",
+            retention="7 days",
+        )
+
 
 _settings: QDMpySettings | None = None
 

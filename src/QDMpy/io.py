@@ -22,6 +22,7 @@ from typing import Any
 
 import matplotlib.image as mpimg
 import numpy as np
+from loguru import logger
 from numpy.typing import NDArray
 
 from QDMpy.exceptions import DataLoadError
@@ -62,7 +63,9 @@ def get_image_file(lst: Sequence[str | bytes | os.PathLike[Any]]) -> str:
         msg = "No suitable image files found in the list"
         raise DataLoadError(msg)
 
-    return str(filtered_lst[0])
+    selected = str(filtered_lst[0])
+    logger.debug(f"Selected image file: {selected}")
+    return selected
 
 
 def get_image(
@@ -88,18 +91,20 @@ def get_image(
     try:
         image_file = get_image_file(lst)
         file_path = os.path.join(folder_str, image_file)
+        logger.debug(f"Loading image from: {file_path}")
 
         if image_file.lower().endswith(".csv"):
-            # Try different delimiters for CSV files
             try:
                 img = np.loadtxt(file_path, delimiter=",")
             except ValueError:
-                # Fall back to default delimiter (whitespace)
+                logger.debug("CSV comma delimiter failed, falling back to whitespace")
                 img = np.loadtxt(file_path)
-        else:  # Assume it's an image format matplotlib can read
+        else:
             img = mpimg.imread(file_path)
-
-        return np.array(img)
     except Exception as e:
         msg = f"Failed to load image: {e!s}"
         raise DataLoadError(msg) from e
+    else:
+        result = np.array(img)
+        logger.info(f"Loaded image {file_path} with shape {result.shape}")
+        return result

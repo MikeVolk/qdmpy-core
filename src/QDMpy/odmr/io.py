@@ -7,12 +7,14 @@ Resonance (ODMR) data from various file formats through a collection of loader c
 from __future__ import annotations
 
 import os
+import time
 from abc import ABC, abstractmethod
 from typing import Any
 
 import mat73
 import numpy as np
 import xarray as xr
+from loguru import logger
 from numpy.typing import NDArray
 from scipy.io import loadmat
 from typing_extensions import Self
@@ -60,7 +62,7 @@ class MatlabLoader(BaseLoader):
         """
         self.data_folder = data_folder
 
-    def load(self: Self) -> xr.DataArray:  # noqa: C901, PLR0912
+    def load(self: Self) -> xr.DataArray:  # noqa: C901, PLR0912, PLR0915
         """Load ODMR data from the specified folder.
 
         Returns:
@@ -77,6 +79,9 @@ class MatlabLoader(BaseLoader):
             msg = "No valid MATLAB files found in the folder."
             raise DataLoadError(msg)
 
+        logger.info(f"Found {len(files)} MATLAB file(s) in {self.data_folder}")
+        t_start = time.perf_counter()
+
         per_file_data: list[NDArray] = []
         rows: int = 0
         cols: int = 0
@@ -84,12 +89,16 @@ class MatlabLoader(BaseLoader):
 
         for file in files:
             full_path = os.path.join(self.data_folder, file)
+            logger.debug(f"Loading MATLAB file: {file}")
             try:
                 mat_data = mat73.loadmat(full_path)
+                logger.debug(f"Loaded {file} with mat73")
             except Exception:
                 mat_data = loadmat(full_path)
+                logger.debug(f"Loaded {file} with scipy.io.loadmat (mat73 fallback)")
 
             stacked_data = self._process_mat_file(mat_data)
+            logger.debug(f"Extracted data shape: {stacked_data.shape} from {file}")
             per_file_data.append(stacked_data)
 
             try:
@@ -128,12 +137,22 @@ class MatlabLoader(BaseLoader):
 
         # Reshape flattened pixels to 2D spatial grid
         raw_data = raw_data.reshape(n_pol, n_frange, rows, cols, n_freqs)
+        logger.debug(
+            f"Reshaped data to ({n_pol}, {n_frange}, {rows}, {cols}, {n_freqs})"
+        )
 
         # Build frequency coordinate
         if frequencies.ndim == 1:
             freq_ghz = np.tile(frequencies, (n_frange, 1)) / 1e9
         else:
             freq_ghz = frequencies / 1e9
+
+        logger.debug(
+            f"Frequency range: {freq_ghz.min():.4f} - {freq_ghz.max():.4f} GHz"
+        )
+
+        elapsed = time.perf_counter() - t_start
+        logger.info(f"MATLAB data loaded in {elapsed:.2f}s — shape {raw_data.shape}")
 
         polarity_labels = [f"pol_{i}" for i in range(n_pol)]
         frange_labels = [f"frange_{i}" for i in range(n_frange)]
@@ -161,6 +180,7 @@ class MatlabLoader(BaseLoader):
         DUAL_POLARITY_STACKS = 2  # noqa: N806
         QUAD_POLARITY_STACKS = 4  # noqa: N806
         n_img_stacks = len([k for k in mat_file if "imgStack" in k])
+        logger.debug(f"Found {n_img_stacks} image stacks in MATLAB file")
         if n_img_stacks == DUAL_POLARITY_STACKS:
             return np.stack([mat_file["imgStack1"].T, mat_file["imgStack2"].T], axis=0)
         if n_img_stacks == QUAD_POLARITY_STACKS:

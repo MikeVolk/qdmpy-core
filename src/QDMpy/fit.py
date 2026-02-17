@@ -392,7 +392,7 @@ class FitManager:
         except KeyError as e:
             msg = f"Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}"
             raise ModelNotFoundError(msg) from e
-        logger.debug("Setting model to %s, resetting fit results.", model_name)
+        logger.debug(f"Setting model to {model_name}, resetting fit results.")
         self._constraint_manager = ConstraintManager(
             self._model, self._settings.model.constraints
         )
