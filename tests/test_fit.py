@@ -13,7 +13,12 @@ import pytest
 import xarray as xr
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 
-from QDMpy.exceptions import FitNotPerformedError, ModelNotFoundError, ParameterError
+from QDMpy.exceptions import (
+    DataValidationError,
+    FitNotPerformedError,
+    ModelNotFoundError,
+    ParameterError,
+)
 from QDMpy.fit import CONSTRAINT_TYPES, ConstraintManager, FitManager, ParameterGuesser
 from QDMpy.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
 from QDMpy.settings import (
@@ -709,6 +714,46 @@ class TestParameterGuesser:
         second = guesser.guess(fit._flat_data)
         assert first is not second
         assert_array_equal(first, second)
+
+
+class TestFitManagerValidation:
+    """Tests for FitManager input validation."""
+
+    def test_rejects_empty_data(self, sample_frequencies) -> None:
+        """Test that empty data array raises DataValidationError."""
+        empty_data = xr.DataArray(
+            np.empty((2, 1, 2, 2, 0)),
+            dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
+            coords={
+                'polarity': ['pol_0', 'pol_1'],
+                'freq_range': ['frange_0'],
+                'freq_ghz': (['freq_range', 'freq_idx'], np.empty((1, 0))),
+            },
+        )
+        with pytest.raises(DataValidationError, match='empty'):
+            FitManager(empty_data, np.array([]), settings=MOCK_SETTINGS)
+
+    def test_rejects_freq_count_mismatch(self, sample_data) -> None:
+        """Test that frequency count mismatch raises DataValidationError."""
+        wrong_freqs = np.linspace(2.87, 2.88, 20)
+        with pytest.raises(DataValidationError, match='must match'):
+            FitManager(sample_data, wrong_freqs, settings=MOCK_SETTINGS)
+
+    def test_rejects_too_few_frequencies(self) -> None:
+        """Test that fewer than 10 frequency points raises DataValidationError."""
+        few_freqs = np.linspace(2.87, 2.88, 5)
+        data_5d = np.ones((2, 1, 2, 2, 5))
+        da = xr.DataArray(
+            data_5d,
+            dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
+            coords={
+                'polarity': ['pol_0', 'pol_1'],
+                'freq_range': ['frange_0'],
+                'freq_ghz': (['freq_range', 'freq_idx'], few_freqs.reshape(1, -1)),
+            },
+        )
+        with pytest.raises(DataValidationError, match='at least'):
+            FitManager(da, few_freqs, settings=MOCK_SETTINGS)
 
 
 if __name__ == '__main__':

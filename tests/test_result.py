@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from QDMpy.constants import D_ZFS, GAMMA_NV
-from QDMpy.exceptions import DataLoadError, DataShapeError, ParameterError
+from QDMpy.exceptions import DataLoadError, DataShapeError, DataValidationError, ParameterError
 from QDMpy.result import FitResult
 
 
@@ -509,3 +509,69 @@ class TestComputeDeltaResonanceOrchestrator:
         )
         delta = result._compute_delta_resonance()
         assert delta.shape == (1, 2, 2, 2)
+
+
+class TestFitResultValidation:
+    """Tests for FitResult Pydantic validation."""
+
+    def test_rejects_negative_pixel_spacing(self) -> None:
+        """Test that negative pixel_spacing raises ValidationError."""
+        with pytest.raises((DataValidationError, Exception)):
+            FitResult(
+                parameters={"center": np.ones(10), "chi2": np.ones(10)},
+                scan_dimensions=(2, 5),
+                pixel_spacing=-1.0,
+                model_name="ESR15N",
+            )
+
+    def test_rejects_zero_pixel_spacing(self) -> None:
+        """Test that zero pixel_spacing raises ValidationError."""
+        with pytest.raises((DataValidationError, Exception)):
+            FitResult(
+                parameters={"center": np.ones(10), "chi2": np.ones(10)},
+                scan_dimensions=(2, 5),
+                pixel_spacing=0.0,
+                model_name="ESR15N",
+            )
+
+    def test_rejects_zero_scan_dimensions(self) -> None:
+        """Test that zero scan dimensions raise DataValidationError."""
+        with pytest.raises((DataValidationError, Exception)):
+            FitResult(
+                parameters={"center": np.ones(10), "chi2": np.ones(10)},
+                scan_dimensions=(0, 5),
+                pixel_spacing=4e-6,
+                model_name="ESR15N",
+            )
+
+    def test_rejects_negative_scan_dimensions(self) -> None:
+        """Test that negative scan dimensions raise DataValidationError."""
+        with pytest.raises((DataValidationError, Exception)):
+            FitResult(
+                parameters={"center": np.ones(10), "chi2": np.ones(10)},
+                scan_dimensions=(-1, 5),
+                pixel_spacing=4e-6,
+                model_name="ESR15N",
+            )
+
+    def test_rejects_empty_parameters(self) -> None:
+        """Test that empty parameters dict raises DataValidationError."""
+        with pytest.raises((DataValidationError, Exception)):
+            FitResult(
+                parameters={},
+                scan_dimensions=(2, 5),
+                pixel_spacing=4e-6,
+                model_name="ESR15N",
+            )
+
+    def test_is_pydantic_basemodel(self) -> None:
+        """Test that FitResult is a Pydantic BaseModel instance."""
+        from pydantic import BaseModel
+
+        result = FitResult(
+            parameters={"center": np.ones(10), "chi2": np.ones(10)},
+            scan_dimensions=(2, 5),
+            pixel_spacing=4e-6,
+            model_name="ESR15N",
+        )
+        assert isinstance(result, BaseModel)

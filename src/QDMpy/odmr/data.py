@@ -16,13 +16,18 @@ import numpy as np
 import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import Self
+
+from QDMpy.exceptions import DataValidationError
 
 if TYPE_CHECKING:
     from QDMpy.odmr.io import BaseLoader
 
+EXPECTED_DIMS = ('polarity', 'freq_range', 'y', 'x', 'freq_idx')
 
-class ODMRData:
+
+class ODMRData(BaseModel):
     """Represents raw and processed ODMR data backed by an xr.DataArray.
 
     The underlying DataArray has five named dimensions:
@@ -37,19 +42,28 @@ class ODMRData:
         metadata: Additional metadata associated with the data.
     """
 
-    def __init__(
-        self: Self,
-        data: xr.DataArray,
-        metadata: dict[str, Any] | None = None,
-    ) -> None:
-        """Initialize ODMRData with an xarray DataArray and optional metadata.
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-        Args:
-            data: xr.DataArray with dims (polarity, freq_range, y, x, freq_idx).
-            metadata: Optional dictionary of metadata associated with the data.
-        """
-        self.data = data
-        self.metadata = metadata or {}
+    data: xr.DataArray
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator('data')
+    @classmethod
+    def validate_data_array(cls: type[ODMRData], v: xr.DataArray) -> xr.DataArray:
+        """Validate ODMR xarray DataArray at construction time."""
+        if not isinstance(v, xr.DataArray):
+            msg = f'ODMR data must be an xr.DataArray, got {type(v).__name__}'
+            raise DataValidationError(msg)
+        if v.dims != EXPECTED_DIMS:
+            msg = f'ODMR data must have dims {EXPECTED_DIMS}, got {v.dims}'
+            raise DataValidationError(msg)
+        if not np.issubdtype(v.dtype, np.number):
+            msg = f'ODMR data must be numeric, got dtype {v.dtype}'
+            raise DataValidationError(msg)
+        if 'freq_ghz' not in v.coords:
+            msg = 'ODMR data must have a freq_ghz coordinate'
+            raise DataValidationError(msg)
+        return v
 
     @classmethod
     def from_loader(
@@ -67,12 +81,12 @@ class ODMRData:
             An instance populated with data loaded from the loader.
 
         Raises:
-            RuntimeError: If the loader fails to fetch data.
+            DataLoadError: If the loader fails to fetch data.
         """
         logger.info(f"Loading ODMR data using loader: {loader.__class__.__name__}")
         try:
             data = loader.load(**(loader_args or {}))
-            return cls(data)
+            return cls(data=data)
         except Exception as e:
             logger.exception(f"Failed to load data using loader {loader.__class__.__name__}: {e}")
             from QDMpy.exceptions import DataLoadError
@@ -112,6 +126,10 @@ class ODMRData:
         else:
             freq_ghz = frequencies / 1e9
 
+        from QDMpy.odmr.validation import validate_frequencies
+
+        validate_frequencies(freq_ghz)
+
         polarity_labels = [f"pol_{i}" for i in range(n_pol)]
         frange_labels = [f"frange_{i}" for i in range(n_frange)]
 
@@ -124,7 +142,7 @@ class ODMRData:
                 "freq_ghz": (["freq_range", "freq_idx"], freq_ghz),
             },
         )
-        return cls(da, metadata=metadata)
+        return cls(data=da, metadata=metadata or {})
 
     @property
     def scan_dimensions(self: Self) -> tuple[int, int]:
