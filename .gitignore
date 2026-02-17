@@ -97,3 +97,6 @@ tests/data/MIL2_FOV1/
 
 # Claude configuration
 CLAUDE.md
+
+# Claude memory files
+/memory/

@@ -1,81 +1,95 @@
 # Changelog
-All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to QDMpy are documented here.
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## Unreleased
+---
+
+## [Unreleased]
+
+---
+
+## 2026-02-17
 
 ### Added
-- **Vital B111 magnetic field calculations**: Migrated essential functions from legacy QDM class including `b111_remanent`, `b111_induced`, and `delta_resonance` properties
-- **Complete B-field analysis pipeline**: Added frequency-range-based magnetic field calculation using `(high_freq - low_freq)` splitting for both positive and negative field directions
-- **FitResult B111 properties**: New properties accessible via `result.b111_remanent`, `result.b111_induced`, and `result.b111` tuple for spatial magnetic field maps
-- **Comprehensive caching system**: Intelligent caching of expensive B111 calculations with automatic cache invalidation
-- **Legacy compatibility**: Exact reproduction of old QDM class B111 calculation algorithms ensuring continuity with existing analysis workflows
+- **QEP-017** — Improved loguru logging across `io.py` and `odmr/io.py`; all load/save operations emit structured log messages
+- **QEP-007** — Pydantic data validation layer: `ODMRData` is now a `BaseModel`; `xr.DataArray` validated at construction (dims, dtype, `freq_ghz` coord required)
+- **QEP-009** — Domain exception hierarchy (`QDMpyError` → `DataError` / `FittingError` / `ConfigurationError` / `DependencyError`) replacing bare exceptions across all modules
+- `/memory/` folder with LLM-readable module descriptions and mermaid data-flow diagrams
+
+### Fixed
+- **QEP-015** — Resolved all 30 non-TRY003 ruff violations in core package
+
+---
+
+## 2026-02-16
+
+### Added
+- **QEP-004A** — Decomposed `_compute_delta_resonance` into focused private methods (`_normalize_resonance_shape`, `_calc_delta_from_single_center`, `_calc_delta_from_multi_centers`)
+- **QEP-004B** — Decomposed `Measurement.fit_odmr` into `_detect_model`, `_validate_fit_prerequisites`, `_extract_fit_parameters`, `_compute_quality_metrics`
+- **QEP-004C** — Extracted `ParameterGuesser` class from `FitManager`; caches initial params with `reset()` invalidation
+- **QEP-006** — Dependency injection for `FitManager`: optional `settings` and `gpu_available` arguments for testability
+- **QEP-005** — Self-describing models: `Model.parameter_types`, `Model.frequency_parameters`, `Model.units`; `ConstraintManager` initialised from model metadata
+
+### Fixed
+- Resolved all 41 `ty` type-checking diagnostics across 8 source files
+- Stripped dead functions and F821 undefined-name errors in `plotting.py`
+
+---
+
+## 2026-02-15
+
+### Added
+- **QEP-002** — Eliminated global state and `sys.path` hacks; settings loaded via `get_settings()` singleton
+- **QEP-003** — Unified unit system: all internal frequency values in GHz; Hz↔GHz conversion only at `odmr/io.py` input boundary and `fit.py` pygpufit boundary
+- **QEP-011** — `xr.DataArray` as primary ODMR data container with named dims `(polarity, freq_range, y, x, freq_idx)` and `freq_ghz` coord
+- Pydantic-settings `QDMpySettings`: TOML file + `QDMPY_*` env var support
+- loguru migration: replaced all stdlib `logging` calls
+- `FitResult` as standalone Pydantic model (data-only, no `FitManager` reference)
+- B111 magnetic field calculations in `FitResult` (`b111_remanent`, `b111_induced`, `delta_resonance`)
+- `FitResult.save_results` / `load_results` (NPZ)
+
+### Fixed
+- All ruff line-length, import-order, and style violations
+- Pre-existing test collection errors
+
+---
+
+## 2025-06-08
+
+### Added
+- Major architecture refactor: clean separation of `ODMR`, `ODMRData`, `Measurement`, `FitManager`, `FitResult`
+- `ODMRProcessorManager` with composable `BaseProcessor` pipeline (`NormalizationProcessor`, `BinningProcessor`, `OutlierProcessor`, `FluorescenceCorrectionProcessor`)
+- Comprehensive test suite with integration tests (38+ tests)
 
 ### Performance
-- **Major performance optimization**: Restored parallel processing in guess functions (center, contrast, width) with `@numba.njit(parallel=True)` and `prange()` 
-- **Significant speedups for large images**: Width calculation now 1.2x faster, center calculation 25x faster, contrast calculation 111x faster than previous implementation
-- **Large-scale compatibility**: Optimized for typical 2000x2000 pixel images (~4M pixels) with estimated processing times under 3 seconds
-- **Verified compatibility**: Comprehensive testing confirms new implementation produces identical results to legacy code while maintaining performance gains
+- Restored `numba` parallel processing (`prange`) in `guess_center`, `guess_contrast`, `guess_width` — up to 111× speedup on large images
 
 ### Fixed
-- **Critical test fixes**: Resolved failing tests in test_fit.py by removing incorrect `self` parameters from standalone test functions
-- **Type safety improvements**: Fixed mypy type errors in plotting.py including Optional type annotations, missing imports, and None handling
-- **Logging best practices**: Converted f-string logging statements to proper % formatting to follow security guidelines
-- **Hardcoded path removal**: Replaced platform-specific hardcoded paths with environment variable support and sensible defaults
-- Updated README.md to match current codebase implementation
-- Fixed import examples to use correct module paths (`QDMpy.odmr.odmr.ODMR` instead of `QDMpy.ODMR`)
-- Corrected CLI parameter names (`--bin-factor` instead of `--binning`)
-- Fixed license filename reference (`LICENCE` instead of `LICENSE`)
-- Removed non-functional code examples that referenced missing methods
+- Type safety, dead code removal, ruff formatting
 
-### Changed  
-- **Code quality improvements**: Standardized line length to 100 characters across all configuration files
-- **Enhanced portability**: Improved test_data_location() function to use environment variables instead of hardcoded paths
-- Updated Quick Start guide with working code examples based on actual functionality
-- Replaced invalid installation option `pip install QDMpy[gpu]` with proper GPU setup documentation
-- Updated development setup instructions to use `uv run` commands consistently
-- Enhanced CLI documentation with complete list of available options and commands
-- Improved module descriptions to reflect actual package structure with `odmr` subpackage
-- Added documentation for processor classes and pipeline system
+---
+
+## 2025-06-07
 
 ### Added
-- Comprehensive CLI usage examples showing all available commands
-- GPU/CUDA requirements explanation with bundled pyGpufit wheel information
-- Development environment verification command for GPU acceleration
-- **New FitResult class**: Lightweight, data-only container for ODMR fitting results
-- **Enhanced Measurement class**: Added `fit_odmr()` method with intelligent model auto-detection
-- **Separated plotting functions**: Moved visualization logic from FitResult to `QDMpy.plotting` module
-- Comprehensive magnetic field calculation from fitted resonance frequencies
-- Quality metrics calculation and result persistence functionality
-- Support for multiple fitting models (ESR14N, ESR15N, ESRSINGLE) with automatic parameter extraction
-
-### Changed
-- **Major architecture refactor**: Implemented clean separation between data management (Measurement), fitting execution (FitManager), and results analysis (FitResult)
-- **Decoupled FitResult**: Removed heavy object dependencies, now stores only essential data and metadata
-- **Plotting interface**: Functions now take FitResult objects as input parameters instead of being methods
-- Model auto-detection in Measurement.fit_odmr() when model_name=None (removed redundant "auto" option)
-- FitResult objects are now lightweight and easily serializable without object reconstruction
+- Mermaid architecture diagrams in docs
+- 15N ODMR data processing sample script
+- Revised tutorial focused on QDMpy public API
 
 ### Fixed
-- **Type safety improvements**: Resolved mypy type checking issues in refactored components
-- **Import handling**: Fixed circular import issues between plotting, measurement, and result modules  
-- **Code formatting**: Applied ruff auto-fixes for 102+ formatting and style issues
-- **Type annotations**: Corrected self parameter annotations and return type specifications
-- **Data serialization**: Fixed np.savez_compressed compatibility issues with numpy type conversion
-- **Docstring consistency**: Standardized parameter documentation and Google-style format compliance
+- Duplicate logging handler in package `__init__.py`
+- Import errors in tutorial notebooks
 
-### Testing
-- **Comprehensive test suite for new architecture**: Added 38+ tests covering FitResult, Measurement.fit_odmr, and new plotting functions
-- **FitResult test coverage**: 27 test methods with 100% code coverage including initialization, properties, B-field calculations, quality metrics, and file I/O
-- **Measurement integration tests**: 10 test methods covering auto model detection, parameter extraction, error handling, and result creation
-- **Plotting function tests**: 11 test methods for new plotting functions with mock and real FitResult objects, save functionality, and error handling
-- **Architecture validation**: Tests confirm clean separation of concerns, type safety, error handling, extensibility, and persistence capabilities
-- **Bug fixes in tests**: Corrected matplotlib axes handling in subplot logic and proper import path mocking patterns
+---
 
-### Documentation
-- **Updated architecture diagrams**: Comprehensive updates to all Mermaid diagrams reflecting the new FitResult and Measurement integration
-- **Enhanced class diagram**: Added FitResult, Measurement, and PlottingFunctions with proper relationships
-- **Improved data flow diagram**: Shows complete workflow from data loading through FitResult creation to visualization
-- **Updated workflow sequence**: Demonstrates new high-level integration layer with auto model detection and clean separation of concerns
-- **Architecture validation**: Diagrams confirm the clean separation between data management, fitting execution, and results analysis
+## 2025-03-30
+
+### Added
+- `ConstraintManager` class extracted from `FitManager`
+- mypy integration
+- Autogenerated documentation site
+
+### Fixed
+- Tests updated for new `ConstraintManager` API
+- `ruff.toml` configuration
