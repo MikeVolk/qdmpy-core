@@ -419,29 +419,14 @@ class FitResult(BaseModel):
         delta_res = self.delta_resonance
         logger.debug(f"Delta resonance shape for B111 calculation: {delta_res.shape}")
 
-        # Handle the expected shape: (n_pol, 2, height, width)
-        # where the "2" dimension represents [negative_diff, positive_diff]
+        # delta_res shape: (n_pol, 2, height, width) from _calc_delta_from_single_center.
+        # axis 0 = polarity: pol_0 = negative applied field, pol_1 = positive applied field.
+        # axis 1 = sign dimension: [0] = -(dB[pol]), [1] = +(dB[pol]).
+        # negDiff = delta_res[pol_0, sign=-1] = -(R_high_neg - R_low_neg)/2/GAMMA
+        # posDiff = delta_res[pol_1, sign=+1] = +(R_high_pos - R_low_pos)/2/GAMMA
         if delta_res.ndim == 4:  # noqa: PLR2004 — (n_pol, 2, height, width)
-            if delta_res.shape[1] == 2:  # noqa: PLR2004 — (n_pol, 2, height, width)
-                # The "2" dimension is the negative/positive difference
-                neg_difference = delta_res[:, 0, :, :]  # (n_pol, height, width)
-                pos_difference = delta_res[:, 1, :, :]  # (n_pol, height, width)
-
-                # Average over polarities to get final spatial maps
-                neg_diff = np.mean(neg_difference, axis=0)  # (height, width)
-                pos_diff = np.mean(pos_difference, axis=0)  # (height, width)
-
-            elif delta_res.shape[0] == 2:  # noqa: PLR2004 — (2, n_pol, height, width)
-                # The first dimension is negative/positive difference
-                neg_difference = delta_res[0]  # (n_pol, height, width)
-                pos_difference = delta_res[1]  # (n_pol, height, width)
-
-                # Average over polarities
-                neg_diff = np.mean(neg_difference, axis=0)  # (height, width)
-                pos_diff = np.mean(pos_difference, axis=0)  # (height, width)
-            else:
-                msg = f"Cannot interpret delta_resonance shape: {delta_res.shape}"
-                raise DataShapeError(msg)
+            neg_diff = delta_res[0, 0]   # (height, width) — pol_0, negatively signed
+            pos_diff = delta_res[-1, 1]  # (height, width) — pol_1, positively signed
 
         elif delta_res.ndim == 3:  # noqa: PLR2004 — (2, height, width)
             neg_diff = delta_res[0]  # (height, width)
