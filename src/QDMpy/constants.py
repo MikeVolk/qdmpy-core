@@ -1,17 +1,10 @@
-"""Physical and computational constants for QDMpy.
+"""Physical and algorithm constants for QDMpy.
 
 Convention: All frequency values are in GHz.
 
-This module defines essential constants used throughout the QDMpy package:
-
-- Physical constants: Fundamental values from quantum physics relevant to NV centers
-- Hyperfine constants: Specific values for different nitrogen isotopes (14N, 15N)
-- Conversion factors: Units conversion for magnetic field calculations
-- Default parameters: Standard values for algorithm parameters and thresholds
-- System constants: Parameters related to experimental setup and hardware
-
-These constants ensure consistency in calculations across the entire package
-and provide physically accurate values for quantum diamond microscopy analysis.
+This module defines physical constants and algorithm tuning parameters used
+throughout the QDMpy package.  Algorithm tuning parameters are also accessible
+from ``QDMpy.fitting.guess`` where they are primarily used.
 """
 
 from __future__ import annotations
@@ -29,7 +22,7 @@ TESLA_TO_GAUSS = 1e4  # Convert Tesla to Gauss
 GAUSS_TO_TESLA = 1e-4  # Convert Gauss to Tesla
 MICROTESLA_TO_TESLA = 1e-6  # Convert microTesla to Tesla
 
-# Default values for data processing algorithms
-DEFAULT_VMIN = 0.3  # Default minimum value for normalized data in peak width estimation
-DEFAULT_VMAX = 0.7  # Default maximum value for normalized data in peak width estimation
-PROMINENCE = 0.0004  # Default prominence value for peak detection
+# Algorithm tuning parameters for peak detection and width estimation
+DEFAULT_VMIN = 0.3
+DEFAULT_VMAX = 0.7
+PROMINENCE = 0.0004

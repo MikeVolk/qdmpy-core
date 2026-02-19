@@ -14,7 +14,7 @@ Submodules:
     - `processors`: Includes various processing tools, such as normalization,
       binning, and outlier masking, alongside the `ODMRProcessorManager` for managing
       and applying processing pipelines.
-    - `odmr`: Contains the `ODMR` class, which acts as the central orchestrator for
+    - `manager`: Contains the `ODMR` class, which acts as the central orchestrator for
       managing raw and processed data, as well as integrating processing workflows.
 
 Key Features:
@@ -50,4 +50,4 @@ offering a robust and extensible solution for their data management and analysis
 from __future__ import annotations
 
 from QDMpy.odmr.data import ODMRData
-from QDMpy.odmr.odmr import ODMR
+from QDMpy.odmr.manager import ODMR

@@ -10,7 +10,7 @@ import argparse
 
 from loguru import logger
 
-from QDMpy.models import ModelRegistry
+from QDMpy.fitting.models import ModelRegistry
 
 
 def create_parser(version: str) -> argparse.ArgumentParser:
@@ -224,7 +224,7 @@ def models_command_handler(args: argparse.Namespace) -> int:
 
         if args.detailed:
             # Add more detailed information here
-            for _param in model_instance.parameters_unique:
+            for _param in model_instance.parameter_names:
                 pass
     else:
         # List all available models
