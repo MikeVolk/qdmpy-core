@@ -170,16 +170,3 @@ def double_norm(data: NDArray, axis: int | None = None) -> NDArray:
     return result
 
 
-def main() -> None:
-    """Main function for demonstration purposes.
-
-    This shows examples of using the utility functions in this module.
-    """
-    # Example of millify function
-
-    # Example of double_norm
-    np.array([1, 2, 5, 10])
-
-
-if __name__ == "__main__":
-    main()

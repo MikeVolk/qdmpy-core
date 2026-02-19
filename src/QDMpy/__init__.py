@@ -14,20 +14,13 @@ from __future__ import annotations
 __version__ = "0.1.0a"
 
 import logging
-import os
 import sys
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import matplotlib as mpl
-
-mpl.rcParams["figure.facecolor"] = "white"
-
-PROJECT_PATH = Path(os.path.abspath(__file__)).parent
 CONFIG_PATH = Path().home() / ".config" / "QDMpy"
 CONFIG_FILE = CONFIG_PATH / "settings.toml"
-DESKTOP = Path().home() / "Desktop"
 
 if TYPE_CHECKING:
     from QDMpy.settings import QDMpySettings
@@ -106,30 +99,3 @@ def is_pygpufit_available() -> bool:
         return False
     else:
         return True
-
-
-# Import important modules
-from . import io
-
-
-def test_data_location() -> Path:
-    """Returns the default path to test data.
-
-    This function provides a suggested location for test data. Users should
-    override this by setting the QDMPY_TEST_DATA environment variable or
-    by explicitly providing data paths to their functions.
-
-    Returns:
-        Path to the test data directory. Defaults to ~/QDMpy_test_data if
-        QDMPY_TEST_DATA environment variable is not set.
-
-    Note:
-        This function no longer contains hardcoded system-specific paths.
-        Set the QDMPY_TEST_DATA environment variable to specify your test data location.
-    """
-    test_data_env = os.environ.get("QDMPY_TEST_DATA")
-    if test_data_env:
-        return Path(test_data_env)
-
-    # Default to a directory in the user's home folder
-    return Path.home() / "QDMpy_test_data"

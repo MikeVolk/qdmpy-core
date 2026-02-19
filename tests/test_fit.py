@@ -111,7 +111,7 @@ class TestFitInitialization:
 
     def test_init_with_default_model(self, sample_data, sample_frequencies) -> None:
         """Test initialization with default 'auto' model."""
-        with patch('QDMpy.fit.guess_model') as mock_guess_model:
+        with patch('QDMpy.fitting.manager.guess_model') as mock_guess_model:
             mock_model = ESRSINGLE()
             mock_guess_model.return_value = mock_model
 
@@ -241,10 +241,10 @@ class TestConstraintsMethods:
         # ESRSINGLE params: center, width, contrast, offset -> 4 params x 2 = 8 columns
         assert constraints_array.shape == (2, 8)
 
-        # to_array converts center from GHz to Hz (* 1e9)
+        # All values stay in GHz (no Hz conversion — QEP-018)
         expected_first_row = [
-            fit.constraints['center'][0] * 1e9,
-            fit.constraints['center'][1] * 1e9,
+            fit.constraints['center'][0],
+            fit.constraints['center'][1],
             fit.constraints['width'][0],
             fit.constraints['width'][1],
             fit.constraints['contrast'][0],
@@ -441,14 +441,14 @@ class TestConstraintManager:
         assert constraints_array.shape == (2, 8)
 
         expected_first_row = [
-            0.0,  # contrast_min
-            1.0,  # contrast_max
-            2.8e9,  # center_min (GHz * 1e9 → Hz in to_array)
-            2.9e9,  # center_max
-            0.001,  # width_min (passed through)
+            0.0,   # contrast_min
+            1.0,   # contrast_max
+            2.8,   # center_min (GHz — no Hz conversion, QEP-018)
+            2.9,   # center_max
+            0.001, # width_min
             0.01,  # width_max
             -0.1,  # offset_min
-            0.1,  # offset_max
+            0.1,   # offset_max
         ]
         assert_array_almost_equal(constraints_array[0], expected_first_row)
         assert_array_almost_equal(constraints_array[0], constraints_array[1])

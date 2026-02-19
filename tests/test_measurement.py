@@ -250,11 +250,11 @@ class TestMeasurement:
             fit_model='auto',
         )
 
-        with patch('QDMpy.guess.guess_model') as mock_guess:
+        with patch('QDMpy.fitting.guess.guess_model') as mock_guess:
             mock_model = type('MockModel', (), {'name': 'ESR15N'})()
             mock_guess.return_value = mock_model
 
-            with patch('QDMpy.fit.FitManager') as mock_fit_manager:
+            with patch('QDMpy.fitting.manager.FitManager') as mock_fit_manager:
                 mock_fit_instance = mock_fit_manager.return_value
                 mock_fit_instance.fitted = True
                 mock_fit_instance.model_name = 'ESR15N'
@@ -292,7 +292,7 @@ class TestMeasurement:
             fit_model='ESR14N',
         )
 
-        with patch('QDMpy.fit.FitManager') as mock_fit_manager:
+        with patch('QDMpy.fitting.manager.FitManager') as mock_fit_manager:
             mock_fit_instance = mock_fit_manager.return_value
             mock_fit_instance.fitted = True
             mock_fit_instance.model_name = 'ESR14N'
@@ -347,7 +347,7 @@ class TestMeasurement:
             pixel_spacing=5e-6,
         )
 
-        with patch('QDMpy.fit.FitManager') as mock_fit_manager:
+        with patch('QDMpy.fitting.manager.FitManager') as mock_fit_manager:
             mock_fit_instance = mock_fit_manager.return_value
             mock_fit_instance.fitted = True
             mock_fit_instance.model_name = 'ESRSINGLE'
@@ -383,7 +383,7 @@ class TestMeasurement:
         )
         measurement.metadata['test_key'] = 'test_value'
 
-        with patch('QDMpy.fit.FitManager') as mock_fit_manager:
+        with patch('QDMpy.fitting.manager.FitManager') as mock_fit_manager:
             mock_fit_instance = mock_fit_manager.return_value
             mock_fit_instance.fitted = True
             mock_fit_instance.model_name = 'ESRSINGLE'
@@ -425,7 +425,7 @@ class TestDetectModel:
             odmr=sample_odmr, light_image=light_image,
             laser_image=laser_image, output_directory=temp_output_dir,
         )
-        with patch('QDMpy.guess.guess_model') as mock_guess:
+        with patch('QDMpy.fitting.guess.guess_model') as mock_guess:
             mock_guess.return_value = type('M', (), {'name': 'ESR15N'})()
             assert m._detect_model(None) == 'ESR15N'
 
