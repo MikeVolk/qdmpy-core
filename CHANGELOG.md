@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Performance
+- **QEP-022** — Vectorized `esr14n`, `esr15n`, `esrsingle` model functions: replaced
+  Python `for p in parameter` loops with numpy broadcasting over `(N, 1)` × `(n_freq,)`
+  arrays. Benchmarked **28–33× speedup** at 9k pixels (bin=2) vs the loop implementation.
+
 ### Changed
 - **QEP-029** — `FitManager.__init__` no longer accepts `data` or `frequencies`; configuration
   only (model, constraints, settings). Call `fit_manager.fit(data, frequencies)` to run fitting

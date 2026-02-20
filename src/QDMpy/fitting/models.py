@@ -63,21 +63,16 @@ def esr14n(
         >>> params = np.array([2.87, 0.002, 0.1, 0.2, 0.1, 0.0])
         >>> spectrum = esr14n(x, params)
     """
-    out = []
     parameter = np.atleast_2d(parameter)
-    for p in parameter:
-        aux1 = x - p[0] + ahyp
-        width_squared = p[1] * p[1]
-        dip1 = p[2] * width_squared / (aux1 * aux1 + width_squared)
+    center = parameter[:, 0:1]
+    width_sq = parameter[:, 1:2] ** 2
+    c0, c1, c2 = parameter[:, 2:3], parameter[:, 3:4], parameter[:, 4:5]
+    offset = parameter[:, 5:6]
 
-        aux2 = x - p[0]
-        dip2 = p[3] * width_squared / (aux2 * aux2 + width_squared)
-
-        aux3 = x - p[0] - ahyp
-        dip3 = p[4] * width_squared / (aux3 * aux3 + width_squared)
-
-        out.append(1 + p[5] - dip1 - dip2 - dip3)
-    return np.array(out)
+    dip1 = c0 * width_sq / ((x - center + ahyp) ** 2 + width_sq)
+    dip2 = c1 * width_sq / ((x - center) ** 2 + width_sq)
+    dip3 = c2 * width_sq / ((x - center - ahyp) ** 2 + width_sq)
+    return 1 + offset - dip1 - dip2 - dip3
 
 
 def esr15n(
@@ -121,19 +116,15 @@ def esr15n(
         >>> params = np.array([2.87, 0.002, 0.15, 0.15, 0.0])
         >>> spectrum = esr15n(x, params)
     """
-    out = []
     parameter = np.atleast_2d(parameter)
-    for p in parameter:
-        width_squared = p[1] * p[1]
+    center = parameter[:, 0:1]
+    width_sq = parameter[:, 1:2] ** 2
+    c0, c1 = parameter[:, 2:3], parameter[:, 3:4]
+    offset = parameter[:, 4:5]
 
-        aux1 = x - p[0] + ahyp
-        dip1 = p[2] * width_squared / (aux1 * aux1 + width_squared)
-
-        aux2 = x - p[0] - ahyp
-        dip2 = p[3] * width_squared / (aux2 * aux2 + width_squared)
-
-        out.append(1 + p[4] - dip1 - dip2)
-    return np.array(out)
+    dip1 = c0 * width_sq / ((x - center + ahyp) ** 2 + width_sq)
+    dip2 = c1 * width_sq / ((x - center - ahyp) ** 2 + width_sq)
+    return 1 + offset - dip1 - dip2
 
 
 def esrsingle(x: NDArray[np.floating], parameter: NDArray[np.floating]) -> NDArray[np.floating]:
@@ -168,16 +159,14 @@ def esrsingle(x: NDArray[np.floating], parameter: NDArray[np.floating]) -> NDArr
         >>> params = np.array([2.875, 0.003, 0.2, 0.0])
         >>> spectrum = esrsingle(x, params)
     """
-    out = []
     parameter = np.atleast_2d(parameter)
-    for p in parameter:
-        width_squared = p[1] * p[1]
+    center = parameter[:, 0:1]
+    width_sq = parameter[:, 1:2] ** 2
+    contrast = parameter[:, 2:3]
+    offset = parameter[:, 3:4]
 
-        aux1 = x - p[0]
-        dip1 = p[2] * width_squared / (aux1 * aux1 + width_squared)
-
-        out.append(1 + p[3] - dip1)
-    return np.array(out)
+    dip = contrast * width_sq / ((x - center) ** 2 + width_sq)
+    return 1 + offset - dip
 
 
 class Model(ABC):
