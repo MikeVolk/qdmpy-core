@@ -10,7 +10,7 @@ import xarray as xr
 
 from QDMpy.exceptions import DataNotLoadedError
 from QDMpy.odmr.data import ODMRData
-from QDMpy.odmr.odmr import ODMR
+from QDMpy.odmr.manager import ODMR
 from QDMpy.odmr.processors import ODMRProcessorManager
 
 

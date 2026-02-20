@@ -452,11 +452,6 @@ class FitManager:
         return self._model.parameter_names
 
     @property
-    def model_params_unique(self: Self) -> list[str]:
-        """Alias for ``parameter_names`` (backwards compatibility)."""
-        return self._model.parameter_names
-
-    @property
     def model_params(self: Self) -> list[str]:
         """Get parameter type category for each parameter (backwards compatibility).
 

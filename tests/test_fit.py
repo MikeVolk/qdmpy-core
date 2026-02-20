@@ -19,8 +19,8 @@ from QDMpy.exceptions import (
     ModelNotFoundError,
     ParameterError,
 )
-from QDMpy.fit import CONSTRAINT_TYPES, ConstraintManager, FitManager, ParameterGuesser
-from QDMpy.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
+from QDMpy.fitting.manager import CONSTRAINT_TYPES, ConstraintManager, FitManager, ParameterGuesser
+from QDMpy.fitting.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
 from QDMpy.settings import (
     FitSettings,
     ModelConstraintsSettings,
@@ -225,7 +225,7 @@ class TestConstraintsMethods:
 
         fit.set_free_constraints()
 
-        for param in fit.model_params_unique:
+        for param in fit.parameter_names:
             assert fit.constraints[param][2] == 'FREE'
 
     def test_get_constraints_array(self, sample_data, sample_frequencies) -> None:
@@ -260,7 +260,7 @@ class TestConstraintsMethods:
         fit = FitManager(
             sample_data, sample_frequencies, model_name='ESRSINGLE', settings=MOCK_SETTINGS
         )
-        model_params = fit.model_params_unique
+        model_params = fit.parameter_names
 
         for i, param in enumerate(model_params):
             constraint_type = CONSTRAINT_TYPES[i % len(CONSTRAINT_TYPES)]
@@ -435,7 +435,7 @@ class TestConstraintManager:
         )
 
         constraint_manager = ConstraintManager(model, settings)
-        model_params = model.parameters_unique
+        model_params = model.parameter_names
         constraints_array = constraint_manager.to_array(2, model_params)
 
         assert constraints_array.shape == (2, 8)
@@ -476,7 +476,7 @@ class TestConstraintManager:
         )
 
         constraint_manager = ConstraintManager(model, settings)
-        model_params = model.parameters_unique
+        model_params = model.parameter_names
         constraint_types = constraint_manager.get_constraint_types(model_params)
 
         expected_types = [
@@ -617,7 +617,7 @@ def test_to_array_zero_pixels() -> None:
     )
     constraint_manager = ConstraintManager(model, settings)
 
-    model_params = model.parameters_unique
+    model_params = model.parameter_names
     constraints_array = constraint_manager.to_array(0, model_params)
     assert constraints_array.shape == (0, len(model_params) * 2)
 
@@ -635,7 +635,7 @@ def test_get_initial_parameter_edge_cases(sample_frequencies) -> None:
     # Shape: (n_pol, n_frange, n_pixel, n_params)
     assert initial_params.shape == (2, 1, 4, fit.n_parameter)
     # Contrast should be 0 for zero data (max == 0 → contrast = 0)
-    contrast_idx = fit.model_params_unique.index('contrast')
+    contrast_idx = fit.parameter_names.index('contrast')
     assert np.all(initial_params[:, :, :, contrast_idx] == 0)
 
 
@@ -668,7 +668,7 @@ def test_set_free_constraints_complex_model(sample_data, sample_frequencies) -> 
 
     fit.set_free_constraints()
 
-    for param in fit.model_params_unique:
+    for param in fit.parameter_names:
         assert fit.constraints[param][2] == 'FREE'
 
 

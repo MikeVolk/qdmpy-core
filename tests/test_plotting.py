@@ -219,7 +219,7 @@ class TestFitResultPlotting(unittest.TestCase):
             plot_fit_result_overview,
             plot_fit_result_parameter_map,
         )
-        from QDMpy.result import FitResult
+        from QDMpy.fitting.result import FitResult
 
         # Create a real FitResult object
         n_pixels = 100

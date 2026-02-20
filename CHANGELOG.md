@@ -7,6 +7,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Removed
+- **QEP-032** — Deleted 7 backward-compatibility shim files (`fit.py`, `result.py`, `models.py`,
+  `guess.py`, `io.py`, `odmr/odmr.py`, `odmr/validation.py`); use canonical paths in `fitting/`
+  and `odmr/manager.py` instead
+- **QEP-032** — Removed `Model.parameters_unique` and `FitManager.model_params_unique` property
+  aliases; use `parameter_names` on both classes
+- **QEP-032** — Removed deprecated exception aliases `CantImportError` and `WrongFileNumberError`;
+  use `DependencyError` and `DataValidationError` respectively
+- **QEP-032** — Removed `ModelRegistry._initialize_constraints()` (duplicated `ConstraintManager`)
+- **QEP-032** — Removed `process` and `info` CLI subcommands (were raising `NotImplementedError`)
+- **QEP-032** — Removed `__main__` block with hardcoded path from `measurement.py`
+- **QEP-032** — Removed unused `Measurement._B111` attribute
+- **QEP-032** — Removed `visualize_fluorescence_correction` alias in `odmr/processors.py`
+
+### Changed
+- **QEP-032** — `ModelRegistry.register()` now reads `model_cls.name` (ClassVar) instead of
+  instantiating a throwaway instance; concrete model classes declare `name: ClassVar[str]`
+- **QEP-032** — `OutlierProcessor`: renamed `threshold` → `z_score_threshold`, updated default
+  from `0.001` to `0.003`, removed hidden `* 3` internal multiplier
+- **QEP-032** — `FluorescenceCorrectionProcessor.process()` now matches the `BaseProcessor`
+  interface (no extra kwargs); configure `correction_factor` at construction time instead
+- **QEP-032** — `models` CLI command now prints model names, peak counts, and parameter lists;
+  `--detailed` flag shows per-parameter units
+
 ### Performance
 - **QEP-024** — `fitting/guess.py`: upgrade `cumsum_contrast`, `cumsum_center`, `cumsum_width`
   from nested `@njit(parallel=True)` loops (prange only over `n_pixel`) to a single flat

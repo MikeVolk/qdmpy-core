@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from QDMpy.exceptions import DataValidationError
-from QDMpy.odmr.validation import NV_FREQ_MAX_GHZ, NV_FREQ_MIN_GHZ, validate_frequencies
+from QDMpy.odmr.data import NV_FREQ_MAX_GHZ, NV_FREQ_MIN_GHZ, validate_frequencies
 
 
 class TestValidateFrequencies:

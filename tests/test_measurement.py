@@ -15,7 +15,7 @@ import pytest
 from QDMpy.exceptions import DataNotLoadedError, DependencyError
 from QDMpy.measurement import Measurement
 from QDMpy.odmr.data import ODMRData
-from QDMpy.odmr.odmr import ODMR
+from QDMpy.odmr.manager import ODMR
 from QDMpy.odmr.processors import BinningProcessor
 
 
@@ -84,7 +84,6 @@ class TestMeasurement:
         assert isinstance(measurement.metadata, dict)
         assert len(measurement.metadata) == 0
         assert measurement._outliers is not None
-        assert measurement._B111 is None
 
     def test_init_with_unprocessed_odmr(self, sample_odmr_data, sample_images, temp_output_dir) -> None:
         """Test initialization with an ODMR instance that hasn't been processed."""
@@ -202,22 +201,6 @@ class TestMeasurement:
         assert measurement._outliers.shape == sample_odmr.raw_data.shape
         assert measurement._outliers.dtype == bool
 
-    def test_B111_property(self, sample_odmr, sample_images, temp_output_dir) -> None:
-        """Test the _B111 attribute."""
-        light_image, laser_image = sample_images
-        measurement = Measurement(
-            odmr=sample_odmr,
-            light_image=light_image,
-            laser_image=laser_image,
-            output_directory=temp_output_dir,
-        )
-
-        assert measurement._B111 is None
-
-        test_data = np.ones((5, 5))
-        measurement._B111 = test_data
-        assert measurement._B111 is test_data
-
     def test_fit_model_attribute(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test the _fit_model attribute."""
         light_image, laser_image = sample_images
@@ -258,7 +241,7 @@ class TestMeasurement:
                 mock_fit_instance = mock_fit_manager.return_value
                 mock_fit_instance.fitted = True
                 mock_fit_instance.model_name = 'ESR15N'
-                mock_fit_instance.model_params_unique = [
+                mock_fit_instance.parameter_names = [
                     'contrast', 'center', 'width_0', 'offset',
                 ]
                 test_params = {
@@ -277,7 +260,7 @@ class TestMeasurement:
                 mock_guess.assert_called_once()
                 mock_fit_manager.assert_called_once()
 
-                from QDMpy.result import FitResult
+                from QDMpy.fitting.result import FitResult
                 assert isinstance(result, FitResult)
                 assert result.model_name == 'ESR15N'
 
@@ -296,7 +279,7 @@ class TestMeasurement:
             mock_fit_instance = mock_fit_manager.return_value
             mock_fit_instance.fitted = True
             mock_fit_instance.model_name = 'ESR14N'
-            mock_fit_instance.model_params_unique = [
+            mock_fit_instance.parameter_names = [
                 'center', 'width', 'contrast_0', 'contrast_1', 'contrast_2', 'offset',
             ]
             test_params = {
@@ -317,7 +300,7 @@ class TestMeasurement:
             args, kwargs = mock_fit_manager.call_args
             assert kwargs.get('model_name') == 'ESR14N'
 
-            from QDMpy.result import FitResult
+            from QDMpy.fitting.result import FitResult
             assert isinstance(result, FitResult)
             assert result.model_name == 'ESR14N'
 
@@ -351,7 +334,7 @@ class TestMeasurement:
             mock_fit_instance = mock_fit_manager.return_value
             mock_fit_instance.fitted = True
             mock_fit_instance.model_name = 'ESRSINGLE'
-            mock_fit_instance.model_params_unique = [
+            mock_fit_instance.parameter_names = [
                 'center', 'width', 'contrast', 'offset',
             ]
             mock_fit_instance.get_param.side_effect = lambda param: {
@@ -387,7 +370,7 @@ class TestMeasurement:
             mock_fit_instance = mock_fit_manager.return_value
             mock_fit_instance.fitted = True
             mock_fit_instance.model_name = 'ESRSINGLE'
-            mock_fit_instance.model_params_unique = [
+            mock_fit_instance.parameter_names = [
                 'center', 'width', 'contrast', 'offset',
             ]
             test_params = {
@@ -436,7 +419,7 @@ class TestDetectModel:
             laser_image=laser_image, output_directory=temp_output_dir,
             fit_model='ESRSINGLE',
         )
-        with patch('QDMpy.guess.guess_model', side_effect=RuntimeError('fail')):
+        with patch('QDMpy.fitting.guess.guess_model', side_effect=RuntimeError('fail')):
             assert m._detect_model(None) == 'ESRSINGLE'
 
 
@@ -470,7 +453,7 @@ class TestExtractFitParameters:
     def test_extracts_model_params_and_chi2(self) -> None:
         from unittest.mock import MagicMock
         fm = MagicMock()
-        fm.model_params_unique = ['center', 'width']
+        fm.parameter_names = ['center', 'width']
         params = {
             'center': np.array([1.0, 2.0]),
             'width': np.array([0.1, 0.2]),
@@ -483,7 +466,7 @@ class TestExtractFitParameters:
     def test_skips_unavailable_params(self) -> None:
         from unittest.mock import MagicMock
         fm = MagicMock()
-        fm.model_params_unique = ['center', 'missing']
+        fm.parameter_names = ['center', 'missing']
         fm.get_param.side_effect = lambda p: ({'center': np.array([1.0])}[p]
                                                if p in {'center'} else (_ for _ in ()).throw(KeyError(p)))
         result = Measurement._extract_fit_parameters(fm, 'TEST')

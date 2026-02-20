@@ -112,18 +112,18 @@ class TestOutlierProcessor:
     def test_init_default(self) -> None:
         """Test initialization with default parameters."""
         processor = OutlierProcessor()
-        assert processor.threshold == 0.001
+        assert processor.z_score_threshold == 0.003
 
     def test_init_custom(self) -> None:
         """Test initialization with custom parameters."""
-        processor = OutlierProcessor(threshold=0.01)
-        assert processor.threshold == 0.01
+        processor = OutlierProcessor(z_score_threshold=0.01)
+        assert processor.z_score_threshold == 0.01
 
     def test_process(self, sample_odmr_data) -> None:
         """Test process method masks outlier values as NaN."""
         sample_odmr_data.data.values[0, 0, 0, 0, 0] = 1000.0
 
-        processor = OutlierProcessor(threshold=0.1)
+        processor = OutlierProcessor(z_score_threshold=0.1)
         result = processor.process(sample_odmr_data)
 
         assert result is not sample_odmr_data
@@ -132,7 +132,7 @@ class TestOutlierProcessor:
         assert np.isnan(result.data.values[0, 0, 0, 0, 0])
 
         assert 'outlier_masking' in result.metadata
-        assert result.metadata['outlier_masking']['threshold'] == 0.1
+        assert result.metadata['outlier_masking']['z_score_threshold'] == 0.1
 
 
 class TestFluorescenceCorrectionProcessor:
@@ -175,8 +175,8 @@ class TestFluorescenceCorrectionProcessor:
         assert result.metadata['fluorescence_correction']['factor'] == 0.2
         assert result.metadata['fluorescence_correction']['applied'] is True
 
-    def test_process_with_override_factor(self, sample_odmr_data, monkeypatch) -> None:
-        """Test process method with override correction factor."""
+    def test_process_uses_init_factor(self, sample_odmr_data, monkeypatch) -> None:
+        """Test process method uses correction_factor set at init time."""
         mock_baseline = xr.DataArray(
             np.ones((2, 2, 50)) * 0.1,
             dims=('polarity', 'freq_range', 'freq_idx'),
@@ -186,34 +186,14 @@ class TestFluorescenceCorrectionProcessor:
             lambda data, pixel_idx=None: (0, mock_baseline),
         )
 
-        processor = FluorescenceCorrectionProcessor(correction_factor=0.2)
+        processor = FluorescenceCorrectionProcessor(correction_factor=0.5)
         original_values = sample_odmr_data.data.values.copy()
-        result = processor.process(sample_odmr_data, correction_factor=0.5)
+        result = processor.process(sample_odmr_data)
 
         expected_data = original_values - 0.05
         np.testing.assert_allclose(result.data.values, expected_data)
 
         assert result.metadata['fluorescence_correction']['factor'] == 0.5
-
-    def test_process_with_legacy_param(self, sample_odmr_data, monkeypatch) -> None:
-        """Test process method with legacy glob_fluorescence parameter."""
-        mock_baseline = xr.DataArray(
-            np.ones((2, 2, 50)) * 0.1,
-            dims=('polarity', 'freq_range', 'freq_idx'),
-        )
-        monkeypatch.setattr(
-            'QDMpy.odmr.processors.analyze_fluorescence_effects',
-            lambda data, pixel_idx=None: (0, mock_baseline),
-        )
-
-        processor = FluorescenceCorrectionProcessor(correction_factor=0.2)
-        original_values = sample_odmr_data.data.values.copy()
-        result = processor.process(sample_odmr_data, glob_fluorescence=0.3)
-
-        expected_data = original_values - 0.03
-        np.testing.assert_allclose(result.data.values, expected_data)
-
-        assert result.metadata['fluorescence_correction']['factor'] == 0.3
 
 
 class TestFluorescenceAnalysis:

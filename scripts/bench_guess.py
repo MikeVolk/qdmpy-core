@@ -9,8 +9,7 @@ Implementations compared
 3. numba_combined — single kernel: prange over n_pixel, all 3 params, normalize_pixel once
 4. numba_flat     — single kernel: flat prange over n_pol*n_frange*n_pixel, normalize once
 5. numpy          — fully vectorized NumPy, no Numba, normalize computed once for whole array
-6. cupy           — same as numpy but on GPU via CuPy (skipped if CuPy unavailable)
-7. fft            — FFT cross-correlation centre estimate (different algorithm entirely)
+6. fft            — FFT cross-correlation centre estimate (different algorithm entirely)
 
 Note: np.unravel_index and np.nditer are not supported inside Numba @njit, so the flat-index
 pattern (px = idx % n_pixel; r = (idx // n_pixel) % n_frange; p = idx // (n_pixel * n_frange))
@@ -224,50 +223,7 @@ def guess_numpy(
 
 
 # ---------------------------------------------------------------------------
-# Implementation 4: CuPy (GPU) — same logic as NumPy
-# ---------------------------------------------------------------------------
-
-def _make_cupy_impl():
-    try:
-        import cupy as cp
-
-        def _normalize_all_cp(data_cp):
-            cs = cp.cumsum(data_cp - 1.0, axis=-1)
-            mn = cs.min(axis=-1, keepdims=True)
-            rng = cs.max(axis=-1, keepdims=True) - mn
-            return (cs - mn) / cp.where(rng > 0, rng, 1.0)
-
-        def guess_cupy(data: NDArray, freq: NDArray, vmin: float, vmax: float):
-            data_cp = cp.asarray(data)
-            freq_cp = cp.asarray(freq)
-
-            mx = cp.nanmax(data_cp, axis=-1)
-            mn = cp.nanmin(data_cp, axis=-1)
-            safe_mx = cp.where(mx != 0, mx, 1.0)
-            contrast_cp = cp.where(mx != 0, cp.abs((mx - mn) / safe_mx), 0.0)
-
-            normalized = _normalize_all_cp(data_cp)
-
-            frange_idx = cp.arange(data_cp.shape[1])[cp.newaxis, :, cp.newaxis]
-
-            center_idx = cp.argmin(cp.abs(normalized - 0.5), axis=-1)
-            center_cp = freq_cp[frange_idx, center_idx]
-
-            lidx = cp.argmin(cp.abs(normalized - vmin), axis=-1)
-            ridx = cp.argmin(cp.abs(normalized - vmax), axis=-1)
-            width_cp = cp.abs(freq_cp[frange_idx, ridx] - freq_cp[frange_idx, lidx])
-
-            cp.cuda.Stream.null.synchronize()  # wait for GPU to finish before timing
-            return cp.asnumpy(contrast_cp), cp.asnumpy(center_cp), cp.asnumpy(width_cp)
-
-        return guess_cupy, True
-
-    except ImportError:
-        return None, False
-
-
-# ---------------------------------------------------------------------------
-# Implementation 5: FFT cross-correlation (model-aware matched filter)
+# Implementation 4: FFT cross-correlation (model-aware matched filter)
 #
 # Center: cross-correlate inverted spectrum with a Lorentzian (or triplet)
 #         template. Peak of cross-correlation = center shift. Fully
@@ -458,9 +414,6 @@ def main() -> None:
     print(f'Freq shape : {freq.shape}')
     print(f'Runs       : {args.runs}\n')
 
-    # --- register implementations ---
-    guess_cupy, cupy_ok = _make_cupy_impl()
-
     # detect n_peaks from the data for FFT template
     from QDMpy.fitting.guess import guess_model
     detected_model = guess_model(data)
@@ -478,10 +431,6 @@ def main() -> None:
         ('numba_flat',     guess_numba_flat),     # single kernel, flat prange
         ('numpy',          guess_numpy),
     ]
-    if cupy_ok:
-        cumsum_impls.append(('cupy', guess_cupy))
-    else:
-        print('CuPy not available — skipping\n')
 
     fft_impls: list[tuple[str, object]] = [
         ('fft',            guess_fft_bound),

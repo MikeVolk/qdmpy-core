@@ -102,30 +102,30 @@ class OutlierProcessor(BaseProcessor):
     """Masks outlier values in ODMR data using z-scores along the frequency dimension.
 
     Attributes:
-        threshold: The threshold for outlier detection in standard deviations.
+        z_score_threshold: The z-score threshold above which a value is considered an outlier.
     """
 
-    def __init__(self: Self, threshold: float = 0.001) -> None:
-        """Initialize the outlier processor with a detection threshold.
+    def __init__(self: Self, z_score_threshold: float = 0.003) -> None:
+        """Initialize the outlier processor with a z-score threshold.
 
         Args:
-            threshold: Z-score threshold for outlier detection (default: 0.001).
+            z_score_threshold: Z-score threshold for outlier detection (default: 0.003).
         """
-        self.threshold = threshold
+        self.z_score_threshold = z_score_threshold
 
     def process(self: Self, data: ODMRData) -> ODMRData:
-        """Apply an outlier mask based on the threshold."""
+        """Apply an outlier mask based on the z-score threshold."""
         from QDMpy.odmr.data import ODMRData
 
-        logger.debug(f"Masking outliers with threshold: {self.threshold}")
+        logger.debug(f"Masking outliers with z_score_threshold: {self.z_score_threshold}")
         data_mean = data.data.mean(dim="freq_idx")
         data_std = data.data.std(dim="freq_idx")
         z_scores = np.abs((data.data - data_mean) / (data_std + 1e-10))
-        mask = z_scores > (self.threshold * 3)
+        mask = z_scores > self.z_score_threshold
         processed = data.data.where(~mask)
 
         metadata = data.metadata.copy()
-        metadata["outlier_masking"] = {"threshold": self.threshold}
+        metadata["outlier_masking"] = {"z_score_threshold": self.z_score_threshold}
         return ODMRData(data=processed, metadata=metadata)
 
 
@@ -144,17 +144,11 @@ class FluorescenceCorrectionProcessor(BaseProcessor):
         """
         self.correction_factor = correction_factor
 
-    def process(
-        self: Self,
-        data: ODMRData,
-        *,
-        correction_factor: float | None = None,
-        glob_fluorescence: float | None = None,
-    ) -> ODMRData:
+    def process(self: Self, data: ODMRData) -> ODMRData:
         """Apply fluorescence correction to the ODMR data."""
         from QDMpy.odmr.data import ODMRData
 
-        factor = correction_factor or glob_fluorescence or self.correction_factor
+        factor = self.correction_factor
         logger.info(f"Applying fluorescence correction with factor: {factor}")
 
         _, baseline_corrected = analyze_fluorescence_effects(data)
@@ -291,8 +285,6 @@ def preview_fluorescence_correction(
     plt.suptitle(f"Fluorescence Correction Preview (Pixel {idx_flat})", y=1.02)
     plt.show()
 
-
-visualize_fluorescence_correction = preview_fluorescence_correction
 
 
 class ODMRProcessorManager:

@@ -87,8 +87,3 @@ class ConfigurationError(QDMpyError):
 class DependencyError(QDMpyError):
     """Required dependency is not available."""
 
-
-# --- Deprecated Aliases ---
-
-CantImportError = DependencyError
-WrongFileNumberError = DataValidationError

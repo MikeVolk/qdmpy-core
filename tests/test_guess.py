@@ -18,7 +18,7 @@ from QDMpy.exceptions import (
     ModelGuessNotPossibleError,
     ModelNotFoundError,
 )
-from QDMpy.guess import (
+from QDMpy.fitting.guess import (
     get_model_by_peaks,
     cumsum_center,
     cumsum_contrast,
@@ -28,7 +28,7 @@ from QDMpy.guess import (
     normalize_pixel,
     validate_array,
 )
-from QDMpy.models import ESR14N, ESR15N, ESRSINGLE
+from QDMpy.fitting.models import ESR14N, ESR15N, ESRSINGLE
 
 
 @pytest.fixture

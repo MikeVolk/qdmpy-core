@@ -138,7 +138,6 @@ class Measurement:
         output_directory (Path): Path to the output directory.
         pixel_spacing (float): Spacing between pixels in meters.
         _outliers (Optional[NDArray]): Boolean mask for outlier pixels.
-        _B111 (Optional[NDArray]): B111 field array, populated after fitting.
         _fit_model (str): Name of the model used for fitting ODMR spectra.
         metadata (Dict[str, Any]): Additional metadata for the measurement.
     """
@@ -209,9 +208,6 @@ class Measurement:
         self.light_image = light_image
         self.laser_image = laser_image
 
-        # Initialize B111 field and fit model
-        logger.debug("Initializing B111 field and fit model.")
-        self._B111: NDArray | None = None
         # Store default fit model preference
         self._fit_model = fit_model
 
@@ -313,7 +309,7 @@ class Measurement:
             Dictionary of parameter name to NDArray.
         """
         parameters: dict[str, NDArray] = {}
-        for param_name in [*fit_manager.model_params_unique, 'chi2']:
+        for param_name in [*fit_manager.parameter_names, 'chi2']:
             try:
                 parameters[param_name] = fit_manager.get_param(param_name)
             except (KeyError, AttributeError, ValueError):
@@ -403,36 +399,3 @@ class Measurement:
         )
         return result
 
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
-    from QDMpy.odmr.data import ODMRData
-    from QDMpy.odmr.io import MatlabLoader
-    from QDMpy.odmr.processors import BinningProcessor, FluorescenceCorrectionProcessor
-
-    logger.enable("QDMpy")
-    data_folder = "/home/mike/git/QDMpy/tests/data/FOV18x"
-    loader = MatlabLoader(data_folder=data_folder)
-    odmr_data = ODMRData.from_loader(loader=loader)
-    odmr = ODMR(odmr_data)
-    odmr.processor_manager.add_processor(BinningProcessor(bin_factor=2))
-    odmr.processor_manager.add_processor(FluorescenceCorrectionProcessor())
-    odmr.process_data()
-
-    dummy_light = np.ones((10, 10))
-    dummy_laser = np.ones((10, 10))
-
-    output_dir = os.path.join(os.path.dirname(__file__), "..", "..", "tests", "output")
-    os.makedirs(output_dir, exist_ok=True)
-
-    measure = Measurement(
-        odmr,
-        dummy_light,
-        dummy_laser,
-        output_dir,
-    )
-
-    # xarray: select first polarity, first freq_range, first freq_idx -> 2D (y, x)
-    plt.imshow(measure.odmr.processed_data.data.isel(polarity=0, freq_range=0, freq_idx=0).values)
-    plt.show()

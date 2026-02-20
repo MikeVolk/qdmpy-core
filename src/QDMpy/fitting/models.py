@@ -17,9 +17,7 @@ import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 
-from QDMpy import get_settings
 from QDMpy.constants import AHYP_14N, AHYP_15N
-from QDMpy.settings import QDMpySettings
 
 
 def esr14n(
@@ -248,11 +246,6 @@ class Model(ABC):
         return {p: 'GHz' if p in freq else 'a.u.' for p in self.parameter_names}
 
     @property
-    def parameters_unique(self: Model) -> list[str]:
-        """Alias for ``parameter_names`` (backwards compatibility)."""
-        return self.parameter_names
-
-    @property
     def parameter(self: Model) -> list[str]:
         """Get the type category for each parameter (backwards compatibility).
 
@@ -354,14 +347,13 @@ class ModelRegistry:
 
         Args:
             model_cls: A Model subclass to register. The model's ``name``
-                attribute (set during ``__init__``) is used as the registry key.
+                ClassVar is used as the registry key.
 
         Returns:
             The model class, unchanged.
         """
-        instance = model_cls()  # type: ignore[call-arg]
-        cls._registry[instance.name] = model_cls
-        logger.info(f'Registered model: {instance.name}')
+        cls._registry[model_cls.name] = model_cls
+        logger.info(f'Registered model: {model_cls.name}')
         return model_cls
 
     @classmethod
@@ -392,38 +384,12 @@ class ModelRegistry:
         """
         return cls._registry
 
-    @classmethod
-    def _initialize_constraints(
-        cls: type[ModelRegistry],
-        model: Model,
-        settings: QDMpySettings | None = None,
-    ) -> dict[str, list[Any]]:
-        """Initialize default constraints for model parameters.
-
-        Args:
-            model: The model for which to initialize constraints.
-            settings: Optional QDMpySettings instance (defaults to global get_settings()).
-
-        Returns:
-            Dictionary mapping parameter names to constraint lists.
-        """
-        resolved = (settings or get_settings()).model.constraints
-        constraints: dict[str, list[Any]] = {}
-
-        for param in model.parameter_names:
-            base_param = model.parameter_types[param]
-            constraints[param] = [
-                getattr(resolved, f'{base_param}_min'),
-                getattr(resolved, f'{base_param}_max'),
-                getattr(resolved, f'{base_param}_type'),
-            ]
-        logger.debug(f"Initialized constraints for {model.name}: {list(constraints.keys())}")
-        return constraints
-
 
 @ModelRegistry.register
 class ESR14N(Model):
     """Model for NV centers with 14N nitrogen isotope (3 hyperfine dips)."""
+
+    name: ClassVar[str] = 'ESR14N'
 
     def __init__(self: ESR14N) -> None:
         """Initialize ESR14N model with 14N-specific parameters."""
@@ -465,6 +431,8 @@ class ESR14N(Model):
 class ESR15N(Model):
     """Model for NV centers with 15N nitrogen isotope (2 hyperfine dips)."""
 
+    name: ClassVar[str] = 'ESR15N'
+
     def __init__(self: ESR15N) -> None:
         """Initialize ESR15N model with 15N-specific parameters."""
         super().__init__(
@@ -503,6 +471,8 @@ class ESR15N(Model):
 @ModelRegistry.register
 class ESRSINGLE(Model):
     """Model for a single ODMR resonance dip (no hyperfine splitting)."""
+
+    name: ClassVar[str] = 'ESRSINGLE'
 
     def __init__(self: ESRSINGLE) -> None:
         """Initialize ESRSINGLE model with single-dip parameters."""

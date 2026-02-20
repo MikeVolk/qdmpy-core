@@ -9,7 +9,7 @@ import pytest
 
 from QDMpy.constants import D_ZFS, GAMMA_NV
 from QDMpy.exceptions import DataLoadError, DataShapeError, DataValidationError, ParameterError
-from QDMpy.result import FitResult
+from QDMpy.fitting.result import FitResult
 
 
 class TestFitResult:

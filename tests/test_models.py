@@ -6,12 +6,14 @@ Model class, and ModelRegistry in the QDMpy.models module.
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
 
 from QDMpy.constants import AHYP_14N, AHYP_15N
-from QDMpy.models import (
+from QDMpy.fitting.models import (
     ESR14N,
     ESR15N,
     ESRSINGLE,
@@ -20,11 +22,6 @@ from QDMpy.models import (
     esr14n,
     esr15n,
     esrsingle,
-)
-from QDMpy.settings import (
-    ModelConstraintsSettings,
-    ModelSettings,
-    QDMpySettings,
 )
 
 
@@ -316,7 +313,7 @@ class TestModelClass:
         # Should have 2 values (min and max) for each parameter
         assert len(constraint_array) == 2 * model.n_parameters
 
-        # Order matches parameters_unique: ["center", "width", "contrast_0", "contrast_1", "contrast_2", "offset"]
+        # Order matches parameter_names: ["center", "width", "contrast_0", "contrast_1", "contrast_2", "offset"]
         expected = [
             2.8,
             2.9,  # center min/max
@@ -380,7 +377,7 @@ class TestESR14N:
 
         assert model.name == "ESR14N"
         assert model.n_peaks == 3
-        assert model.parameters_unique == [
+        assert model.parameter_names == [
             "center",
             "width",
             "contrast_0",
@@ -412,7 +409,7 @@ class TestESR15N:
 
         assert model.name == "ESR15N"
         assert model.n_peaks == 2
-        assert model.parameters_unique == ["center", "width", "contrast_0", "contrast_1", "offset"]
+        assert model.parameter_names == ["center", "width", "contrast_0", "contrast_1", "offset"]
         assert model.ahyp == AHYP_15N
 
     def test_func(self) -> None:
@@ -437,7 +434,7 @@ class TestESRSINGLE:
 
         assert model.name == "ESRSINGLE"
         assert model.n_peaks == 1
-        assert model.parameters_unique == ["center", "width", "contrast", "offset"]
+        assert model.parameter_names == ["center", "width", "contrast", "offset"]
 
     def test_func(self) -> None:
         """Test the func method of ESRSINGLE."""
@@ -472,6 +469,8 @@ class TestModelRegistry:
 
         @ModelRegistry.register
         class MockModel(Model):
+            name: ClassVar[str] = 'MOCK_MODEL'
+
             def __init__(self) -> None:
                 super().__init__('MOCK_MODEL', 1, ['center', 'width'])
 
@@ -509,48 +508,6 @@ class TestModelRegistry:
         """Test getting a model that doesn't exist."""
         with pytest.raises(KeyError):
             ModelRegistry.get("NON_EXISTENT_MODEL")
-
-    def test_initialize_constraints_method(self) -> None:
-        """Test the _initialize_constraints method of ModelRegistry."""
-
-        class TestModelInitConstraints(Model):
-            def __init__(self) -> None:
-                super().__init__('TEST', 1, ['contrast_0', 'width_0'])
-
-            @property
-            def parameter_types(self) -> dict[str, str]:
-                return {'contrast_0': 'contrast', 'width_0': 'width'}
-
-            @property
-            def frequency_parameters(self) -> list[str]:
-                return []
-
-            def func(self, x, parameters):
-                return x
-
-        mock_settings = QDMpySettings(
-            model=ModelSettings(
-                constraints=ModelConstraintsSettings(
-                    contrast_min=0.0,
-                    contrast_max=1.0,
-                    contrast_type='FREE',
-                    width_min=1e6,
-                    width_max=1e7,
-                    width_type='FREE',
-                )
-            ),
-        )
-
-        constraints = ModelRegistry._initialize_constraints(
-            TestModelInitConstraints(), settings=mock_settings
-        )
-
-        assert 'contrast_0' in constraints
-        assert 'width_0' in constraints
-        assert len(constraints['contrast_0']) == 3
-        assert constraints['contrast_0'][0] == 0.0
-        assert constraints['contrast_0'][1] == 1.0
-        assert constraints['contrast_0'][2] == 'FREE'
 
 
 class TestModelSelfDescribing:
@@ -612,7 +569,7 @@ def test_main_demo_function() -> None:
     import io
     from unittest.mock import patch
 
-    from QDMpy.models import _main_demo
+    from QDMpy.fitting.models import _main_demo
 
     # Capture stdout to verify the output
     captured_output = io.StringIO()
