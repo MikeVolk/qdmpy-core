@@ -2,37 +2,28 @@
 name = "QDMpy"
 version = "0.0.1"
 description = "A python package for calculating magnetic maps from ODMR spectra measured on a quantum diamond microscope"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "Mike Volk", email = "mike@example.com"}
 ]
 dependencies = [
-    "numpy<=2.1",
-    "matplotlib>=3.9.2",
-    "tomli>=2.1.0",
-    "scikit-learn>=1.5.2",
-    "pandas>=2.2.3",
-    "mat73>=0.65",
-    "pygpufit",
-    "scikit-image>=0.24.0",
-    "numba>=0.61.0",
-    "argparse",
-    "importlib-metadata",
-    "pytest>=8.3.5",
-    "mkdocs-material>=9.6.10",
-    "mkdocstrings>=0.29.0",
-    "mkdocstrings-python>=1.16.8",
-    "mkdocs-jupyter>=0.25.1",
-    "pytest-cov>=6.0.0",
-    "setuptools-scm>=8.3.1",
+    # numerical core
+    "numpy>=2.0,<2.2",          # upper bound: numba 0.61 compatibility
     "scipy>=1.15.2",
-    "loguru>=0.7.0",
-    "pydantic-settings>=2.4.0",
     "xarray>=2026.2.0",
-    "ty>=0.0.17",
-    "cupy-cuda12x>=14.0.0",
+    "numba>=0.61.0",
+    # data I/O
+    "mat73>=0.65",
+    # visualization
+    "matplotlib>=3.10.1",
+    # GPU fitting (local wheels via [tool.uv.sources])
+    "pygpufit",
+    # settings & validation
+    "pydantic-settings>=2.4.0",
+    # logging
+    "loguru>=0.7.3",
 ]
 
 [project.urls]
@@ -45,6 +36,26 @@ Repository = "https://github.com/mikevolk/QDMpy"
 pygpufit = [
     { path = "src/pyGpufit/win/pyGpufit-1.2.0-py2.py3-none-any.whl", marker = "sys_platform == 'win32'" },
     { path = "src/pyGpufit/linux/pyGpufit-1.2.0-py2.py3-none-any.whl", marker = "sys_platform != 'win32'" },
+]
+
+[dependency-groups]
+test = [
+    "pytest>=8.3.5",
+    "pytest-cov>=6.0.0",
+]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.10",
+    "mkdocstrings>=0.29.0",
+    "mkdocstrings-python>=1.16.8",
+    "mkdocs-jupyter>=0.25.1",
+]
+dev = [
+    "jupyterlab>=4.3.1",
+    "ruff>=0.7.4",
+    "ty>=0.0.17",
+    {include-group = "test"},
+    {include-group = "docs"},
 ]
 
 [tool.pytest.ini_options]
@@ -70,9 +81,6 @@ warn_redundant_casts = true
 check_untyped_defs = true
 show_error_codes = true
 ignore_missing_imports = true
-
-[dependency-groups]
-dev = ["jupyterlab>=4.3.1", "mkdocs>=1.6.1", "ruff>=0.7.4"]
 
 [project.scripts]
 qdmpy = "QDMpy.cli:main"
