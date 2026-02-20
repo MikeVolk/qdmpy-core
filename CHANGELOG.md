@@ -7,6 +7,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **QEP-030** — `BaseProcessor` is now a Pydantic `BaseModel` with `frozen=True`; all processor
+  config is declared as validated fields (e.g. `BinningProcessor.bin_factor: int = Field(gt=0)`)
+- **QEP-030** — Each processor carries a `type: Literal[...]` discriminator field enabling
+  discriminated-union deserialization via `ProcessorSpec` / `_adapter = TypeAdapter(ProcessorSpec)`
+- **QEP-030** — `BaseProcessor.to_config()` serializes any processor to a plain JSON-compatible dict
+- **QEP-030** — `ODMRProcessorManager.from_config(config)` reconstructs a full pipeline from a
+  serialized config list (e.g. `processed_data.metadata['pipeline']`)
+- **QEP-030** — `ODMRProcessorManager.pipeline_config` property returns the current pipeline as a
+  list of config dicts
+- **QEP-030** — `ODMRProcessorManager.process()` writes a `'pipeline'` key to output metadata
+  containing the complete ordered list of processor configs applied
+
+### Changed
+- **QEP-030** — Processors no longer write ad-hoc keys to `ODMRData.metadata`; the manager owns
+  the single canonical pipeline snapshot (`metadata['pipeline']`)
+- **QEP-030** — `BinningProcessor` validation moved from manual `if bin_factor <= 0: raise` to
+  Pydantic `Field(gt=0)` — raises `pydantic.ValidationError` instead of `DataValidationError`
+- **QEP-030** — `ODMRProcessorManager.list_processors()` now returns `p.type` (the discriminator
+  string) rather than `p.__class__.__name__`
+
 ### Changed
 - **QEP-025** — Semantic coordinate labels: `pol_0`/`pol_1` → `neg`/`pos`, `frange_0`/`frange_1` → `low`/`high`
   in both `ODMRData.from_numpy` and `MatlabLoader`; labels exported as `POLARITY_LABELS`/`FRANGE_LABELS`

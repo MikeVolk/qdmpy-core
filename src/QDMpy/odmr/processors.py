@@ -6,25 +6,31 @@ a collection of processor classes and a manager to coordinate them.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from abc import abstractmethod
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Union
 
 import numpy as np
 import xarray as xr
 from loguru import logger
 from matplotlib import pyplot as plt
-from typing_extensions import Self
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 if TYPE_CHECKING:
     from QDMpy.odmr.data import ODMRData
 
 
-class BaseProcessor(ABC):
+class BaseProcessor(BaseModel):
     """Abstract base class for ODMR processors."""
 
+    model_config = ConfigDict(frozen=True)
+
     @abstractmethod
-    def process(self: Self, data: ODMRData) -> ODMRData:
+    def process(self, data: ODMRData) -> ODMRData:
         """Process the given ODMRData instance and return a new instance."""
+
+    def to_config(self) -> dict[str, Any]:
+        """Serialize this processor to a JSON-compatible dict."""
+        return self.model_dump()
 
 
 class NormalizationProcessor(BaseProcessor):
@@ -34,29 +40,22 @@ class NormalizationProcessor(BaseProcessor):
         method: The normalization method to use (e.g., 'max').
     """
 
-    def __init__(self: Self, method: str = "max") -> None:
-        """Initialize the normalization processor.
+    type: Literal['NormalizationProcessor'] = 'NormalizationProcessor'
+    method: str = 'max'
 
-        Args:
-            method: Normalization method to use (default: 'max').
-        """
-        self.method = method
-
-    def process(self: Self, data: ODMRData) -> ODMRData:
+    def process(self, data: ODMRData) -> ODMRData:
         """Normalize the data based on the selected method."""
         from QDMpy.odmr.data import ODMRData
 
-        logger.debug(f"Normalizing data using method: {self.method}")
+        logger.debug(f'Normalizing data using method: {self.method}')
         factors = self._get_norm_factors(data.data, self.method)
         normalized = data.data / factors
-        metadata = data.metadata.copy()
-        metadata["normalized"] = True
-        return ODMRData(data=normalized, metadata=metadata)
+        return ODMRData(data=normalized, metadata=data.metadata.copy())
 
-    def _get_norm_factors(self: Self, da: xr.DataArray, method: str) -> xr.DataArray:
+    def _get_norm_factors(self, da: xr.DataArray, method: str) -> xr.DataArray:
         """Calculate normalization factors."""
-        if method == "max":
-            return da.max(dim="freq_idx")
+        if method == 'max':
+            return da.max(dim='freq_idx')
         raise NotImplementedError(
             f"Normalization method '{method}' is not implemented.",
         )
@@ -69,33 +68,16 @@ class BinningProcessor(BaseProcessor):
         bin_factor: The factor by which to bin the data spatially.
     """
 
-    def __init__(self: Self, bin_factor: int) -> None:
-        """Initialize the binning processor with a spatial binning factor.
+    type: Literal['BinningProcessor'] = 'BinningProcessor'
+    bin_factor: int = Field(gt=0)
 
-        Args:
-            bin_factor: Factor by which to bin spatial dimensions.
-
-        Raises:
-            ValueError: If bin_factor is not greater than 0.
-        """
-        from QDMpy.exceptions import DataValidationError
-
-        if bin_factor <= 0:
-            msg = "Bin factor must be greater than 0."
-            raise DataValidationError(msg)
-        self.bin_factor = bin_factor
-
-    def process(self: Self, data: ODMRData) -> ODMRData:
+    def process(self, data: ODMRData) -> ODMRData:
         """Bin the data spatially by the specified factor."""
         from QDMpy.odmr.data import ODMRData
 
-        logger.debug(f"Binning data with factor: {self.bin_factor}")
-        binned = data.data.coarsen(y=self.bin_factor, x=self.bin_factor, boundary="trim").mean()  # type: ignore[attr-defined]
-
-        metadata = data.metadata.copy()
-        metadata["binned"] = True
-        metadata["bin_factor"] = self.bin_factor
-        return ODMRData(data=binned, metadata=metadata)
+        logger.debug(f'Binning data with factor: {self.bin_factor}')
+        binned = data.data.coarsen(y=self.bin_factor, x=self.bin_factor, boundary='trim').mean()  # type: ignore[attr-defined]
+        return ODMRData(data=binned, metadata=data.metadata.copy())
 
 
 class OutlierProcessor(BaseProcessor):
@@ -105,28 +87,20 @@ class OutlierProcessor(BaseProcessor):
         z_score_threshold: The z-score threshold above which a value is considered an outlier.
     """
 
-    def __init__(self: Self, z_score_threshold: float = 0.003) -> None:
-        """Initialize the outlier processor with a z-score threshold.
+    type: Literal['OutlierProcessor'] = 'OutlierProcessor'
+    z_score_threshold: float = Field(default=0.003, gt=0)
 
-        Args:
-            z_score_threshold: Z-score threshold for outlier detection (default: 0.003).
-        """
-        self.z_score_threshold = z_score_threshold
-
-    def process(self: Self, data: ODMRData) -> ODMRData:
+    def process(self, data: ODMRData) -> ODMRData:
         """Apply an outlier mask based on the z-score threshold."""
         from QDMpy.odmr.data import ODMRData
 
-        logger.debug(f"Masking outliers with z_score_threshold: {self.z_score_threshold}")
-        data_mean = data.data.mean(dim="freq_idx")
-        data_std = data.data.std(dim="freq_idx")
+        logger.debug(f'Masking outliers with z_score_threshold: {self.z_score_threshold}')
+        data_mean = data.data.mean(dim='freq_idx')
+        data_std = data.data.std(dim='freq_idx')
         z_scores = np.abs((data.data - data_mean) / (data_std + 1e-10))
         mask = z_scores > self.z_score_threshold
         processed = data.data.where(~mask)
-
-        metadata = data.metadata.copy()
-        metadata["outlier_masking"] = {"z_score_threshold": self.z_score_threshold}
-        return ODMRData(data=processed, metadata=metadata)
+        return ODMRData(data=processed, metadata=data.metadata.copy())
 
 
 class FluorescenceCorrectionProcessor(BaseProcessor):
@@ -136,31 +110,33 @@ class FluorescenceCorrectionProcessor(BaseProcessor):
         correction_factor: The fluorescence correction factor.
     """
 
-    def __init__(self: Self, correction_factor: float = 0.2) -> None:
-        """Initialize the fluorescence correction processor.
+    type: Literal['FluorescenceCorrectionProcessor'] = 'FluorescenceCorrectionProcessor'
+    correction_factor: float = Field(default=0.2, gt=0)
 
-        Args:
-            correction_factor: Correction factor to apply (default: 0.2).
-        """
-        self.correction_factor = correction_factor
-
-    def process(self: Self, data: ODMRData) -> ODMRData:
+    def process(self, data: ODMRData) -> ODMRData:
         """Apply fluorescence correction to the ODMR data."""
         from QDMpy.odmr.data import ODMRData
 
-        factor = self.correction_factor
-        logger.info(f"Applying fluorescence correction with factor: {factor}")
-
+        logger.info(f'Applying fluorescence correction with factor: {self.correction_factor}')
         _, baseline_corrected = analyze_fluorescence_effects(data)
-        correction = factor * baseline_corrected
+        correction = self.correction_factor * baseline_corrected
         processed = data.data - correction
+        return ODMRData(data=processed, metadata=data.metadata.copy())
 
-        metadata = data.metadata.copy()
-        if "fluorescence_correction" not in metadata:
-            metadata["fluorescence_correction"] = {}
-        metadata["fluorescence_correction"]["factor"] = factor
-        metadata["fluorescence_correction"]["applied"] = True
-        return ODMRData(data=processed, metadata=metadata)
+
+ProcessorSpec = Annotated[
+    Union[
+        NormalizationProcessor,
+        BinningProcessor,
+        OutlierProcessor,
+        FluorescenceCorrectionProcessor,
+    ],
+    Field(discriminator='type'),
+]
+
+_adapter: TypeAdapter[  # type: ignore[type-arg]
+    NormalizationProcessor | BinningProcessor | OutlierProcessor | FluorescenceCorrectionProcessor
+] = TypeAdapter(ProcessorSpec)
 
 
 def analyze_fluorescence_effects(
@@ -176,16 +152,16 @@ def analyze_fluorescence_effects(
         Tuple of (selected pixel flat index, baseline-corrected mean data).
     """
     values = data.data.values
-    n_y = data.data.sizes["y"]
-    n_x = data.data.sizes["x"]
+    n_y = data.data.sizes['y']
+    n_x = data.data.sizes['x']
     n_pixels = n_y * n_x
 
     # Flatten spatial dims for pixel selection
     flat_shape = (
-        data.data.sizes["polarity"],
-        data.data.sizes["freq_range"],
+        data.data.sizes['polarity'],
+        data.data.sizes['freq_range'],
         n_pixels,
-        data.data.sizes["freq_idx"],
+        data.data.sizes['freq_idx'],
     )
     flat_data = values.reshape(flat_shape)
 
@@ -200,25 +176,25 @@ def analyze_fluorescence_effects(
             delta_copy[delta_copy > fluorescence_delta_threshold] = np.nan
 
             if np.all(np.isnan(delta_copy)):
-                logger.warning("All values in delta_copy are NaN. Using middle pixel.")
+                logger.warning('All values in delta_copy are NaN. Using middle pixel.')
                 flat_idx = n_pixels // 2
             else:
                 flat_idx = int(np.unravel_index(np.nanargmax(delta_copy), delta_copy.shape)[2])
-            logger.info(f"Automatically selected pixel index: {flat_idx}")
+            logger.info(f'Automatically selected pixel index: {flat_idx}')
         except ValueError:
-            logger.warning("Error finding representative pixel. Using middle pixel.")
+            logger.warning('Error finding representative pixel. Using middle pixel.')
             flat_idx = n_pixels // 2
     else:
         flat_idx = int(pixel_idx)
 
     # Mean across all spatial pixels, keep as xarray for broadcasting
-    mean_data = data.data.mean(dim=("y", "x"))
+    mean_data = data.data.mean(dim=('y', 'x'))
 
     # Baseline from off-resonance edges
-    n_freqs = data.data.sizes["freq_idx"]
+    n_freqs = data.data.sizes['freq_idx']
     n_edge = max(int(n_freqs * 0.05), 1)
-    baseline_left = mean_data.isel(freq_idx=slice(0, n_edge)).mean(dim="freq_idx")
-    baseline_right = mean_data.isel(freq_idx=slice(-n_edge, None)).mean(dim="freq_idx")
+    baseline_left = mean_data.isel(freq_idx=slice(0, n_edge)).mean(dim='freq_idx')
+    baseline_right = mean_data.isel(freq_idx=slice(-n_edge, None)).mean(dim='freq_idx')
     baseline = (baseline_left + baseline_right) / 2
 
     baseline_corrected = mean_data - baseline
@@ -233,15 +209,15 @@ def preview_fluorescence_correction(
     idx_flat, baseline_corrected = analyze_fluorescence_effects(data, pixel_idx)
     correction = correction_factor * baseline_corrected
 
-    n_pol = data.data.sizes["polarity"]
-    n_frange = data.data.sizes["freq_range"]
-    n_y = data.data.sizes["y"]
-    n_x = data.data.sizes["x"]
+    n_pol = data.data.sizes['polarity']
+    n_frange = data.data.sizes['freq_range']
+    n_y = data.data.sizes['y']
+    n_x = data.data.sizes['x']
 
     # Get pixel data in flat space
     flat_values = data.data.values.reshape(n_pol, n_frange, n_y * n_x, -1)
 
-    f, ax = plt.subplots(
+    _f, ax = plt.subplots(
         n_pol,
         n_frange,
         sharex=False,
@@ -256,7 +232,7 @@ def preview_fluorescence_correction(
     elif n_frange == 1:
         ax = np.array([ax]).T
 
-    freq_ghz = data.data.coords["freq_ghz"].values
+    freq_ghz = data.data.coords['freq_ghz'].values
 
     for p in range(n_pol):
         for fr in range(n_frange):
@@ -264,27 +240,26 @@ def preview_fluorescence_correction(
             freqs = freq_ghz[fr]
             corr_vals = correction.isel(polarity=p, freq_range=fr).values
 
-            ax[p, fr].plot(freqs, current_data, "k.-", label="Original")
+            ax[p, fr].plot(freqs, current_data, 'k.-', label='Original')
             ax[p, fr].plot(
                 freqs,
                 current_data - corr_vals,
-                "r.-",
-                label=f"Corrected (Factor={correction_factor})",
+                'r.-',
+                label=f'Corrected (Factor={correction_factor})',
             )
-            ax[p, fr].plot(freqs, 1 + corr_vals, "r--", alpha=0.5, label="Correction")
+            ax[p, fr].plot(freqs, 1 + corr_vals, 'r--', alpha=0.5, label='Correction')
 
-            polarity_label = {0: "+", 1: "-"}.get(p, f"P{p}")
-            frange_label = {0: "Low", 1: "High"}.get(fr, f"F{fr}")
-            ax[p, fr].set_title(f"Polarity: {polarity_label}, Frequency Range: {frange_label}")
-            ax[p, fr].set_xlabel("Frequency [GHz]")
-            ax[p, fr].set_ylabel("ODMR Contrast")
+            polarity_label = {0: '+', 1: '-'}.get(p, f'P{p}')
+            frange_label = {0: 'Low', 1: 'High'}.get(fr, f'F{fr}')
+            ax[p, fr].set_title(f'Polarity: {polarity_label}, Frequency Range: {frange_label}')
+            ax[p, fr].set_xlabel('Frequency [GHz]')
+            ax[p, fr].set_ylabel('ODMR Contrast')
             ax[p, fr].legend()
             ax[p, fr].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.suptitle(f"Fluorescence Correction Preview (Pixel {idx_flat})", y=1.02)
+    plt.suptitle(f'Fluorescence Correction Preview (Pixel {idx_flat})', y=1.02)
     plt.show()
-
 
 
 class ODMRProcessorManager:
@@ -294,24 +269,42 @@ class ODMRProcessorManager:
         processors: List of processors in the pipeline.
     """
 
-    def __init__(self: Self) -> None:
+    def __init__(self) -> None:
         """Initialize an empty processing pipeline."""
         self.processors: list[BaseProcessor] = []
 
-    def add_processor(self: Self, processor: BaseProcessor) -> None:
+    def add_processor(self, processor: BaseProcessor) -> None:
         """Add a processor to the processing pipeline."""
-        logger.debug(f"Adding processor: {processor.__class__.__name__}")
+        logger.debug(f'Adding processor: {processor.__class__.__name__}')
         self.processors.append(processor)
 
-    def process(self: Self, data: ODMRData) -> ODMRData:
-        """Apply all processors sequentially."""
-        logger.info("Starting processing pipeline.")
-        for processor in self.processors:
-            logger.debug(f"Applying processor: {processor.__class__.__name__}")
-            data = processor.process(data)
-        logger.info("Processing pipeline completed.")
-        return data
+    def process(self, data: ODMRData) -> ODMRData:
+        """Apply all processors sequentially and record the pipeline config in metadata."""
+        from QDMpy.odmr.data import ODMRData as _ODMRData
 
-    def list_processors(self: Self) -> list[str]:
-        """List the names of processors in the pipeline."""
-        return [processor.__class__.__name__ for processor in self.processors]
+        logger.info('Starting processing pipeline.')
+        pipeline_config = [p.to_config() for p in self.processors]
+        for processor in self.processors:
+            logger.debug(f'Applying processor: {processor.__class__.__name__}')
+            data = processor.process(data)
+        logger.info('Processing pipeline completed.')
+        metadata = data.metadata.copy()
+        metadata['pipeline'] = pipeline_config
+        return _ODMRData(data=data.data, metadata=metadata)
+
+    @classmethod
+    def from_config(cls, config: list[dict[str, Any]]) -> ODMRProcessorManager:
+        """Reconstruct a pipeline from a serialized config list."""
+        manager = cls()
+        for step in config:
+            manager.add_processor(_adapter.validate_python(step))
+        return manager
+
+    @property
+    def pipeline_config(self) -> list[dict[str, Any]]:
+        """Current pipeline as a list of serializable config dicts."""
+        return [p.to_config() for p in self.processors]
+
+    def list_processors(self) -> list[str]:
+        """List the type names of processors in the pipeline."""
+        return [p.type for p in self.processors]
