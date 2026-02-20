@@ -19,6 +19,8 @@ from numpy.typing import NDArray
 from scipy.io import loadmat
 from typing_extensions import Self
 
+from QDMpy.odmr.data import FRANGE_LABELS, POLARITY_LABELS
+
 from QDMpy.exceptions import DataLoadError
 
 
@@ -154,8 +156,8 @@ class MatlabLoader(BaseLoader):
         elapsed = time.perf_counter() - t_start
         logger.info(f"MATLAB data loaded in {elapsed:.2f}s — shape {raw_data.shape}")
 
-        polarity_labels = [f"pol_{i}" for i in range(n_pol)]
-        frange_labels = [f"frange_{i}" for i in range(n_frange)]
+        polarity_labels = POLARITY_LABELS[:n_pol]
+        frange_labels = FRANGE_LABELS[:n_frange]
 
         return xr.DataArray(
             raw_data,

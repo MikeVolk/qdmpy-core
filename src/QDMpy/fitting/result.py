@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
@@ -61,8 +62,8 @@ class FitResult(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     _b_field_cache: NDArray | None = PrivateAttr(default=None)
-    _delta_resonance_cache: NDArray | None = PrivateAttr(default=None)
-    _b111_cache: tuple[NDArray, NDArray] | None = PrivateAttr(default=None)
+    _delta_resonance_cache: xr.DataArray | None = PrivateAttr(default=None)
+    _b111_cache: xr.Dataset | None = PrivateAttr(default=None)
 
     @field_validator('scan_dimensions')
     @classmethod
@@ -191,18 +192,13 @@ class FitResult(BaseModel):
         return param_data.reshape(self.scan_dimensions)
 
     @property
-    def delta_resonance(self: Self) -> NDArray:
-        """Get the frequency difference between resonance peaks.
-
-        This calculates the splitting between high and low frequency resonances,
-        which is essential for B111 magnetic field calculations.
+    def delta_resonance(self: Self) -> xr.DataArray:
+        """Get the signed frequency difference per polarity.
 
         Returns:
-            Array with shape (n_pol, 2, height, width) containing frequency differences
-
-        Note:
-            For models with 2+ peaks, calculates splitting. For single peak models,
-            returns frequency shift from zero-field position.
+            xr.DataArray with dims ('polarity', 'y', 'x') and polarity coords
+            'neg'/'pos'. Values are in µT with polarity-correct sign applied:
+            neg polarity gets sign=-1, pos polarity gets sign=+1.
         """
         if self._delta_resonance_cache is None:
             self._delta_resonance_cache = self._compute_delta_resonance()
@@ -301,16 +297,17 @@ class FitResult(BaseModel):
             width: Spatial width dimension.
 
         Returns:
-            Array with shape (n_pol, 2, height, width).
+            Array with shape (n_pol, height, width). Sign is applied per polarity:
+            pol_0 (neg) gets sign=-1, pol_1 (pos) gets sign=+1.
         """
-        d = np.array([-1, 1]).reshape(1, 2, 1, 1)
+        d = np.array([-1, 1])[:n_pol].reshape(n_pol, 1, 1)
 
         if n_frange >= 2:  # noqa: PLR2004
             freq_diff = (resonance[:, 1] - resonance[:, 0]).reshape(n_pol, height, width)
-            return freq_diff[:, np.newaxis, :, :] / 2 / GAMMA_NV * 1e6 * d
+            return freq_diff / 2 / GAMMA_NV * 1e6 * d
 
         freq_shift = (resonance[:, 0] - D_ZFS).reshape(n_pol, height, width)
-        return freq_shift[:, np.newaxis, :, :] / GAMMA_NV * 1e6 * d
+        return freq_shift / GAMMA_NV * 1e6 * d
 
     def _calc_delta_from_multi_centers(
         self: Self,
@@ -326,7 +323,7 @@ class FitResult(BaseModel):
             width: Spatial width dimension.
 
         Returns:
-            Array with shape (n_pol, 2, height, width).
+            Array with shape (n_pol, height, width) with sign applied per polarity.
 
         Raises:
             DataShapeError: If fewer than 2 center parameters are provided.
@@ -355,15 +352,18 @@ class FitResult(BaseModel):
 
         n_pol = freq_diff.shape[0]
         freq_diff = freq_diff.reshape(n_pol, height, width)
-        d = np.array([-1, 1]).reshape(1, 2, 1, 1)
-        return freq_diff[:, np.newaxis, :, :] / 2 / GAMMA_NV * 1e6 * d
+        d = np.array([-1, 1])[:n_pol].reshape(n_pol, 1, 1)
+        return freq_diff / 2 / GAMMA_NV * 1e6 * d
 
-    def _compute_delta_resonance(self: Self) -> NDArray:
-        """Compute frequency difference between resonance peaks.
+    def _compute_delta_resonance(self: Self) -> xr.DataArray:
+        """Compute signed frequency difference per polarity.
 
         Returns:
-            Array with shape (n_pol, 2, height, width) for spatial maps.
+            xr.DataArray with dims ('polarity', 'y', 'x') and polarity coords
+            'neg'/'pos'. Values in µT with polarity-correct sign applied.
         """
+        from QDMpy.odmr.data import POLARITY_LABELS
+
         logger.debug("Computing delta resonance for B111 calculations")
 
         if "center" in self.parameters:
@@ -371,109 +371,93 @@ class FitResult(BaseModel):
             logger.debug(f"Center parameter shape: {resonance.shape}")
             resonance, n_pol, n_frange, n_pixels = self._normalize_resonance_shape(resonance)
             height, width = self._resolve_spatial_dims(n_pixels)
-            delta_resonance = self._calc_delta_from_single_center(
-                resonance, n_pol, n_frange, height, width
-            )
+            delta = self._calc_delta_from_single_center(resonance, n_pol, n_frange, height, width)
         else:
             center_params = {
                 k: v for k, v in self.parameters.items() if k.startswith("center")
             }
             n_pixels = next(iter(center_params.values())).shape[-1]
             height, width = self._resolve_spatial_dims(n_pixels)
-            delta_resonance = self._calc_delta_from_multi_centers(center_params, height, width)
+            delta = self._calc_delta_from_multi_centers(center_params, height, width)
+            n_pol = delta.shape[0]
 
-        logger.debug(f"Delta resonance computed with shape: {delta_resonance.shape}")
-        return delta_resonance
+        polarity_coords = POLARITY_LABELS[:n_pol]
+        logger.debug(f"Delta resonance computed with shape: {delta.shape}")
+        return xr.DataArray(
+            delta,
+            dims=('polarity', 'y', 'x'),
+            coords={'polarity': polarity_coords},
+            attrs={'units': 'µT', 'description': 'signed dB per polarity'},
+        )
 
     @property
-    def b111(self: Self) -> tuple[NDArray, NDArray]:
-        """Get B111 magnetic field components (remanent and induced).
-
-        This is the core magnetic field calculation for quantum diamond microscopy,
-        extracting the magnetic field components along the [111] crystal direction.
+    def b111(self: Self) -> xr.Dataset:
+        """Get B111 magnetic field components as a named Dataset.
 
         Returns:
-            Tuple of (b111_remanent, b111_induced) arrays with spatial dimensions
-
-        Note:
-            Implements the exact calculation from the old QDM class:
-            b111_remanent = (neg_difference + pos_difference) / 2
-            b111_induced = (neg_difference - pos_difference) / 2
+            xr.Dataset with variables 'remanent' and 'induced', each a
+            DataArray with dims ('y', 'x') and units='µT'.
         """
         if self._b111_cache is None:
             self._b111_cache = self._compute_b111()
         return self._b111_cache
 
-    def _compute_b111(self: Self) -> tuple[NDArray, NDArray]:
+    def _compute_b111(self: Self) -> xr.Dataset:
         """Compute B111 magnetic field components.
 
         Uses the exact algorithm from the old QDM class to calculate remanent
         (permanent) and induced magnetic field components.
 
         Returns:
-            Tuple of (remanent_field, induced_field) arrays
+            xr.Dataset with 'remanent' and 'induced' DataArrays in µT.
+
+        Raises:
+            DataShapeError: If delta_resonance does not contain both 'neg' and 'pos'
+                polarity coordinates (requires n_pol == 2).
         """
         logger.info("Computing B111 magnetic field components")
 
-        # Get delta resonance
-        delta_res = self.delta_resonance
-        logger.debug(f"Delta resonance shape for B111 calculation: {delta_res.shape}")
+        delta_res = self.delta_resonance   # xr.DataArray (polarity, y, x)
+        polarity_vals = list(delta_res.coords['polarity'].values)
 
-        # delta_res shape: (n_pol, 2, height, width) from _calc_delta_from_single_center.
-        # axis 0 = polarity: pol_0 = negative applied field, pol_1 = positive applied field.
-        # axis 1 = sign dimension: [0] = -(dB[pol]), [1] = +(dB[pol]).
-        # negDiff = delta_res[pol_0, sign=-1] = -(R_high_neg - R_low_neg)/2/GAMMA
-        # posDiff = delta_res[pol_1, sign=+1] = +(R_high_pos - R_low_pos)/2/GAMMA
-        if delta_res.ndim == 4:  # noqa: PLR2004 — (n_pol, 2, height, width)
-            neg_diff = delta_res[0, 0]   # (height, width) — pol_0, negatively signed
-            pos_diff = delta_res[-1, 1]  # (height, width) — pol_1, positively signed
-
-        elif delta_res.ndim == 3:  # noqa: PLR2004 — (2, height, width)
-            neg_diff = delta_res[0]  # (height, width)
-            pos_diff = delta_res[1]  # (height, width)
-
-        else:
-            msg = f"Unexpected delta_resonance shape: {delta_res.shape}"
+        if 'neg' not in polarity_vals or 'pos' not in polarity_vals:
+            msg = (
+                f"B111 requires both 'neg' and 'pos' polarities; "
+                f"found: {polarity_vals}"
+            )
             raise DataShapeError(msg)
 
-        # Apply the exact B111 calculation from old QDM class
+        neg_diff = delta_res.sel(polarity='neg').values   # (height, width)
+        pos_diff = delta_res.sel(polarity='pos').values   # (height, width)
+
         b111_remanent = (neg_diff + pos_diff) / 2
         b111_induced = (neg_diff - pos_diff) / 2
 
         logger.debug(
-            f"B111 remanent field: mean={b111_remanent.mean():.2e} μT, "
-            f"std={b111_remanent.std():.2e} μT"
+            f"B111 remanent: mean={b111_remanent.mean():.2e} µT, "
+            f"std={b111_remanent.std():.2e} µT"
         )
         logger.debug(
-            f"B111 induced field: mean={b111_induced.mean():.2e} μT, "
-            f"std={b111_induced.std():.2e} μT"
+            f"B111 induced: mean={b111_induced.mean():.2e} µT, "
+            f"std={b111_induced.std():.2e} µT"
         )
 
-        return b111_remanent, b111_induced
+        return xr.Dataset(
+            {
+                'remanent': xr.DataArray(b111_remanent, dims=('y', 'x'), attrs={'units': 'µT'}),
+                'induced': xr.DataArray(b111_induced, dims=('y', 'x'), attrs={'units': 'µT'}),
+            }
+        )
 
     @property
     def b111_remanent(self: Self) -> NDArray:
-        """Get the remanent (permanent) B111 magnetic field component.
-
-        The remanent field represents the permanent magnetic field component
-        along the [111] crystal direction, typically from magnetized materials.
-
-        Returns:
-            2D array of remanent field values in microTesla with spatial dimensions
-        """
-        return self.b111[0]
+        """Remanent B111 field component in µT as a 2D numpy array."""
+        return self.b111['remanent'].values
 
     @property
     def b111_induced(self: Self) -> NDArray:
-        """Get the induced B111 magnetic field component.
-
-        The induced field represents the field component that varies with
-        external magnetic fields or current-carrying conductors.
-
-        Returns:
-            2D array of induced field values in microTesla with spatial dimensions
-        """
-        return self.b111[1]
+        """Induced B111 field component in µT as a 2D numpy array."""
+        return self.b111['induced'].values
 
     def calculate_b_field(self: Self, force_recalculate: bool = False) -> NDArray:
         """Calculate magnetic field map from fitted resonance frequencies.
@@ -576,10 +560,10 @@ class FitResult(BaseModel):
         if self._b_field_cache is not None:
             save_data["b_field"] = self._b_field_cache
         if self._delta_resonance_cache is not None:
-            save_data["delta_resonance"] = self._delta_resonance_cache
+            save_data["delta_resonance"] = self._delta_resonance_cache.values
         if self._b111_cache is not None:
-            save_data["b111_remanent"] = self._b111_cache[0]
-            save_data["b111_induced"] = self._b111_cache[1]
+            save_data["b111_remanent"] = self._b111_cache['remanent'].values
+            save_data["b111_induced"] = self._b111_cache['induced'].values
 
         # Save to NPZ format for efficiency
         # Extract numpy arrays and convert other types to numpy-compatible formats

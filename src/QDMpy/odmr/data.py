@@ -25,6 +25,8 @@ if TYPE_CHECKING:
     from QDMpy.odmr.io import BaseLoader
 
 EXPECTED_DIMS = ('polarity', 'freq_range', 'y', 'x', 'freq_idx')
+POLARITY_LABELS = ['neg', 'pos']
+FRANGE_LABELS = ['low', 'high']
 
 NV_FREQ_MIN_GHZ = 2.0
 NV_FREQ_MAX_GHZ = 3.5
@@ -173,8 +175,8 @@ class ODMRData(BaseModel):
 
         validate_frequencies(freq_ghz)
 
-        polarity_labels = [f"pol_{i}" for i in range(n_pol)]
-        frange_labels = [f"frange_{i}" for i in range(n_frange)]
+        polarity_labels = POLARITY_LABELS[:n_pol]
+        frange_labels = FRANGE_LABELS[:n_frange]
 
         da = xr.DataArray(
             data_5d,

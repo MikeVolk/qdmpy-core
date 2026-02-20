@@ -426,10 +426,10 @@ class TestCalcDeltaFromSingleCenter:
             [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
         ])
         delta = result._calc_delta_from_single_center(resonance, 2, 2, 2, 2)
-        assert delta.shape == (2, 2, 2, 2)
+        assert delta.shape == (2, 2, 2)   # (n_pol, H, W) — sign axis eliminated
         expected_diff = 0.04 / 2 / GAMMA_NV * 1e6
-        np.testing.assert_allclose(delta[0, 0], -expected_diff, rtol=1e-10)
-        np.testing.assert_allclose(delta[0, 1], expected_diff, rtol=1e-10)
+        np.testing.assert_allclose(delta[0], -expected_diff, rtol=1e-10)  # pol_0 (neg)
+        np.testing.assert_allclose(delta[1], expected_diff, rtol=1e-10)   # pol_1 (pos)
 
     def test_single_frequency_range(self) -> None:
         result = self._make_result()
@@ -439,10 +439,10 @@ class TestCalcDeltaFromSingleCenter:
             [[freq, freq, freq, freq]],
         ])
         delta = result._calc_delta_from_single_center(resonance, 2, 1, 2, 2)
-        assert delta.shape == (2, 2, 2, 2)
+        assert delta.shape == (2, 2, 2)   # (n_pol, H, W)
         expected_shift = 0.01 / GAMMA_NV * 1e6
-        np.testing.assert_allclose(delta[0, 0], -expected_shift, rtol=1e-10)
-        np.testing.assert_allclose(delta[0, 1], expected_shift, rtol=1e-10)
+        np.testing.assert_allclose(delta[0], -expected_shift, rtol=1e-10)  # pol_0 (neg)
+        np.testing.assert_allclose(delta[1], expected_shift, rtol=1e-10)   # pol_1 (pos)
 
 
 class TestCalcDeltaFromMultiCenters:
@@ -462,10 +462,9 @@ class TestCalcDeltaFromMultiCenters:
         high = np.array([[[2.89, 2.89, 2.89, 2.89]]])
         center_params = {"center_0": low, "center_1": high}
         delta = result._calc_delta_from_multi_centers(center_params, 2, 2)
-        assert delta.shape == (1, 2, 2, 2)
+        assert delta.shape == (1, 2, 2)   # (n_pol=1, H, W) — sign axis eliminated
         expected_diff = 0.04 / 2 / GAMMA_NV * 1e6
-        np.testing.assert_allclose(delta[0, 0], -expected_diff, rtol=1e-10)
-        np.testing.assert_allclose(delta[0, 1], expected_diff, rtol=1e-10)
+        np.testing.assert_allclose(delta[0], -expected_diff, rtol=1e-10)  # pol_0 (neg)
 
     def test_insufficient_centers_raises(self) -> None:
         result = self._make_result()
@@ -478,13 +477,14 @@ class TestCalcDeltaFromMultiCenters:
         high = np.array([[[2.88, 2.88, 2.88, 2.88], [2.89, 2.89, 2.89, 2.89]]])
         center_params = {"center_0": low, "center_1": high}
         delta = result._calc_delta_from_multi_centers(center_params, 2, 2)
-        assert delta.shape == (1, 2, 2, 2)
+        assert delta.shape == (1, 2, 2)   # (n_pol=1, H, W)
 
 
 class TestComputeDeltaResonanceOrchestrator:
     """Integration tests for the rewritten _compute_delta_resonance."""
 
     def test_3d_center_two_franges(self) -> None:
+        import xarray as xr
         center = np.array([
             [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
             [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
@@ -496,9 +496,13 @@ class TestComputeDeltaResonanceOrchestrator:
             model_name="ESR15N",
         )
         delta = result._compute_delta_resonance()
-        assert delta.shape == (2, 2, 2, 2)
+        assert isinstance(delta, xr.DataArray)
+        assert delta.dims == ('polarity', 'y', 'x')
+        assert delta.shape == (2, 2, 2)
+        assert list(delta.coords['polarity'].values) == ['neg', 'pos']
 
     def test_multi_center_params(self) -> None:
+        import xarray as xr
         low = np.array([[[2.85, 2.85, 2.85, 2.85]]])
         high = np.array([[[2.89, 2.89, 2.89, 2.89]]])
         result = FitResult(
@@ -508,7 +512,9 @@ class TestComputeDeltaResonanceOrchestrator:
             model_name="ESR15N",
         )
         delta = result._compute_delta_resonance()
-        assert delta.shape == (1, 2, 2, 2)
+        assert isinstance(delta, xr.DataArray)
+        assert delta.shape == (1, 2, 2)
+        assert list(delta.coords['polarity'].values) == ['neg']
 
 
 class TestFitResultValidation:

@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- **QEP-025** — Semantic coordinate labels: `pol_0`/`pol_1` → `neg`/`pos`, `frange_0`/`frange_1` → `low`/`high`
+  in both `ODMRData.from_numpy` and `MatlabLoader`; labels exported as `POLARITY_LABELS`/`FRANGE_LABELS`
+  constants from `QDMpy.odmr.data`
+- **QEP-025** — `delta_resonance` tensor shape `(n_pol, 2, H, W)` → `(n_pol, H, W)` `xr.DataArray`
+  with `polarity` coordinate; sign applied per polarity (neg=-1, pos=+1) — eliminates the ambiguous
+  ±sign axis that previously caused the B111 bug
+- **QEP-025** — `FitResult.b111` returns `xr.Dataset` with `'remanent'` and `'induced'` DataArrays
+  (units='µT'); `b111_remanent` and `b111_induced` properties kept as `.values` shims
+
 ### Performance
 - **QEP-022** — Vectorized `esr14n`, `esr15n`, `esrsingle` model functions: replaced
   Python `for p in parameter` loops with numpy broadcasting over `(N, 1)` × `(n_freq,)`

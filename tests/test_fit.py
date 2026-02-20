@@ -606,8 +606,8 @@ class TestFitManagerValidation:
             np.empty((2, 1, 2, 2, 0)),
             dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
             coords={
-                'polarity': ['pol_0', 'pol_1'],
-                'freq_range': ['frange_0'],
+                'polarity': ['neg', 'pos'],
+                'freq_range': ['low'],
                 'freq_ghz': (['freq_range', 'freq_idx'], np.empty((1, 0))),
             },
         )
@@ -630,8 +630,8 @@ class TestFitManagerValidation:
             data_5d,
             dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
             coords={
-                'polarity': ['pol_0', 'pol_1'],
-                'freq_range': ['frange_0'],
+                'polarity': ['neg', 'pos'],
+                'freq_range': ['low'],
                 'freq_ghz': (['freq_range', 'freq_idx'], few_freqs.reshape(1, -1)),
             },
         )

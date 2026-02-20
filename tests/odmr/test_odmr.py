@@ -17,7 +17,7 @@ from QDMpy.odmr.processors import ODMRProcessorManager
 @pytest.fixture
 def sample_data():
     """Create sample data for testing."""
-    data = np.random.random((2, 3, 100, 50))  # (n_pol, n_frange, n_pixels, n_freqs)
+    data = np.random.random((2, 2, 100, 50))  # (n_pol, n_frange, n_pixels, n_freqs)
     scan_dimensions = (10, 10)
     frequencies = np.linspace(2.87e9, 2.89e9, 50)
     return data, scan_dimensions, frequencies
@@ -60,7 +60,7 @@ class TestODMR:
         assert isinstance(odmr._raw_data, ODMRData)
         assert isinstance(odmr._raw_data.data, xr.DataArray)
         assert odmr._raw_data.scan_dimensions == (10, 10)
-        assert odmr._raw_data.shape == (2, 3, 10, 10, 50)
+        assert odmr._raw_data.shape == (2, 2, 10, 10, 50)
         assert odmr._processed_data is None
         assert odmr.is_processed is False
 

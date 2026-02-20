@@ -14,7 +14,7 @@ from QDMpy.exceptions import DataLoadError, DataValidationError
 from QDMpy.odmr.data import EXPECTED_DIMS, ODMRData
 
 N_POL = 2
-N_FRANGE = 3
+N_FRANGE = 2
 ROWS = 10
 COLS = 10
 N_PIXELS = ROWS * COLS
@@ -67,14 +67,12 @@ class TestFromNumpy:
         assert odmr_data.data.shape == (N_POL, N_FRANGE, ROWS, COLS, N_FREQS)
 
     def test_polarity_coordinates(self, odmr_data) -> None:
-        """Test that polarity coordinates are labelled correctly."""
-        expected = [f'pol_{i}' for i in range(N_POL)]
-        assert list(odmr_data.data.coords['polarity'].values) == expected
+        """Test that polarity coordinates use semantic labels."""
+        assert list(odmr_data.data.coords['polarity'].values) == ['neg', 'pos']
 
     def test_frange_coordinates(self, odmr_data) -> None:
-        """Test that freq_range coordinates are labelled correctly."""
-        expected = [f'frange_{i}' for i in range(N_FRANGE)]
-        assert list(odmr_data.data.coords['freq_range'].values) == expected
+        """Test that freq_range coordinates use semantic labels."""
+        assert list(odmr_data.data.coords['freq_range'].values) == ['low', 'high']
 
     def test_freq_ghz_coordinate_shape(self, odmr_data) -> None:
         """Test that freq_ghz coordinate has shape (n_frange, n_freqs)."""
