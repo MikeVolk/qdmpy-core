@@ -33,9 +33,8 @@ from QDMpy.odmr.manager import ODMR
 if TYPE_CHECKING:
     from os import PathLike
 
-    from QDMpy.fitting.manager import FitManager
-    from QDMpy.odmr.data import ODMRData
     from QDMpy.fitting.result import FitResult
+    from QDMpy.odmr.data import ODMRData
 
 
 def has_csv(lst: Sequence[str | bytes | os.PathLike[Any]]) -> bool:
@@ -295,50 +294,6 @@ class Measurement:
             raise DependencyError(msg)
         return processed_data
 
-    @staticmethod
-    def _extract_fit_parameters(
-        fit_manager: FitManager, model_name: str
-    ) -> dict[str, NDArray]:
-        """Extract fitted parameters and chi2 from a FitManager.
-
-        Args:
-            fit_manager: A fitted FitManager instance.
-            model_name: Model name (for logging).
-
-        Returns:
-            Dictionary of parameter name to NDArray.
-        """
-        parameters: dict[str, NDArray] = {}
-        for param_name in [*fit_manager.parameter_names, 'chi2']:
-            try:
-                parameters[param_name] = fit_manager.get_param(param_name)
-            except (KeyError, AttributeError, ValueError):
-                logger.debug(f"Parameter '{param_name}' not available for model {model_name}")
-        return parameters
-
-    @staticmethod
-    def _compute_quality_metrics(parameters: dict[str, NDArray]) -> dict[str, float]:
-        """Compute fit quality metrics from extracted parameters.
-
-        Args:
-            parameters: Dictionary containing at least 'chi2' and optionally 'states'.
-
-        Returns:
-            Dictionary of quality metric names to values (empty if chi2/states missing).
-        """
-        if 'chi2' not in parameters or 'states' not in parameters:
-            return {}
-        chi2_values = parameters['chi2']
-        states_values = parameters['states']
-        return {
-            'mean_chi2': float(np.mean(chi2_values)),
-            'median_chi2': float(np.median(chi2_values)),
-            'std_chi2': float(np.std(chi2_values)),
-            'convergence_rate': float(np.mean(states_values == 0)),
-            'n_pixels': int(chi2_values.size),
-            'n_converged': int(np.sum(states_values == 0)),
-        }
-
     def fit_odmr(
         self: Self,
         model_name: str | None = None,
@@ -355,47 +310,22 @@ class Measurement:
             FitResult object containing fit results and analysis methods.
 
         Raises:
-            ValueError: If ODMR data hasn't been processed yet.
-            ImportError: If required fitting dependencies are not available.
+            DataNotLoadedError: If ODMR data hasn't been processed yet.
+            DependencyError: If required fitting dependencies are not available.
         """
         from QDMpy.fitting.manager import FitManager
-        from QDMpy.fitting.result import FitResult
 
         model_name = self._detect_model(model_name)
         logger.info(f"Starting ODMR fitting with model: {model_name}")
         processed_data = self._validate_fit_prerequisites()
 
-        fit_manager = FitManager(
-            data=processed_data.data,
-            frequencies=processed_data.frequencies,
-            model_name=model_name,
-            constraints=constraints,
-        )
-        fit_manager.fit_odmr()
-
-        parameters = self._extract_fit_parameters(fit_manager, model_name)
-        quality_metrics = self._compute_quality_metrics(parameters)
-
-        import datetime
-
-        metadata = {
-            'fit_timestamp': datetime.datetime.now().isoformat(),
-            'quality_metrics': quality_metrics,
-            'fit_settings': {'constraints': constraints},
-        }
-
-        result = FitResult(
-            parameters=parameters,
-            scan_dimensions=tuple(processed_data.scan_dimensions),
+        fit_manager = FitManager(model_name=model_name, constraints=constraints)
+        result = fit_manager.fit(
+            processed_data.data,
+            processed_data.frequencies,
             pixel_spacing=self.pixel_spacing,
-            model_name=model_name,
-            metadata=metadata,
         )
 
         logger.info("ODMR fitting completed successfully")
-        logger.info(
-            f"Extracted {len(parameters)} parameters for "
-            f"{np.prod(processed_data.scan_dimensions)} pixels"
-        )
         return result
 

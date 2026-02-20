@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 
 from QDMpy.exceptions import DataNotLoadedError, DependencyError
+from QDMpy.fitting.result import FitResult
 from QDMpy.measurement import Measurement
 from QDMpy.odmr.data import ODMRData
 from QDMpy.odmr.manager import ODMR
@@ -221,6 +222,20 @@ class TestMeasurement:
         )
         assert measurement2._fit_model == 'ESR14N'
 
+    def _make_fit_result(self, model_name: str = 'ESR15N') -> FitResult:
+        """Create a minimal FitResult for mocking fit() return values."""
+        return FitResult(
+            parameters={
+                'center': np.random.random(25),
+                'chi2': np.random.random(25),
+                'states': np.zeros(25, dtype=int),
+            },
+            scan_dimensions=(5, 5),
+            pixel_spacing=4e-6,
+            model_name=model_name,
+            metadata={'fit_timestamp': '2026-01-01', 'quality_metrics': {}},
+        )
+
     def test_fit_odmr_auto_model_detection(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test fit_odmr with automatic model detection."""
         light_image, laser_image = sample_images
@@ -239,28 +254,14 @@ class TestMeasurement:
 
             with patch('QDMpy.fitting.manager.FitManager') as mock_fit_manager:
                 mock_fit_instance = mock_fit_manager.return_value
-                mock_fit_instance.fitted = True
-                mock_fit_instance.model_name = 'ESR15N'
-                mock_fit_instance.parameter_names = [
-                    'contrast', 'center', 'width_0', 'offset',
-                ]
-                test_params = {
-                    'center': np.random.random(25),
-                    'width_0': np.random.random(25),
-                    'contrast': np.random.random(25),
-                    'offset': np.random.random(25),
-                    'chi2': np.random.random(25),
-                    'states': np.random.choice([0, 1], 25),
-                }
-                mock_fit_instance.get_param.side_effect = lambda param: test_params.get(param)
+                expected_result = self._make_fit_result('ESR15N')
+                mock_fit_instance.fit.return_value = expected_result
 
                 with patch('QDMpy.is_pygpufit_available', return_value=True):
                     result = measurement.fit_odmr()
 
-                mock_guess.assert_called_once()
                 mock_fit_manager.assert_called_once()
 
-                from QDMpy.fitting.result import FitResult
                 assert isinstance(result, FitResult)
                 assert result.model_name == 'ESR15N'
 
@@ -277,30 +278,15 @@ class TestMeasurement:
 
         with patch('QDMpy.fitting.manager.FitManager') as mock_fit_manager:
             mock_fit_instance = mock_fit_manager.return_value
-            mock_fit_instance.fitted = True
-            mock_fit_instance.model_name = 'ESR14N'
-            mock_fit_instance.parameter_names = [
-                'center', 'width', 'contrast_0', 'contrast_1', 'contrast_2', 'offset',
-            ]
-            test_params = {
-                'contrast_0': np.random.random(25),
-                'center': np.random.random(25),
-                'width': np.random.random(25),
-                'contrast_1': np.random.random(25),
-                'contrast_2': np.random.random(25),
-                'offset': np.random.random(25),
-                'chi2': np.random.random(25),
-                'states': np.random.choice([0, 1], 25),
-            }
-            mock_fit_instance.get_param.side_effect = lambda param: test_params.get(param)
+            expected_result = self._make_fit_result('ESR14N')
+            mock_fit_instance.fit.return_value = expected_result
 
             with patch('QDMpy.is_pygpufit_available', return_value=True):
                 result = measurement.fit_odmr(model_name='ESR14N')
 
-            args, kwargs = mock_fit_manager.call_args
+            _, kwargs = mock_fit_manager.call_args
             assert kwargs.get('model_name') == 'ESR14N'
 
-            from QDMpy.fitting.result import FitResult
             assert isinstance(result, FitResult)
             assert result.model_name == 'ESR14N'
 
@@ -320,7 +306,7 @@ class TestMeasurement:
             measurement.fit_odmr()
 
     def test_fit_odmr_data_extraction(self, sample_odmr, sample_images, temp_output_dir) -> None:
-        """Test that fit_odmr properly extracts data for fitting."""
+        """Test that fit_odmr passes pixel_spacing to fit()."""
         light_image, laser_image = sample_images
         measurement = Measurement(
             odmr=sample_odmr,
@@ -332,31 +318,19 @@ class TestMeasurement:
 
         with patch('QDMpy.fitting.manager.FitManager') as mock_fit_manager:
             mock_fit_instance = mock_fit_manager.return_value
-            mock_fit_instance.fitted = True
-            mock_fit_instance.model_name = 'ESRSINGLE'
-            mock_fit_instance.parameter_names = [
-                'center', 'width', 'contrast', 'offset',
-            ]
-            mock_fit_instance.get_param.side_effect = lambda param: {
-                'contrast': np.random.random(25),
-                'center': np.random.random(25),
-                'width': np.random.random(25),
-                'offset': np.random.random(25),
-                'chi2': np.random.random(25),
-            }.get(param)
+            expected_result = self._make_fit_result('ESRSINGLE')
+            # Override pixel_spacing to verify it was passed
+            object.__setattr__(expected_result, 'pixel_spacing', 5e-6)
+            mock_fit_instance.fit.return_value = expected_result
 
             with patch('QDMpy.is_pygpufit_available', return_value=True):
-                result = measurement.fit_odmr()
+                measurement.fit_odmr()
 
-            args, kwargs = mock_fit_manager.call_args
-            # First arg should be the xr.DataArray from processed_data
-            import xarray as xr
-            assert isinstance(kwargs.get('data', args[0] if args else None), xr.DataArray)
-
-            assert result.pixel_spacing == 5e-6
+            _, fit_kwargs = mock_fit_instance.fit.call_args
+            assert fit_kwargs.get('pixel_spacing') == 5e-6
 
     def test_fit_odmr_metadata_preservation(self, sample_odmr, sample_images, temp_output_dir) -> None:
-        """Test that fit_odmr preserves and includes measurement metadata."""
+        """Test that fit_odmr returns a FitResult with metadata from fit()."""
         light_image, laser_image = sample_images
         measurement = Measurement(
             odmr=sample_odmr,
@@ -364,31 +338,17 @@ class TestMeasurement:
             laser_image=laser_image,
             output_directory=temp_output_dir,
         )
-        measurement.metadata['test_key'] = 'test_value'
 
         with patch('QDMpy.fitting.manager.FitManager') as mock_fit_manager:
             mock_fit_instance = mock_fit_manager.return_value
-            mock_fit_instance.fitted = True
-            mock_fit_instance.model_name = 'ESRSINGLE'
-            mock_fit_instance.parameter_names = [
-                'center', 'width', 'contrast', 'offset',
-            ]
-            test_params = {
-                'center': np.random.random(25),
-                'width': np.random.random(25),
-                'contrast': np.random.random(25),
-                'offset': np.random.random(25),
-                'chi2': np.random.random(25),
-                'states': np.random.choice([0, 1], 25),
-            }
-            mock_fit_instance.get_param.side_effect = lambda param: test_params.get(param)
+            expected_result = self._make_fit_result('ESRSINGLE')
+            mock_fit_instance.fit.return_value = expected_result
 
             with patch('QDMpy.is_pygpufit_available', return_value=True):
                 result = measurement.fit_odmr()
 
             assert 'fit_timestamp' in result.metadata
             assert 'quality_metrics' in result.metadata
-            assert 'fit_settings' in result.metadata
 
 
 class TestDetectModel:
@@ -447,47 +407,3 @@ class TestValidateFitPrerequisites:
                 m._validate_fit_prerequisites()
 
 
-class TestExtractFitParameters:
-    """Tests for Measurement._extract_fit_parameters."""
-
-    def test_extracts_model_params_and_chi2(self) -> None:
-        from unittest.mock import MagicMock
-        fm = MagicMock()
-        fm.parameter_names = ['center', 'width']
-        params = {
-            'center': np.array([1.0, 2.0]),
-            'width': np.array([0.1, 0.2]),
-            'chi2': np.array([0.5, 0.6]),
-        }
-        fm.get_param.side_effect = lambda p: params[p]
-        result = Measurement._extract_fit_parameters(fm, 'TEST')
-        assert set(result.keys()) == {'center', 'width', 'chi2'}
-
-    def test_skips_unavailable_params(self) -> None:
-        from unittest.mock import MagicMock
-        fm = MagicMock()
-        fm.parameter_names = ['center', 'missing']
-        fm.get_param.side_effect = lambda p: ({'center': np.array([1.0])}[p]
-                                               if p in {'center'} else (_ for _ in ()).throw(KeyError(p)))
-        result = Measurement._extract_fit_parameters(fm, 'TEST')
-        assert 'center' in result
-        assert 'missing' not in result
-
-
-class TestComputeQualityMetrics:
-    """Tests for Measurement._compute_quality_metrics."""
-
-    def test_with_chi2_and_states(self) -> None:
-        params = {
-            'chi2': np.array([1.0, 2.0, 3.0]),
-            'states': np.array([0, 0, 1]),
-        }
-        metrics = Measurement._compute_quality_metrics(params)
-        assert metrics['mean_chi2'] == pytest.approx(2.0)
-        assert metrics['n_pixels'] == 3
-        assert metrics['n_converged'] == 2
-        assert metrics['convergence_rate'] == pytest.approx(2.0 / 3.0)
-
-    def test_empty_when_missing_keys(self) -> None:
-        assert Measurement._compute_quality_metrics({'chi2': np.array([1.0])}) == {}
-        assert Measurement._compute_quality_metrics({}) == {}

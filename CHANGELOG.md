@@ -7,6 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- **QEP-029** — `FitManager.__init__` no longer accepts `data` or `frequencies`; configuration
+  only (model, constraints, settings). Call `fit_manager.fit(data, frequencies)` to run fitting
+  and receive a `FitResult` directly. Same `FitManager` instance can be reused across calls.
+- **QEP-029** — Auto model detection deferred to first `fit()` call when `model_name='auto'`
+- **QEP-029** — `Measurement.fit_odmr()` delegates entirely to `FitManager.fit()`;
+  removed `_extract_fit_parameters()` and `_compute_quality_metrics()` private helpers
+- **QEP-029** — `reshape_results` / `reshape_result` replaced by `_reshape_frange_results(raw, data_shape)`
+  taking explicit `data_shape` arg — no more `_current_data_shape` instance variable
+
+### Removed
+- **QEP-029** — Removed `FitManager.fit_odmr()`, `data` property/setter, `_reset_fit()`,
+  `parameter` property, `get_param()`, `initial_parameter` property, `get_initial_parameter()`,
+  `fitted` property, `_flat_data` property, `_current_data_shape` instance variable
+- **QEP-029** — Removed `Measurement._extract_fit_parameters()` and
+  `Measurement._compute_quality_metrics()` static methods (quality metrics now in `FitManager.fit()`)
+
 ### Removed
 - **QEP-032** — Deleted 7 backward-compatibility shim files (`fit.py`, `result.py`, `models.py`,
   `guess.py`, `io.py`, `odmr/odmr.py`, `odmr/validation.py`); use canonical paths in `fitting/`
