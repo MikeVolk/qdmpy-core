@@ -18,7 +18,8 @@ import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
 
-from QDMpy import get_settings, is_pygpufit_available
+from QDMpy import is_pygpufit_available
+from QDMpy.settings import get_settings
 from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
 from QDMpy.exceptions import (
     DataValidationError,
@@ -68,9 +69,9 @@ class ConstraintManager:
         for param in self._model.parameter_names:
             base_param = self._model.parameter_types[param]
             self._constraints[param] = [
-                getattr(settings, f'{base_param}_min'),
-                getattr(settings, f'{base_param}_max'),
-                getattr(settings, f'{base_param}_type'),
+                getattr(settings, f"{base_param}_min"),
+                getattr(settings, f"{base_param}_max"),
+                getattr(settings, f"{base_param}_type"),
                 units[param],
             ]
 
@@ -111,9 +112,7 @@ class ConstraintManager:
         """
         return self._constraints
 
-    def to_array(
-        self: Self, n_pixel: int, parameter_names: list[str]
-    ) -> NDArray:
+    def to_array(self: Self, n_pixel: int, parameter_names: list[str]) -> NDArray:
         """Convert constraints to array format for GPU fitting.
 
         All frequency values are kept in GHz, matching the GPU kernel convention
@@ -227,21 +226,21 @@ class ParameterGuesser:
             param_type = self._model.parameter_types[param_name]
             logger.debug(f"Guessing {param_type} parameters")
 
-            if param_type == 'center':
+            if param_type == "center":
                 param_values = cumsum_center(flat_data, self._f_ghz)
-            elif param_type == 'contrast':
+            elif param_type == "contrast":
                 param_values = cumsum_contrast(flat_data)
-            elif param_type == 'width':
+            elif param_type == "width":
                 # Use model-specific cumsum thresholds; tighter window for multi-peak models.
                 # Matches QDMpy_old._core.fit.Fit._cumsum_width() n_peaks-based selection.
-                if self._model.n_peaks == 2:    # ESR15N: two close hyperfine lines
+                if self._model.n_peaks == 2:  # ESR15N: two close hyperfine lines
                     vmin, vmax = 0.4, 0.6
                 elif self._model.n_peaks == 3:  # ESR14N: three hyperfine lines
                     vmin, vmax = 0.35, 0.65
-                else:                           # ESRSINGLE: single dip
+                else:  # ESRSINGLE: single dip
                     vmin, vmax = DEFAULT_VMIN, DEFAULT_VMAX
                 param_values = cumsum_width(flat_data, self._f_ghz, vmin, vmax)
-            elif param_type == 'offset':
+            elif param_type == "offset":
                 param_values = np.zeros((n_pol, n_frange, n_pixel))
             else:
                 msg = f"Unknown parameter type: {param_type}"
@@ -268,7 +267,7 @@ class FitManager:
 
     def __init__(
         self: Self,
-        model_name: str = 'ESR14N',
+        model_name: str = "ESR14N",
         constraints: dict[str, Any] | None = None,
         *,
         settings: QDMpySettings | None = None,
@@ -290,7 +289,7 @@ class FitManager:
         )
         self.estimator_id = ESTIMATOR_ID[self._settings.fit.estimator]
 
-        if model_name == 'auto':
+        if model_name == "auto":
             self._model: Model | None = None
             self._constraint_manager: ConstraintManager | None = None
             self._pending_constraints: dict[str, Any] = constraints or {}
@@ -323,24 +322,23 @@ class FitManager:
             DataValidationError: If inputs fail validation.
         """
         if data.size == 0:
-            msg = 'Cannot fit empty data array'
+            msg = "Cannot fit empty data array"
             raise DataValidationError(msg)
 
         freq_2d = np.atleast_2d(frequencies)
-        n_freq_data = data.sizes.get('freq_idx', data.shape[-1])
+        n_freq_data = data.sizes.get("freq_idx", data.shape[-1])
         n_freq_array = freq_2d.shape[-1]
         if n_freq_data != n_freq_array:
             msg = (
-                f'Data freq_idx dimension ({n_freq_data}) must match '
-                f'frequency count ({n_freq_array})'
+                f"Data freq_idx dimension ({n_freq_data}) must match "
+                f"frequency count ({n_freq_array})"
             )
             raise DataValidationError(msg)
 
         min_freq_points = 10
         if n_freq_array < min_freq_points:
             msg = (
-                f'Need at least {min_freq_points} frequency points '
-                f'for fitting, got {n_freq_array}'
+                f"Need at least {min_freq_points} frequency points for fitting, got {n_freq_array}"
             )
             raise DataValidationError(msg)
 
@@ -356,12 +354,10 @@ class FitManager:
             self._model = guess_model(flat_data)
         except ModelGuessNotPossibleError as e:
             logger.warning(f"Could not auto-detect model: {e}")
-            self._model = ModelRegistry.get('ESRSINGLE')
+            self._model = ModelRegistry.get("ESRSINGLE")
             logger.info(f"Defaulting to {self._model.name} model")
         logger.info(f"Auto-resolved model: {self._model.name}")
-        self._constraint_manager = ConstraintManager(
-            self._model, self._settings.model.constraints
-        )
+        self._constraint_manager = ConstraintManager(self._model, self._settings.model.constraints)
         for param, constraint in self._pending_constraints.items():
             self.set_constraints(param, **constraint)
         self._pending_constraints = {}
@@ -388,7 +384,7 @@ class FitManager:
             DataValidationError: If data or frequencies fail validation.
         """
         if not self._gpu_available:
-            msg = 'pyGpufit is required for fitting but not installed'
+            msg = "pyGpufit is required for fitting but not installed"
             raise DependencyError(msg)
 
         self._validate_inputs(data, frequencies)
@@ -416,9 +412,7 @@ class FitManager:
         for irange in range(n_frange):
             freq_min = f_ghz[irange].min()
             freq_max = f_ghz[irange].max()
-            logger.info(
-                f"Fitting frequency range {irange} from {freq_min:.3f}-{freq_max:.3f} GHz"
-            )
+            logger.info(f"Fitting frequency range {irange} from {freq_min:.3f}-{freq_max:.3f} GHz")
             raw = self.fit_frange(flat_data[:, irange], f_ghz[irange], initial_params[:, irange])
             shaped = self._reshape_frange_results(raw, data_shape=flat_data[:, irange].shape)
             all_params[irange] = shaped[0]
@@ -431,27 +425,27 @@ class FitManager:
         # Transpose from (n_frange, n_pol, ...) to (n_pol, n_frange, ...)
         params_pf = np.swapaxes(all_params, 0, 1)  # (n_pol, n_frange, n_pixel, n_params)
         states_pf = np.swapaxes(all_states, 0, 1)  # (n_pol, n_frange, n_pixel)
-        chi2_pf = np.swapaxes(all_chi2, 0, 1)      # (n_pol, n_frange, n_pixel)
+        chi2_pf = np.swapaxes(all_chi2, 0, 1)  # (n_pol, n_frange, n_pixel)
 
         parameters: dict[str, NDArray] = {}
         for idx, param_name in enumerate(model.parameter_names):
             parameters[param_name] = params_pf[:, :, :, idx]
-        parameters['chi2'] = chi2_pf
-        parameters['states'] = states_pf
+        parameters["chi2"] = chi2_pf
+        parameters["states"] = states_pf
 
-        scan_dimensions = (data.sizes['y'], data.sizes['x'])
+        scan_dimensions = (data.sizes["y"], data.sizes["x"])
         quality_metrics = {
-            'mean_chi2': float(np.mean(chi2_pf)),
-            'median_chi2': float(np.median(chi2_pf)),
-            'std_chi2': float(np.std(chi2_pf)),
-            'convergence_rate': float(np.mean(states_pf == 0)),
-            'n_pixels': int(chi2_pf.size),
-            'n_converged': int(np.sum(states_pf == 0)),
-            'total_fit_time': sum(exec_times),
+            "mean_chi2": float(np.mean(chi2_pf)),
+            "median_chi2": float(np.median(chi2_pf)),
+            "std_chi2": float(np.std(chi2_pf)),
+            "convergence_rate": float(np.mean(states_pf == 0)),
+            "n_pixels": int(chi2_pf.size),
+            "n_converged": int(np.sum(states_pf == 0)),
+            "total_fit_time": sum(exec_times),
         }
         metadata = {
-            'fit_timestamp': datetime.datetime.now().isoformat(),
-            'quality_metrics': quality_metrics,
+            "fit_timestamp": datetime.datetime.now().isoformat(),
+            "quality_metrics": quality_metrics,
         }
 
         return FitResult(
@@ -464,7 +458,7 @@ class FitManager:
 
     def __repr__(self: Self) -> str:
         """Return a developer-friendly string representation."""
-        model_name = self._model.name if self._model is not None else 'auto'
+        model_name = self._model.name if self._model is not None else "auto"
         return f"FitManager(model: {model_name})"
 
     @property
@@ -483,7 +477,7 @@ class FitManager:
         Returns:
             Model name string (e.g., 'ESR14N', 'ESR15N', 'ESRSINGLE', 'auto').
         """
-        return self._model.name if self._model is not None else 'auto'
+        return self._model.name if self._model is not None else "auto"
 
     @model_name.setter
     def model_name(self: Self, model_name: str) -> None:
@@ -493,9 +487,7 @@ class FitManager:
             msg = f"Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}"
             raise ModelNotFoundError(msg) from e
         logger.debug(f"Setting model to {model_name}")
-        self._constraint_manager = ConstraintManager(
-            self._model, self._settings.model.constraints
-        )
+        self._constraint_manager = ConstraintManager(self._model, self._settings.model.constraints)
 
     @property
     def parameter_names(self: Self) -> list[str]:
@@ -505,7 +497,7 @@ class FitManager:
             List of parameter names for the current model.
         """
         if self._model is None:
-            msg = 'Model not yet resolved; call fit() first or specify model_name'
+            msg = "Model not yet resolved; call fit() first or specify model_name"
             raise RuntimeError(msg)
         return self._model.parameter_names
 
@@ -517,7 +509,7 @@ class FitManager:
             Number of parameters for the current model.
         """
         if self._model is None:
-            msg = 'Model not yet resolved; call fit() first or specify model_name'
+            msg = "Model not yet resolved; call fit() first or specify model_name"
             raise RuntimeError(msg)
         return self._model.n_parameters
 
@@ -540,7 +532,7 @@ class FitManager:
             RuntimeError: If called before model is resolved (auto mode).
         """
         if self._constraint_manager is None:
-            msg = 'Model not yet resolved; call fit() first or specify model_name'
+            msg = "Model not yet resolved; call fit() first or specify model_name"
             raise RuntimeError(msg)
 
         if isinstance(constraint_type, int):
@@ -553,32 +545,36 @@ class FitManager:
                 )
                 raise ParameterError(msg)
 
-        is_base_param = param == 'contrast' and any(
-            'contrast_' in p for p in self.parameter_names
-        )
+        is_base_param = param == "contrast" and any("contrast_" in p for p in self.parameter_names)
 
         if is_base_param:
-            contrast_params = [p for p in self.parameter_names if p.startswith('contrast_')]
+            contrast_params = [p for p in self.parameter_names if p.startswith("contrast_")]
             for contrast_param in contrast_params:
                 logger.debug(
                     "Setting constraints for %s: vmin=%s, vmax=%s, type=%s",
-                    contrast_param, vmin, vmax, constraint_type,
+                    contrast_param,
+                    vmin,
+                    vmax,
+                    constraint_type,
                 )
                 self._constraint_manager.set_constraint(contrast_param, vmin, vmax, constraint_type)
         else:
             logger.debug(
                 "Setting constraints for %s: vmin=%s, vmax=%s, type=%s",
-                param, vmin, vmax, constraint_type,
+                param,
+                vmin,
+                vmax,
+                constraint_type,
             )
             self._constraint_manager.set_constraint(param, vmin, vmax, constraint_type)
 
     def set_free_constraints(self: Self) -> None:
         """Remove all constraints by setting all parameters to FREE."""
         if self._constraint_manager is None:
-            msg = 'Model not yet resolved; call fit() first or specify model_name'
+            msg = "Model not yet resolved; call fit() first or specify model_name"
             raise RuntimeError(msg)
         for param in self.parameter_names:
-            self._constraint_manager.set_constraint(param, constraint_type='FREE')
+            self._constraint_manager.set_constraint(param, constraint_type="FREE")
 
     @property
     def constraints(self: Self) -> dict[str, list[Any]]:
@@ -588,7 +584,7 @@ class FitManager:
             Dictionary mapping parameter names to constraint lists.
         """
         if self._constraint_manager is None:
-            msg = 'Model not yet resolved; call fit() first or specify model_name'
+            msg = "Model not yet resolved; call fit() first or specify model_name"
             raise RuntimeError(msg)
         return self._constraint_manager.get_constraints()
 
@@ -602,7 +598,7 @@ class FitManager:
             NDArray of shape (n_pixel, 2*n_params) with constraint bounds.
         """
         if self._constraint_manager is None:
-            msg = 'Model not yet resolved; call fit() first or specify model_name'
+            msg = "Model not yet resolved; call fit() first or specify model_name"
             raise RuntimeError(msg)
         return self._constraint_manager.to_array(n_pixel, self.parameter_names)
 
@@ -613,20 +609,21 @@ class FitManager:
             NDArray of constraint type indices.
         """
         if self._constraint_manager is None:
-            msg = 'Model not yet resolved; call fit() first or specify model_name'
+            msg = "Model not yet resolved; call fit() first or specify model_name"
             raise RuntimeError(msg)
         return self._constraint_manager.get_constraint_types(self.parameter_names)
 
     def _param_idx(self: Self, parameter: str) -> list[int]:
         if self._model is None:
-            msg = 'Model not yet resolved'
+            msg = "Model not yet resolved"
             raise RuntimeError(msg)
-        if parameter == 'resonance':
-            parameter = 'center'
-        if parameter == 'mean_contrast':
-            parameter = 'contrast'
+        if parameter == "resonance":
+            parameter = "center"
+        if parameter == "mean_contrast":
+            parameter = "contrast"
         idx = [
-            i for i, p in enumerate(self._model.parameter_names)
+            i
+            for i, p in enumerate(self._model.parameter_names)
             if self._model.parameter_types[p] == parameter
         ]
         if not idx:
