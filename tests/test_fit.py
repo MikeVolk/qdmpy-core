@@ -438,7 +438,6 @@ class TestConstraintManager:
         assert_array_equal(constraint_types, expected_types)
 
 
-@pytest.mark.skip(reason='Requires pyGpufit installation')
 class TestFitting:
     """Test fitting methods of the FitManager class."""
 
