@@ -10,7 +10,7 @@ from typing import ClassVar
 
 import numpy as np
 import pytest
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_allclose, assert_array_equal
 
 from QDMpy.constants import AHYP_14N, AHYP_15N
 from QDMpy.fitting.models import (
@@ -23,6 +23,12 @@ from QDMpy.fitting.models import (
     esr15n,
     esrsingle,
 )
+
+try:
+    import pygpufit.gpufit  # noqa: F401
+    _HAS_GPUFIT = True
+except ImportError:
+    _HAS_GPUFIT = False
 
 
 class TestModelFunctions:
@@ -580,6 +586,82 @@ def test_main_demo_function() -> None:
     # Verify the output matches what we expect
     output = captured_output.getvalue()
     assert output == "4\n"
+
+
+@pytest.mark.skipif(not _HAS_GPUFIT, reason='Requires pyGpufit installation')
+class TestGpufitConsistency:
+    """Verify Python model functions match the corresponding gpufit GPU kernels.
+
+    Strategy: generate noiseless synthetic spectra from known parameters using
+    the Python model, then fit them with gpufit using the matching GPU kernel
+    (starting from the true parameters). If the Python and GPU implementations
+    agree, chi2 will be ≈ 0 and recovered parameters will match the ground truth
+    within float32 precision. A mismatch produces nonzero chi2 even at the true
+    params and causes the fits to diverge.
+    """
+
+    N = 64
+    N_FREQ = 50
+    FREQ = np.linspace(2.82, 2.92, N_FREQ, dtype=np.float32)
+
+    def _run(self, model_name: str, true_params: np.ndarray) -> None:
+        from QDMpy.fitting.manager import FitManager
+        from QDMpy.fitting.models import ModelRegistry
+
+        model = ModelRegistry.get(model_name)
+        spectra = model.func(self.FREQ, true_params).astype(np.float32)  # (N, n_freq)
+
+        fm = FitManager(model_name=model_name)
+        # fit_frange expects (n_pol, n_pixel, n_freq) — use n_pol=1
+        data = spectra[np.newaxis]            # (1, N, n_freq)
+        init = true_params[np.newaxis]        # (1, N, n_params)
+
+        results = fm.fit_frange(data, self.FREQ, init)
+        recovered = results[0].reshape(-1, model.n_parameters)  # (N, n_params)
+        states = results[1].flatten()
+        chi2 = results[2].flatten()
+
+        assert np.all(states == 0), (
+            f'{model_name}: some fits did not converge — states: {np.unique(states, return_counts=True)}'
+        )
+        assert np.all(chi2 < 1e-6), (
+            f'{model_name}: nonzero chi2 suggests model mismatch — max chi2={chi2.max():.2e}'
+        )
+        assert_allclose(recovered, true_params, rtol=1e-2, atol=1e-5,
+                        err_msg=f'{model_name}: recovered params differ from ground truth')
+
+    def test_esr14n_matches_gpufit(self) -> None:
+        """Python esr14n must match the ESR14N gpufit kernel (model_id=13)."""
+        rng = np.random.default_rng(0)
+        params = np.empty((self.N, 6), dtype=np.float32)
+        params[:, 0] = rng.uniform(2.85, 2.89, self.N)   # center (GHz)
+        params[:, 1] = rng.uniform(0.002, 0.005, self.N) # width (GHz)
+        params[:, 2] = rng.uniform(0.05, 0.15, self.N)   # contrast_0
+        params[:, 3] = rng.uniform(0.05, 0.20, self.N)   # contrast_1
+        params[:, 4] = rng.uniform(0.05, 0.15, self.N)   # contrast_2
+        params[:, 5] = rng.uniform(-0.01, 0.01, self.N)  # offset
+        self._run('ESR14N', params)
+
+    def test_esr15n_matches_gpufit(self) -> None:
+        """Python esr15n must match the ESR15N gpufit kernel (model_id=14)."""
+        rng = np.random.default_rng(1)
+        params = np.empty((self.N, 5), dtype=np.float32)
+        params[:, 0] = rng.uniform(2.85, 2.89, self.N)
+        params[:, 1] = rng.uniform(0.002, 0.005, self.N)
+        params[:, 2] = rng.uniform(0.05, 0.20, self.N)
+        params[:, 3] = rng.uniform(0.05, 0.20, self.N)
+        params[:, 4] = rng.uniform(-0.01, 0.01, self.N)
+        self._run('ESR15N', params)
+
+    def test_esrsingle_matches_gpufit(self) -> None:
+        """Python esrsingle must match the ESRSINGLE gpufit kernel (model_id=15)."""
+        rng = np.random.default_rng(2)
+        params = np.empty((self.N, 4), dtype=np.float32)
+        params[:, 0] = rng.uniform(2.85, 2.89, self.N)
+        params[:, 1] = rng.uniform(0.002, 0.005, self.N)
+        params[:, 2] = rng.uniform(0.05, 0.30, self.N)
+        params[:, 3] = rng.uniform(-0.01, 0.01, self.N)
+        self._run('ESRSINGLE', params)
 
 
 if __name__ == "__main__":
