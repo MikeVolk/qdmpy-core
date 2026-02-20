@@ -23,7 +23,6 @@ from QDMpy.exceptions import (
     DataValidationError,
     ModelGuessNotPossibleError,
     ModelNotFoundError,
-    ParameterError,
 )
 from QDMpy.fitting.models import ModelRegistry
 
@@ -114,41 +113,12 @@ def get_model_by_peaks(n_peaks: int) -> Model:
     raise ModelNotFoundError(msg)
 
 
-def guess_initial_fit_parameters(data: NDArray, freq: NDArray, model: Model) -> NDArray:
-    """Guess initial fit parameters based on the selected model.
-
-    Args:
-        data: 4D array (n_pol, n_frange, n_pixel, n_freq).
-        freq: Frequency array.
-        model: Model instance.
-
-    Returns:
-        Initial parameters array (n_pol, n_frange, n_pixel, n_params).
-    """
-    from QDMpy.exceptions import ParameterError
-
-    parameter_guessers = {
-        "center": lambda: guess_center(data, freq),
-        "contrast": lambda: guess_contrast(data),
-        "width": lambda: guess_width(data, freq, DEFAULT_VMIN, DEFAULT_VMAX),
-        "offset": lambda: np.ones((data.shape[0], data.shape[1], data.shape[2])),
-    }
-
-    fit_parameters = []
-    for param in model.parameter_names:
-        param_type = model.parameter_types[param]
-        if param_type in parameter_guessers:
-            fit_parameters.append(parameter_guessers[param_type]())
-        else:
-            msg = f"Parameter '{param}' has no defined guess method."
-            raise ParameterError(msg)
-
-    return np.stack(fit_parameters, axis=-1)
-
-
 @njit(parallel=True, fastmath=True)
-def guess_contrast(data: NDArray) -> NDArray:  # pragma: no cover
-    """Estimate contrast for each pixel.
+def cumsum_contrast(data: NDArray) -> NDArray:  # pragma: no cover
+    """Estimate contrast for each pixel using a single flat parallel loop.
+
+    Flattens (n_pol, n_frange, n_pixel) into one prange, exposing all pixels
+    across all polarities and frequency ranges to the thread pool simultaneously.
 
     Args:
         data: 4D array (n_pol, n_frange, n_pixel, n_freq).
@@ -156,81 +126,64 @@ def guess_contrast(data: NDArray) -> NDArray:  # pragma: no cover
     Returns:
         3D array (n_pol, n_frange, n_pixel).
     """
-    n_pol, n_frange, n_pixel, n_freq = data.shape
+    n_pol, n_frange, n_pixel, _ = data.shape
+    total = n_pol * n_frange * n_pixel
     amp = np.zeros((n_pol, n_frange, n_pixel))
-    for p in range(n_pol):
-        for r in range(n_frange):
-            for px in prange(n_pixel):  # type: ignore[not-iterable]
-                amp[p, r, px] = guess_contrast_pixel(data[p, r, px, :])
+    for idx in prange(total):  # type: ignore[not-iterable]
+        px = idx % n_pixel
+        r  = (idx // n_pixel) % n_frange
+        p  = idx // (n_pixel * n_frange)
+        mx = np.nanmax(data[p, r, px])
+        mn = np.nanmin(data[p, r, px])
+        amp[p, r, px] = 0.0 if mx == 0.0 else abs((mx - mn) / mx)
     return amp
 
 
-@njit(fastmath=True)
-def guess_contrast_pixel(pixel: NDArray) -> float:  # pragma: no cover
-    """Estimate contrast for a single pixel's frequency spectrum."""
-    mx, mn = np.nanmax(pixel), np.nanmin(pixel)
-    return 0 if mx == 0 else abs((mx - mn) / mx)
-
-
 @njit(parallel=True, fastmath=True)
-def guess_center(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
-    """Guess the center frequency for each pixel.
+def cumsum_center(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
+    """Guess the center frequency for each pixel using a single flat parallel loop.
 
     Args:
         data: 4D array (n_pol, n_frange, n_pixel, n_freq).
-        freq: Frequency array.
+        freq: 2D frequency array (n_frange, n_freq).
 
     Returns:
         3D array (n_pol, n_frange, n_pixel).
     """
-    n_pol, n_frange, n_pixel, n_freq = data.shape
+    n_pol, n_frange, n_pixel, _ = data.shape
+    total = n_pol * n_frange * n_pixel
     centers = np.zeros((n_pol, n_frange, n_pixel))
-    for p in range(n_pol):
-        for r in range(n_frange):
-            for px in prange(n_pixel):  # type: ignore[not-iterable]
-                centers[p, r, px] = guess_center_pixel(data[p, r, px, :], freq[r])
+    for idx in prange(total):  # type: ignore[not-iterable]
+        px = idx % n_pixel
+        r  = (idx // n_pixel) % n_frange
+        p  = idx // (n_pixel * n_frange)
+        norm = normalize_pixel(data[p, r, px])
+        centers[p, r, px] = freq[r, np.argmin(np.abs(norm - 0.5))]
     return centers
 
 
-@njit(fastmath=True)
-def guess_center_pixel(pixel: NDArray, freq: NDArray) -> float:  # pragma: no cover
-    """Guess center frequency of a single pixel."""
-    normalized = normalize_pixel(pixel)
-    idx = np.argmin(np.abs(normalized - 0.5))
-    return freq[idx]
-
-
 @njit(parallel=True, fastmath=True)
-def guess_width(data: NDArray, freq: NDArray, vmin: float, vmax: float) -> NDArray:  # pragma: no cover
-    """Guess width of ODMR resonance peaks.
+def cumsum_width(data: NDArray, freq: NDArray, vmin: float, vmax: float) -> NDArray:  # pragma: no cover
+    """Guess width of ODMR resonance peaks using a single flat parallel loop.
 
     Args:
         data: 4D array (n_pol, n_frange, n_pixel, n_freq).
-        freq: Frequency array.
-        vmin: Min normalized cumsum value.
-        vmax: Max normalized cumsum value.
+        freq: 2D frequency array (n_frange, n_freq).
+        vmin: Min normalized cumsum threshold.
+        vmax: Max normalized cumsum threshold.
 
     Returns:
         3D array (n_pol, n_frange, n_pixel).
     """
-    n_pol, n_frange, n_pixel, n_freq = data.shape
+    n_pol, n_frange, n_pixel, _ = data.shape
+    total = n_pol * n_frange * n_pixel
     widths = np.zeros((n_pol, n_frange, n_pixel))
-    for p in range(n_pol):
-        for r in range(n_frange):
-            for px in prange(n_pixel):  # type: ignore[not-iterable]
-                widths[p, r, px] = guess_width_pixel(
-                    data[p, r, px, :],
-                    freq[r],
-                    vmin,
-                    vmax,
-                )
+    for idx in prange(total):  # type: ignore[not-iterable]
+        px = idx % n_pixel
+        r  = (idx // n_pixel) % n_frange
+        p  = idx // (n_pixel * n_frange)
+        norm = normalize_pixel(data[p, r, px])
+        lidx = np.argmin(np.abs(norm - vmin))
+        ridx = np.argmin(np.abs(norm - vmax))
+        widths[p, r, px] = abs(freq[r, ridx] - freq[r, lidx])
     return widths
-
-
-@njit(fastmath=True)
-def guess_width_pixel(pixel: NDArray, freq: NDArray, vmin: float, vmax: float) -> float:  # pragma: no cover
-    """Guess width of a single pixel's resonance."""
-    normalized = normalize_pixel(pixel)
-    lidx = np.argmin(np.abs(normalized - vmin))
-    ridx = np.argmin(np.abs(normalized - vmax))
-    return abs(freq[ridx] - freq[lidx])

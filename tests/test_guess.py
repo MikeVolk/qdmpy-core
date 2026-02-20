@@ -6,7 +6,7 @@ processing and fitting.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -17,19 +17,14 @@ from QDMpy.exceptions import (
     DataValidationError,
     ModelGuessNotPossibleError,
     ModelNotFoundError,
-    ParameterError,
 )
 from QDMpy.guess import (
     get_model_by_peaks,
-    guess_center,
-    guess_center_pixel,
-    guess_contrast,
-    guess_contrast_pixel,
-    guess_initial_fit_parameters,
+    cumsum_center,
+    cumsum_contrast,
     guess_model,
     guess_n_peaks,
-    guess_width,
-    guess_width_pixel,
+    cumsum_width,
     normalize_pixel,
     validate_array,
 )
@@ -76,12 +71,6 @@ def frequency_range():
     """
     freq_1d = np.linspace(2.87, 2.89, 100)
     return np.tile(freq_1d, (3, 1))  # (3 freq ranges, 100 freqs)
-
-
-@pytest.fixture
-def frequency_range_1d():
-    """Create a 1D frequency range for single-pixel tests."""
-    return np.linspace(2.87, 2.89, 100)
 
 
 @pytest.fixture
@@ -272,34 +261,12 @@ class TestNormalizePixel:
         assert np.isclose(normalized.max(), 1.0)
 
 
-class TestGuessContrastPixel:
-    """Test cases for guess_contrast_pixel function."""
-
-    def test_guess_contrast_pixel_normal(self) -> None:
-        """Test guessing contrast with normal data."""
-        pixel = np.array([0.5, 0.7, 0.3, 0.9, 0.6])
-        contrast = guess_contrast_pixel(pixel)
-        assert np.isclose(contrast, 0.6667, rtol=1e-4)
-
-    def test_guess_contrast_pixel_zero(self) -> None:
-        """Test guessing contrast with zero values."""
-        pixel = np.zeros(5)
-        contrast = guess_contrast_pixel(pixel)
-        assert contrast == 0.0
-
-    def test_guess_contrast_pixel_constant(self) -> None:
-        """Test guessing contrast with constant values."""
-        pixel = np.ones(5)
-        contrast = guess_contrast_pixel(pixel)
-        assert contrast == 0.0
-
-
 class TestGuessContrast:
-    """Test cases for guess_contrast function."""
+    """Test cases for cumsum_contrast function."""
 
-    def test_guess_contrast_shape(self, sample_odmr_data) -> None:
+    def test_cumsum_contrast_shape(self, sample_odmr_data) -> None:
         """Test that the shape of the output is correct."""
-        contrasts = guess_contrast(sample_odmr_data)
+        contrasts = cumsum_contrast(sample_odmr_data)
 
         expected_shape = (
             sample_odmr_data.shape[0],  # n_pol
@@ -308,7 +275,7 @@ class TestGuessContrast:
         )
         assert contrasts.shape == expected_shape
 
-    def test_guess_contrast_values(self) -> None:
+    def test_cumsum_contrast_values(self) -> None:
         """Test that values are correctly calculated."""
         # (1 pol, 1 frange, 2 pixels, 10 freqs)
         data = np.ones((1, 1, 2, 10))
@@ -319,34 +286,17 @@ class TestGuessContrast:
         # Second pixel: min=0.2, max=0.6 -> contrast=0.6667
         data[0, 0, 1, :] = np.linspace(0.2, 0.6, 10)
 
-        contrasts = guess_contrast(data)
+        contrasts = cumsum_contrast(data)
         assert np.isclose(contrasts[0, 0, 0], 0.5, rtol=1e-4)
         assert np.isclose(contrasts[0, 0, 1], 0.6667, rtol=1e-4)
 
 
-class TestGuessCenterPixel:
-    """Test cases for guess_center_pixel function."""
-
-    def test_guess_center_pixel(self, frequency_range_1d) -> None:
-        """Test guessing the center frequency of a pixel."""
-        pixel = np.ones(100)
-        center_idx = 50
-        for i in range(-10, 11):
-            idx = center_idx + i
-            if 0 <= idx < 100:
-                pixel[idx] = 1.0 - 0.8 * np.exp(-0.5 * (i / 3) ** 2)
-
-        center = guess_center_pixel(pixel, frequency_range_1d)
-        expected_freq = frequency_range_1d[center_idx]
-        assert np.isclose(center, expected_freq, rtol=1e-3)
-
-
 class TestGuessCenter:
-    """Test cases for guess_center function."""
+    """Test cases for cumsum_center function."""
 
-    def test_guess_center_shape(self, sample_odmr_data, frequency_range) -> None:
+    def test_cumsum_center_shape(self, sample_odmr_data, frequency_range) -> None:
         """Test that the shape of the output is correct."""
-        centers = guess_center(sample_odmr_data, frequency_range)
+        centers = cumsum_center(sample_odmr_data, frequency_range)
 
         expected_shape = (
             sample_odmr_data.shape[0],  # n_pol
@@ -355,7 +305,7 @@ class TestGuessCenter:
         )
         assert centers.shape == expected_shape
 
-    def test_guess_center_values(self, frequency_range) -> None:
+    def test_cumsum_center_values(self, frequency_range) -> None:
         """Test that the values are correctly calculated."""
         # (1 pol, 1 frange, 2 pixels, 100 freqs)
         data = np.ones((1, 1, 2, 100))
@@ -375,34 +325,17 @@ class TestGuessCenter:
             if 0 <= idx < 100:
                 data[0, 0, 1, idx] = 1.0 - 0.8 * np.exp(-0.5 * (i / 3) ** 2)
 
-        centers = guess_center(data, freq)
+        centers = cumsum_center(data, freq)
         assert np.isclose(centers[0, 0, 0], freq[0, center_idx1], rtol=1e-3)
         assert np.isclose(centers[0, 0, 1], freq[0, center_idx2], rtol=1e-3)
 
 
-class TestGuessWidthPixel:
-    """Test cases for guess_width_pixel function."""
-
-    def test_guess_width_pixel(self, frequency_range_1d) -> None:
-        """Test guessing the width of a pixel."""
-        pixel = np.ones(100)
-        center_idx = 50
-        for i in range(-10, 11):
-            idx = center_idx + i
-            if 0 <= idx < 100:
-                pixel[idx] = 1.0 - 0.8 * np.exp(-0.5 * (i / 3) ** 2)
-
-        width = guess_width_pixel(pixel, frequency_range_1d, DEFAULT_VMIN, DEFAULT_VMAX)
-        assert width > 0
-        assert width < (frequency_range_1d[-1] - frequency_range_1d[0])
-
-
 class TestGuessWidth:
-    """Test cases for guess_width function."""
+    """Test cases for cumsum_width function."""
 
-    def test_guess_width_shape(self, sample_odmr_data, frequency_range) -> None:
+    def test_cumsum_width_shape(self, sample_odmr_data, frequency_range) -> None:
         """Test that the shape of the output is correct."""
-        widths = guess_width(sample_odmr_data, frequency_range, DEFAULT_VMIN, DEFAULT_VMAX)
+        widths = cumsum_width(sample_odmr_data, frequency_range, DEFAULT_VMIN, DEFAULT_VMAX)
 
         expected_shape = (
             sample_odmr_data.shape[0],  # n_pol
@@ -411,61 +344,7 @@ class TestGuessWidth:
         )
         assert widths.shape == expected_shape
 
-    def test_guess_width_positive(self, sample_odmr_data, frequency_range) -> None:
+    def test_cumsum_width_positive(self, sample_odmr_data, frequency_range) -> None:
         """Test that all widths are positive."""
-        widths = guess_width(sample_odmr_data, frequency_range, DEFAULT_VMIN, DEFAULT_VMAX)
+        widths = cumsum_width(sample_odmr_data, frequency_range, DEFAULT_VMIN, DEFAULT_VMAX)
         assert np.all(widths > 0)
-
-
-class TestGuessInitialFitParameters:
-    """Test cases for guess_initial_fit_parameters function."""
-
-    def test_guess_initial_fit_parameters_single(self, sample_odmr_data, frequency_range) -> None:
-        """Test guessing parameters for ESRSINGLE model."""
-        model = ESRSINGLE()
-        parameters = guess_initial_fit_parameters(sample_odmr_data, frequency_range, model)
-
-        expected_shape = (
-            sample_odmr_data.shape[0],  # n_pol
-            sample_odmr_data.shape[1],  # n_frange
-            sample_odmr_data.shape[2],  # n_pixel
-            len(model.parameters_unique),
-        )
-        assert parameters.shape == expected_shape
-
-    def test_guess_initial_fit_parameters_14n(self, sample_odmr_data, frequency_range) -> None:
-        """Test guessing parameters for ESR14N model."""
-        model = ESR14N()
-        parameters = guess_initial_fit_parameters(sample_odmr_data, frequency_range, model)
-
-        expected_shape = (
-            sample_odmr_data.shape[0],
-            sample_odmr_data.shape[1],
-            sample_odmr_data.shape[2],
-            len(model.parameters_unique),
-        )
-        assert parameters.shape == expected_shape
-
-    def test_guess_initial_fit_parameters_15n(self, sample_odmr_data, frequency_range) -> None:
-        """Test guessing parameters for ESR15N model."""
-        model = ESR15N()
-        parameters = guess_initial_fit_parameters(sample_odmr_data, frequency_range, model)
-
-        expected_shape = (
-            sample_odmr_data.shape[0],
-            sample_odmr_data.shape[1],
-            sample_odmr_data.shape[2],
-            len(model.parameters_unique),
-        )
-        assert parameters.shape == expected_shape
-
-    def test_guess_initial_fit_parameters_invalid_param(self, sample_odmr_data, frequency_range) -> None:
-        """Test guessing parameters with an invalid parameter type."""
-        mock_model = MagicMock()
-        mock_model.parameter_names = ['invalid_param']
-        mock_model.parameters_unique = ['invalid_param']
-        mock_model.parameter_types = {'invalid_param': 'unknown_type'}
-
-        with pytest.raises(ParameterError) as excinfo:
-            guess_initial_fit_parameters(sample_odmr_data, frequency_range, mock_model)
-        assert "Parameter 'invalid_param' has no defined guess method" in str(excinfo.value)

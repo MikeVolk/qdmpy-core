@@ -7,6 +7,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Performance
+- **QEP-024** — `fitting/guess.py`: upgrade `cumsum_contrast`, `cumsum_center`, `cumsum_width`
+  from nested `@njit(parallel=True)` loops (prange only over `n_pixel`) to a single flat
+  `prange(n_pol * n_frange * n_pixel)`, exposing all pixels across all polarities and frequency
+  ranges to the thread pool simultaneously. Benchmarked **2.7× speedup** at 9k pixels (bin=2)
+  against the old code; gain increases with dataset size.
+  Removed dead code: `guess_contrast_pixel`, `guess_center_pixel`, `guess_width_pixel`,
+  `_guess_all_pixels`, `guess_initial_fit_parameters`.
+
+### Changed
+- **QEP-024** — renamed `guess_contrast/center/width` → `cumsum_contrast/center/width` to make
+  the algorithm explicit; when alternative strategies are added (e.g. `fft_center`) the naming
+  convention is immediately clear.
+
 ---
 
 ## 2026-02-19

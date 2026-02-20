@@ -363,6 +363,34 @@ wheels = [
 ]
 
 [[package]]
+name = "cuda-pathfinder"
+version = "1.3.4"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b8/5e/db279a3bfbd18d59d0598922a3b3c1454908d0969e8372260afec9736376/cuda_pathfinder-1.3.4-py3-none-any.whl", hash = "sha256:fb983f6e0d43af27ef486e14d5989b5f904ef45cedf40538bfdcbffa6bb01fb2", size = 30878, upload-time = "2026-02-11T18:50:31.008Z" },
+]
+
+[[package]]
+name = "cupy-cuda12x"
+version = "14.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cuda-pathfinder" },
+    { name = "numpy" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/37/f6/c561e31d37655d4b9c4e53d43314ed5a7ad715f6c12a329a256380b59c11/cupy_cuda12x-14.0.0-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:680b2d8be84dc6984ceae41000a0a5a272adef6c9e1650ee43afeb937c319233", size = 145577288, upload-time = "2026-02-17T00:51:49.173Z" },
+    { url = "https://files.pythonhosted.org/packages/58/c9/7d0a990e01e1082c857c7c869127e8f70f5be07d7600ca318b77844dfbfd/cupy_cuda12x-14.0.0-cp312-cp312-manylinux2014_x86_64.whl", hash = "sha256:321953e346995fc5fb970b7eec05be7463b33628fd0673a54f7f206270786c68", size = 134612571, upload-time = "2026-02-17T00:51:54.023Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/7b/40954e7b0ae7815fec86b4415ded2dd3935d8a9ea84dd7d7a3b0bf9a892e/cupy_cuda12x-14.0.0-cp312-cp312-win_amd64.whl", hash = "sha256:a171e9acca7839114babbf21b439bb3bfb796767135020a74aaf0ea7ac3b4851", size = 96266987, upload-time = "2026-02-17T00:51:58.136Z" },
+    { url = "https://files.pythonhosted.org/packages/d3/f5/e882da76d77cbed5ba75a9c4a9deedfe3dcd17128407fea17599b87c949d/cupy_cuda12x-14.0.0-cp313-cp313-manylinux2014_aarch64.whl", hash = "sha256:5a23a07a51391e4d46dc02b0cf05aa7eb1cb405e3fa8abcec65d8b07259c0ce7", size = 145123903, upload-time = "2026-02-17T00:52:02.841Z" },
+    { url = "https://files.pythonhosted.org/packages/84/f8/a875623b4aafcebaaa4f4ea90a90b0430d3368ab5d2357c741cd2ec79391/cupy_cuda12x-14.0.0-cp313-cp313-manylinux2014_x86_64.whl", hash = "sha256:d1a171765163bf2bf5a1f08ad1e80fc999bf64ad843370c6a2a0b7c2f62b0b82", size = 134224171, upload-time = "2026-02-17T00:52:10.352Z" },
+    { url = "https://files.pythonhosted.org/packages/8c/d8/ff242c14317ef44c970a2e7b783addf5ce83df01522d129a04d7409fc14f/cupy_cuda12x-14.0.0-cp313-cp313-win_amd64.whl", hash = "sha256:e492830a2b0f12966783f4ae6e76ad7b7ace0f435bf055953eefee4a94f8ac16", size = 96250093, upload-time = "2026-02-17T00:52:14.996Z" },
+    { url = "https://files.pythonhosted.org/packages/47/53/995519de808f11613250db64b681ce1ab1fd78fa4e3f8f3fb317918ec058/cupy_cuda12x-14.0.0-cp314-cp314-manylinux2014_aarch64.whl", hash = "sha256:301de9e45cf06bf571ecb233790aa5153da12a44dd7760776287a626d9780e94", size = 144973324, upload-time = "2026-02-17T00:52:20.555Z" },
+    { url = "https://files.pythonhosted.org/packages/c8/3a/b5f0f737250b6fe2d94a86c7b9600904a5437736545c3a3a2e67295f25f2/cupy_cuda12x-14.0.0-cp314-cp314-manylinux2014_x86_64.whl", hash = "sha256:f908adc940d6670bda34252c3c2d584ae6c280178035cd4b45623e53c254ea33", size = 133519875, upload-time = "2026-02-17T00:52:25.422Z" },
+    { url = "https://files.pythonhosted.org/packages/29/c2/32df7dac7d09bcf729e0644a214fa866eebda81adc5c65f07ccff434b7f2/cupy_cuda12x-14.0.0-cp314-cp314-win_amd64.whl", hash = "sha256:90bc58d4d7e366eacce62be61b1a583ca5ca3b92872581b370223a135f142f3c", size = 96822684, upload-time = "2026-02-17T00:52:30.017Z" },
+]
+
+[[package]]
 name = "cycler"
 version = "0.12.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1991,6 +2019,7 @@ version = "0.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "argparse" },
+    { name = "cupy-cuda12x" },
     { name = "importlib-metadata" },
     { name = "loguru" },
     { name = "mat73" },
@@ -2026,6 +2055,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "argparse" },
+    { name = "cupy-cuda12x", specifier = ">=14.0.0" },
     { name = "importlib-metadata" },
     { name = "loguru", specifier = ">=0.7.0" },
     { name = "mat73", specifier = ">=0.65" },

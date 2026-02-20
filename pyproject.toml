@@ -32,6 +32,7 @@ dependencies = [
     "pydantic-settings>=2.4.0",
     "xarray>=2026.2.0",
     "ty>=0.0.17",
+    "cupy-cuda12x>=14.0.0",
 ]
 
 [project.urls]
