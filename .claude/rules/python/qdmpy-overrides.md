@@ -53,3 +53,11 @@ Use `loguru` (not stdlib `logging`) throughout the codebase.
 ## Package manager
 
 Use `uv` exclusively. Never `pip`, `poetry`, or `conda`.
+
+## Architecture
+
+Follow Clean Code and SOLID principles as defined in `../common/architecture.md`.
+Key constraints for QDMpy:
+- `FitManager` is stateless (config-only); `FitResult` is immutable
+- New models → subclass `Model` + `@ModelRegistry.register`; never add `if` branches
+- Layers call downward only: `Measurement` → `ODMRData` / `FitManager` → `FitResult`
