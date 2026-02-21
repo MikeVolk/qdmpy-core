@@ -69,7 +69,7 @@ class ODMR:
             Self for method chaining.
         """
         logger.info("Loading xarray data into ODMR instance.")
-        self._raw_data = ODMRData(data)
+        self._raw_data = ODMRData(data=data)
         self._processed_data = None
         self.is_processed = False
         return self

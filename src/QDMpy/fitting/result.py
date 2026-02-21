@@ -95,7 +95,7 @@ class FitResult(BaseModel):
 
     @property
     def centers(self: Self) -> NDArray:
-        """Get resonance center frequencies in Hz.
+        """Get resonance center frequencies in GHz.
 
         Returns:
             Array of center frequencies with shape matching spatial dimensions
@@ -195,8 +195,16 @@ class FitResult(BaseModel):
 
         Returns:
             2D array with shape (height, width) for spatial visualization
+
+        Note:
+            For multi-range models (e.g. ESR14N with center shape (n_pol, n_frange, n_pixel)),
+            the parameter is flattened to 1D before reshaping to the spatial dimensions.
         """
         param_data = self.get_parameter(param_name)
+        # If parameter is multi-dimensional (e.g., 3D for multi-range models),
+        # flatten it first to get a 1D array of n_pixels
+        if param_data.ndim > 1:
+            param_data = param_data.reshape(-1)
         return param_data.reshape(self.scan_dimensions)
 
     @property
@@ -482,7 +490,21 @@ class FitResult(BaseModel):
 
         Returns:
             2D array of magnetic field values in Tesla
+
+        Raises:
+            ParameterError: If the model has multiple frequency ranges (use b111 instead).
         """
+        # Check if this is a multi-range model (n_frange > 1)
+        center = self.parameters["center"]
+        if center.ndim >= 3 and center.shape[1] > 1:  # shape is (n_pol, n_frange, n_pixel)
+            msg = (
+                f"calculate_b_field() does not support multi-range models "
+                f"(center shape: {center.shape} has n_frange={center.shape[1]} > 1). "
+                "Use the b111 property instead, which correctly handles "
+                "frequency-splitting-based B-field calculations."
+            )
+            raise ParameterError(msg)
+
         # Get center frequencies and reshape to spatial map
         centers_map = self.get_parameter_map("center")
 
