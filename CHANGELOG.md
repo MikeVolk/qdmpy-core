@@ -7,6 +7,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **QEP-035** — Critical correctness bugs:
+  - `FitResult.get_parameter_map()` now properly flattens multi-dimensional parameters before reshape (e.g. shape `(n_pol, n_frange, n_pixel)` → flat → reshaped to `(H, W)`)
+  - `FitResult._compute_b_field()` now guards against multi-range models; raises clear `ParameterError` directing users to use `b111` property instead
+  - `FitResult.centers` property docstring corrected: frequencies are in GHz (was incorrectly documented as Hz)
+  - `ODMR.load_xarray()` now uses explicit named argument `ODMRData(data=data)` instead of positional (safer against field reordering)
+- **QEP-038 M4** — `FitResult.load_results()` classmethod now returns `FitResult` instance (was returning dict); properly deserializes parameters and metadata from NPZ object arrays
+- Tutorial notebook fixed: ESR14N model produces `contrast_0/1/2` (for three hyperfine dips), not single `contrast` key; updated cells to use correct parameter names
+
+### Changed
+- **QEP-036** — Resolved cross-layer imports (fitting ↔ odmr layers are peers):
+  - Moved `POLARITY_LABELS`, `FRANGE_LABELS`, `validate_frequencies()` to `QDMpy.constants` (neutral ground)
+  - Moved `is_pygpufit_available()` to `QDMpy.settings` (from root `__init__.py`)
+  - `fitting/manager.py` and `fitting/result.py` now import from constants/settings instead of `odmr.data`
+  - Updated all tests to import from new locations
+- **QEP-037** — Enforced immutability:
+  - `FitManager.model_name` no longer has a setter; model is fixed at construction (prevents silent constraint destruction)
+  - `ODMRData` is now frozen (`ConfigDict(frozen=True)`) to prevent external mutation
+  - `FitResult.parameters` arrays are write-protected (`.flags.writeable = False`) to prevent cache invalidation
+- **QEP-038 M1** — Physics analysis layer separation: moved `b111_from_dip_positions()` from `odmr/data.py` to new `odmr/analysis.py` module (single responsibility)
+- **QEP-038 M2** — Image I/O extraction: moved `has_csv()`, `get_image_file()`, `get_image()` from `measurement.py` to new top-level `QDMpy/io.py` module
+- **QEP-038 M3** — Removed duplicate auto-model detection: deleted `Measurement._detect_model()` (was identical to `FitManager._resolve_auto_model`); `fit_odmr()` now passes model directly to FitManager
+
+### Removed
+- **QEP-035** — Dead code: removed `FitResult._calc_delta_from_multi_centers()` method and associated test class (was only triggered by non-existent multi-center model parameters)
+- **QEP-038 M3** — Removed `TestDetectModel` test class (3 tests testing removed `_detect_model` method)
+- **QEP-040** — Removed hardcoded magic number `0.001` from `FluorescenceCorrectionProcessor`; now uses `FLUORESCENCE_DELTA_THRESHOLD` constant in `QDMpy.constants`
+
+### Added
+- **QEP-038 M5** — Module decomposition for cleaner architecture:
+  - New `src/QDMpy/fitting/constraints.py` (124 lines): `ConstraintManager` class and `CONSTRAINT_TYPES` constant
+  - New `src/QDMpy/fitting/guesser.py` (128 lines): `ParameterGuesser` class with cached parameter estimation and model-specific width thresholds
+  - Updated `src/QDMpy/fitting/__init__.py` to import and re-export classes from new modules
+- **QEP-039** — New `tests/conftest.py` (187 lines) with shared test fixtures: `rng`, `sample_numpy_data`, `sample_frequencies`, `sample_data`, `sample_parameters`, `sample_fit_result`, plus `make_xr_data()` helper and `MOCK_SETTINGS` configuration
+
 ### Added
 - **QEP-030** — `BaseProcessor` is now a Pydantic `BaseModel` with `frozen=True`; all processor
   config is declared as validated fields (e.g. `BinningProcessor.bin_factor: int = Field(gt=0)`)
