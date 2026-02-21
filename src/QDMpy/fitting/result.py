@@ -554,19 +554,17 @@ class FitResult(BaseModel):
         logger.info(f"Fit results saved to: {filepath}")
 
     @classmethod
-    def load_results(cls: type[FitResult], filepath: str | Path) -> dict[str, Any]:
-        """Load saved fit results from file.
+    def load_results(cls: type[FitResult], filepath: str | Path) -> FitResult:
+        """Load saved fit results from file and reconstruct a FitResult instance.
 
         Args:
-            filepath: Path to the saved results file
+            filepath: Path to the saved results file (NPZ format)
 
         Returns:
-            Dictionary containing loaded results data
+            FitResult instance reconstructed from saved data
 
-        Note:
-            This returns the raw data dictionary. Creating a full FitResult
-            object would require reconstructing the FitManager and Measurement,
-            which may not always be possible or desired.
+        Raises:
+            DataLoadError: If the file does not exist or is invalid
         """
         filepath = Path(filepath)
 
@@ -576,8 +574,35 @@ class FitResult(BaseModel):
 
         data = np.load(filepath, allow_pickle=True)
 
-        # Convert back to regular dict
+        # Extract FitResult constructor arguments
         result_data = {key: data[key] for key in data.files}
 
+        # Handle parameters: may be saved as object array containing dict
+        if 'parameters' in result_data:
+            param_val = result_data['parameters']
+            if isinstance(param_val, np.ndarray) and param_val.dtype == object:
+                parameters = dict(param_val[0])  # Extract dict from object array
+            else:
+                parameters = dict(param_val)
+        else:
+            parameters = {}
+
+        # Handle metadata: may be saved as object array containing dict
+        if 'metadata' in result_data:
+            meta_val = result_data['metadata']
+            if isinstance(meta_val, np.ndarray) and meta_val.dtype == object:
+                metadata = dict(meta_val[0])
+            else:
+                metadata = dict(meta_val)
+        else:
+            metadata = {}
+
+        # Reconstruct FitResult from saved data
         logger.info(f"Fit results loaded from: {filepath}")
-        return result_data
+        return cls(
+            parameters=parameters,
+            scan_dimensions=tuple(result_data['scan_dimensions']),
+            pixel_spacing=float(result_data['pixel_spacing']),
+            model_name=str(result_data['model_name']),
+            metadata=metadata,
+        )
