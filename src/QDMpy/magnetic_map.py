@@ -53,19 +53,17 @@ def _reconstruct_bxyz(
     F_b111 = np.fft.fft2(b111)
 
     # Step 1: B111 → Bz (invert NV projection)
-    # Regularize wavenumber components to avoid singularities
-    kx_safe = kx + epsilon
-    ky_safe = ky + epsilon
-    k_safe = np.sqrt(kx_safe**2 + ky_safe**2)
-
-    denom = uz * k_safe - uy * 1j * ky_safe - ux * 1j * kx_safe
-    H_bz = k_safe / denom
+    # Regularize denominator to avoid k=0 singularity
+    denom = uz * k - uy * 1j * ky - ux * 1j * kx + epsilon
+    H_bz = k / denom
     F_bz = F_b111 * H_bz
 
     # Step 2: Bz → Bx, By (free-space Maxwell)
+    # Regularize k to avoid division by zero at k=0
+    k_safe = k + epsilon
     bz = np.real(np.fft.ifft2(F_bz))
-    bx = np.real(np.fft.ifft2(F_bz * (-1j * kx_safe / k_safe)))
-    by = np.real(np.fft.ifft2(F_bz * (-1j * ky_safe / k_safe)))
+    bx = np.real(np.fft.ifft2(F_bz * (-1j * kx / k_safe)))
+    by = np.real(np.fft.ifft2(F_bz * (-1j * ky / k_safe)))
 
     return bx, by, bz
 
