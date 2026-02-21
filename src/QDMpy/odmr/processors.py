@@ -7,7 +7,7 @@ a collection of processor classes and a manager to coordinate them.
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Union
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol, Union, runtime_checkable
 
 import numpy as np
 import xarray as xr
@@ -21,6 +21,60 @@ if TYPE_CHECKING:
     from QDMpy.odmr.data import ODMRData
 
 
+@runtime_checkable
+class Processor(Protocol):
+    """Protocol for ODMR data processors.
+
+    Implement this protocol to add a custom processing step to the ODMR
+    pipeline. Processors must be stateless with respect to data: ``process``
+    receives a data object and returns a **new** data object without mutating
+    the input.
+
+    **Custom processor contract:**
+
+    .. code-block:: python
+
+        from QDMpy import Processor, ODMR, ODMRData
+
+        class MyProcessor:
+            def process(self, data: ODMRData) -> ODMRData:
+                # Return a new ODMRData — never mutate the input.
+                new_da = data.data * 1.05   # example: scale all values
+                return ODMRData(data=new_da, metadata=data.metadata.copy())
+
+            def describe(self) -> str:
+                return 'MyProcessor(scale=1.05)'
+
+        odmr = ODMR(odmr_data)
+        odmr.processor_manager.add_processor(MyProcessor())
+        odmr.process_data()
+
+    Note:
+        ``describe()`` is used for logging and pipeline inspection.
+        Processors do not need to inherit from any base class — structural
+        subtyping (duck typing) is used.
+    """
+
+    def process(self, data: ODMRData) -> ODMRData:
+        """Process the given ODMRData and return a new instance.
+
+        Args:
+            data: Input ODMR data (treat as immutable).
+
+        Returns:
+            New ODMRData with the processing step applied.
+        """
+        ...
+
+    def describe(self) -> str:
+        """Return a human-readable description of this processor.
+
+        Returns:
+            String identifying the processor and its key parameters.
+        """
+        ...
+
+
 class BaseProcessor(BaseModel):
     """Abstract base class for ODMR processors."""
 
@@ -29,6 +83,10 @@ class BaseProcessor(BaseModel):
     @abstractmethod
     def process(self, data: ODMRData) -> ODMRData:
         """Process the given ODMRData instance and return a new instance."""
+
+    def describe(self) -> str:
+        """Return a human-readable description of this processor."""
+        return f'{self.__class__.__name__}({self.model_dump()})'
 
     def to_config(self) -> dict[str, Any]:
         """Serialize this processor to a JSON-compatible dict."""
@@ -284,7 +342,10 @@ class ODMRProcessorManager:
         from QDMpy.odmr.data import ODMRData as _ODMRData
 
         logger.info('Starting processing pipeline.')
-        pipeline_config = [p.to_config() for p in self.processors]
+        pipeline_config = [
+            p.to_config() if hasattr(p, 'to_config') else {'describe': p.describe()}
+            for p in self.processors
+        ]
         for processor in self.processors:
             logger.debug(f'Applying processor: {processor.__class__.__name__}')
             data = processor.process(data)
@@ -304,7 +365,10 @@ class ODMRProcessorManager:
     @property
     def pipeline_config(self) -> list[dict[str, Any]]:
         """Current pipeline as a list of serializable config dicts."""
-        return [p.to_config() for p in self.processors]
+        return [
+            p.to_config() if hasattr(p, 'to_config') else {'describe': p.describe()}
+            for p in self.processors
+        ]
 
     def list_processors(self) -> list[str]:
         """List the type names of processors in the pipeline."""
