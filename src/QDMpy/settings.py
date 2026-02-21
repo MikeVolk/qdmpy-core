@@ -152,6 +152,13 @@ class LoggingSettings(BaseModel):
         default=None,
         description='Optional file path for persistent log output (supports rotation)',
     )
+    enable_structured_logging: bool = Field(
+        default=True, description='Enable structured JSON logging to file'
+    )
+    structured_log_dir: str | None = Field(
+        default=None,
+        description='Directory for structured JSON logs (defaults to ~/logs)',
+    )
 
     model_config = ConfigDict(extra='ignore')
 
@@ -228,13 +235,33 @@ def reset_config() -> None:
 
 
 def _configure_logging(settings: QDMpySettings) -> None:
-    """Configure loguru and suppress noisy third-party loggers."""
+    """Configure loguru with console and optional structured JSON sink."""
     logging.getLogger('matplotlib').setLevel(logging.WARNING)
     logging.getLogger('h5py').setLevel(logging.WARNING)
 
     logger.remove()
+
+    # Console sink: human-readable, no serialization
     logger.add(sys.stdout, level=settings.logging.log_level)
 
+    # Structured JSON sink: DEBUG level, all context preserved
+    if settings.logging.enable_structured_logging:
+        log_dir = Path(
+            settings.logging.structured_log_dir or Path.home() / 'logs'
+        )
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / 'qdmpy-{time:YYYY-MM-DD}.log'
+
+        logger.add(
+            str(log_file),
+            level='DEBUG',
+            format='{message}',
+            serialize=True,
+            rotation='10 MB',
+            retention='7 days',
+        )
+
+    # Legacy file sink (backward compatibility)
     if settings.logging.log_file:
         logger.add(
             settings.logging.log_file,

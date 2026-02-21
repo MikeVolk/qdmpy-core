@@ -197,6 +197,33 @@ class TestLoggingSettings:
         with pytest.raises(ValueError):
             LoggingSettings(log_level="INVALID")
 
+    def test_structured_logging_enabled_by_default(self) -> None:
+        """Test that structured logging is enabled by default."""
+        settings = LoggingSettings()
+        assert settings.enable_structured_logging is True
+
+    def test_structured_logging_can_be_disabled(self) -> None:
+        """Test that structured logging can be disabled."""
+        settings = LoggingSettings(enable_structured_logging=False)
+        assert settings.enable_structured_logging is False
+
+    def test_structured_log_dir_defaults_to_none(self) -> None:
+        """Test that structured log dir defaults to None."""
+        settings = LoggingSettings()
+        assert settings.structured_log_dir is None
+
+    def test_structured_log_dir_custom_path(self) -> None:
+        """Test setting a custom structured log directory."""
+        custom_dir = "/tmp/custom_logs"
+        settings = LoggingSettings(structured_log_dir=custom_dir)
+        assert settings.structured_log_dir == custom_dir
+
+    def test_legacy_log_file_still_supported(self) -> None:
+        """Test backward compatibility with log_file setting."""
+        log_file = "/tmp/app.log"
+        settings = LoggingSettings(log_file=log_file)
+        assert settings.log_file == log_file
+
 
 class TestQDMpySettings:
     """Tests for the main QDMpySettings class."""
