@@ -7,11 +7,65 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Protocol, runtime_checkable
 
 import numpy as np
 import xarray as xr
 from loguru import logger
+
+
+@runtime_checkable
+class FieldReconstructor(Protocol):
+    """Protocol for B111 → 3D magnetic field reconstruction.
+
+    Implement this protocol to replace the default Fourier inversion used
+    by ``MagneticMap.from_b111()``.
+
+    **Custom reconstructor contract:**
+
+    .. code-block:: python
+
+        import xarray as xr
+        from QDMpy import FieldReconstructor, QDMResult
+
+        class MyReconstructor:
+            def reconstruct(
+                self,
+                b111: xr.DataArray,
+                nv_axis: tuple[float, float, float],
+            ) -> xr.Dataset:
+                # b111: dims (y, x), values in µT, attrs['pixel_spacing'] in metres
+                # Must return Dataset with variables: 'bx', 'by', 'bz', 'btotal'
+                # Units: µT, dims (y, x) on each variable
+                bz = b111  # trivial placeholder
+                return xr.Dataset({'bx': bz * 0, 'by': bz * 0,
+                                   'bz': bz, 'btotal': abs(bz)})
+
+        result = QDMResult(fit_result=fit_result, reconstructor=MyReconstructor())
+        result.magnetic_map   # uses MyReconstructor
+
+    Note:
+        The returned Dataset must contain exactly the variables ``bx``, ``by``,
+        ``bz``, and ``btotal`` with dims ``(y, x)`` and values in µT.
+    """
+
+    def reconstruct(
+        self,
+        b111: xr.DataArray,
+        nv_axis: tuple[float, float, float],
+    ) -> xr.Dataset:
+        """Reconstruct (bx, by, bz, btotal) from a B111 map.
+
+        Args:
+            b111: DataArray with dims (y, x), values in µT, and
+                ``pixel_spacing`` (metres) in ``.attrs``.
+            nv_axis: NV unit vector (ux, uy, uz) in the lab frame.
+
+        Returns:
+            Dataset with variables 'bx', 'by', 'bz', 'btotal', each a
+            DataArray with dims (y, x) and values in µT.
+        """
+        ...
 
 
 def _reconstruct_bxyz(
@@ -89,6 +143,7 @@ class MagneticMap:
         b111: xr.DataArray,
         nv_axis: tuple[float, float, float] | None = None,
         epsilon: float | None = None,
+        reconstructor: FieldReconstructor | None = None,
     ) -> MagneticMap:
         """Reconstruct Bxyz from a preprocessed B111 map.
 
@@ -98,7 +153,11 @@ class MagneticMap:
             nv_axis: NV unit vector (ux, uy, uz). Defaults to
                      ``get_settings().nv.axis``.
             epsilon: k=0 regularisation. Defaults to
-                     ``get_settings().nv.epsilon``.
+                     ``get_settings().nv.epsilon``. Ignored when
+                     ``reconstructor`` is provided.
+            reconstructor: Optional custom :class:`FieldReconstructor`. When
+                provided, the default Fourier inversion is bypassed and
+                ``reconstructor.reconstruct(b111, nv_axis)`` is called instead.
 
         Returns:
             MagneticMap with b111, bx, by, bz, btotal.
@@ -113,11 +172,6 @@ class MagneticMap:
 
         settings = get_settings()
         nv = nv_axis or settings.nv.axis
-        eps = epsilon if epsilon is not None else settings.nv.epsilon
-        ps = float(b111.attrs['pixel_spacing'])
-
-        bx_arr, by_arr, bz_arr = _reconstruct_bxyz(b111.values, ps, nv, eps)
-        btotal_arr = np.sqrt(bx_arr**2 + by_arr**2 + bz_arr**2)
 
         def _da(arr: np.ndarray, name: str) -> xr.DataArray:
             return xr.DataArray(
@@ -126,6 +180,24 @@ class MagneticMap:
                 coords=b111.coords,
                 attrs={**b111.attrs, 'component': name},
             )
+
+        if reconstructor is not None:
+            logger.info('Using custom FieldReconstructor for Bxyz reconstruction')
+            ds = reconstructor.reconstruct(b111, nv)
+            return cls(
+                b111=b111,
+                bx=ds['bx'],
+                by=ds['by'],
+                bz=ds['bz'],
+                btotal=ds['btotal'],
+                nv_axis=nv,
+            )
+
+        eps = epsilon if epsilon is not None else settings.nv.epsilon
+        ps = float(b111.attrs['pixel_spacing'])
+
+        bx_arr, by_arr, bz_arr = _reconstruct_bxyz(b111.values, ps, nv, eps)
+        btotal_arr = np.sqrt(bx_arr**2 + by_arr**2 + bz_arr**2)
 
         return cls(
             b111=b111,

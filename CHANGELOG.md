@@ -7,6 +7,55 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **QEP-046** — Notebook tutorials for three user types:
+  - `src/QDMpy/testing.py` — three public helpers for tutorials and tests: `make_synthetic_odmr_data()`, `make_synthetic_fit_result()`, `make_synthetic_qdm_result()`; all exported from top-level `QDMpy`
+  - `notebooks/01-quickstart.ipynb` — User 1 ("fit and be done"): `QDMpy.load()` → `fit_odmr()` → B111 maps → `magnetic_map` → save/load
+  - `notebooks/02-exploration.ipynb` — User 2 ("explore the data"): raw data inspection, processing pipeline, spectrum plots, parameter maps, B111 xarray, binning iteration, export
+  - `notebooks/03-extending.ipynb` — User 3 ("develop my own algorithms"): custom `Model`, custom `Processor`, custom `FieldReconstructor`, standalone `FitManager`
+  - `.github/workflows/notebooks.yml` — CI notebook execution on pushes to `claude` branch with `notebooks/**` or `src/**` path filter
+  - `README.md` Quick Start updated to the new one-line `QDMpy.load()` API; Notebooks table added
+
+- **QEP-045** — Developer extension points:
+  - `Model` ABC docstring enhanced with full custom-model contract and copy-paste example
+  - `ModelRegistry.available_models()` — returns sorted list of all registered model names
+  - `Processor` protocol (`typing.Protocol`, `@runtime_checkable`) added to `odmr/processors.py` and exported from top-level `QDMpy`; `BaseProcessor.describe()` added so all built-in processors satisfy the protocol
+  - `FieldReconstructor` protocol added to `magnetic_map.py` and exported from top-level `QDMpy`; `MagneticMap.from_b111()` accepts optional `reconstructor: FieldReconstructor | None = None` parameter to bypass the default Fourier inversion
+  - `QDMResult.reconstructor` field — passed through to `MagneticMap.from_b111()` during lazy `magnetic_map` build
+  - `docs/extending.md` — developer guide covering all three extension points with runnable code examples
+  - `tests/test_extensions.py` (16 tests) covering custom model registration, protocol conformance for `Processor` and `FieldReconstructor`, custom reconstructor round-trip through `QDMResult`, and `available_models()` listing
+
+- **QEP-044** — Convenience methods for exploration:
+  - `ODMR.spectrum(y, x, polarity='neg', freq_range='low', *, processed=True)` → `(freq_ghz, intensity)` tuple for quick single-pixel inspection
+  - `ODMR.plot_spectra(y, x)` — 2×2 matplotlib grid of all (polarity × freq_range) spectra at a pixel
+  - `FitResult.plot(param='center', **kwargs)` — thin wrapper over `plot_fit_result_parameter_map`
+  - `FitResult.show(**kwargs)` — thin wrapper over `plot_fit_result_overview`
+  - `QDMResult.plot()` / `QDMResult.show()` — delegate to `fit_result`
+  - `tests/test_convenience.py` (19 tests) covering spectrum shape/values, subplot grid, and plot delegation
+- **QEP-043** — `QDMpy.load()` entry-point function:
+  - `Measurement.from_folder(path, *, bin_factor, model, pixel_spacing, normalize, fluorescence_correction, output_directory)` classmethod — full pipeline in one call
+  - `QDMpy.load(path, **kwargs)` top-level convenience function delegating to `from_folder()`; added to `__all__`
+  - `fluorescence_correction: float | None = 0.2` — applies `FluorescenceCorrectionProcessor`; `None` skips it
+  - Missing light/laser images fall back to `np.zeros(scan_dimensions)` with a warning instead of raising
+  - Image files discovered via `os.listdir` filtered by `'light'`/`'laser'` in filename
+  - `tests/test_load.py` (18 tests) covering processor pipeline composition, image fallback, file filtering, and config pass-through
+- **QEP-042** — Fixed top-level API surface (`QDMpy/__init__.py`):
+  - Added user-facing entry points: `Measurement`, `QDMResult`
+  - Added data loading: `MatlabLoader`, `ODMRData`, `ODMR`
+  - Added processing: `BinningProcessor`, `NormalizationProcessor`, `FluorescenceCorrectionProcessor`, `OutlierProcessor`
+  - Added fitting: `FitManager`, `FitResult`, `Model`, `ModelRegistry`
+  - Explicit `__all__` now enumerates all 26 public names in usage-frequency order
+  - `tests/test_imports.py` (25 parametrised tests) — smoke tests asserting every `__all__` entry is importable and the correct kind (class / callable)
+- **QEP-041** — `QDMResult` top-level result container:
+  - New `src/QDMpy/result.py` module with `QDMResult` Pydantic model
+  - `Measurement.fit_odmr()` now returns `QDMResult` instead of bare `FitResult`
+  - All `FitResult` properties delegated directly (`b111_remanent`, `b111_induced`, `b111`, `centers`, `chi2`, `scan_dimensions`, `pixel_spacing`, `model_name`, `metadata`, etc.)
+  - `QDMResult.magnetic_map` lazily constructs `MagneticMap` (Fourier 3D field reconstruction) on first access — zero cost for users who only need B111
+  - Optional `nv_axis` parameter on `QDMResult`; when `None`, settings default is used at `MagneticMap` construction time
+  - `QDMResult.save(path)` / `QDMResult.load(path)` for NPZ round-trip including `nv_axis`
+  - `QDMResult` exported from `QDMpy` top-level `__init__.py`
+  - `tests/test_qdm_result.py` (25 tests) covering construction, delegation, lazy magnetic map, caching, and save/load round-trips
+
 ### Fixed
 - **QEP-035** — Critical correctness bugs:
   - `FitResult.get_parameter_map()` now properly flattens multi-dimensional parameters before reshape (e.g. shape `(n_pol, n_frange, n_pixel)` → flat → reshaped to `(H, W)`)

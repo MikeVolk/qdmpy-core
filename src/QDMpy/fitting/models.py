@@ -180,6 +180,56 @@ class Model(ABC):
     All ODMR models in QDMpy should inherit from this class to ensure consistency
     and compatibility with the fitting infrastructure.
 
+    **Custom model contract:**
+
+    To add a new ESR line-shape model, subclass ``Model``, set the required
+    class-level attributes, and register it with ``@ModelRegistry.register``:
+
+    .. code-block:: python
+
+        from typing import ClassVar
+        from QDMpy import Model, ModelRegistry
+        import numpy as np
+        from numpy.typing import NDArray
+
+        @ModelRegistry.register
+        class MyModel(Model):
+            name: ClassVar[str] = 'MYMODEL'
+
+            def __init__(self) -> None:
+                super().__init__(
+                    'MYMODEL',
+                    n_peaks=1,
+                    parameter_names=['center', 'width', 'contrast', 'offset'],
+                )
+                self.model_id = -1  # CPU-only; gpufit not used for custom models
+
+            @property
+            def parameter_types(self) -> dict[str, str]:
+                return {'center': 'center', 'width': 'width',
+                        'contrast': 'contrast', 'offset': 'offset'}
+
+            @property
+            def frequency_parameters(self) -> list[str]:
+                return ['center']   # parameters stored in GHz units
+
+            def func(self, x: NDArray, parameters: NDArray) -> NDArray:
+                # x shape: (n_freq,); parameters shape: (N, n_params)
+                # return shape: (N, n_freq)
+                parameters = np.atleast_2d(parameters)
+                center = parameters[:, 0:1]
+                width_sq = parameters[:, 1:2] ** 2
+                contrast = parameters[:, 2:3]
+                offset = parameters[:, 3:4]
+                dip = contrast * width_sq / ((x - center) ** 2 + width_sq)
+                return 1 + offset - dip
+
+    Once registered, the model is available by name:
+
+    .. code-block:: python
+
+        result = measurement.fit_odmr(model='MYMODEL')
+
     Attributes:
         name: Unique identifier for the model (e.g., 'ESR14N', 'ESR15N').
         parameter_names: List of parameter names (e.g., ['center', 'width', 'contrast_0', ...]).
@@ -189,7 +239,7 @@ class Model(ABC):
         >>> from QDMpy.fitting.models import ESR14N
         >>> model = ESR14N()
         >>> print(f"Model: {model.name}, Parameters: {model.n_parameters}")
-        >>> Model: ESR14N, Parameters: 6
+        Model: ESR14N, Parameters: 6
     """
 
     model_id: int
@@ -372,6 +422,19 @@ class ModelRegistry:
             Dictionary mapping model names to model classes.
         """
         return cls._registry
+
+    @classmethod
+    def available_models(cls: type[ModelRegistry]) -> list[str]:
+        """List all registered model names.
+
+        Returns:
+            Sorted list of model name strings (e.g., ['ESR14N', 'ESR15N', 'ESRSINGLE']).
+
+        Example:
+            >>> ModelRegistry.available_models()
+            ['ESR14N', 'ESR15N', 'ESRSINGLE']
+        """
+        return sorted(cls._registry.keys())
 
 
 @ModelRegistry.register

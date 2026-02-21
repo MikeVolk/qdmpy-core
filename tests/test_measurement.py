@@ -15,6 +15,7 @@ import pytest
 from QDMpy.exceptions import DataNotLoadedError, DependencyError
 from QDMpy.fitting.result import FitResult
 from QDMpy.measurement import Measurement
+from QDMpy.result import QDMResult
 from QDMpy.odmr.data import ODMRData
 from QDMpy.odmr.manager import ODMR
 from QDMpy.odmr.processors import BinningProcessor
@@ -270,7 +271,8 @@ class TestMeasurement:
 
                 mock_fit_manager.assert_called_once()
 
-                assert isinstance(result, FitResult)
+                assert isinstance(result, QDMResult)
+                assert isinstance(result.fit_result, FitResult)
                 assert result.model_name == "ESR15N"
 
     def test_fit_odmr_specific_model(self, sample_odmr, sample_images, temp_output_dir) -> None:
@@ -295,7 +297,7 @@ class TestMeasurement:
             _, kwargs = mock_fit_manager.call_args
             assert kwargs.get("model_name") == "ESR14N"
 
-            assert isinstance(result, FitResult)
+            assert isinstance(result, QDMResult)
             assert result.model_name == "ESR14N"
 
     def test_fit_odmr_no_processed_data(
@@ -359,8 +361,8 @@ class TestMeasurement:
             with patch("QDMpy.is_pygpufit_available", return_value=True):
                 result = measurement.fit_odmr()
 
-            assert "fit_timestamp" in result.metadata
-            assert "quality_metrics" in result.metadata
+            assert "fit_timestamp" in result.fit_result.metadata
+            assert "quality_metrics" in result.fit_result.metadata
 
 
 class TestValidateFitPrerequisites:

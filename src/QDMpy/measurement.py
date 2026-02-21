@@ -24,14 +24,13 @@ import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 
-from QDMpy.exceptions import DataNotLoadedError, DependencyError
+from QDMpy.exceptions import DataLoadError, DataNotLoadedError, DependencyError
 from QDMpy.io import get_image
 from QDMpy.odmr.manager import ODMR
 
 if TYPE_CHECKING:
     from os import PathLike
 
-    from QDMpy.fitting.result import FitResult
     from QDMpy.odmr.data import ODMRData
 
 
@@ -126,6 +125,108 @@ class Measurement:
         # Store default fit model preference
         self._fit_model = fit_model
 
+    @classmethod
+    def from_folder(  # noqa: PLR0913
+        cls: type[Measurement],
+        path: str | PathLike,
+        *,
+        bin_factor: int = 1,
+        model: str = 'auto',
+        pixel_spacing: float = 4e-6,
+        normalize: bool = True,
+        fluorescence_correction: float | None = 0.2,
+        output_directory: str | PathLike | None = None,
+    ) -> Measurement:
+        """Load ODMR data from a folder and return a ready-to-fit Measurement.
+
+        Handles data loading, processing pipeline setup, and image loading in
+        one call. Missing light/laser images fall back to zero arrays so that
+        fitting still works even without reference images.
+
+        Args:
+            path: Folder containing MATLAB .mat files from the QDM microscope.
+            bin_factor: Spatial binning factor (1 = no binning, 2 = 2×2 bins).
+            model: ESR model name ('auto', 'ESR14N', 'ESR15N', 'ESRSINGLE').
+            pixel_spacing: Physical pixel size in metres (default 4 µm).
+            normalize: Apply max-normalisation to ODMR spectra.
+            fluorescence_correction: Fluorescence correction factor applied via
+                FluorescenceCorrectionProcessor. Pass None to skip correction.
+            output_directory: Directory for saved outputs. Defaults to
+                ``path/results``.
+
+        Returns:
+            Measurement configured and ready for fit_odmr().
+
+        Example:
+            >>> import QDMpy
+            >>> result = QDMpy.load('/data/FOV18x').fit_odmr()
+            >>> result.b111_remanent
+        """
+        from QDMpy.odmr.data import ODMRData
+        from QDMpy.odmr.io import MatlabLoader
+        from QDMpy.odmr.processors import (
+            BinningProcessor,
+            FluorescenceCorrectionProcessor,
+            NormalizationProcessor,
+        )
+
+        path = Path(path)
+        logger.info(f'Loading measurement from {path}')
+
+        odmr = ODMR(ODMRData.from_loader(MatlabLoader(str(path))))
+
+        if bin_factor > 1:
+            odmr.processor_manager.add_processor(BinningProcessor(bin_factor=bin_factor))
+        if normalize:
+            odmr.processor_manager.add_processor(NormalizationProcessor())
+        if fluorescence_correction is not None:
+            odmr.processor_manager.add_processor(
+                FluorescenceCorrectionProcessor(correction_factor=fluorescence_correction)
+            )
+        odmr.process_data()
+
+        scan_dimensions = odmr.processed_data.scan_dimensions
+        folder_files = os.listdir(path)
+
+        light_image = cls._load_image_or_zeros(path, folder_files, 'light', scan_dimensions)
+        laser_image = cls._load_image_or_zeros(path, folder_files, 'laser', scan_dimensions)
+
+        return cls(
+            odmr=odmr,
+            light_image=light_image,
+            laser_image=laser_image,
+            pixel_spacing=pixel_spacing,
+            fit_model=model,
+            output_directory=output_directory or path / 'results',
+        )
+
+    @staticmethod
+    def _load_image_or_zeros(
+        folder: Path,
+        folder_files: list[str],
+        kind: str,
+        scan_dimensions: tuple[int, int],
+    ) -> NDArray:
+        """Load a named image from folder_files, falling back to zeros.
+
+        Args:
+            folder: Folder containing the image files.
+            folder_files: All file names in the folder.
+            kind: Keyword to match in file name ('light' or 'laser').
+            scan_dimensions: (height, width) used for the fallback zeros array.
+
+        Returns:
+            Image array, or zeros array of shape scan_dimensions if not found.
+        """
+        matching = [f for f in folder_files if kind in f.lower()]
+        try:
+            return get_image(folder, matching)
+        except DataLoadError:
+            logger.warning(
+                f'No {kind} image found in {folder}; using zeros array of shape {scan_dimensions}'
+            )
+            return np.zeros(scan_dimensions)
+
     def __str__(self: Self) -> str:
         """Return a string representation of the Measurement object.
 
@@ -183,32 +284,33 @@ class Measurement:
         model_name: str | None = None,
         *,
         constraints: dict[str, Any] | None = None,
-    ) -> FitResult:
-        """Fit ODMR spectra and return results object.
+    ) -> 'QDMResult':
+        """Fit ODMR spectra and return unified result container.
 
         Args:
             model_name: Model name or None for auto-detection.
             constraints: Optional parameter constraints for fitting.
 
         Returns:
-            FitResult object containing fit results and analysis methods.
+            QDMResult containing FitResult and lazy MagneticMap access.
 
         Raises:
             DataNotLoadedError: If ODMR data hasn't been processed yet.
             DependencyError: If required fitting dependencies are not available.
         """
         from QDMpy.fitting.manager import FitManager
+        from QDMpy.result import QDMResult
 
         model_name = model_name or 'auto'
         logger.info(f"Starting ODMR fitting with model: {model_name}")
         processed_data = self._validate_fit_prerequisites()
 
         fit_manager = FitManager(model_name=model_name, constraints=constraints)
-        result = fit_manager.fit(
+        fit_result = fit_manager.fit(
             processed_data.data,
             processed_data.frequencies,
             pixel_spacing=self.pixel_spacing,
         )
 
         logger.info("ODMR fitting completed successfully")
-        return result
+        return QDMResult(fit_result=fit_result)

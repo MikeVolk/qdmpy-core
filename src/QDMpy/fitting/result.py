@@ -553,6 +553,27 @@ class FitResult(BaseModel):
         np.savez_compressed(filepath, **numpy_save_data)
         logger.info(f"Fit results saved to: {filepath}")
 
+    def plot(self: Self, param: str = 'center', **kwargs: object) -> None:
+        """Quick-plot a parameter map.
+
+        Args:
+            param: Parameter name to visualise ('center', 'chi2', 'contrast', …).
+            **kwargs: Forwarded to plot_fit_result_parameter_map (e.g. save, filename).
+        """
+        from QDMpy.plotting import plot_fit_result_parameter_map
+
+        plot_fit_result_parameter_map(self, param, **kwargs)
+
+    def show(self: Self, **kwargs: object) -> None:
+        """Quick-plot overview of all fitted parameters and B111 maps.
+
+        Args:
+            **kwargs: Forwarded to plot_fit_result_overview (e.g. save, filename).
+        """
+        from QDMpy.plotting import plot_fit_result_overview
+
+        plot_fit_result_overview(self, **kwargs)
+
     @classmethod
     def load_results(cls: type[FitResult], filepath: str | Path) -> FitResult:
         """Load saved fit results from file and reconstruct a FitResult instance.
