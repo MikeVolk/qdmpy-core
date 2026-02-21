@@ -280,7 +280,7 @@ class Measurement:
             msg = "ODMR data must be processed before fitting. Call odmr.process_data() first."
             raise DataNotLoadedError(msg) from e
 
-        from QDMpy import is_pygpufit_available
+        from QDMpy.settings import is_pygpufit_available
 
         if not is_pygpufit_available():
             msg = (

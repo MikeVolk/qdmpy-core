@@ -13,8 +13,6 @@ from __future__ import annotations
 
 __version__ = '0.1.0a'
 
-from functools import cache
-
 from QDMpy.field_processing import (
     BaseFieldProcessor,
     BlankSubtractor,
@@ -24,7 +22,12 @@ from QDMpy.field_processing import (
     UpwardContinuation,
 )
 from QDMpy.magnetic_map import MagneticMap
-from QDMpy.settings import NvSettings, get_settings, reset_settings
+from QDMpy.settings import (
+    NvSettings,
+    get_settings,
+    is_pygpufit_available,
+    reset_settings,
+)
 
 # Configure logging on import to prevent stderr output in notebooks
 _ = get_settings()
@@ -42,14 +45,3 @@ __all__ = [
     'is_pygpufit_available',
     'reset_settings',
 ]
-
-
-@cache
-def is_pygpufit_available() -> bool:
-    """Return True if the pygpufit GPU fitting library can be imported."""
-    try:
-        import pygpufit.gpufit
-    except ImportError:
-        return False
-    else:
-        return True

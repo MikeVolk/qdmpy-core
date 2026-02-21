@@ -18,9 +18,7 @@ import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
 
-from QDMpy import is_pygpufit_available
-from QDMpy.settings import get_settings
-from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
+from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN, validate_frequencies
 from QDMpy.exceptions import (
     DataValidationError,
     DependencyError,
@@ -36,8 +34,12 @@ from QDMpy.fitting.guess import (
 )
 from QDMpy.fitting.models import Model, ModelRegistry
 from QDMpy.fitting.result import FitResult
-from QDMpy.odmr.data import validate_frequencies
-from QDMpy.settings import ModelConstraintsSettings, QDMpySettings
+from QDMpy.settings import (
+    ModelConstraintsSettings,
+    QDMpySettings,
+    get_settings,
+    is_pygpufit_available,
+)
 
 CONSTRAINT_TYPES = ["FREE", "LOWER", "UPPER", "LOWER_UPPER"]
 ESTIMATOR_ID = {"LSE": 0, "MLE": 1}

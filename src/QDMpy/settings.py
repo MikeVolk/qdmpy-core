@@ -309,3 +309,13 @@ def get_settings() -> QDMpySettings:
 def reset_settings() -> None:
     """Invalidate the cached settings so the next ``get_settings()`` re-reads config."""
     get_settings.cache_clear()
+
+
+def is_pygpufit_available() -> bool:
+    """Return True if the pygpufit GPU fitting library can be imported."""
+    try:
+        import pygpufit.gpufit  # noqa: F401
+    except ImportError:
+        return False
+    else:
+        return True

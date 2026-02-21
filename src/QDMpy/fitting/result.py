@@ -373,7 +373,7 @@ class FitResult(BaseModel):
             xr.DataArray with dims ('polarity', 'y', 'x') and polarity coords
             'neg'/'pos'. Values in µT with polarity-correct sign applied.
         """
-        from QDMpy.odmr.data import POLARITY_LABELS
+        from QDMpy.constants import POLARITY_LABELS
 
         logger.debug("Computing delta resonance for B111 calculations")
 
