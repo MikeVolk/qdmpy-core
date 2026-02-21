@@ -478,18 +478,12 @@ class FitManager:
 
         Returns:
             Model name string (e.g., 'ESR14N', 'ESR15N', 'ESRSINGLE', 'auto').
+
+        Note:
+            Model is immutable after construction. To use a different model,
+            create a new FitManager instance.
         """
         return self._model.name if self._model is not None else "auto"
-
-    @model_name.setter
-    def model_name(self: Self, model_name: str) -> None:
-        try:
-            self._model = ModelRegistry.get(model_name.upper())
-        except KeyError as e:
-            msg = f"Unknown model: {model_name}. Choose from: {list(ModelRegistry.all().keys())}"
-            raise ModelNotFoundError(msg) from e
-        logger.debug(f"Setting model to {model_name}")
-        self._constraint_manager = ConstraintManager(self._model, self._settings.model.constraints)
 
     @property
     def parameter_names(self: Self) -> list[str]:

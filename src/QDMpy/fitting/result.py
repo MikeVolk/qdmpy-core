@@ -83,9 +83,14 @@ class FitResult(BaseModel):
         return v
 
     def model_post_init(self: Self, __context: object) -> None:
-        """Log initialization after Pydantic validation."""
+        """Log initialization after Pydantic validation and protect parameter arrays."""
         logger.info(f"FitResult initialized with model: {self.model_name}")
         logger.debug(f"Available parameters: {list(self.parameters.keys())}")
+
+        # Protect parameter arrays from external mutation to prevent cache invalidation
+        for param_array in self.parameters.values():
+            if isinstance(param_array, np.ndarray):
+                param_array.flags.writeable = False
 
     def __repr__(self: Self) -> str:
         """Return string representation of FitResult."""

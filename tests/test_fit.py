@@ -154,16 +154,18 @@ class TestFitProperties:
     """Test property getters and setters of the FitManager class."""
 
     def test_model_name_property(self) -> None:
-        """Test model_name property getter and setter."""
+        """Test model_name property is read-only after construction."""
         fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
         assert fit.model_name == "ESRSINGLE"
 
-        fit.model_name = "ESR15N"
-        assert fit.model_name == "ESR15N"
-        assert isinstance(fit.model, ESR15N)
+        # Model is immutable; attempting to change it raises AttributeError
+        with pytest.raises(AttributeError, match="no setter"):
+            fit.model_name = "ESR15N"
 
-        with pytest.raises(ModelNotFoundError):
-            fit.model_name = "INVALID_MODEL"
+        # To use a different model, create a new FitManager
+        fit2 = FitManager(model_name="ESR15N", settings=MOCK_SETTINGS)
+        assert fit2.model_name == "ESR15N"
+        assert isinstance(fit2.model, ESR15N)
 
     def test_parameter_names_raises_in_auto_mode(self) -> None:
         """Test that parameter_names raises RuntimeError in unresolved auto mode."""

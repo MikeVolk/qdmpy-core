@@ -41,7 +41,7 @@ class ODMRData(BaseModel):
         metadata: Additional metadata associated with the data.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
 
     data: xr.DataArray
     metadata: dict[str, Any] = Field(default_factory=dict)
