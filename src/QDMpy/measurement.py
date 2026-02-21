@@ -152,35 +152,6 @@ class Measurement:
             f"pixel_spacing={self.pixel_spacing})"
         )
 
-    def _detect_model(self: Self, model_name: str | None) -> str:
-        """Detect or validate the ODMR fitting model name.
-
-        Args:
-            model_name: Explicit model name, or None for auto-detection.
-
-        Returns:
-            Resolved model name string.
-        """
-        if model_name is not None:
-            return model_name
-
-        logger.info("Auto-detecting optimal model for ODMR data...")
-        try:
-            from QDMpy.fitting.guess import guess_model
-
-            processed_data = self.odmr.processed_data
-            values = processed_data.data.values
-            n_pol, n_frange = values.shape[0], values.shape[1]
-            n_freq = values.shape[-1]
-            flat_data = values.reshape(n_pol, n_frange, -1, n_freq)
-            detected = guess_model(flat_data)
-        except Exception as e:
-            logger.warning(f"Model auto-detection failed: {e}. Using default.")
-            return self._fit_model
-        else:
-            logger.info(f"Auto-detected model: {detected.name}")
-            return detected.name
-
     def _validate_fit_prerequisites(self: Self) -> ODMRData:
         """Validate that processed data and GPU fitting are available.
 
@@ -228,7 +199,7 @@ class Measurement:
         """
         from QDMpy.fitting.manager import FitManager
 
-        model_name = self._detect_model(model_name)
+        model_name = model_name or 'auto'
         logger.info(f"Starting ODMR fitting with model: {model_name}")
         processed_data = self._validate_fit_prerequisites()
 

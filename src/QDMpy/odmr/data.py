@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Self
 
 import numpy as np
 import xarray as xr
+from loguru import logger
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 

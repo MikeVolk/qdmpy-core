@@ -363,44 +363,6 @@ class TestMeasurement:
             assert "quality_metrics" in result.metadata
 
 
-class TestDetectModel:
-    """Tests for Measurement._detect_model."""
-
-    def test_explicit_model_name(self, sample_odmr, sample_images, temp_output_dir) -> None:
-        light_image, laser_image = sample_images
-        m = Measurement(
-            odmr=sample_odmr,
-            light_image=light_image,
-            laser_image=laser_image,
-            output_directory=temp_output_dir,
-        )
-        assert m._detect_model("ESR14N") == "ESR14N"
-
-    def test_auto_detect_success(self, sample_odmr, sample_images, temp_output_dir) -> None:
-        light_image, laser_image = sample_images
-        m = Measurement(
-            odmr=sample_odmr,
-            light_image=light_image,
-            laser_image=laser_image,
-            output_directory=temp_output_dir,
-        )
-        with patch("QDMpy.fitting.guess.guess_model") as mock_guess:
-            mock_guess.return_value = type("M", (), {"name": "ESR15N"})()
-            assert m._detect_model(None) == "ESR15N"
-
-    def test_auto_detect_fallback(self, sample_odmr, sample_images, temp_output_dir) -> None:
-        light_image, laser_image = sample_images
-        m = Measurement(
-            odmr=sample_odmr,
-            light_image=light_image,
-            laser_image=laser_image,
-            output_directory=temp_output_dir,
-            fit_model="ESRSINGLE",
-        )
-        with patch("QDMpy.fitting.guess.guess_model", side_effect=RuntimeError("fail")):
-            assert m._detect_model(None) == "ESRSINGLE"
-
-
 class TestValidateFitPrerequisites:
     """Tests for Measurement._validate_fit_prerequisites."""
 
@@ -424,6 +386,6 @@ class TestValidateFitPrerequisites:
             laser_image=laser_image,
             output_directory=temp_output_dir,
         )
-        with patch("QDMpy.is_pygpufit_available", return_value=False):
+        with patch("QDMpy.settings.is_pygpufit_available", return_value=False):
             with pytest.raises(DependencyError, match="pyGpufit is required"):
                 m._validate_fit_prerequisites()

@@ -1,11 +1,11 @@
-"""ODMR fitting module for Quantum Diamond Microscopy.
+"""ODMR fitting manager for Quantum Diamond Microscopy.
 
 Convention: All frequency values are in GHz. The pyGpufit ESR kernels have AHYP
 hardcoded in GHz, so no Hz conversion is performed at any boundary.
 
-This module provides fitting functionality for ODMR spectra from NV centers
-in diamond, including model selection, parameter estimation, constraint
-management, and GPU-accelerated fitting.
+This module provides the FitManager class which orchestrates fitting operations
+for ODMR spectra from NV centers in diamond. Parameter constraints and initial
+guesses are managed by dedicated modules (constraints.py and guesser.py).
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
 
-from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN, validate_frequencies
+from QDMpy.constants import validate_frequencies
 from QDMpy.exceptions import (
     DataValidationError,
     DependencyError,
@@ -26,236 +26,18 @@ from QDMpy.exceptions import (
     ModelNotFoundError,
     ParameterError,
 )
-from QDMpy.fitting.guess import (
-    cumsum_center,
-    cumsum_contrast,
-    cumsum_width,
-    guess_model,
-)
+from QDMpy.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
+from QDMpy.fitting.guess import guess_model
+from QDMpy.fitting.guesser import ParameterGuesser
 from QDMpy.fitting.models import Model, ModelRegistry
 from QDMpy.fitting.result import FitResult
 from QDMpy.settings import (
-    ModelConstraintsSettings,
     QDMpySettings,
     get_settings,
     is_pygpufit_available,
 )
 
-CONSTRAINT_TYPES = ["FREE", "LOWER", "UPPER", "LOWER_UPPER"]
 ESTIMATOR_ID = {"LSE": 0, "MLE": 1}
-
-
-class ConstraintManager:
-    """Manages parameter constraints for fitting."""
-
-    def __init__(
-        self: Self,
-        model: Model,
-        settings: ModelConstraintsSettings,
-    ) -> None:
-        """Initialize the constraint manager from a model and settings.
-
-        Args:
-            model: Model instance providing parameter metadata.
-            settings: ModelConstraintsSettings with constraint bounds and types.
-        """
-        self._constraints: dict[str, list[Any]] = {}
-        self._model = model
-        self._initialize_constraints(settings)
-
-    def _initialize_constraints(
-        self: Self,
-        settings: ModelConstraintsSettings,
-    ) -> None:
-        units = self._model.units
-        for param in self._model.parameter_names:
-            base_param = self._model.parameter_types[param]
-            self._constraints[param] = [
-                getattr(settings, f"{base_param}_min"),
-                getattr(settings, f"{base_param}_max"),
-                getattr(settings, f"{base_param}_type"),
-                units[param],
-            ]
-
-    def set_constraint(
-        self: Self,
-        param: str,
-        vmin: float | None = None,
-        vmax: float | None = None,
-        constraint_type: str | None = None,
-    ) -> None:
-        """Set constraint bounds and type for a parameter.
-
-        Args:
-            param: Parameter name.
-            vmin: Minimum value constraint.
-            vmax: Maximum value constraint.
-            constraint_type: Type of constraint ('FREE', 'LOWER', 'UPPER', 'LOWER_UPPER').
-        """
-        if param not in self._constraints:
-            msg = f"Unknown parameter: {param}"
-            raise ParameterError(msg)
-        current = self._constraints[param]
-        if vmin is not None:
-            current[0] = vmin
-        if vmax is not None:
-            current[1] = vmax
-        if constraint_type is not None:
-            if constraint_type not in CONSTRAINT_TYPES:
-                msg = f"Invalid constraint type: {constraint_type}"
-                raise ParameterError(msg)
-            current[2] = constraint_type
-
-    def get_constraints(self: Self) -> dict[str, list[Any]]:
-        """Get all parameter constraints.
-
-        Returns:
-            Dictionary mapping parameter names to constraint lists [vmin, vmax, type, unit].
-        """
-        return self._constraints
-
-    def to_array(self: Self, n_pixel: int, parameter_names: list[str]) -> NDArray:
-        """Convert constraints to array format for GPU fitting.
-
-        All frequency values are kept in GHz, matching the GPU kernel convention
-        (pyGpufit ESR models have AHYP hardcoded in GHz).
-
-        Args:
-            n_pixel: Number of pixels (for array replication).
-            parameter_names: List of parameter names to extract constraints for.
-
-        Returns:
-            NDArray of shape (n_pixel, 2*n_params) with min/max bounds in GHz.
-        """
-        constraints_list: list[float] = []
-        for param in parameter_names:
-            param_min, param_max = self._constraints[param][0], self._constraints[param][1]
-            constraints_list.extend((param_min, param_max))
-        return np.tile(constraints_list, (n_pixel, 1))
-
-    def get_constraint_types(self: Self, parameter_names: list[str]) -> NDArray:
-        """Get constraint type indices for parameters.
-
-        Args:
-            parameter_names: List of parameter names.
-
-        Returns:
-            NDArray of constraint type indices (0=FREE, 1=LOWER, 2=UPPER, 3=LOWER_UPPER).
-        """
-        return np.array(
-            [CONSTRAINT_TYPES.index(self._constraints[param][2]) for param in parameter_names],
-            dtype=np.int32,
-        )
-
-
-class ParameterGuesser:
-    """Generates initial parameter guesses for ODMR fitting.
-
-    Encapsulates parameter estimation logic with built-in caching.
-    The cache is invalidated when reset() is called (e.g. after data
-    or model changes).
-
-    Each parameter type is estimated by a dedicated ``@njit(parallel=True)``
-    function that flattens ``(n_pol, n_frange, n_pixel)`` into a single
-    ``prange`` so all pixels are parallelised simultaneously::
-
-        guess(flat_data)
-        ├── cumsum_contrast(data)              → (n_pol, n_frange, n_pixel)
-        │     prange(n_pol × n_frange × n_pixel)
-        │     nanmax, nanmin → abs((mx−mn)/mx)
-        │
-        ├── cumsum_center(data, freq)          → (n_pol, n_frange, n_pixel)
-        │     prange(n_pol × n_frange × n_pixel)
-        │     normalize_pixel → freq[argmin|norm−0.5|]
-        │
-        ├── cumsum_width(data, freq, vmin, vmax) → (n_pol, n_frange, n_pixel)
-        │     prange(n_pol × n_frange × n_pixel)
-        │     normalize_pixel → |freq[ridx] − freq[lidx]|
-        │     vmin/vmax are model-specific:
-        │       ESR14N  0.35 / 0.65
-        │       ESR15N  0.40 / 0.60
-        │       ESRSINGLE (default_vmin) / (default_vmax)
-        │
-        └── np.zeros(...)                      → offset (n_pol, n_frange, n_pixel)
-
-        assembled via model.parameter_types
-        → (n_pol, n_frange, n_pixel, n_params) float32  [cached]
-
-    Design note — why three separate functions instead of one combined kernel:
-    A single ``@njit`` kernel computing all three parameters in one ``prange``
-    would call ``normalize_pixel`` only once per pixel (~4× speedup vs old code)
-    rather than twice (center + width, ~2.7× speedup). That extra ~50% was
-    deliberately traded away to keep the functions independently replaceable:
-    a new model may need a different contrast estimate while keeping the same
-    center/width logic, or vice versa. When a second implementation exists for
-    any one parameter (e.g. ``fft_center``), inject it at the call site in
-    ``guess()`` without touching the others. See QEP-024 for the benchmarks.
-
-    Attributes:
-        _model: The Model instance providing parameter metadata.
-        _f_ghz: Frequency values in GHz (2D: n_frange x n_freq).
-        _cache: Cached initial parameter array, or None.
-    """
-
-    def __init__(self: Self, model: Model, f_ghz: NDArray) -> None:
-        """Initialize the parameter guesser.
-
-        Args:
-            model: Model instance providing parameter metadata.
-            f_ghz: Frequency values in GHz, shape (n_frange, n_freq).
-        """
-        self._model = model
-        self._f_ghz = f_ghz
-        self._cache: NDArray | None = None
-
-    def guess(self: Self, flat_data: NDArray) -> NDArray:
-        """Generate initial parameter guesses, using cache if available.
-
-        Args:
-            flat_data: 4D numpy array (n_pol, n_frange, n_pixel, n_freq).
-
-        Returns:
-            NDArray with shape (n_pol, n_frange, n_pixel, n_params).
-        """
-        if self._cache is not None:
-            return self._cache
-
-        n_pol, n_frange, n_pixel, _ = flat_data.shape
-        n_params = self._model.n_parameters
-        result = np.zeros((n_pol, n_frange, n_pixel, n_params), dtype=np.float32)
-
-        for idx, param_name in enumerate(self._model.parameter_names):
-            param_type = self._model.parameter_types[param_name]
-            logger.debug(f"Guessing {param_type} parameters")
-
-            if param_type == "center":
-                param_values = cumsum_center(flat_data, self._f_ghz)
-            elif param_type == "contrast":
-                param_values = cumsum_contrast(flat_data)
-            elif param_type == "width":
-                # Use model-specific cumsum thresholds; tighter window for multi-peak models.
-                # Matches QDMpy_old._core.fit.Fit._cumsum_width() n_peaks-based selection.
-                if self._model.n_peaks == 2:  # ESR15N: two close hyperfine lines
-                    vmin, vmax = 0.4, 0.6
-                elif self._model.n_peaks == 3:  # ESR14N: three hyperfine lines
-                    vmin, vmax = 0.35, 0.65
-                else:  # ESRSINGLE: single dip
-                    vmin, vmax = DEFAULT_VMIN, DEFAULT_VMAX
-                param_values = cumsum_width(flat_data, self._f_ghz, vmin, vmax)
-            elif param_type == "offset":
-                param_values = np.zeros((n_pol, n_frange, n_pixel))
-            else:
-                msg = f"Unknown parameter type: {param_type}"
-                raise ParameterError(msg)
-
-            result[:, :, :, idx] = param_values
-
-        self._cache = np.ascontiguousarray(result, dtype=np.float32)
-        return self._cache
-
-    def reset(self: Self) -> None:
-        """Clear the cached initial parameters."""
-        self._cache = None
 
 
 class FitManager:

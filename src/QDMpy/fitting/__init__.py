@@ -17,7 +17,9 @@ Public API:
 
 from __future__ import annotations
 
-from QDMpy.fitting.manager import CONSTRAINT_TYPES, ConstraintManager, FitManager, ParameterGuesser
+from QDMpy.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
+from QDMpy.fitting.guesser import ParameterGuesser
+from QDMpy.fitting.manager import FitManager
 from QDMpy.fitting.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
 from QDMpy.fitting.result import FitResult
 

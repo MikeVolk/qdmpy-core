@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 
 from QDMpy.exceptions import DataLoadError
-from QDMpy.measurement import get_image, get_image_file, has_csv
+from QDMpy.io import get_image, get_image_file, has_csv
 
 
 class TestIO:
