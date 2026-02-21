@@ -12,7 +12,8 @@ from numpy.typing import NDArray
 
 from QDMpy.constants import GAMMA_NV
 from QDMpy.exceptions import DataLoadError, DataValidationError
-from QDMpy.odmr.data import EXPECTED_DIMS, ODMRData, b111_from_dip_positions
+from QDMpy.odmr.analysis import b111_from_dip_positions
+from QDMpy.odmr.data import EXPECTED_DIMS, ODMRData
 
 N_POL = 2
 N_FRANGE = 2

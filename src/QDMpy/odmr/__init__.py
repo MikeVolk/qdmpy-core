@@ -49,5 +49,6 @@ offering a robust and extensible solution for their data management and analysis
 
 from __future__ import annotations
 
-from QDMpy.odmr.data import ODMRData, b111_from_dip_positions
+from QDMpy.odmr.analysis import b111_from_dip_positions
+from QDMpy.odmr.data import ODMRData
 from QDMpy.odmr.manager import ODMR
