@@ -168,5 +168,3 @@ def double_norm(data: NDArray, axis: int | None = None) -> NDArray:
     result /= mx
 
     return result
-
-

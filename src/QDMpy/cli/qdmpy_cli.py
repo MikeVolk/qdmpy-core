@@ -121,8 +121,7 @@ def models_command_handler(args: argparse.Namespace) -> int:
         for name in models:
             model_instance = ModelRegistry.get(name)
             sys.stdout.write(
-                f"{name}: {model_instance.n_peaks} peaks, "
-                f"{model_instance.n_parameters} params\n"
+                f"{name}: {model_instance.n_peaks} peaks, {model_instance.n_parameters} params\n"
             )
 
     return 0

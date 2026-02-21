@@ -6,11 +6,10 @@ Microscopy (QDM) measurements, including magnetic field maps and spatial paramet
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import numpy as np
 
 from QDMpy.utils import double_norm
 
@@ -37,7 +36,7 @@ def plot_fit_result_field_map(
     cmap = "viridis"
     colorbar_label = "Magnetic Field (T)"
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    _fig, ax = plt.subplots(figsize=(8, 6))
 
     pixel_spacing_um = result.pixel_spacing * 1e6
     height, width = result.scan_dimensions
@@ -95,11 +94,11 @@ def plot_fit_result_parameter_map(
         "states": "Fit State",
     }
 
-    title = f'{param_name.replace("_", " ").title()} Map ({result.model_name})'
+    title = f"{param_name.replace('_', ' ').title()} Map ({result.model_name})"
     colorbar_label = param_labels.get(param_name, param_name.title())
     cmap = "viridis"
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    _fig, ax = plt.subplots(figsize=(8, 6))
 
     pixel_spacing_um = result.pixel_spacing * 1e6
     height, width = result.scan_dimensions
@@ -149,7 +148,7 @@ def plot_fit_result_overview(
     ncols = min(3, n_plots)
     nrows = (n_plots + ncols - 1) // ncols
 
-    fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 4 * nrows))
+    _fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 4 * nrows))
     axes = [axes] if nrows == 1 and ncols == 1 else axes.flatten()
 
     pixel_spacing_um = result.pixel_spacing * 1e6
@@ -174,7 +173,7 @@ def plot_fit_result_overview(
         param_map = result.get_parameter_map(param)
 
         im = ax.imshow(param_map, extent=extent, origin="lower", cmap="viridis", aspect="equal")
-        ax.set_title(f'{param.replace("_", " ").title()}')
+        ax.set_title(f"{param.replace('_', ' ').title()}")
         ax.set_xlabel("x [μm]")
         ax.set_ylabel("y [μm]")
         plt.colorbar(im, ax=ax)

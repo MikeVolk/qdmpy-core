@@ -86,4 +86,3 @@ class ConfigurationError(QDMpyError):
 
 class DependencyError(QDMpyError):
     """Required dependency is not available."""
-

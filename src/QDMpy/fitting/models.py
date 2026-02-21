@@ -232,7 +232,7 @@ class Model(ABC):
     def units(self: Model) -> dict[str, str]:
         """Derive units from frequency_parameters."""
         freq = set(self.frequency_parameters)
-        return {p: 'GHz' if p in freq else 'a.u.' for p in self.parameter_names}
+        return {p: "GHz" if p in freq else "a.u." for p in self.parameter_names}
 
     @property
     def parameter(self: Model) -> list[str]:
@@ -313,7 +313,7 @@ class Model(ABC):
         Returns:
             String describing the model's key properties.
         """
-        return f"Model({self.name}, n_parameters: {self.n_parameters}, " f"n_peaks: {self.n_peaks})"
+        return f"Model({self.name}, n_parameters: {self.n_parameters}, n_peaks: {self.n_peaks})"
 
 
 class ModelRegistry:
@@ -342,7 +342,7 @@ class ModelRegistry:
             The model class, unchanged.
         """
         cls._registry[model_cls.name] = model_cls
-        logger.info(f'Registered model: {model_cls.name}')
+        logger.info(f"Registered model: {model_cls.name}")
         return model_cls
 
     @classmethod
@@ -378,14 +378,14 @@ class ModelRegistry:
 class ESR14N(Model):
     """Model for NV centers with 14N nitrogen isotope (3 hyperfine dips)."""
 
-    name: ClassVar[str] = 'ESR14N'
+    name: ClassVar[str] = "ESR14N"
 
     def __init__(self: ESR14N) -> None:
         """Initialize ESR14N model with 14N-specific parameters."""
         super().__init__(
-            'ESR14N',
+            "ESR14N",
             3,
-            ['center', 'width', 'contrast_0', 'contrast_1', 'contrast_2', 'offset'],
+            ["center", "width", "contrast_0", "contrast_1", "contrast_2", "offset"],
         )
         self.ahyp = AHYP_14N
         self.model_id = 13
@@ -394,18 +394,18 @@ class ESR14N(Model):
     def parameter_types(self: ESR14N) -> dict[str, str]:
         """Map each parameter to its type category."""
         return {
-            'center': 'center',
-            'width': 'width',
-            'contrast_0': 'contrast',
-            'contrast_1': 'contrast',
-            'contrast_2': 'contrast',
-            'offset': 'offset',
+            "center": "center",
+            "width": "width",
+            "contrast_0": "contrast",
+            "contrast_1": "contrast",
+            "contrast_2": "contrast",
+            "offset": "offset",
         }
 
     @property
     def frequency_parameters(self: ESR14N) -> list[str]:
         """Parameters in frequency units (GHz)."""
-        return ['center']
+        return ["center"]
 
     def func(
         self: ESR14N,
@@ -420,14 +420,14 @@ class ESR14N(Model):
 class ESR15N(Model):
     """Model for NV centers with 15N nitrogen isotope (2 hyperfine dips)."""
 
-    name: ClassVar[str] = 'ESR15N'
+    name: ClassVar[str] = "ESR15N"
 
     def __init__(self: ESR15N) -> None:
         """Initialize ESR15N model with 15N-specific parameters."""
         super().__init__(
-            'ESR15N',
+            "ESR15N",
             2,
-            ['center', 'width', 'contrast_0', 'contrast_1', 'offset'],
+            ["center", "width", "contrast_0", "contrast_1", "offset"],
         )
         self.ahyp = AHYP_15N
         self.model_id = 14
@@ -436,17 +436,17 @@ class ESR15N(Model):
     def parameter_types(self: ESR15N) -> dict[str, str]:
         """Map each parameter to its type category."""
         return {
-            'center': 'center',
-            'width': 'width',
-            'contrast_0': 'contrast',
-            'contrast_1': 'contrast',
-            'offset': 'offset',
+            "center": "center",
+            "width": "width",
+            "contrast_0": "contrast",
+            "contrast_1": "contrast",
+            "offset": "offset",
         }
 
     @property
     def frequency_parameters(self: ESR15N) -> list[str]:
         """Parameters in frequency units (GHz)."""
-        return ['center']
+        return ["center"]
 
     def func(
         self: ESR15N,
@@ -461,27 +461,27 @@ class ESR15N(Model):
 class ESRSINGLE(Model):
     """Model for a single ODMR resonance dip (no hyperfine splitting)."""
 
-    name: ClassVar[str] = 'ESRSINGLE'
+    name: ClassVar[str] = "ESRSINGLE"
 
     def __init__(self: ESRSINGLE) -> None:
         """Initialize ESRSINGLE model with single-dip parameters."""
-        super().__init__('ESRSINGLE', 1, ['center', 'width', 'contrast', 'offset'])
+        super().__init__("ESRSINGLE", 1, ["center", "width", "contrast", "offset"])
         self.model_id = 15
 
     @property
     def parameter_types(self: ESRSINGLE) -> dict[str, str]:
         """Map each parameter to its type category."""
         return {
-            'center': 'center',
-            'width': 'width',
-            'contrast': 'contrast',
-            'offset': 'offset',
+            "center": "center",
+            "width": "width",
+            "contrast": "contrast",
+            "offset": "offset",
         }
 
     @property
     def frequency_parameters(self: ESRSINGLE) -> list[str]:
         """Parameters in frequency units (GHz)."""
-        return ['center']
+        return ["center"]
 
     def func(
         self: ESRSINGLE,

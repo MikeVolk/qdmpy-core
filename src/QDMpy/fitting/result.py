@@ -18,14 +18,13 @@ The FitResult class handles:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 import numpy as np
 import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
-from typing_extensions import Self
 
 from QDMpy.constants import D_ZFS, GAMMA_NV
 from QDMpy.exceptions import DataLoadError, DataShapeError, DataValidationError, ParameterError
@@ -65,21 +64,21 @@ class FitResult(BaseModel):
     _delta_resonance_cache: xr.DataArray | None = PrivateAttr(default=None)
     _b111_cache: xr.Dataset | None = PrivateAttr(default=None)
 
-    @field_validator('scan_dimensions')
+    @field_validator("scan_dimensions")
     @classmethod
     def validate_scan_dimensions(cls: type[FitResult], v: tuple[int, int]) -> tuple[int, int]:
         """Validate that scan dimensions are positive."""
         if v[0] <= 0 or v[1] <= 0:
-            msg = f'scan_dimensions must be positive, got {v}'
+            msg = f"scan_dimensions must be positive, got {v}"
             raise DataValidationError(msg)
         return v
 
-    @field_validator('parameters')
+    @field_validator("parameters")
     @classmethod
     def validate_parameters(cls: type[FitResult], v: dict[str, NDArray]) -> dict[str, NDArray]:
         """Validate that parameters dict is not empty."""
         if not v:
-            msg = 'parameters dict must not be empty'
+            msg = "parameters dict must not be empty"
             raise DataValidationError(msg)
         return v
 
@@ -92,11 +91,7 @@ class FitResult(BaseModel):
         """Return string representation of FitResult."""
         n_pixels = self.scan_dimensions[0] * self.scan_dimensions[1]
         n_params = len(self.parameters)
-        return (
-            f"FitResult(model='{self.model_name}', "
-            f"n_pixels={n_pixels}, "
-            f"parameters={n_params})"
-        )
+        return f"FitResult(model='{self.model_name}', n_pixels={n_pixels}, parameters={n_params})"
 
     @property
     def centers(self: Self) -> NDArray:
@@ -129,10 +124,23 @@ class FitResult(BaseModel):
     def contrasts(self: Self) -> NDArray:
         """Get ODMR contrasts (normalized).
 
+        For models with multiple contrast parameters (ESR14N, ESR15N), returns
+        the first contrast (``contrast_0``).  For ESRSINGLE returns ``contrast``.
+
         Returns:
-            Array of contrast values with shape matching spatial dimensions
+            Array of primary contrast values with shape ``(n_pol, n_frange, n_pixel)``.
+
+        Raises:
+            ParameterError: If no contrast parameter is found.
         """
-        return self.parameters["contrast"]
+        contrast = self.parameters.get("contrast")
+        if contrast is not None:
+            return contrast
+        contrast_0 = self.parameters.get("contrast_0")
+        if contrast_0 is not None:
+            return contrast_0
+        msg = "No contrast parameter found ('contrast' or 'contrast_0')"
+        raise ParameterError(msg)
 
     @property
     def offsets(self: Self) -> NDArray:
@@ -227,9 +235,7 @@ class FitResult(BaseModel):
                 factors.append((i, n_pixels // i))
 
         if factors:
-            best_height, best_width = min(
-                factors, key=lambda f: abs(f[1] / f[0] - aspect_ratio)
-            )
+            best_height, best_width = min(factors, key=lambda f: abs(f[1] / f[0] - aspect_ratio))
         else:
             best_height = int(np.sqrt(n_pixels))
             best_width = n_pixels // best_height
@@ -242,9 +248,7 @@ class FitResult(BaseModel):
         )
         return best_height, best_width
 
-    def _normalize_resonance_shape(
-        self: Self, resonance: NDArray
-    ) -> tuple[NDArray, int, int, int]:
+    def _normalize_resonance_shape(self: Self, resonance: NDArray) -> tuple[NDArray, int, int, int]:
         """Normalize resonance array to 3D (n_pol, n_frange, n_pixels).
 
         Handles 4D (squeeze), 3D (passthrough), and 2D (reshape with n_pol=2).
@@ -344,8 +348,7 @@ class FitResult(BaseModel):
 
         if low_freq.shape[1] >= 2:  # noqa: PLR2004
             freq_diff = (
-                (high_freq[:, 1] - low_freq[:, 0])
-                + (high_freq[:, 0] - low_freq[:, 1])
+                (high_freq[:, 1] - low_freq[:, 0]) + (high_freq[:, 0] - low_freq[:, 1])
             ) / 2
         else:
             freq_diff = high_freq[:, 0] - low_freq[:, 0]
@@ -373,9 +376,7 @@ class FitResult(BaseModel):
             height, width = self._resolve_spatial_dims(n_pixels)
             delta = self._calc_delta_from_single_center(resonance, n_pol, n_frange, height, width)
         else:
-            center_params = {
-                k: v for k, v in self.parameters.items() if k.startswith("center")
-            }
+            center_params = {k: v for k, v in self.parameters.items() if k.startswith("center")}
             n_pixels = next(iter(center_params.values())).shape[-1]
             height, width = self._resolve_spatial_dims(n_pixels)
             delta = self._calc_delta_from_multi_centers(center_params, height, width)
@@ -385,9 +386,9 @@ class FitResult(BaseModel):
         logger.debug(f"Delta resonance computed with shape: {delta.shape}")
         return xr.DataArray(
             delta,
-            dims=('polarity', 'y', 'x'),
-            coords={'polarity': polarity_coords},
-            attrs={'units': 'µT', 'description': 'signed dB per polarity'},
+            dims=("polarity", "y", "x"),
+            coords={"polarity": polarity_coords},
+            attrs={"units": "µT", "description": "signed dB per polarity"},
         )
 
     @property
@@ -417,47 +418,42 @@ class FitResult(BaseModel):
         """
         logger.info("Computing B111 magnetic field components")
 
-        delta_res = self.delta_resonance   # xr.DataArray (polarity, y, x)
-        polarity_vals = list(delta_res.coords['polarity'].values)
+        delta_res = self.delta_resonance  # xr.DataArray (polarity, y, x)
+        polarity_vals = list(delta_res.coords["polarity"].values)
 
-        if 'neg' not in polarity_vals or 'pos' not in polarity_vals:
-            msg = (
-                f"B111 requires both 'neg' and 'pos' polarities; "
-                f"found: {polarity_vals}"
-            )
+        if "neg" not in polarity_vals or "pos" not in polarity_vals:
+            msg = f"B111 requires both 'neg' and 'pos' polarities; found: {polarity_vals}"
             raise DataShapeError(msg)
 
-        neg_diff = delta_res.sel(polarity='neg').values   # (height, width)
-        pos_diff = delta_res.sel(polarity='pos').values   # (height, width)
+        neg_diff = delta_res.sel(polarity="neg").values  # (height, width)
+        pos_diff = delta_res.sel(polarity="pos").values  # (height, width)
 
         b111_remanent = (neg_diff + pos_diff) / 2
         b111_induced = (neg_diff - pos_diff) / 2
 
         logger.debug(
-            f"B111 remanent: mean={b111_remanent.mean():.2e} µT, "
-            f"std={b111_remanent.std():.2e} µT"
+            f"B111 remanent: mean={b111_remanent.mean():.2e} µT, std={b111_remanent.std():.2e} µT"
         )
         logger.debug(
-            f"B111 induced: mean={b111_induced.mean():.2e} µT, "
-            f"std={b111_induced.std():.2e} µT"
+            f"B111 induced: mean={b111_induced.mean():.2e} µT, std={b111_induced.std():.2e} µT"
         )
 
         return xr.Dataset(
             {
-                'remanent': xr.DataArray(b111_remanent, dims=('y', 'x'), attrs={'units': 'µT'}),
-                'induced': xr.DataArray(b111_induced, dims=('y', 'x'), attrs={'units': 'µT'}),
+                "remanent": xr.DataArray(b111_remanent, dims=("y", "x"), attrs={"units": "µT"}),
+                "induced": xr.DataArray(b111_induced, dims=("y", "x"), attrs={"units": "µT"}),
             }
         )
 
     @property
     def b111_remanent(self: Self) -> NDArray:
         """Remanent B111 field component in µT as a 2D numpy array."""
-        return self.b111['remanent'].values
+        return self.b111["remanent"].values
 
     @property
     def b111_induced(self: Self) -> NDArray:
         """Induced B111 field component in µT as a 2D numpy array."""
-        return self.b111['induced'].values
+        return self.b111["induced"].values
 
     def calculate_b_field(self: Self, force_recalculate: bool = False) -> NDArray:
         """Calculate magnetic field map from fitted resonance frequencies.
@@ -562,8 +558,8 @@ class FitResult(BaseModel):
         if self._delta_resonance_cache is not None:
             save_data["delta_resonance"] = self._delta_resonance_cache.values
         if self._b111_cache is not None:
-            save_data["b111_remanent"] = self._b111_cache['remanent'].values
-            save_data["b111_induced"] = self._b111_cache['induced'].values
+            save_data["b111_remanent"] = self._b111_cache["remanent"].values
+            save_data["b111_induced"] = self._b111_cache["induced"].values
 
         # Save to NPZ format for efficiency
         # Extract numpy arrays and convert other types to numpy-compatible formats

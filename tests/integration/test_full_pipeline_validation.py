@@ -4,6 +4,7 @@ These tests validate the complete end-to-end pipeline from data loading
 through magnetic field calculation, ensuring identical results between
 old and new codebases.
 """
+
 from __future__ import annotations
 
 import time
@@ -25,8 +26,8 @@ class TestFullPipelineValidation:
     ) -> None:
         """Test complete pipeline from data loading to magnetic field calculation."""
         # Import modules
-        QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
-        QDMpy_old, QDM_old, ODMR_old = old_qdmpy_modules
+        _QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+        _QDMpy_old, QDM_old, ODMR_old = old_qdmpy_modules
 
         fluor_value = test_parameters["global_fluorescence"]
         fit_params = test_parameters["fitting_parameters"]
@@ -158,7 +159,7 @@ class TestFullPipelineValidation:
         logger.info(
             f"Pipeline performance (bin_factor={bin_factor}): "
             f"old={old_time:.3f}s, new={new_time:.3f}s, "
-            f"ratio={new_time/old_time:.2f}x"
+            f"ratio={new_time / old_time:.2f}x"
         )
 
         logger.info(f"Complete pipeline validation passed for bin_factor={bin_factor}")
@@ -197,7 +198,7 @@ class TestFullPipelineReferenceComparison:
     ) -> None:
         """Test complete pipeline against pre-generated reference data."""
         # Import new modules
-        QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+        _QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
 
         bin_factor = int(reference_data["bin_factor"])
         fluor_value = test_parameters["global_fluorescence"]
@@ -300,8 +301,8 @@ def test_pipeline_performance_scaling(
 ) -> None:
     """Test pipeline performance scaling with different binning factors."""
     # Import modules
-    QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
-    QDMpy_old, QDM_old, ODMR_old = old_qdmpy_modules
+    _QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+    _QDMpy_old, QDM_old, ODMR_old = old_qdmpy_modules
 
     bin_factors = [1, 2, 8]
     performance_results = {"old": {}, "new": {}}
@@ -349,7 +350,7 @@ def test_pipeline_performance_scaling(
         logger.info(
             f"Performance (bin_factor={bin_factor}): "
             f"old={old_time:.3f}s, new={new_time:.3f}s, "
-            f"ratio={new_time/old_time:.2f}x"
+            f"ratio={new_time / old_time:.2f}x"
         )
 
     # Analyze performance scaling

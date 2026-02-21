@@ -34,11 +34,12 @@ from loguru import logger
 
 sys.path.append("/home/mike/git/QDMpy/src")
 
-from QDMpy.measurement import Measurement
 from QDMpy.models import ESR14N, ESR15N, ESRSINGLE, ModelRegistry
+from QDMpy.odmr.odmr import ODMR
+
+from QDMpy.measurement import Measurement
 from QDMpy.odmr.data import ODMRData
 from QDMpy.odmr.io import MatlabLoader
-from QDMpy.odmr.odmr import ODMR
 from QDMpy.odmr.processors import (
     BinningProcessor,
     FluorescenceCorrectionProcessor,
@@ -98,8 +99,8 @@ def main() -> None:
 
     logger.info(f"ODMR data shape: {odmr_data.shape}")
     logger.info(
-        f"Frequency range: {odmr_data.frequencies.min()/1e9:.3f} - "
-        f"{odmr_data.frequencies.max()/1e9:.3f} GHz"
+        f"Frequency range: {odmr_data.frequencies.min() / 1e9:.3f} - "
+        f"{odmr_data.frequencies.max() / 1e9:.3f} GHz"
     )
     logger.info(f"Scan dimensions: {odmr_data.scan_dimensions}")
 

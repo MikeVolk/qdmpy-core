@@ -6,10 +6,11 @@ ODMR data handling including raw/processed data lifecycle and processing pipelin
 
 from __future__ import annotations
 
+from typing import Self
+
 import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
-from typing_extensions import Self
 
 from QDMpy.exceptions import DataNotLoadedError
 from QDMpy.odmr.data import ODMRData

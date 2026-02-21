@@ -4,6 +4,7 @@ These tests validate that the new QDMpy codebase produces identical fitting
 results compared to the old codebase, including fit parameters, errors, and
 convergence metrics.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -23,8 +24,8 @@ class TestFittingValidation:
     ) -> None:
         """Test that fitting produces identical parameters."""
         # Import modules
-        QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
-        QDMpy_old, QDM_old, ODMR_old = old_qdmpy_modules
+        _QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+        _QDMpy_old, QDM_old, ODMR_old = old_qdmpy_modules
 
         fluor_value = test_parameters["global_fluorescence"]
         fit_params = test_parameters["fitting_parameters"]
@@ -79,8 +80,8 @@ class TestFittingValidation:
     ) -> None:
         """Test that fitting quality metrics are consistent."""
         # Import modules
-        QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
-        QDMpy_old, QDM_old, ODMR_old = old_qdmpy_modules
+        _QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+        _QDMpy_old, QDM_old, ODMR_old = old_qdmpy_modules
 
         fluor_value = test_parameters["global_fluorescence"]
         fit_params = test_parameters["fitting_parameters"]
@@ -165,7 +166,7 @@ class TestFittingReferenceComparison:
     ) -> None:
         """Test fitting results against reference data."""
         # Import new modules
-        QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+        _QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
 
         bin_factor = int(reference_data["bin_factor"])
         fluor_value = test_parameters["global_fluorescence"]
@@ -232,8 +233,8 @@ def test_fitting_performance(
     import time
 
     # Import modules
-    QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
-    QDMpy_old, QDM_old, ODMR_old = old_qdmpy_modules
+    _QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+    _QDMpy_old, QDM_old, ODMR_old = old_qdmpy_modules
 
     fluor_value = test_parameters["global_fluorescence"]
     fit_params = test_parameters["fitting_parameters"]

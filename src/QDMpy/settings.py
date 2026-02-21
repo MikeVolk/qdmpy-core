@@ -233,7 +233,7 @@ def _configure_logging(settings: QDMpySettings) -> None:
     logging.getLogger('h5py').setLevel(logging.WARNING)
 
     logger.remove()
-    logger.add(sys.stderr, level=settings.logging.log_level)
+    logger.add(sys.stdout, level=settings.logging.log_level)
 
     if settings.logging.log_file:
         logger.add(

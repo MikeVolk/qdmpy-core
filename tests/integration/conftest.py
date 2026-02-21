@@ -4,6 +4,7 @@ This module provides shared fixtures and configuration for integration tests
 that validate the new QDMpy codebase against reference data generated from
 the old codebase.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

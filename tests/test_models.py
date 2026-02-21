@@ -26,6 +26,7 @@ from QDMpy.fitting.models import (
 
 try:
     import pygpufit.gpufit  # noqa: F401
+
     _HAS_GPUFIT = True
 except ImportError:
     _HAS_GPUFIT = False
@@ -255,15 +256,15 @@ class TestModelClass:
 
         class TestModelCallsParentFunc(Model):
             def __init__(self) -> None:
-                super().__init__('TEST', 1, ['param1'])
+                super().__init__("TEST", 1, ["param1"])
 
             @property
             def parameter_types(self) -> dict[str, str]:
-                return {'param1': 'center'}
+                return {"param1": "center"}
 
             @property
             def frequency_parameters(self) -> list[str]:
-                return ['param1']
+                return ["param1"]
 
             def func(self, x, parameters):
                 return super().func(x, parameters)
@@ -462,41 +463,41 @@ class TestModelRegistry:
         """Test the initial state of the registry."""
         registry = ModelRegistry.all()
 
-        assert 'ESR14N' in registry
-        assert 'ESR15N' in registry
-        assert 'ESRSINGLE' in registry
+        assert "ESR14N" in registry
+        assert "ESR15N" in registry
+        assert "ESRSINGLE" in registry
 
-        assert registry['ESR14N'] is ESR14N
-        assert registry['ESR15N'] is ESR15N
-        assert registry['ESRSINGLE'] is ESRSINGLE
+        assert registry["ESR14N"] is ESR14N
+        assert registry["ESR15N"] is ESR15N
+        assert registry["ESRSINGLE"] is ESRSINGLE
 
     def test_register_new_model(self) -> None:
         """Test registering a new model via decorator."""
 
         @ModelRegistry.register
         class MockModel(Model):
-            name: ClassVar[str] = 'MOCK_MODEL'
+            name: ClassVar[str] = "MOCK_MODEL"
 
             def __init__(self) -> None:
-                super().__init__('MOCK_MODEL', 1, ['center', 'width'])
+                super().__init__("MOCK_MODEL", 1, ["center", "width"])
 
             @property
             def parameter_types(self) -> dict[str, str]:
-                return {'center': 'center', 'width': 'width'}
+                return {"center": "center", "width": "width"}
 
             @property
             def frequency_parameters(self) -> list[str]:
-                return ['center']
+                return ["center"]
 
             def func(self, x, parameters):
                 return x
 
         registry = ModelRegistry.all()
-        assert 'MOCK_MODEL' in registry
-        assert registry['MOCK_MODEL'] is MockModel
+        assert "MOCK_MODEL" in registry
+        assert registry["MOCK_MODEL"] is MockModel
 
         # Clean up
-        del ModelRegistry._registry['MOCK_MODEL']
+        del ModelRegistry._registry["MOCK_MODEL"]
 
     def test_get_model(self) -> None:
         """Test getting a model by name."""
@@ -522,50 +523,50 @@ class TestModelSelfDescribing:
     def test_parameter_types_esr14n(self) -> None:
         model = ESR14N()
         pt = model.parameter_types
-        assert pt['center'] == 'center'
-        assert pt['width'] == 'width'
-        assert pt['contrast_0'] == 'contrast'
-        assert pt['contrast_1'] == 'contrast'
-        assert pt['contrast_2'] == 'contrast'
-        assert pt['offset'] == 'offset'
+        assert pt["center"] == "center"
+        assert pt["width"] == "width"
+        assert pt["contrast_0"] == "contrast"
+        assert pt["contrast_1"] == "contrast"
+        assert pt["contrast_2"] == "contrast"
+        assert pt["offset"] == "offset"
 
     def test_parameter_types_esr15n(self) -> None:
         model = ESR15N()
         pt = model.parameter_types
-        assert pt['center'] == 'center'
-        assert pt['width'] == 'width'
-        assert pt['contrast_0'] == 'contrast'
-        assert pt['contrast_1'] == 'contrast'
-        assert pt['offset'] == 'offset'
+        assert pt["center"] == "center"
+        assert pt["width"] == "width"
+        assert pt["contrast_0"] == "contrast"
+        assert pt["contrast_1"] == "contrast"
+        assert pt["offset"] == "offset"
 
     def test_parameter_types_esrsingle(self) -> None:
         model = ESRSINGLE()
         pt = model.parameter_types
-        assert pt['center'] == 'center'
-        assert pt['width'] == 'width'
-        assert pt['contrast'] == 'contrast'
-        assert pt['offset'] == 'offset'
+        assert pt["center"] == "center"
+        assert pt["width"] == "width"
+        assert pt["contrast"] == "contrast"
+        assert pt["offset"] == "offset"
 
     def test_frequency_parameters(self) -> None:
         for model_cls in [ESR14N, ESR15N, ESRSINGLE]:
             model = model_cls()
-            assert model.frequency_parameters == ['center']
+            assert model.frequency_parameters == ["center"]
 
     def test_units(self) -> None:
         model = ESR14N()
         units = model.units
-        assert units['center'] == 'GHz'
-        assert units['width'] == 'a.u.'
-        assert units['contrast_0'] == 'a.u.'
-        assert units['offset'] == 'a.u.'
+        assert units["center"] == "GHz"
+        assert units["width"] == "a.u."
+        assert units["contrast_0"] == "a.u."
+        assert units["offset"] == "a.u."
 
     def test_parameter_derives_from_parameter_types(self) -> None:
         model = ESR14N()
-        expected = ['center', 'width', 'contrast', 'contrast', 'contrast', 'offset']
+        expected = ["center", "width", "contrast", "contrast", "contrast", "offset"]
         assert model.parameter == expected
 
         model_single = ESRSINGLE()
-        expected_single = ['center', 'width', 'contrast', 'offset']
+        expected_single = ["center", "width", "contrast", "offset"]
         assert model_single.parameter == expected_single
 
 
@@ -588,7 +589,7 @@ def test_main_demo_function() -> None:
     assert output == "4\n"
 
 
-@pytest.mark.skipif(not _HAS_GPUFIT, reason='Requires pyGpufit installation')
+@pytest.mark.skipif(not _HAS_GPUFIT, reason="Requires pyGpufit installation")
 class TestGpufitConsistency:
     """Verify Python model functions match the corresponding gpufit GPU kernels.
 
@@ -613,8 +614,8 @@ class TestGpufitConsistency:
 
         fm = FitManager(model_name=model_name)
         # fit_frange expects (n_pol, n_pixel, n_freq) — use n_pol=1
-        data = spectra[np.newaxis]            # (1, N, n_freq)
-        init = true_params[np.newaxis]        # (1, N, n_params)
+        data = spectra[np.newaxis]  # (1, N, n_freq)
+        init = true_params[np.newaxis]  # (1, N, n_params)
 
         results = fm.fit_frange(data, self.FREQ, init)
         recovered = results[0].reshape(-1, model.n_parameters)  # (N, n_params)
@@ -622,25 +623,30 @@ class TestGpufitConsistency:
         chi2 = results[2].flatten()
 
         assert np.all(states == 0), (
-            f'{model_name}: some fits did not converge — states: {np.unique(states, return_counts=True)}'
+            f"{model_name}: some fits did not converge — states: {np.unique(states, return_counts=True)}"
         )
         assert np.all(chi2 < 1e-6), (
-            f'{model_name}: nonzero chi2 suggests model mismatch — max chi2={chi2.max():.2e}'
+            f"{model_name}: nonzero chi2 suggests model mismatch — max chi2={chi2.max():.2e}"
         )
-        assert_allclose(recovered, true_params, rtol=1e-2, atol=1e-5,
-                        err_msg=f'{model_name}: recovered params differ from ground truth')
+        assert_allclose(
+            recovered,
+            true_params,
+            rtol=1e-2,
+            atol=1e-5,
+            err_msg=f"{model_name}: recovered params differ from ground truth",
+        )
 
     def test_esr14n_matches_gpufit(self) -> None:
         """Python esr14n must match the ESR14N gpufit kernel (model_id=13)."""
         rng = np.random.default_rng(0)
         params = np.empty((self.N, 6), dtype=np.float32)
-        params[:, 0] = rng.uniform(2.85, 2.89, self.N)   # center (GHz)
-        params[:, 1] = rng.uniform(0.002, 0.005, self.N) # width (GHz)
-        params[:, 2] = rng.uniform(0.05, 0.15, self.N)   # contrast_0
-        params[:, 3] = rng.uniform(0.05, 0.20, self.N)   # contrast_1
-        params[:, 4] = rng.uniform(0.05, 0.15, self.N)   # contrast_2
+        params[:, 0] = rng.uniform(2.85, 2.89, self.N)  # center (GHz)
+        params[:, 1] = rng.uniform(0.002, 0.005, self.N)  # width (GHz)
+        params[:, 2] = rng.uniform(0.05, 0.15, self.N)  # contrast_0
+        params[:, 3] = rng.uniform(0.05, 0.20, self.N)  # contrast_1
+        params[:, 4] = rng.uniform(0.05, 0.15, self.N)  # contrast_2
         params[:, 5] = rng.uniform(-0.01, 0.01, self.N)  # offset
-        self._run('ESR14N', params)
+        self._run("ESR14N", params)
 
     def test_esr15n_matches_gpufit(self) -> None:
         """Python esr15n must match the ESR15N gpufit kernel (model_id=14)."""
@@ -651,7 +657,7 @@ class TestGpufitConsistency:
         params[:, 2] = rng.uniform(0.05, 0.20, self.N)
         params[:, 3] = rng.uniform(0.05, 0.20, self.N)
         params[:, 4] = rng.uniform(-0.01, 0.01, self.N)
-        self._run('ESR15N', params)
+        self._run("ESR15N", params)
 
     def test_esrsingle_matches_gpufit(self) -> None:
         """Python esrsingle must match the ESRSINGLE gpufit kernel (model_id=15)."""
@@ -661,7 +667,7 @@ class TestGpufitConsistency:
         params[:, 1] = rng.uniform(0.002, 0.005, self.N)
         params[:, 2] = rng.uniform(0.05, 0.30, self.N)
         params[:, 3] = rng.uniform(-0.01, 0.01, self.N)
-        self._run('ESRSINGLE', params)
+        self._run("ESRSINGLE", params)
 
 
 if __name__ == "__main__":

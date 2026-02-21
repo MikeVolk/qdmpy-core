@@ -214,12 +214,12 @@ class TestFitResultPlotting(unittest.TestCase):
 
     def test_plotting_functions_with_real_fitresult(self) -> None:
         """Test plotting functions with a real FitResult object."""
+        from QDMpy.fitting.result import FitResult
         from QDMpy.plotting import (
             plot_fit_result_field_map,
             plot_fit_result_overview,
             plot_fit_result_parameter_map,
         )
-        from QDMpy.fitting.result import FitResult
 
         # Create a real FitResult object
         n_pixels = 100

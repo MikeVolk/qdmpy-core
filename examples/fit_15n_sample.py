@@ -19,9 +19,10 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 
 from QDMpy.models import ModelRegistry
+from QDMpy.odmr.odmr import ODMR
+
 from QDMpy.odmr.data import ODMRData
 from QDMpy.odmr.io import MatlabLoader
-from QDMpy.odmr.odmr import ODMR
 from QDMpy.odmr.processors import BinningProcessor, NormalizationProcessor
 
 
@@ -30,11 +31,9 @@ def main() -> None:
     # Data path
     data_folder = "/home/mike/git/QDMpy/tests/data/FOV18x"
 
-
     # Load data using MatlabLoader
     loader = MatlabLoader(data_folder=data_folder)
     odmr_data = ODMRData.from_loader(loader=loader)
-
 
     # Create ODMR instance and setup processing pipeline
     odmr = ODMR(odmr_data)
@@ -46,7 +45,6 @@ def main() -> None:
     # Apply processing
     odmr.process_data()
 
-
     # Get 15N model from registry
     ModelRegistry.get("ESR15N")
 
@@ -55,15 +53,13 @@ def main() -> None:
     fit_data = odmr.processed_data.data[:, :, :10, :]  # First 10 pixels only
     frequencies_ghz = odmr.processed_data.frequencies / 1e9  # Convert to GHz
 
-
-
     # Since fitting has some issues with the current pyGpufit setup,
     # let's demonstrate data visualization instead
     try:
         import matplotlib.pyplot as plt
 
         # Plot spectra from first few pixels
-        fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+        _fig, axes = plt.subplots(2, 2, figsize=(12, 8))
         axes = axes.flatten()
 
         for i in range(min(4, fit_data.shape[2])):
@@ -75,7 +71,7 @@ def main() -> None:
             ax.plot(freq_slice, spectrum, "b-", linewidth=2)
             ax.set_xlabel("Frequency (GHz)")
             ax.set_ylabel("ODMR Signal (normalized)")
-            ax.set_title(f"Pixel {i+1} ODMR Spectrum")
+            ax.set_title(f"Pixel {i + 1} ODMR Spectrum")
             ax.grid(True, alpha=0.3)
 
             # Mark expected 15N resonance positions (rough estimate)
@@ -98,7 +94,6 @@ def main() -> None:
 
     except Exception:
         return
-
 
 
 if __name__ == "__main__":

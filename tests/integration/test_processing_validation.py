@@ -3,6 +3,7 @@
 These tests validate that the new QDMpy codebase produces identical processing
 results compared to reference data generated from the old codebase.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -21,7 +22,7 @@ class TestProcessingValidation:
     ) -> None:
         """Test that normalization produces identical results to reference."""
         # Import new codebase modules
-        QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+        _QDMpy_new, _Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
         from QDMpy.odmr.processors import NormalizationProcessor
 
         # Load data with new codebase
@@ -46,7 +47,7 @@ class TestProcessingValidation:
             err_msg="Normalized data does not match reference",
         )
 
-        logger.info(f"✅ Normalization validation passed for bin_factor={bin_factor}")
+        logger.info(f"Normalization validation passed for bin_factor={bin_factor}")
 
     @pytest.mark.parametrize("bin_factor", [1, 2, 8])
     def test_binning_processing(
@@ -57,7 +58,7 @@ class TestProcessingValidation:
             pytest.skip("No binning applied for bin_factor=1")
 
         # Import new codebase modules
-        QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+        _QDMpy_new, _Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
         from QDMpy.odmr.processors import BinningProcessor, NormalizationProcessor
 
         # Load data with new codebase
@@ -91,7 +92,7 @@ class TestProcessingValidation:
             err_msg="Binned scan dimensions do not match reference",
         )
 
-        logger.info(f"✅ Binning validation passed for bin_factor={bin_factor}")
+        logger.info(f"Binning validation passed for bin_factor={bin_factor}")
         logger.info(f"   Final shape: {odmr.processed_data.data.shape}")
         logger.info(f"   Scan dimensions: {odmr.processed_data.scan_dimensions}")
 
@@ -101,7 +102,7 @@ class TestProcessingValidation:
     ) -> None:
         """Test that fluorescence correction produces identical results to reference."""
         # Import new codebase modules
-        QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+        _QDMpy_new, _Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
         from QDMpy.odmr.processors import (
             BinningProcessor,
             FluorescenceCorrectionProcessor,
@@ -133,7 +134,7 @@ class TestProcessingValidation:
             err_msg="Fluorescence corrected data does not match reference",
         )
 
-        logger.info(f"✅ Fluorescence correction validation passed for bin_factor={bin_factor}")
+        logger.info(f"Fluorescence correction validation passed for bin_factor={bin_factor}")
 
 
 @pytest.mark.slow
@@ -149,7 +150,7 @@ class TestProcessingPerformance:
     ) -> None:
         """Benchmark processing performance against reference times."""
         # Import new codebase modules
-        QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+        _QDMpy_new, _Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
         from QDMpy.odmr.processors import (
             BinningProcessor,
             FluorescenceCorrectionProcessor,
@@ -187,7 +188,7 @@ class TestProcessingPerformance:
                 f"(max allowed: {max_allowed_time:.3f}s)"
             )
 
-            logger.info(f"✅ Performance validation passed for bin_factor={bin_factor}")
+            logger.info(f"Performance validation passed for bin_factor={bin_factor}")
             logger.info(f"   New: {actual_time:.3f}s vs Reference: {ref_timing:.3f}s")
         else:
             logger.warning(f"No reference timing available for bin_factor={bin_factor}")

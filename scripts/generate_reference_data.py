@@ -14,6 +14,7 @@ The script processes data with binning factors 1, 2, and 8, generating:
 - Fit results and parameters
 - Magnetic field calculations (B111 components)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -109,7 +110,9 @@ class ReferenceDataGenerator:
                 )
 
                 if reference_data is None:
-                    logger.error(f"Failed to generate reference data for binning factor {bin_factor}")
+                    logger.error(
+                        f"Failed to generate reference data for binning factor {bin_factor}"
+                    )
                     success = False
                     continue
 
@@ -236,7 +239,7 @@ class ReferenceDataGenerator:
         """
         try:
             # Import old processing modules
-            QDMpy_old, QDM_old, ODMR_old = safe_import_old_qdmpy()
+            _QDMpy_old, _QDM_old, ODMR_old = safe_import_old_qdmpy()
 
             # Recreate ODMR object from raw data
             odmr = ODMR_old.from_qdmio(str(self.data_folder))
@@ -288,7 +291,7 @@ class ReferenceDataGenerator:
         """
         try:
             # Import old fitting modules
-            QDMpy_old, QDM_old, ODMR_old = safe_import_old_qdmpy()
+            _QDMpy_old, QDM_old, ODMR_old = safe_import_old_qdmpy()
 
             # Recreate processed ODMR object
             odmr = ODMR_old.from_qdmio(str(self.data_folder))
@@ -356,7 +359,7 @@ class ReferenceDataGenerator:
         """
         try:
             # Import old codebase
-            QDMpy_old, QDM_old, ODMR_old = safe_import_old_qdmpy()
+            _QDMpy_old, QDM_old, ODMR_old = safe_import_old_qdmpy()
 
             # Recreate the full measurement pipeline
             odmr = ODMR_old.from_qdmio(str(self.data_folder))

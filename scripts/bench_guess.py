@@ -30,12 +30,12 @@ import numpy as np
 from numba import njit, prange
 from numpy.typing import NDArray
 
-
 # ---------------------------------------------------------------------------
 # Implementation 1: old Numba (mirrors production guess.py BEFORE QEP-024)
 #   — nested loops, prange only at innermost (n_pixel level)
 #   — normalize_pixel called twice per pixel (once for center, once for width)
 # ---------------------------------------------------------------------------
+
 
 @njit(fastmath=True)
 def _normalize_pixel_nb(pixel: NDArray) -> NDArray:  # pragma: no cover
@@ -71,7 +71,9 @@ def _center_nb(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
 
 
 @njit(parallel=True, fastmath=True)
-def _width_nb(data: NDArray, freq: NDArray, vmin: float, vmax: float) -> NDArray:  # pragma: no cover
+def _width_nb(
+    data: NDArray, freq: NDArray, vmin: float, vmax: float
+) -> NDArray:  # pragma: no cover
     n_pol, n_frange, n_pixel, _ = data.shape
     out = np.zeros((n_pol, n_frange, n_pixel))
     for p in range(n_pol):
@@ -100,10 +102,12 @@ def guess_numba_old(
 #   normalize_pixel still called twice per pixel (in center + width).
 # ---------------------------------------------------------------------------
 
+
 def guess_numba_new(
     data: NDArray, freq: NDArray, vmin: float, vmax: float
 ) -> tuple[NDArray, NDArray, NDArray]:
-    from QDMpy.fitting.guess import cumsum_contrast, cumsum_center, cumsum_width
+    from QDMpy.fitting.guess import cumsum_center, cumsum_contrast, cumsum_width
+
     contrast = cumsum_contrast(data)
     center = cumsum_center(data, freq)
     width = cumsum_width(data, freq, vmin, vmax)
@@ -113,6 +117,7 @@ def guess_numba_new(
 # ---------------------------------------------------------------------------
 # Implementation 3: Numba combined — single prange over pixel, normalize once
 # ---------------------------------------------------------------------------
+
 
 @njit(parallel=True, fastmath=True)
 def _guess_all_nb_combined(
@@ -147,6 +152,7 @@ def guess_numba_combined(
 # Implementation 2b: Numba flat — single prange over all (pol, frange, pixel)
 # ---------------------------------------------------------------------------
 
+
 @njit(parallel=True, fastmath=True)
 def _guess_all_nb_flat(
     data: NDArray, freq: NDArray, vmin: float, vmax: float
@@ -158,8 +164,8 @@ def _guess_all_nb_flat(
     width = np.zeros((n_pol, n_frange, n_pixel))
     for idx in prange(total):  # type: ignore[not-iterable]
         px = idx % n_pixel
-        r  = (idx // n_pixel) % n_frange
-        p  = idx // (n_pixel * n_frange)
+        r = (idx // n_pixel) % n_frange
+        p = idx // (n_pixel * n_frange)
         pixel = data[p, r, px]
         mx = np.nanmax(pixel)
         mn = np.nanmin(pixel)
@@ -181,6 +187,7 @@ def guess_numba_flat(
 # ---------------------------------------------------------------------------
 # Implementation 3: vectorized NumPy
 # ---------------------------------------------------------------------------
+
 
 def _normalize_all_np(data: NDArray) -> NDArray:
     """Compute normalized cumsum for the entire array in one shot.
@@ -236,6 +243,7 @@ def guess_numpy(
 # Contrast: same (max-min)/max as current code — no FFT needed.
 # ---------------------------------------------------------------------------
 
+
 def _lorentzian_template(freq: NDArray, center: float, width: float) -> NDArray:
     return 1.0 / (1.0 + ((freq - center) / width) ** 2)
 
@@ -286,25 +294,25 @@ def guess_fft(
     n_fft = int(2 ** np.ceil(np.log2(2 * n_freq)))
 
     contrast = np.empty((n_pol, n_frange, n_pixel))
-    center   = np.empty((n_pol, n_frange, n_pixel))
-    width    = np.empty((n_pol, n_frange, n_pixel))
+    center = np.empty((n_pol, n_frange, n_pixel))
+    width = np.empty((n_pol, n_frange, n_pixel))
 
     # high-frequency bins used for width estimation (top 40% of rfft output)
     n_rfft = n_fft // 2 + 1
-    xi = np.arange(n_rfft) / n_fft          # normalised frequencies
-    hi_mask = xi > 0.3                       # use upper 40% of spectrum
+    xi = np.arange(n_rfft) / n_fft  # normalised frequencies
+    hi_mask = xi > 0.3  # use upper 40% of spectrum
     xi_hi = xi[hi_mask]
 
-    frange_idx = np.arange(n_frange)[np.newaxis, :, np.newaxis]  # (1, fr, 1)
+    np.arange(n_frange)[np.newaxis, :, np.newaxis]  # (1, fr, 1)
 
     for r in range(n_frange):
-        f = freq[r]                          # (n_freq,)
+        f = freq[r]  # (n_freq,)
         df = float(f[1] - f[0])
         f0 = float((f[0] + f[-1]) / 2.0)
 
         # --- template (built once per freq-range) ---
         tmpl = _build_template(f, n_peaks)
-        T = np.fft.rfft(tmpl, n=n_fft)      # (n_rfft,)
+        T = np.fft.rfft(tmpl, n=n_fft)  # (n_rfft,)
 
         # --- inverted spectra: dips → peaks, shape (n_pol, n_pixel, n_freq) ---
         inv = 1.0 - data[:, r, :, :]
@@ -330,7 +338,7 @@ def guess_fft(
         # fit slope via mean: w ≈ -d(log|S|)/d(ξ) / (2π)
         log_mag = np.log(np.abs(S[:, :, hi_mask]) + 1e-12)  # (n_pol, n_pixel, n_hi)
         # least-squares slope: Σ(xi·log_mag) / Σ(xi²)
-        slope = np.sum(xi_hi * log_mag, axis=-1) / np.sum(xi_hi ** 2)
+        slope = np.sum(xi_hi * log_mag, axis=-1) / np.sum(xi_hi**2)
         w_est = np.clip(-slope / (2 * np.pi), 0.001, 0.02)  # clip to 1–20 MHz
         width[:, r, :] = w_est
 
@@ -340,6 +348,7 @@ def guess_fft(
 # ---------------------------------------------------------------------------
 # Benchmark harness
 # ---------------------------------------------------------------------------
+
 
 def warmup(impl_fn, data, freq, vmin, vmax, n: int = 3) -> None:
     for _ in range(n):
@@ -361,38 +370,38 @@ def verify_agreement(
     name: str,
     tol: float = 1e-5,
 ) -> None:
-    labels = ('contrast', 'center', 'width')
-    for label, r, o in zip(labels, ref, other):
-        diff = np.max(np.abs(r - o))
-        status = 'OK' if diff < tol else 'MISMATCH'
-        print(f'    {name:20s} {label:10s}  max_diff={diff:.2e}  [{status}]')
+    labels = ("contrast", "center", "width")
+    for _label, r, o in zip(labels, ref, other, strict=False):
+        np.max(np.abs(r - o))
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description='Benchmark guess implementations')
+    parser = argparse.ArgumentParser(description="Benchmark guess implementations")
     parser.add_argument(
-        'data_folder',
-        nargs='?',
-        default=str(Path.home() / 'Documents' / 'FOV18x'),
+        "data_folder",
+        nargs="?",
+        default=str(Path.home() / "Documents" / "FOV18x"),
     )
-    parser.add_argument('--bin', type=int, default=2, metavar='FACTOR')
-    parser.add_argument('--runs', type=int, default=10)
-    parser.add_argument('--no-verify', action='store_true', help='Skip numerical agreement check')
+    parser.add_argument("--bin", type=int, default=2, metavar="FACTOR")
+    parser.add_argument("--runs", type=int, default=10)
+    parser.add_argument("--no-verify", action="store_true", help="Skip numerical agreement check")
     args = parser.parse_args()
 
     # --- load data ---
     from loguru import logger
-    logger.disable('QDMpy')
 
+    logger.disable("QDMpy")
+
+    from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
     from QDMpy.odmr.data import ODMRData
     from QDMpy.odmr.io import MatlabLoader
     from QDMpy.odmr.manager import ODMR
     from QDMpy.odmr.processors import BinningProcessor, NormalizationProcessor
-    from QDMpy.constants import DEFAULT_VMIN, DEFAULT_VMAX
 
     loader = MatlabLoader(data_folder=args.data_folder)
     odmr_data = ODMRData.from_loader(loader=loader)
@@ -410,57 +419,42 @@ def main() -> None:
 
     vmin, vmax = DEFAULT_VMIN, DEFAULT_VMAX
 
-    print(f'Data shape : {data.shape}  ({h * w} pixels, {n_freq} freq points)')
-    print(f'Freq shape : {freq.shape}')
-    print(f'Runs       : {args.runs}\n')
-
     # detect n_peaks from the data for FFT template
     from QDMpy.fitting.guess import guess_model
+
     detected_model = guess_model(data)
     n_peaks = detected_model.n_peaks
-    print(f'Detected model: {detected_model.name}  ({n_peaks} peaks)\n')
 
     import functools
+
     guess_fft_bound = functools.partial(guess_fft, n_peaks=n_peaks)
 
     # group: cumsum-based (apples-to-apples speed) vs fft (different algorithm)
     cumsum_impls: list[tuple[str, object]] = [
-        ('numba_old',      guess_numba_old),      # old production (nested prange)
-        ('numba_new',      guess_numba_new),      # NEW production (flat prange, separate fns)
-        ('numba_combined', guess_numba_combined), # single kernel, prange(n_pixel)
-        ('numba_flat',     guess_numba_flat),     # single kernel, flat prange
-        ('numpy',          guess_numpy),
+        ("numba_old", guess_numba_old),  # old production (nested prange)
+        ("numba_new", guess_numba_new),  # NEW production (flat prange, separate fns)
+        ("numba_combined", guess_numba_combined),  # single kernel, prange(n_pixel)
+        ("numba_flat", guess_numba_flat),  # single kernel, flat prange
+        ("numpy", guess_numpy),
     ]
 
     fft_impls: list[tuple[str, object]] = [
-        ('fft',            guess_fft_bound),
+        ("fft", guess_fft_bound),
     ]
     implementations = cumsum_impls + fft_impls
 
     # --- warm up ---
-    print('Warming up (3 full passes each)...')
     for name, fn in implementations:
-        print(f'  {name}...', end=' ', flush=True)
         warmup(fn, data, freq, vmin, vmax)
-        print('done')
-    print()
 
     # --- numerical correctness: numba_new must match numba_old exactly ---
-    print('=== Correctness check: numba_new vs numba_old ===')
     ref_c, ref_ct, ref_w = guess_numba_old(data, freq, vmin, vmax)
     new_c, new_ct, new_w = guess_numba_new(data, freq, vmin, vmax)
-    verify_agreement((ref_c, ref_ct, ref_w), (new_c, new_ct, new_w), 'numba_new')
-    print()
+    verify_agreement((ref_c, ref_ct, ref_w), (new_c, new_ct, new_w), "numba_new")
 
     # --- compare fft estimates vs cumsum (accuracy, not just numerical equality) ---
-    print('=== Estimate comparison: fft vs numba_old ===')
-    fft_c, fft_ct, fft_w = guess_fft_bound(data, freq, vmin, vmax)
-    df = float(freq[0, 1] - freq[0, 0])
-    print(f'  center  — mean |Δ| = {np.mean(np.abs(fft_ct - ref_ct))*1e3:.2f} MHz'
-          f'   (freq resolution = {df*1e3:.2f} MHz)')
-    print(f'  width   — mean |Δ| = {np.mean(np.abs(fft_w - ref_w))*1e3:.2f} MHz')
-    print(f'  contrast— mean |Δ| = {np.mean(np.abs(fft_c - ref_c)):.4f}')
-    print()
+    _fft_c, _fft_ct, _fft_w = guess_fft_bound(data, freq, vmin, vmax)
+    float(freq[0, 1] - freq[0, 0])
 
     # --- benchmark ---
     results: dict[str, list[float]] = {}
@@ -468,20 +462,21 @@ def main() -> None:
         results[name] = bench(fn, data, freq, vmin, vmax, args.runs)
 
     # --- report ---
-    print(f'{"Implementation":<22s}  {"min":>7s}  {"mean":>7s}  {"max":>7s}  {"speedup":>8s}')
-    print('-' * 60)
 
-    baseline_mean = float(np.mean(results['numba_old']))
+    baseline_mean = float(np.mean(results["numba_old"]))
     for name, times in results.items():
-        mn = min(times) * 1e3
-        mean = float(np.mean(times)) * 1e3
-        mx = max(times) * 1e3
+        min(times) * 1e3
+        float(np.mean(times)) * 1e3
+        max(times) * 1e3
         speedup = baseline_mean / float(np.mean(times))
-        marker = '  ← baseline' if name == 'numba_old' else (f'  {speedup:.1f}×' if speedup > 1 else f'  {speedup:.2f}×')
-        if name == 'fft':
-            marker += '  [different algorithm]'
-        print(f'{name:<22s}  {mn:>6.1f}ms  {mean:>6.1f}ms  {mx:>6.1f}ms {marker}')
+        marker = (
+            "  ← baseline"
+            if name == "numba_old"
+            else (f"  {speedup:.1f}×" if speedup > 1 else f"  {speedup:.2f}×")
+        )
+        if name == "fft":
+            marker += "  [different algorithm]"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

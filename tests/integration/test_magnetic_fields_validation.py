@@ -3,6 +3,7 @@
 These tests validate that the new QDMpy codebase calculates identical
 magnetic field components (B111 remanent and induced) compared to the old codebase.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -23,8 +24,8 @@ class TestMagneticFieldValidation:
     ) -> None:
         """Test that B111 magnetic field calculations are identical."""
         # Import modules
-        QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
-        QDMpy_old, QDM_old, ODMR_old = old_qdmpy_modules
+        _QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+        _QDMpy_old, QDM_old, ODMR_old = old_qdmpy_modules
 
         fluor_value = test_parameters["global_fluorescence"]
         fit_params = test_parameters["fitting_parameters"]
@@ -113,7 +114,7 @@ class TestMagneticFieldValidation:
     ) -> None:
         """Test that magnetic field results have expected properties."""
         # Import new modules
-        QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+        _QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
 
         fluor_value = test_parameters["global_fluorescence"]
         fit_params = test_parameters["fitting_parameters"]
@@ -136,19 +137,19 @@ class TestMagneticFieldValidation:
         magnetic_result = measurement_new.calculate_magnetic_fields()
 
         # Check field shapes are consistent
-        assert (
-            magnetic_result.B111_remanent.shape == magnetic_result.B111_induced.shape
-        ), "B111 remanent and induced should have same shape"
+        assert magnetic_result.B111_remanent.shape == magnetic_result.B111_induced.shape, (
+            "B111 remanent and induced should have same shape"
+        )
 
         # Check fields are finite where valid
         valid_mask = ~np.isnan(magnetic_result.B111_remanent)
         if np.any(valid_mask):
-            assert np.all(
-                np.isfinite(magnetic_result.B111_remanent[valid_mask])
-            ), "B111 remanent should be finite where not NaN"
-            assert np.all(
-                np.isfinite(magnetic_result.B111_induced[valid_mask])
-            ), "B111 induced should be finite where not NaN"
+            assert np.all(np.isfinite(magnetic_result.B111_remanent[valid_mask])), (
+                "B111 remanent should be finite where not NaN"
+            )
+            assert np.all(np.isfinite(magnetic_result.B111_induced[valid_mask])), (
+                "B111 induced should be finite where not NaN"
+            )
 
         # Check field magnitudes are reasonable (within Tesla range)
         b111_total = magnetic_result.B111_remanent + magnetic_result.B111_induced
@@ -170,7 +171,7 @@ class TestMagneticFieldReferenceComparison:
     ) -> None:
         """Test magnetic field calculations against reference data."""
         # Import new modules
-        QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+        _QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
 
         bin_factor = int(reference_data["bin_factor"])
         fluor_value = test_parameters["global_fluorescence"]
@@ -252,8 +253,8 @@ def test_magnetic_field_performance(
     import time
 
     # Import modules
-    QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
-    QDMpy_old, QDM_old, ODMR_old = old_qdmpy_modules
+    _QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+    _QDMpy_old, QDM_old, ODMR_old = old_qdmpy_modules
 
     fluor_value = test_parameters["global_fluorescence"]
     fit_params = test_parameters["fitting_parameters"]

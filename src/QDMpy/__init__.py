@@ -17,6 +17,9 @@ from functools import cache
 
 from QDMpy.settings import get_settings, make_configfile, reset_config, reset_settings
 
+# Configure logging on import to prevent stderr output in notebooks
+_ = get_settings()
+
 __all__ = ['get_settings', 'is_pygpufit_available', 'make_configfile', 'reset_config', 'reset_settings']
 
 

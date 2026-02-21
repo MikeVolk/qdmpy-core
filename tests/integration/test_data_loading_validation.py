@@ -3,6 +3,7 @@
 These tests validate that the new QDMpy codebase loads identical data
 compared to reference data generated from the old codebase.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -18,7 +19,7 @@ class TestDataLoadingValidation:
     def test_raw_data_loading(self, reference_data, new_qdmpy_modules, test_data_folder) -> None:
         """Test that raw ODMR data is loaded identically to reference data."""
         # Import new codebase modules
-        QDMpy_new, Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
+        _QDMpy_new, _Measurement_new, _ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
 
         # Load data with new codebase
         loader = MatlabLoader(data_folder=str(test_data_folder))
@@ -50,7 +51,7 @@ class TestDataLoadingValidation:
             err_msg="Scan dimensions do not match reference",
         )
 
-        logger.info("✅ Raw data loading validation passed")
+        logger.info("Raw data loading validation passed")
         logger.info(f"   Data shape: {odmr_data.data.shape}")
         logger.info(f"   Scan dimensions: {odmr_data.scan_dimensions}")
 
@@ -73,6 +74,6 @@ class TestDataLoadingValidation:
         assert led_image.ndim == 2, "LED image should be 2D"
         assert laser_image.ndim == 2, "Laser image should be 2D"
 
-        logger.info("✅ Reference images loading passed")
+        logger.info("Reference images loading passed")
         logger.info(f"   LED shape: {led_image.shape}")
         logger.info(f"   Laser shape: {laser_image.shape}")

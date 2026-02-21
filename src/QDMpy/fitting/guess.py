@@ -17,7 +17,7 @@ from numba import njit, prange
 from numpy.typing import NDArray
 from scipy.signal import find_peaks
 
-from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN, PROMINENCE
+from QDMpy.constants import PROMINENCE
 from QDMpy.exceptions import (
     DataShapeError,
     DataValidationError,
@@ -131,8 +131,8 @@ def cumsum_contrast(data: NDArray) -> NDArray:  # pragma: no cover
     amp = np.zeros((n_pol, n_frange, n_pixel))
     for idx in prange(total):  # type: ignore[not-iterable]
         px = idx % n_pixel
-        r  = (idx // n_pixel) % n_frange
-        p  = idx // (n_pixel * n_frange)
+        r = (idx // n_pixel) % n_frange
+        p = idx // (n_pixel * n_frange)
         mx = np.nanmax(data[p, r, px])
         mn = np.nanmin(data[p, r, px])
         amp[p, r, px] = 0.0 if mx == 0.0 else abs((mx - mn) / mx)
@@ -155,15 +155,17 @@ def cumsum_center(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
     centers = np.zeros((n_pol, n_frange, n_pixel))
     for idx in prange(total):  # type: ignore[not-iterable]
         px = idx % n_pixel
-        r  = (idx // n_pixel) % n_frange
-        p  = idx // (n_pixel * n_frange)
+        r = (idx // n_pixel) % n_frange
+        p = idx // (n_pixel * n_frange)
         norm = normalize_pixel(data[p, r, px])
         centers[p, r, px] = freq[r, np.argmin(np.abs(norm - 0.5))]
     return centers
 
 
 @njit(parallel=True, fastmath=True)
-def cumsum_width(data: NDArray, freq: NDArray, vmin: float, vmax: float) -> NDArray:  # pragma: no cover
+def cumsum_width(
+    data: NDArray, freq: NDArray, vmin: float, vmax: float
+) -> NDArray:  # pragma: no cover
     """Guess width of ODMR resonance peaks using a single flat parallel loop.
 
     Args:
@@ -180,8 +182,8 @@ def cumsum_width(data: NDArray, freq: NDArray, vmin: float, vmax: float) -> NDAr
     widths = np.zeros((n_pol, n_frange, n_pixel))
     for idx in prange(total):  # type: ignore[not-iterable]
         px = idx % n_pixel
-        r  = (idx // n_pixel) % n_frange
-        p  = idx // (n_pixel * n_frange)
+        r = (idx // n_pixel) % n_frange
+        p = idx // (n_pixel * n_frange)
         norm = normalize_pixel(data[p, r, px])
         lidx = np.argmin(np.abs(norm - vmin))
         ridx = np.argmin(np.abs(norm - vmax))

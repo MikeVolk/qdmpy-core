@@ -1,4 +1,5 @@
 """Tests for FitResult class and related functionality."""
+
 from __future__ import annotations
 
 import tempfile
@@ -116,10 +117,27 @@ class TestFitResult:
             _ = result.linewidths
 
     def test_contrasts_property(self, sample_fit_result) -> None:
-        """Test contrasts property access."""
+        """Test contrasts property access via plain 'contrast' key (ESRSINGLE)."""
         contrasts = sample_fit_result.contrasts
         assert len(contrasts) == 100
         np.testing.assert_array_equal(contrasts, sample_fit_result.parameters["contrast"])
+
+    def test_contrasts_property_contrast_0(self, sample_parameters) -> None:
+        """Test contrasts falls back to 'contrast_0' for multi-dip models (ESR14N)."""
+        params = {k: v for k, v in sample_parameters.items() if k != "contrast"}
+        params["contrast_0"] = np.random.uniform(0.01, 0.1, 100)
+        params["contrast_1"] = np.random.uniform(0.01, 0.1, 100)
+        params["contrast_2"] = np.random.uniform(0.01, 0.1, 100)
+        result = FitResult(parameters=params, scan_dimensions=(10, 10), pixel_spacing=4e-6, model_name="ESR14N")
+        np.testing.assert_array_equal(result.contrasts, params["contrast_0"])
+
+    def test_contrasts_property_raises_when_missing(self, sample_parameters) -> None:
+        """Test contrasts raises ParameterError when no contrast key exists."""
+        from QDMpy.exceptions import ParameterError
+        params = {k: v for k, v in sample_parameters.items() if not k.startswith("contrast")}
+        result = FitResult(parameters=params, scan_dimensions=(10, 10), pixel_spacing=4e-6, model_name="ESR14N")
+        with pytest.raises(ParameterError):
+            _ = result.contrasts
 
     def test_offsets_property(self, sample_fit_result) -> None:
         """Test offsets property access."""
@@ -354,7 +372,8 @@ class TestResolveSpatialDims:
         result = self._make_result((10, 10))
         h, w = result._resolve_spatial_dims(36)
         assert h * w == 36
-        assert h == 6 and w == 6
+        assert h == 6
+        assert w == 6
 
     def test_rectangular_aspect_ratio(self) -> None:
         result = self._make_result((10, 20))
@@ -385,21 +404,27 @@ class TestNormalizeResonanceShape:
         arr = np.ones((2, 2, 50, 1))
         res, n_pol, n_frange, n_pix = result._normalize_resonance_shape(arr)
         assert res.shape == (2, 2, 50)
-        assert n_pol == 2 and n_frange == 2 and n_pix == 50
+        assert n_pol == 2
+        assert n_frange == 2
+        assert n_pix == 50
 
     def test_3d_input(self) -> None:
         result = self._make_result()
         arr = np.ones((2, 2, 50))
         res, n_pol, n_frange, n_pix = result._normalize_resonance_shape(arr)
         assert res.shape == (2, 2, 50)
-        assert n_pol == 2 and n_frange == 2 and n_pix == 50
+        assert n_pol == 2
+        assert n_frange == 2
+        assert n_pix == 50
 
     def test_2d_input(self) -> None:
         result = self._make_result()
         arr = np.ones((4, 50))
         res, n_pol, n_frange, n_pix = result._normalize_resonance_shape(arr)
         assert res.shape == (2, 2, 50)
-        assert n_pol == 2 and n_frange == 2 and n_pix == 50
+        assert n_pol == 2
+        assert n_frange == 2
+        assert n_pix == 50
 
     def test_invalid_shape_raises(self) -> None:
         result = self._make_result()
@@ -421,28 +446,32 @@ class TestCalcDeltaFromSingleCenter:
 
     def test_two_frequency_ranges(self) -> None:
         result = self._make_result()
-        resonance = np.array([
-            [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
-            [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
-        ])
+        resonance = np.array(
+            [
+                [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
+                [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
+            ]
+        )
         delta = result._calc_delta_from_single_center(resonance, 2, 2, 2, 2)
-        assert delta.shape == (2, 2, 2)   # (n_pol, H, W) — sign axis eliminated
+        assert delta.shape == (2, 2, 2)  # (n_pol, H, W) — sign axis eliminated
         expected_diff = 0.04 / 2 / GAMMA_NV * 1e6
         np.testing.assert_allclose(delta[0], -expected_diff, rtol=1e-10)  # pol_0 (neg)
-        np.testing.assert_allclose(delta[1], expected_diff, rtol=1e-10)   # pol_1 (pos)
+        np.testing.assert_allclose(delta[1], expected_diff, rtol=1e-10)  # pol_1 (pos)
 
     def test_single_frequency_range(self) -> None:
         result = self._make_result()
         freq = D_ZFS + 0.01
-        resonance = np.array([
-            [[freq, freq, freq, freq]],
-            [[freq, freq, freq, freq]],
-        ])
+        resonance = np.array(
+            [
+                [[freq, freq, freq, freq]],
+                [[freq, freq, freq, freq]],
+            ]
+        )
         delta = result._calc_delta_from_single_center(resonance, 2, 1, 2, 2)
-        assert delta.shape == (2, 2, 2)   # (n_pol, H, W)
+        assert delta.shape == (2, 2, 2)  # (n_pol, H, W)
         expected_shift = 0.01 / GAMMA_NV * 1e6
         np.testing.assert_allclose(delta[0], -expected_shift, rtol=1e-10)  # pol_0 (neg)
-        np.testing.assert_allclose(delta[1], expected_shift, rtol=1e-10)   # pol_1 (pos)
+        np.testing.assert_allclose(delta[1], expected_shift, rtol=1e-10)  # pol_1 (pos)
 
 
 class TestCalcDeltaFromMultiCenters:
@@ -462,7 +491,7 @@ class TestCalcDeltaFromMultiCenters:
         high = np.array([[[2.89, 2.89, 2.89, 2.89]]])
         center_params = {"center_0": low, "center_1": high}
         delta = result._calc_delta_from_multi_centers(center_params, 2, 2)
-        assert delta.shape == (1, 2, 2)   # (n_pol=1, H, W) — sign axis eliminated
+        assert delta.shape == (1, 2, 2)  # (n_pol=1, H, W) — sign axis eliminated
         expected_diff = 0.04 / 2 / GAMMA_NV * 1e6
         np.testing.assert_allclose(delta[0], -expected_diff, rtol=1e-10)  # pol_0 (neg)
 
@@ -477,7 +506,7 @@ class TestCalcDeltaFromMultiCenters:
         high = np.array([[[2.88, 2.88, 2.88, 2.88], [2.89, 2.89, 2.89, 2.89]]])
         center_params = {"center_0": low, "center_1": high}
         delta = result._calc_delta_from_multi_centers(center_params, 2, 2)
-        assert delta.shape == (1, 2, 2)   # (n_pol=1, H, W)
+        assert delta.shape == (1, 2, 2)  # (n_pol=1, H, W)
 
 
 class TestComputeDeltaResonanceOrchestrator:
@@ -485,10 +514,13 @@ class TestComputeDeltaResonanceOrchestrator:
 
     def test_3d_center_two_franges(self) -> None:
         import xarray as xr
-        center = np.array([
-            [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
-            [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
-        ])
+
+        center = np.array(
+            [
+                [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
+                [[2.85, 2.85, 2.85, 2.85], [2.89, 2.89, 2.89, 2.89]],
+            ]
+        )
         result = FitResult(
             parameters={"center": center, "chi2": np.zeros(4)},
             scan_dimensions=(2, 2),
@@ -497,12 +529,13 @@ class TestComputeDeltaResonanceOrchestrator:
         )
         delta = result._compute_delta_resonance()
         assert isinstance(delta, xr.DataArray)
-        assert delta.dims == ('polarity', 'y', 'x')
+        assert delta.dims == ("polarity", "y", "x")
         assert delta.shape == (2, 2, 2)
-        assert list(delta.coords['polarity'].values) == ['neg', 'pos']
+        assert list(delta.coords["polarity"].values) == ["neg", "pos"]
 
     def test_multi_center_params(self) -> None:
         import xarray as xr
+
         low = np.array([[[2.85, 2.85, 2.85, 2.85]]])
         high = np.array([[[2.89, 2.89, 2.89, 2.89]]])
         result = FitResult(
@@ -514,7 +547,7 @@ class TestComputeDeltaResonanceOrchestrator:
         delta = result._compute_delta_resonance()
         assert isinstance(delta, xr.DataArray)
         assert delta.shape == (1, 2, 2)
-        assert list(delta.coords['polarity'].values) == ['neg']
+        assert list(delta.coords["polarity"].values) == ["neg"]
 
 
 class TestFitResultValidation:

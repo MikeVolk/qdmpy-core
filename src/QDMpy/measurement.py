@@ -19,13 +19,12 @@ from __future__ import annotations
 import os
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 import matplotlib.image as mpimg
 import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
-from typing_extensions import Self
 
 from QDMpy.exceptions import DataLoadError, DataNotLoadedError, DependencyError
 from QDMpy.odmr.manager import ODMR
@@ -278,10 +277,7 @@ class Measurement:
         try:
             processed_data = self.odmr.processed_data
         except (AttributeError, ValueError, DataNotLoadedError) as e:
-            msg = (
-                "ODMR data must be processed before fitting. "
-                "Call odmr.process_data() first."
-            )
+            msg = "ODMR data must be processed before fitting. Call odmr.process_data() first."
             raise DataNotLoadedError(msg) from e
 
         from QDMpy import is_pygpufit_available
@@ -328,4 +324,3 @@ class Measurement:
 
         logger.info("ODMR fitting completed successfully")
         return result
-

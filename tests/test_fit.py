@@ -31,7 +31,7 @@ from QDMpy.settings import (
 # Mock settings for tests (center/width values in GHz, matching default settings convention)
 MOCK_SETTINGS = QDMpySettings(
     fit=FitSettings(
-        estimator='LSE',
+        estimator="LSE",
         max_number_iterations=100,
         tolerance=1e-6,
     ),
@@ -39,16 +39,16 @@ MOCK_SETTINGS = QDMpySettings(
         constraints=ModelConstraintsSettings(
             center_min=2.8,
             center_max=2.9,
-            center_type='FREE',
+            center_type="FREE",
             width_min=0.001,
             width_max=0.01,
-            width_type='FREE',
+            width_type="FREE",
             contrast_min=0.0,
             contrast_max=1.0,
-            contrast_type='FREE',
+            contrast_type="FREE",
             offset_min=-0.1,
             offset_max=0.1,
-            offset_type='FREE',
+            offset_type="FREE",
         )
     ),
 )
@@ -61,18 +61,18 @@ def _make_xr_data(numpy_4d: np.ndarray) -> xr.DataArray:
     """
     n_pol, n_frange, n_pixel, n_freq = numpy_4d.shape
     side = int(np.sqrt(n_pixel))
-    assert side * side == n_pixel, f'n_pixel={n_pixel} is not a perfect square'
+    assert side * side == n_pixel, f"n_pixel={n_pixel} is not a perfect square"
 
     data_5d = numpy_4d.reshape(n_pol, n_frange, side, side, n_freq)
     freq_ghz = np.tile(np.linspace(2.87, 2.88, n_freq), (n_frange, 1))
 
     return xr.DataArray(
         data_5d,
-        dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
+        dims=("polarity", "freq_range", "y", "x", "freq_idx"),
         coords={
-            'polarity': [f'pol_{i}' for i in range(n_pol)],
-            'freq_range': [f'frange_{i}' for i in range(n_frange)],
-            'freq_ghz': (['freq_range', 'freq_idx'], freq_ghz),
+            "polarity": [f"pol_{i}" for i in range(n_pol)],
+            "freq_range": [f"frange_{i}" for i in range(n_frange)],
+            "freq_ghz": (["freq_range", "freq_idx"], freq_ghz),
         },
     )
 
@@ -112,41 +112,41 @@ class TestFitInitialization:
     def test_init_default(self) -> None:
         """Test initialization with default model (ESR14N)."""
         fit = FitManager(settings=MOCK_SETTINGS)
-        assert fit.model_name == 'ESR14N'
+        assert fit.model_name == "ESR14N"
         assert isinstance(fit.model, ESR14N)
 
     def test_init_auto_defers_model(self) -> None:
         """Test that auto mode leaves model unresolved until fit() is called."""
-        fit = FitManager(model_name='auto', settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="auto", settings=MOCK_SETTINGS)
         assert fit.model is None
-        assert fit.model_name == 'auto'
+        assert fit.model_name == "auto"
 
     def test_init_with_specific_model(self) -> None:
         """Test initialization with a specific model."""
-        fit = FitManager(model_name='ESR14N', settings=MOCK_SETTINGS)
-        assert fit.model_name == 'ESR14N'
+        fit = FitManager(model_name="ESR14N", settings=MOCK_SETTINGS)
+        assert fit.model_name == "ESR14N"
         assert isinstance(fit.model, ESR14N)
 
     def test_init_with_invalid_model(self) -> None:
         """Test initialization with an invalid model name."""
         with pytest.raises(ModelNotFoundError) as excinfo:
-            FitManager(model_name='INVALID_MODEL', settings=MOCK_SETTINGS)
-        assert 'Unknown model' in str(excinfo.value)
+            FitManager(model_name="INVALID_MODEL", settings=MOCK_SETTINGS)
+        assert "Unknown model" in str(excinfo.value)
 
     def test_init_with_custom_constraints(self) -> None:
         """Test initialization with custom constraints."""
-        constraints = {'center': {'vmin': 2.87, 'vmax': 2.88, 'constraint_type': 'LOWER_UPPER'}}
+        constraints = {"center": {"vmin": 2.87, "vmax": 2.88, "constraint_type": "LOWER_UPPER"}}
 
-        fit = FitManager(model_name='ESRSINGLE', constraints=constraints, settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", constraints=constraints, settings=MOCK_SETTINGS)
 
-        assert fit.constraints['center'][0] == 2.87
-        assert fit.constraints['center'][1] == 2.88
-        assert fit.constraints['center'][2] == 'LOWER_UPPER'
+        assert fit.constraints["center"][0] == 2.87
+        assert fit.constraints["center"][1] == 2.88
+        assert fit.constraints["center"][2] == "LOWER_UPPER"
 
     def test_auto_mode_raises_on_constraints_access(self) -> None:
         """Test that accessing constraints in auto mode before fit() raises RuntimeError."""
-        fit = FitManager(model_name='auto', settings=MOCK_SETTINGS)
-        with pytest.raises(RuntimeError, match='not yet resolved'):
+        fit = FitManager(model_name="auto", settings=MOCK_SETTINGS)
+        with pytest.raises(RuntimeError, match="not yet resolved"):
             _ = fit.constraints
 
 
@@ -155,20 +155,20 @@ class TestFitProperties:
 
     def test_model_name_property(self) -> None:
         """Test model_name property getter and setter."""
-        fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS)
-        assert fit.model_name == 'ESRSINGLE'
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        assert fit.model_name == "ESRSINGLE"
 
-        fit.model_name = 'ESR15N'
-        assert fit.model_name == 'ESR15N'
+        fit.model_name = "ESR15N"
+        assert fit.model_name == "ESR15N"
         assert isinstance(fit.model, ESR15N)
 
         with pytest.raises(ModelNotFoundError):
-            fit.model_name = 'INVALID_MODEL'
+            fit.model_name = "INVALID_MODEL"
 
     def test_parameter_names_raises_in_auto_mode(self) -> None:
         """Test that parameter_names raises RuntimeError in unresolved auto mode."""
-        fit = FitManager(model_name='auto', settings=MOCK_SETTINGS)
-        with pytest.raises(RuntimeError, match='not yet resolved'):
+        fit = FitManager(model_name="auto", settings=MOCK_SETTINGS)
+        with pytest.raises(RuntimeError, match="not yet resolved"):
             _ = fit.parameter_names
 
 
@@ -177,47 +177,47 @@ class TestConstraintsMethods:
 
     def test_set_constraints(self) -> None:
         """Test set_constraints method."""
-        fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS)
-        fit.set_constraints('center', vmin=2.85, vmax=2.90, constraint_type='LOWER_UPPER')
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        fit.set_constraints("center", vmin=2.85, vmax=2.90, constraint_type="LOWER_UPPER")
 
-        assert fit.constraints['center'][0] == 2.85
-        assert fit.constraints['center'][1] == 2.90
-        assert fit.constraints['center'][2] == 'LOWER_UPPER'
+        assert fit.constraints["center"][0] == 2.85
+        assert fit.constraints["center"][1] == 2.90
+        assert fit.constraints["center"][2] == "LOWER_UPPER"
 
     def test_set_constraints_with_numeric_type(self) -> None:
         """Test set_constraints with numeric constraint type."""
-        fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS)
-        fit.set_constraints('width', vmin=1e6, constraint_type=1)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        fit.set_constraints("width", vmin=1e6, constraint_type=1)
 
-        assert fit.constraints['width'][0] == 1e6
-        assert fit.constraints['width'][2] == 'LOWER'
+        assert fit.constraints["width"][0] == 1e6
+        assert fit.constraints["width"][2] == "LOWER"
 
     def test_set_constraints_invalid_type(self) -> None:
         """Test set_constraints with invalid constraint type."""
-        fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
 
         with pytest.raises(ParameterError):
-            fit.set_constraints('center', constraint_type='INVALID_TYPE')
+            fit.set_constraints("center", constraint_type="INVALID_TYPE")
 
         with pytest.raises(ParameterError):
-            fit.set_constraints('center', constraint_type=10)
+            fit.set_constraints("center", constraint_type=10)
 
     def test_set_free_constraints(self) -> None:
         """Test set_free_constraints method."""
-        fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS)
-        fit.set_constraints('center', vmin=2.85, vmax=2.90, constraint_type='LOWER_UPPER')
-        fit.set_constraints('width', vmin=0.001, constraint_type='LOWER')
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        fit.set_constraints("center", vmin=2.85, vmax=2.90, constraint_type="LOWER_UPPER")
+        fit.set_constraints("width", vmin=0.001, constraint_type="LOWER")
 
         fit.set_free_constraints()
 
         for param in fit.parameter_names:
-            assert fit.constraints[param][2] == 'FREE'
+            assert fit.constraints[param][2] == "FREE"
 
     def test_get_constraints_array(self) -> None:
         """Test get_constraints_array method."""
-        fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS)
-        fit.set_constraints('center', vmin=2.85, vmax=2.90)
-        fit.set_constraints('width', vmin=0.001, vmax=0.01)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        fit.set_constraints("center", vmin=2.85, vmax=2.90)
+        fit.set_constraints("width", vmin=0.001, vmax=0.01)
 
         constraints_array = fit.get_constraints_array(2)
 
@@ -226,21 +226,21 @@ class TestConstraintsMethods:
 
         # All values stay in GHz (no Hz conversion — QEP-018)
         expected_first_row = [
-            fit.constraints['center'][0],
-            fit.constraints['center'][1],
-            fit.constraints['width'][0],
-            fit.constraints['width'][1],
-            fit.constraints['contrast'][0],
-            fit.constraints['contrast'][1],
-            fit.constraints['offset'][0],
-            fit.constraints['offset'][1],
+            fit.constraints["center"][0],
+            fit.constraints["center"][1],
+            fit.constraints["width"][0],
+            fit.constraints["width"][1],
+            fit.constraints["contrast"][0],
+            fit.constraints["contrast"][1],
+            fit.constraints["offset"][0],
+            fit.constraints["offset"][1],
         ]
         assert_array_almost_equal(constraints_array[0], expected_first_row)
         assert_array_almost_equal(constraints_array[0], constraints_array[1])
 
     def test_get_constraint_types(self) -> None:
         """Test get_constraint_types method."""
-        fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
         model_params = fit.parameter_names
 
         for i, param in enumerate(model_params):
@@ -264,7 +264,7 @@ def _make_test_model(
 
     class _TestModel(Model):
         def __init__(self) -> None:
-            super().__init__('TEST', 1, params)
+            super().__init__("TEST", 1, params)
 
         @property
         def parameter_types(self) -> dict[str, str]:
@@ -286,102 +286,102 @@ class TestConstraintManager:
     def test_initialization(self) -> None:
         """Test initialization of the ConstraintManager."""
         model = _make_test_model(
-            ['center', 'width_0', 'contrast', 'offset'],
-            {'center': 'center', 'width_0': 'width', 'contrast': 'contrast', 'offset': 'offset'},
-            ['center'],
+            ["center", "width_0", "contrast", "offset"],
+            {"center": "center", "width_0": "width", "contrast": "contrast", "offset": "offset"},
+            ["center"],
         )
         settings = ModelConstraintsSettings(
             center_min=2.8,
             center_max=2.9,
-            center_type='FREE',
+            center_type="FREE",
             width_min=0.001,
             width_max=0.01,
-            width_type='LOWER',
+            width_type="LOWER",
             contrast_min=0.0,
             contrast_max=1.0,
-            contrast_type='UPPER',
+            contrast_type="UPPER",
             offset_min=-0.1,
             offset_max=0.1,
-            offset_type='LOWER_UPPER',
+            offset_type="LOWER_UPPER",
         )
 
         constraint_manager = ConstraintManager(model, settings)
         constraints = constraint_manager.get_constraints()
         assert len(constraints) == 4
 
-        assert constraints['center'][0] == 2.8
-        assert constraints['center'][1] == 2.9
-        assert constraints['center'][2] == 'FREE'
-        assert constraints['center'][3] == 'GHz'
+        assert constraints["center"][0] == 2.8
+        assert constraints["center"][1] == 2.9
+        assert constraints["center"][2] == "FREE"
+        assert constraints["center"][3] == "GHz"
 
-        assert constraints['width_0'][0] == 0.001
-        assert constraints['width_0'][1] == 0.01
-        assert constraints['width_0'][2] == 'LOWER'
-        assert constraints['width_0'][3] == 'a.u.'
+        assert constraints["width_0"][0] == 0.001
+        assert constraints["width_0"][1] == 0.01
+        assert constraints["width_0"][2] == "LOWER"
+        assert constraints["width_0"][3] == "a.u."
 
     def test_set_constraint(self) -> None:
         """Test setting constraints."""
         model = _make_test_model(
-            ['center', 'width_0', 'contrast', 'offset'],
-            {'center': 'center', 'width_0': 'width', 'contrast': 'contrast', 'offset': 'offset'},
-            ['center'],
+            ["center", "width_0", "contrast", "offset"],
+            {"center": "center", "width_0": "width", "contrast": "contrast", "offset": "offset"},
+            ["center"],
         )
         settings = ModelConstraintsSettings(
             center_min=2.8,
             center_max=2.9,
-            center_type='FREE',
+            center_type="FREE",
             width_min=0.001,
             width_max=0.01,
-            width_type='FREE',
+            width_type="FREE",
             contrast_min=0.0,
             contrast_max=1.0,
-            contrast_type='FREE',
+            contrast_type="FREE",
             offset_min=-0.1,
             offset_max=0.1,
-            offset_type='FREE',
+            offset_type="FREE",
         )
 
         constraint_manager = ConstraintManager(model, settings)
         constraint_manager.set_constraint(
-            'center', vmin=2.85, vmax=2.88, constraint_type='LOWER_UPPER'
+            "center", vmin=2.85, vmax=2.88, constraint_type="LOWER_UPPER"
         )
 
         constraints = constraint_manager.get_constraints()
-        assert constraints['center'][0] == 2.85
-        assert constraints['center'][1] == 2.88
-        assert constraints['center'][2] == 'LOWER_UPPER'
+        assert constraints["center"][0] == 2.85
+        assert constraints["center"][1] == 2.88
+        assert constraints["center"][2] == "LOWER_UPPER"
 
-        constraint_manager.set_constraint('width_0', vmin=0.002)
-        assert constraints['width_0'][0] == 0.002
-        assert constraints['width_0'][1] == 0.01
-        assert constraints['width_0'][2] == 'FREE'
-
-        with pytest.raises(ParameterError):
-            constraint_manager.set_constraint('invalid_param', vmin=1.0)
+        constraint_manager.set_constraint("width_0", vmin=0.002)
+        assert constraints["width_0"][0] == 0.002
+        assert constraints["width_0"][1] == 0.01
+        assert constraints["width_0"][2] == "FREE"
 
         with pytest.raises(ParameterError):
-            constraint_manager.set_constraint('center', constraint_type='INVALID')
+            constraint_manager.set_constraint("invalid_param", vmin=1.0)
+
+        with pytest.raises(ParameterError):
+            constraint_manager.set_constraint("center", constraint_type="INVALID")
 
     def test_to_array(self) -> None:
         """Test conversion to constraint array."""
         model = _make_test_model(
-            ['contrast', 'center', 'width_0', 'offset'],
-            {'contrast': 'contrast', 'center': 'center', 'width_0': 'width', 'offset': 'offset'},
-            ['center'],
+            ["contrast", "center", "width_0", "offset"],
+            {"contrast": "contrast", "center": "center", "width_0": "width", "offset": "offset"},
+            ["center"],
         )
         settings = ModelConstraintsSettings(
             center_min=2.8,
             center_max=2.9,
-            center_type='FREE',
+            center_type="FREE",
             width_min=0.001,
             width_max=0.01,
-            width_type='FREE',
+            width_type="FREE",
             contrast_min=0.0,
             contrast_max=1.0,
-            contrast_type='FREE',
+            contrast_type="FREE",
             offset_min=-0.1,
             offset_max=0.1,
-            offset_type='FREE',
+            offset_type="FREE",
         )
 
         constraint_manager = ConstraintManager(model, settings)
@@ -391,14 +391,14 @@ class TestConstraintManager:
         assert constraints_array.shape == (2, 8)
 
         expected_first_row = [
-            0.0,   # contrast_min
-            1.0,   # contrast_max
-            2.8,   # center_min (GHz — no Hz conversion, QEP-018)
-            2.9,   # center_max
-            0.001, # width_min
+            0.0,  # contrast_min
+            1.0,  # contrast_max
+            2.8,  # center_min (GHz — no Hz conversion, QEP-018)
+            2.9,  # center_max
+            0.001,  # width_min
             0.01,  # width_max
             -0.1,  # offset_min
-            0.1,   # offset_max
+            0.1,  # offset_max
         ]
         assert_array_almost_equal(constraints_array[0], expected_first_row)
         assert_array_almost_equal(constraints_array[0], constraints_array[1])
@@ -406,23 +406,23 @@ class TestConstraintManager:
     def test_get_constraint_types(self) -> None:
         """Test getting constraint types as array."""
         model = _make_test_model(
-            ['contrast', 'center', 'width_0', 'offset'],
-            {'contrast': 'contrast', 'center': 'center', 'width_0': 'width', 'offset': 'offset'},
-            ['center'],
+            ["contrast", "center", "width_0", "offset"],
+            {"contrast": "contrast", "center": "center", "width_0": "width", "offset": "offset"},
+            ["center"],
         )
         settings = ModelConstraintsSettings(
             center_min=2.8,
             center_max=2.9,
-            center_type='LOWER',
+            center_type="LOWER",
             width_min=0.001,
             width_max=0.01,
-            width_type='UPPER',
+            width_type="UPPER",
             contrast_min=0.0,
             contrast_max=1.0,
-            contrast_type='FREE',
+            contrast_type="FREE",
             offset_min=-0.1,
             offset_max=0.1,
-            offset_type='LOWER_UPPER',
+            offset_type="LOWER_UPPER",
         )
 
         constraint_manager = ConstraintManager(model, settings)
@@ -430,10 +430,10 @@ class TestConstraintManager:
         constraint_types = constraint_manager.get_constraint_types(model_params)
 
         expected_types = [
-            CONSTRAINT_TYPES.index('FREE'),
-            CONSTRAINT_TYPES.index('LOWER'),
-            CONSTRAINT_TYPES.index('UPPER'),
-            CONSTRAINT_TYPES.index('LOWER_UPPER'),
+            CONSTRAINT_TYPES.index("FREE"),
+            CONSTRAINT_TYPES.index("LOWER"),
+            CONSTRAINT_TYPES.index("UPPER"),
+            CONSTRAINT_TYPES.index("LOWER_UPPER"),
         ]
         assert_array_equal(constraint_types, expected_types)
 
@@ -443,13 +443,13 @@ class TestFitting:
 
     def test_fit_returns_fit_result(self, sample_data, sample_frequencies) -> None:
         """Test that fit() returns a FitResult."""
-        fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
         result = fit.fit(sample_data, sample_frequencies)
         assert isinstance(result, FitResult)
 
     def test_fit_reuse(self, sample_data, sample_frequencies) -> None:
         """Test that the same FitManager can be called twice with different data."""
-        fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
         result1 = fit.fit(sample_data, sample_frequencies)
         result2 = fit.fit(sample_data, sample_frequencies)
         assert isinstance(result1, FitResult)
@@ -459,33 +459,33 @@ class TestFitting:
 
 def test_set_constraints_missing_param() -> None:
     """Test set_constraints with a missing parameter."""
-    fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS)
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
 
     with pytest.raises(ParameterError) as excinfo:
-        fit.set_constraints('non_existent_param', vmin=0, vmax=1)
-    assert 'Unknown parameter' in str(excinfo.value)
+        fit.set_constraints("non_existent_param", vmin=0, vmax=1)
+    assert "Unknown parameter" in str(excinfo.value)
 
 
 def test_constraint_manager_missing_settings() -> None:
     """Test ConstraintManager initialization with all settings provided."""
     model = _make_test_model(
-        ['center', 'width_0', 'contrast', 'offset'],
-        {'center': 'center', 'width_0': 'width', 'contrast': 'contrast', 'offset': 'offset'},
-        ['center'],
+        ["center", "width_0", "contrast", "offset"],
+        {"center": "center", "width_0": "width", "contrast": "contrast", "offset": "offset"},
+        ["center"],
     )
     settings = ModelConstraintsSettings(
         center_min=2.8,
         center_max=2.9,
-        center_type='FREE',
+        center_type="FREE",
         width_min=0.001,
         width_max=0.01,
-        width_type='FREE',
+        width_type="FREE",
         contrast_min=0.0,
         contrast_max=1.0,
-        contrast_type='FREE',
+        contrast_type="FREE",
         offset_min=-0.1,
         offset_max=0.1,
-        offset_type='FREE',
+        offset_type="FREE",
     )
 
     cm = ConstraintManager(model, settings)
@@ -495,23 +495,23 @@ def test_constraint_manager_missing_settings() -> None:
 def test_to_array_zero_pixels() -> None:
     """Test ConstraintManager.to_array with zero pixels."""
     model = _make_test_model(
-        ['center', 'width_0', 'contrast', 'offset'],
-        {'center': 'center', 'width_0': 'width', 'contrast': 'contrast', 'offset': 'offset'},
-        ['center'],
+        ["center", "width_0", "contrast", "offset"],
+        {"center": "center", "width_0": "width", "contrast": "contrast", "offset": "offset"},
+        ["center"],
     )
     settings = ModelConstraintsSettings(
         center_min=2.8,
         center_max=2.9,
-        center_type='FREE',
+        center_type="FREE",
         width_min=0.001,
         width_max=0.01,
-        width_type='FREE',
+        width_type="FREE",
         contrast_min=0.0,
         contrast_max=1.0,
-        contrast_type='FREE',
+        contrast_type="FREE",
         offset_min=-0.1,
         offset_max=0.1,
-        offset_type='FREE',
+        offset_type="FREE",
     )
     constraint_manager = ConstraintManager(model, settings)
 
@@ -520,10 +520,10 @@ def test_to_array_zero_pixels() -> None:
     assert constraints_array.shape == (0, len(model_params) * 2)
 
 
-@patch('pygpufit.gpufit.fit_constrained')
+@patch("pygpufit.gpufit.fit_constrained")
 def test_fit_frange_mocked(mock_fit_constrained, sample_data, sample_frequencies) -> None:
     """Test fit_frange with mocked pyGpufit."""
-    fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS, gpu_available=True)
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
 
     mock_fit_constrained.return_value = [
         np.random.random((8, fit.n_parameter)),
@@ -547,13 +547,13 @@ def test_fit_frange_mocked(mock_fit_constrained, sample_data, sample_frequencies
 
 def test_set_free_constraints_complex_model() -> None:
     """Test set_free_constraints with a complex model."""
-    fit = FitManager(model_name='ESR14N', settings=MOCK_SETTINGS)
-    fit.set_constraints('center', vmin=2.85, vmax=2.90, constraint_type='LOWER_UPPER')
+    fit = FitManager(model_name="ESR14N", settings=MOCK_SETTINGS)
+    fit.set_constraints("center", vmin=2.85, vmax=2.90, constraint_type="LOWER_UPPER")
 
     fit.set_free_constraints()
 
     for param in fit.parameter_names:
-        assert fit.constraints[param][2] == 'FREE'
+        assert fit.constraints[param][2] == "FREE"
 
 
 class TestParameterGuesser:
@@ -561,7 +561,7 @@ class TestParameterGuesser:
 
     def test_shape_correctness(self, sample_data, sample_frequencies) -> None:
         """Test that guess returns correctly shaped arrays for each model."""
-        for model_name in ['ESRSINGLE', 'ESR15N', 'ESR14N']:
+        for model_name in ["ESRSINGLE", "ESR15N", "ESR14N"]:
             model = ModelRegistry.get(model_name)
             guesser = ParameterGuesser(model, np.atleast_2d(sample_frequencies))
             values = sample_data.values
@@ -573,7 +573,7 @@ class TestParameterGuesser:
 
     def test_caching_behavior(self, sample_data, sample_frequencies) -> None:
         """Test that repeated calls return the same cached object."""
-        model = ModelRegistry.get('ESRSINGLE')
+        model = ModelRegistry.get("ESRSINGLE")
         guesser = ParameterGuesser(model, np.atleast_2d(sample_frequencies))
         values = sample_data.values
         n_pol, n_frange = values.shape[0], values.shape[1]
@@ -584,7 +584,7 @@ class TestParameterGuesser:
 
     def test_reset_clears_cache(self, sample_data, sample_frequencies) -> None:
         """Test that reset clears the cache so next call recomputes."""
-        model = ModelRegistry.get('ESRSINGLE')
+        model = ModelRegistry.get("ESRSINGLE")
         guesser = ParameterGuesser(model, np.atleast_2d(sample_frequencies))
         values = sample_data.values
         n_pol, n_frange = values.shape[0], values.shape[1]
@@ -604,22 +604,22 @@ class TestFitManagerValidation:
         """Test that empty data array raises DataValidationError."""
         empty_data = xr.DataArray(
             np.empty((2, 1, 2, 2, 0)),
-            dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
+            dims=("polarity", "freq_range", "y", "x", "freq_idx"),
             coords={
-                'polarity': ['neg', 'pos'],
-                'freq_range': ['low'],
-                'freq_ghz': (['freq_range', 'freq_idx'], np.empty((1, 0))),
+                "polarity": ["neg", "pos"],
+                "freq_range": ["low"],
+                "freq_ghz": (["freq_range", "freq_idx"], np.empty((1, 0))),
             },
         )
-        fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS)
-        with pytest.raises(DataValidationError, match='empty'):
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        with pytest.raises(DataValidationError, match="empty"):
             fit.fit(empty_data, np.array([]))
 
     def test_rejects_freq_count_mismatch(self, sample_data) -> None:
         """Test that frequency count mismatch raises DataValidationError."""
         wrong_freqs = np.linspace(2.87, 2.88, 20)
-        fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS)
-        with pytest.raises(DataValidationError, match='must match'):
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        with pytest.raises(DataValidationError, match="must match"):
             fit.fit(sample_data, wrong_freqs)
 
     def test_rejects_too_few_frequencies(self) -> None:
@@ -628,22 +628,22 @@ class TestFitManagerValidation:
         data_5d = np.ones((2, 1, 2, 2, 5))
         da = xr.DataArray(
             data_5d,
-            dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
+            dims=("polarity", "freq_range", "y", "x", "freq_idx"),
             coords={
-                'polarity': ['neg', 'pos'],
-                'freq_range': ['low'],
-                'freq_ghz': (['freq_range', 'freq_idx'], few_freqs.reshape(1, -1)),
+                "polarity": ["neg", "pos"],
+                "freq_range": ["low"],
+                "freq_ghz": (["freq_range", "freq_idx"], few_freqs.reshape(1, -1)),
             },
         )
-        fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS)
-        with pytest.raises(DataValidationError, match='at least'):
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        with pytest.raises(DataValidationError, match="at least"):
             fit.fit(da, few_freqs)
 
 
-@patch('pygpufit.gpufit.fit_constrained')
+@patch("pygpufit.gpufit.fit_constrained")
 def test_fit_auto_model_resolution(mock_fit_constrained, sample_data, sample_frequencies) -> None:
     """Test that auto mode resolves the model on first fit() call."""
-    fit = FitManager(model_name='auto', settings=MOCK_SETTINGS, gpu_available=True)
+    fit = FitManager(model_name="auto", settings=MOCK_SETTINGS, gpu_available=True)
     assert fit.model is None
 
     resolved_model = ESRSINGLE()
@@ -659,17 +659,17 @@ def test_fit_auto_model_resolution(mock_fit_constrained, sample_data, sample_fre
         0.5,
     ]
 
-    with patch('QDMpy.fitting.manager.guess_model', return_value=resolved_model):
+    with patch("QDMpy.fitting.manager.guess_model", return_value=resolved_model):
         result = fit.fit(sample_data, sample_frequencies)
         assert isinstance(result, FitResult)
         assert fit.model is not None
-        assert fit.model_name == 'ESRSINGLE'
+        assert fit.model_name == "ESRSINGLE"
 
 
-@patch('pygpufit.gpufit.fit_constrained')
+@patch("pygpufit.gpufit.fit_constrained")
 def test_fit_returns_fit_result(mock_fit_constrained, sample_data, sample_frequencies) -> None:
     """Test that fit() returns a FitResult with the expected structure."""
-    fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS, gpu_available=True)
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
 
     n_pol, _, n_y, n_x, _ = sample_data.shape
     n_pixel = n_y * n_x
@@ -686,19 +686,19 @@ def test_fit_returns_fit_result(mock_fit_constrained, sample_data, sample_freque
     result = fit.fit(sample_data, sample_frequencies)
 
     assert isinstance(result, FitResult)
-    assert result.model_name == 'ESRSINGLE'
+    assert result.model_name == "ESRSINGLE"
     assert result.scan_dimensions == (n_y, n_x)
-    assert 'center' in result.parameters
-    assert 'chi2' in result.parameters
-    assert 'states' in result.parameters
+    assert "center" in result.parameters
+    assert "chi2" in result.parameters
+    assert "states" in result.parameters
 
 
-@patch('pygpufit.gpufit.fit_constrained')
+@patch("pygpufit.gpufit.fit_constrained")
 def test_fit_reuse_independent_results(
     mock_fit_constrained, sample_data, sample_frequencies
 ) -> None:
     """Test that the same FitManager returns independent FitResult objects."""
-    fit = FitManager(model_name='ESRSINGLE', settings=MOCK_SETTINGS, gpu_available=True)
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
 
     n_pol, _, n_y, n_x, _ = sample_data.shape
     n_pixel = n_y * n_x
@@ -721,20 +721,20 @@ def test_fit_reuse_independent_results(
 
 def test_param_idx() -> None:
     """Test _param_idx method."""
-    fit = FitManager(model_name='ESR14N', settings=MOCK_SETTINGS)
+    fit = FitManager(model_name="ESR14N", settings=MOCK_SETTINGS)
 
     # ESR14N params: [center, width, contrast_0, contrast_1, contrast_2, offset]
     # center is at index 0
-    assert fit._param_idx('center') == [0]
-    assert fit._param_idx('resonance') == [0]
+    assert fit._param_idx("center") == [0]
+    assert fit._param_idx("resonance") == [0]
 
     with pytest.raises(ParameterError):
-        fit._param_idx('invalid_param')
+        fit._param_idx("invalid_param")
 
 
 def test_get_initial_parameter_via_guesser(sample_data, sample_frequencies) -> None:
     """Test ParameterGuesser shape for all models."""
-    for model_name in ['ESRSINGLE', 'ESR15N', 'ESR14N']:
+    for model_name in ["ESRSINGLE", "ESR15N", "ESR14N"]:
         model = ModelRegistry.get(model_name)
         guesser = ParameterGuesser(model, np.atleast_2d(sample_frequencies))
         values = sample_data.values
@@ -749,16 +749,16 @@ def test_get_initial_parameter_edge_cases(sample_frequencies) -> None:
     """Test ParameterGuesser with zero data (edge case)."""
     zero_data_4d = np.zeros((2, 1, 4, 10))
     zero_data_xr = _make_xr_data(zero_data_4d)
-    model = ModelRegistry.get('ESRSINGLE')
+    model = ModelRegistry.get("ESRSINGLE")
     guesser = ParameterGuesser(model, np.atleast_2d(sample_frequencies))
     values = zero_data_xr.values
     n_pol, n_frange = values.shape[0], values.shape[1]
     flat_data = values.reshape(n_pol, n_frange, -1, values.shape[-1])
     initial_params = guesser.guess(flat_data)
     assert initial_params.shape == (2, 1, 4, model.n_parameters)
-    contrast_idx = model.parameter_names.index('contrast')
+    contrast_idx = model.parameter_names.index("contrast")
     assert np.all(initial_params[:, :, :, contrast_idx] == 0)
 
 
-if __name__ == '__main__':
-    pytest.main(['-v', 'tests/test_fit.py'])
+if __name__ == "__main__":
+    pytest.main(["-v", "tests/test_fit.py"])

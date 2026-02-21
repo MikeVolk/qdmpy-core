@@ -19,12 +19,12 @@ from QDMpy.exceptions import (
     ModelNotFoundError,
 )
 from QDMpy.fitting.guess import (
-    get_model_by_peaks,
     cumsum_center,
     cumsum_contrast,
+    cumsum_width,
+    get_model_by_peaks,
     guess_model,
     guess_n_peaks,
-    cumsum_width,
     normalize_pixel,
     validate_array,
 )
@@ -47,8 +47,8 @@ def sample_odmr_data():
             for pixel in range(10):
                 for i in range(-5, 6):
                     if 0 <= center_idx1 + i < 100:
-                        data[pol, freq_range, pixel, center_idx1 + i] = (
-                            0.5 - 0.4 * np.exp(-0.5 * (i / 2) ** 2)
+                        data[pol, freq_range, pixel, center_idx1 + i] = 0.5 - 0.4 * np.exp(
+                            -0.5 * (i / 2) ** 2
                         )
 
             # Second dip for ESR15N detection
@@ -56,8 +56,8 @@ def sample_odmr_data():
             for pixel in range(10):
                 for i in range(-5, 6):
                     if 0 <= center_idx2 + i < 100:
-                        data[pol, freq_range, pixel, center_idx2 + i] = (
-                            0.5 - 0.4 * np.exp(-0.5 * (i / 2) ** 2)
+                        data[pol, freq_range, pixel, center_idx2 + i] = 0.5 - 0.4 * np.exp(
+                            -0.5 * (i / 2) ** 2
                         )
 
     return data
@@ -89,32 +89,32 @@ class TestValidateArray:
     def test_validate_correct_dimensions(self) -> None:
         """Test validation with correct dimensions."""
         data = np.zeros((2, 3, 4, 5))
-        validate_array(data, 4, 'test_data')
+        validate_array(data, 4, "test_data")
 
     def test_validate_incorrect_dimensions(self) -> None:
         """Test validation with incorrect dimensions."""
         data = np.zeros((2, 3, 4))
         with pytest.raises(DataShapeError) as excinfo:
-            validate_array(data, 4, 'test_data')
-        assert 'must have 4 dimensions' in str(excinfo.value)
-        assert 'Got 3' in str(excinfo.value)
+            validate_array(data, 4, "test_data")
+        assert "must have 4 dimensions" in str(excinfo.value)
+        assert "Got 3" in str(excinfo.value)
 
     def test_none_array(self) -> None:
         """Test validation with None."""
         with pytest.raises(DataValidationError):
-            validate_array(None, 4, 'test_data')
+            validate_array(None, 4, "test_data")
 
     def test_non_numeric_array(self) -> None:
         """Test validation with a non-numeric array."""
-        data = np.array([['a', 'b'], ['c', 'd']])
+        data = np.array([["a", "b"], ["c", "d"]])
         with pytest.raises(DataValidationError):
-            validate_array(data, 2, 'test_data')
+            validate_array(data, 2, "test_data")
 
     def test_unexpected_dimensions(self) -> None:
         """Test validation with unexpected dimensions."""
         data = np.zeros((2, 3, 4))
         with pytest.raises(DataShapeError):
-            validate_array(data, 5, 'test_data')
+            validate_array(data, 5, "test_data")
 
 
 class TestGuessNPeaks:
@@ -124,7 +124,7 @@ class TestGuessNPeaks:
         """Test guessing the number of peaks with mocked find_peaks."""
         mock_data = np.random.random((2, 3, 10, 100))
 
-        with patch('QDMpy.fitting.guess.find_peaks') as mock_find_peaks:
+        with patch("QDMpy.fitting.guess.find_peaks") as mock_find_peaks:
             mock_find_peaks.return_value = (np.array([30, 70]), {})
             n_peaks, doubt, indices = guess_n_peaks(mock_data)
 
@@ -136,7 +136,8 @@ class TestGuessNPeaks:
         """Test guessing peaks when there's doubt (inconsistent counts)."""
         mock_data = np.random.random((2, 3, 10, 100))
 
-        with patch('QDMpy.fitting.guess.find_peaks') as mock_find_peaks:
+        with patch("QDMpy.fitting.guess.find_peaks") as mock_find_peaks:
+
             def side_effect_fn(data, prominence):
                 call_count = mock_find_peaks.call_count - 1
                 if call_count == 2:
@@ -165,33 +166,33 @@ class TestGetModelByPeaks:
         model = get_model_by_peaks(1)
         assert isinstance(model, ESRSINGLE)
         assert model.n_peaks == 1
-        assert model.name == 'ESRSINGLE'
+        assert model.name == "ESRSINGLE"
 
     def test_get_model_two_peaks(self, model_instances) -> None:
         """Test getting the model for two peaks."""
         model = get_model_by_peaks(2)
         assert isinstance(model, ESR15N)
         assert model.n_peaks == 2
-        assert model.name == 'ESR15N'
+        assert model.name == "ESR15N"
 
     def test_get_model_three_peaks(self, model_instances) -> None:
         """Test getting the model for three peaks."""
         model = get_model_by_peaks(3)
         assert isinstance(model, ESR14N)
         assert model.n_peaks == 3
-        assert model.name == 'ESR14N'
+        assert model.name == "ESR14N"
 
     def test_get_model_invalid_peaks(self) -> None:
         """Test with an invalid number of peaks."""
         with pytest.raises(ModelNotFoundError) as excinfo:
             get_model_by_peaks(4)
-        assert 'No model found for 4 peaks' in str(excinfo.value)
+        assert "No model found for 4 peaks" in str(excinfo.value)
 
 
 class TestGuessModel:
     """Test cases for guess_model function."""
 
-    @patch('QDMpy.fitting.guess.guess_n_peaks')
+    @patch("QDMpy.fitting.guess.guess_n_peaks")
     def test_guess_model_no_doubt(self, mock_guess_n_peaks) -> None:
         """Test guessing model when there's no doubt."""
         mock_guess_n_peaks.return_value = (2, False, [])
@@ -201,7 +202,7 @@ class TestGuessModel:
         assert isinstance(model, ESR15N)
         assert model.n_peaks == 2
 
-    @patch('QDMpy.fitting.guess.guess_n_peaks')
+    @patch("QDMpy.fitting.guess.guess_n_peaks")
     def test_guess_model_with_doubt(self, mock_guess_n_peaks) -> None:
         """Test guessing model when there's doubt."""
         mock_guess_n_peaks.return_value = (2, True, [])

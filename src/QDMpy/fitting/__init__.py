@@ -23,10 +23,10 @@ from QDMpy.fitting.result import FitResult
 
 __all__ = [
     "CONSTRAINT_TYPES",
-    "ConstraintManager",
     "ESR14N",
     "ESR15N",
     "ESRSINGLE",
+    "ConstraintManager",
     "FitManager",
     "FitResult",
     "Model",

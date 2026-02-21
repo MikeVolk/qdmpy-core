@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 import time
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Self
 
 import mat73
 import numpy as np
@@ -17,11 +17,9 @@ import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
 from scipy.io import loadmat
-from typing_extensions import Self
-
-from QDMpy.odmr.data import FRANGE_LABELS, POLARITY_LABELS
 
 from QDMpy.exceptions import DataLoadError
+from QDMpy.odmr.data import FRANGE_LABELS, POLARITY_LABELS
 
 
 class BaseLoader(ABC):
@@ -135,13 +133,11 @@ class MatlabLoader(BaseLoader):
             raw_data = np.stack(per_file_data, axis=0)
 
         # raw_data shape: (n_pol, n_frange, n_pixels, n_freqs)
-        n_pol, n_frange, n_pixels, n_freqs = raw_data.shape
+        n_pol, n_frange, _n_pixels, n_freqs = raw_data.shape
 
         # Reshape flattened pixels to 2D spatial grid
         raw_data = raw_data.reshape(n_pol, n_frange, rows, cols, n_freqs)
-        logger.debug(
-            f"Reshaped data to ({n_pol}, {n_frange}, {rows}, {cols}, {n_freqs})"
-        )
+        logger.debug(f"Reshaped data to ({n_pol}, {n_frange}, {rows}, {cols}, {n_freqs})")
 
         # Build frequency coordinate
         if frequencies.ndim == 1:
@@ -149,9 +145,7 @@ class MatlabLoader(BaseLoader):
         else:
             freq_ghz = frequencies / 1e9
 
-        logger.debug(
-            f"Frequency range: {freq_ghz.min():.4f} - {freq_ghz.max():.4f} GHz"
-        )
+        logger.debug(f"Frequency range: {freq_ghz.min():.4f} - {freq_ghz.max():.4f} GHz")
 
         elapsed = time.perf_counter() - t_start
         logger.info(f"MATLAB data loaded in {elapsed:.2f}s — shape {raw_data.shape}")

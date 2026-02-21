@@ -119,7 +119,7 @@ class TestUtils(unittest.TestCase):
         self.assertAlmostEqual(np.sum(residuals), 0, places=10)
 
         # Test with order parameter
-        solution, residuals, rank, singular_values = polyfit2d(x, y, z, order=1)
+        solution, residuals, _rank, _singular_values = polyfit2d(x, y, z, order=1)
 
         # Check that higher order terms are excluded (coefficients should be close to [0, 1, 1, 0])
         expected_coeffs = np.zeros(16)
