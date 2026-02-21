@@ -46,42 +46,36 @@ GPU acceleration is automatically available when CUDA 11.5+ is installed on your
 ## Quick Start
 
 ```python
-from QDMpy.odmr.data import ODMRData
-from QDMpy.odmr.io import MatlabLoader
-from QDMpy.odmr.odmr import ODMR
-from QDMpy.odmr.processors import BinningProcessor, NormalizationProcessor
-from QDMpy.measurement import Measurement
-from QDMpy.models import ModelRegistry
+import QDMpy
 
-# Load ODMR data from MATLAB files
-loader = MatlabLoader(data_folder="path/to/data")
-odmr_data = ODMRData.from_loader(loader=loader)
+# One-liner: load ODMR data, fit, get B111 field maps
+result = QDMpy.load('/data/FOV18x').fit_odmr()
 
-# Create ODMR instance and setup processing pipeline
-odmr = ODMR(odmr_data)
-odmr.processor_manager.add_processor(BinningProcessor(bin_factor=2))
-odmr.processor_manager.add_processor(NormalizationProcessor(method="max"))
+print(result.b111_remanent.shape)   # (H, W) numpy array, µT
+print(result.b111_induced.shape)
 
-# Process the data
-odmr.process_data()
-
-# Create a measurement with reference images
-measurement = Measurement(
-    odmr=odmr,
-    light_image=light_array,
-    laser_image=laser_array,
-    output_directory="results",
-    pixel_spacing=4e-6  # 4 micrometers
-)
-
-# Access available models
-model_15n = ModelRegistry.get("ESR15N")  # For 15N isotope
-model_14n = ModelRegistry.get("ESR14N")  # For 14N isotope
-
-# View processed data information
-print(f"Data shape: {odmr.processed_data.shape}")
-print(f"Frequency range: {odmr.processed_data.frequencies.min():.1e} - {odmr.processed_data.frequencies.max():.1e} Hz")
+result.save('my_result.npz')        # round-trip save/load
 ```
+
+Try with synthetic data (no MATLAB files or GPU required):
+
+```python
+import QDMpy
+
+result = QDMpy.make_synthetic_qdm_result(shape=(32, 32))
+print(result.b111_remanent)
+
+mm = result.magnetic_map            # full 3D reconstruction (Bx, By, Bz)
+print(mm.bz.values)                 # xr.DataArray, µT
+```
+
+## Notebooks
+
+| Notebook | Target user | Description |
+|----------|-------------|-------------|
+| [`notebooks/01-quickstart.ipynb`](notebooks/01-quickstart.ipynb) | Fit and be done | Load → fit → B111 maps → save |
+| [`notebooks/02-exploration.ipynb`](notebooks/02-exploration.ipynb) | Exploratory | Pipeline, spectrum inspection, iteration |
+| [`notebooks/03-extending.ipynb`](notebooks/03-extending.ipynb) | Developer | Custom model / processor / reconstructor |
 
 ## Command Line Usage
 

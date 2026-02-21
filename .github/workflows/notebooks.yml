@@ -1,0 +1,40 @@
+name: Notebooks
+
+on:
+  push:
+    branches: [claude]
+    paths:
+      - 'notebooks/**'
+      - 'src/**'
+  pull_request:
+    branches: [claude]
+    paths:
+      - 'notebooks/**'
+      - 'src/**'
+
+jobs:
+  execute:
+    name: Execute notebooks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: 'latest'
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Install Jupyter
+        run: uv add --dev jupyter nbconvert
+
+      - name: Execute 01-quickstart
+        run: uv run jupyter nbconvert --to notebook --execute --inplace notebooks/01-quickstart.ipynb
+
+      - name: Execute 02-exploration
+        run: uv run jupyter nbconvert --to notebook --execute --inplace notebooks/02-exploration.ipynb
+
+      - name: Execute 03-extending
+        run: uv run jupyter nbconvert --to notebook --execute --inplace notebooks/03-extending.ipynb
