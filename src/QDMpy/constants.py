@@ -32,6 +32,9 @@ DEFAULT_VMIN = 0.3
 DEFAULT_VMAX = 0.7
 PROMINENCE = 0.0004
 
+# Fluorescence correction threshold (normalized units)
+FLUORESCENCE_DELTA_THRESHOLD = 0.001
+
 # Coordinate system labels for ODMR data
 POLARITY_LABELS = ['neg', 'pos']
 FRANGE_LABELS = ['low', 'high']

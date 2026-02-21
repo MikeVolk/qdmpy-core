@@ -321,50 +321,6 @@ class FitResult(BaseModel):
         freq_shift = (resonance[:, 0] - D_ZFS).reshape(n_pol, height, width)
         return freq_shift / GAMMA_NV * 1e6 * d
 
-    def _calc_delta_from_multi_centers(
-        self: Self,
-        center_params: dict[str, NDArray],
-        height: int,
-        width: int,
-    ) -> NDArray:
-        """Calculate delta resonance from multiple center parameters (center_0, center_1, ...).
-
-        Args:
-            center_params: Dictionary of center parameter arrays keyed by name.
-            height: Spatial height dimension.
-            width: Spatial width dimension.
-
-        Returns:
-            Array with shape (n_pol, height, width) with sign applied per polarity.
-
-        Raises:
-            DataShapeError: If fewer than 2 center parameters are provided.
-        """
-        if len(center_params) < 2:  # noqa: PLR2004
-            msg = (
-                f"Insufficient center parameters for delta resonance "
-                f"calculation. Found: {len(center_params)}"
-            )
-            raise DataShapeError(msg)
-
-        sorted_items = sorted(
-            center_params.items(),
-            key=lambda x: int(x[0].split("_")[1]) if "_" in x[0] else 0,
-        )
-        low_freq = sorted_items[0][1]
-        high_freq = sorted_items[1][1]
-
-        if low_freq.shape[1] >= 2:  # noqa: PLR2004
-            freq_diff = (
-                (high_freq[:, 1] - low_freq[:, 0]) + (high_freq[:, 0] - low_freq[:, 1])
-            ) / 2
-        else:
-            freq_diff = high_freq[:, 0] - low_freq[:, 0]
-
-        n_pol = freq_diff.shape[0]
-        freq_diff = freq_diff.reshape(n_pol, height, width)
-        d = np.array([-1, 1])[:n_pol].reshape(n_pol, 1, 1)
-        return freq_diff / 2 / GAMMA_NV * 1e6 * d
 
     def _compute_delta_resonance(self: Self) -> xr.DataArray:
         """Compute signed frequency difference per polarity.
@@ -377,18 +333,11 @@ class FitResult(BaseModel):
 
         logger.debug("Computing delta resonance for B111 calculations")
 
-        if "center" in self.parameters:
-            resonance = self.parameters["center"]
-            logger.debug(f"Center parameter shape: {resonance.shape}")
-            resonance, n_pol, n_frange, n_pixels = self._normalize_resonance_shape(resonance)
-            height, width = self._resolve_spatial_dims(n_pixels)
-            delta = self._calc_delta_from_single_center(resonance, n_pol, n_frange, height, width)
-        else:
-            center_params = {k: v for k, v in self.parameters.items() if k.startswith("center")}
-            n_pixels = next(iter(center_params.values())).shape[-1]
-            height, width = self._resolve_spatial_dims(n_pixels)
-            delta = self._calc_delta_from_multi_centers(center_params, height, width)
-            n_pol = delta.shape[0]
+        resonance = self.parameters["center"]
+        logger.debug(f"Center parameter shape: {resonance.shape}")
+        resonance, n_pol, n_frange, n_pixels = self._normalize_resonance_shape(resonance)
+        height, width = self._resolve_spatial_dims(n_pixels)
+        delta = self._calc_delta_from_single_center(resonance, n_pol, n_frange, height, width)
 
         polarity_coords = POLARITY_LABELS[:n_pol]
         logger.debug(f"Delta resonance computed with shape: {delta.shape}")

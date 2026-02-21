@@ -474,41 +474,6 @@ class TestCalcDeltaFromSingleCenter:
         np.testing.assert_allclose(delta[1], expected_shift, rtol=1e-10)  # pol_1 (pos)
 
 
-class TestCalcDeltaFromMultiCenters:
-    """Tests for FitResult._calc_delta_from_multi_centers."""
-
-    def _make_result(self) -> FitResult:
-        return FitResult(
-            parameters={"center_0": np.zeros(4), "center_1": np.zeros(4), "chi2": np.zeros(4)},
-            scan_dimensions=(2, 2),
-            pixel_spacing=4e-6,
-            model_name="ESR15N",
-        )
-
-    def test_two_centers_single_frange(self) -> None:
-        result = self._make_result()
-        low = np.array([[[2.85, 2.85, 2.85, 2.85]]])
-        high = np.array([[[2.89, 2.89, 2.89, 2.89]]])
-        center_params = {"center_0": low, "center_1": high}
-        delta = result._calc_delta_from_multi_centers(center_params, 2, 2)
-        assert delta.shape == (1, 2, 2)  # (n_pol=1, H, W) — sign axis eliminated
-        expected_diff = 0.04 / 2 / GAMMA_NV * 1e6
-        np.testing.assert_allclose(delta[0], -expected_diff, rtol=1e-10)  # pol_0 (neg)
-
-    def test_insufficient_centers_raises(self) -> None:
-        result = self._make_result()
-        with pytest.raises(DataShapeError, match="Insufficient center parameters"):
-            result._calc_delta_from_multi_centers({"center_0": np.zeros((1, 1, 4))}, 2, 2)
-
-    def test_two_centers_multi_frange(self) -> None:
-        result = self._make_result()
-        low = np.array([[[2.85, 2.85, 2.85, 2.85], [2.86, 2.86, 2.86, 2.86]]])
-        high = np.array([[[2.88, 2.88, 2.88, 2.88], [2.89, 2.89, 2.89, 2.89]]])
-        center_params = {"center_0": low, "center_1": high}
-        delta = result._calc_delta_from_multi_centers(center_params, 2, 2)
-        assert delta.shape == (1, 2, 2)  # (n_pol=1, H, W)
-
-
 class TestComputeDeltaResonanceOrchestrator:
     """Integration tests for the rewritten _compute_delta_resonance."""
 
@@ -533,21 +498,6 @@ class TestComputeDeltaResonanceOrchestrator:
         assert delta.shape == (2, 2, 2)
         assert list(delta.coords["polarity"].values) == ["neg", "pos"]
 
-    def test_multi_center_params(self) -> None:
-        import xarray as xr
-
-        low = np.array([[[2.85, 2.85, 2.85, 2.85]]])
-        high = np.array([[[2.89, 2.89, 2.89, 2.89]]])
-        result = FitResult(
-            parameters={"center_0": low, "center_1": high, "chi2": np.zeros(4)},
-            scan_dimensions=(2, 2),
-            pixel_spacing=4e-6,
-            model_name="ESR15N",
-        )
-        delta = result._compute_delta_resonance()
-        assert isinstance(delta, xr.DataArray)
-        assert delta.shape == (1, 2, 2)
-        assert list(delta.coords["polarity"].values) == ["neg"]
 
 
 class TestFitResultValidation:

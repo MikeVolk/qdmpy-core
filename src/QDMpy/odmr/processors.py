@@ -15,6 +15,8 @@ from loguru import logger
 from matplotlib import pyplot as plt
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
+from QDMpy.constants import FLUORESCENCE_DELTA_THRESHOLD
+
 if TYPE_CHECKING:
     from QDMpy.odmr.data import ODMRData
 
@@ -171,9 +173,8 @@ def analyze_fluorescence_effects(
                 np.square(flat_data - np.nanmean(flat_data, axis=2, keepdims=True)),
                 axis=-1,
             )
-            fluorescence_delta_threshold = 0.001
             delta_copy = delta.copy()
-            delta_copy[delta_copy > fluorescence_delta_threshold] = np.nan
+            delta_copy[delta_copy > FLUORESCENCE_DELTA_THRESHOLD] = np.nan
 
             if np.all(np.isnan(delta_copy)):
                 logger.warning('All values in delta_copy are NaN. Using middle pixel.')
