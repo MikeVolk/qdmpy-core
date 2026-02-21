@@ -1,0 +1,195 @@
+"""Magnetic field reconstruction from B111 maps.
+
+Provides the MagneticMap result object and core Bxyz reconstruction physics.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal
+
+import numpy as np
+import xarray as xr
+from loguru import logger
+
+
+def _reconstruct_bxyz(
+    b111: np.ndarray,
+    pixel_spacing: float,
+    nv_axis: tuple[float, float, float],
+    epsilon: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Reconstruct (Bx, By, Bz) from B111 in the Fourier domain.
+
+    Uses free-space Maxwell equations ∇×B=0, ∇·B=0 above source to invert
+    the NV projection and recover the full 3D field vector.
+
+    Args:
+        b111: 2D numpy array of B111 values (units: µT).
+        pixel_spacing: Pixel size in metres.
+        nv_axis: NV unit vector (ux, uy, uz) in lab frame.
+        epsilon: Regularisation term for k=0 singularity (typically 1e-30).
+
+    Returns:
+        Tuple (bx, by, bz), each (H, W) ndarray in µT.
+
+    References:
+        QDMBzFromBu.m (Eduardo A. Lima, 2017)
+        MITBxByFromBz.m (Eduardo A. Lima, 2007)
+    """
+    ux, uy, uz = nv_axis
+    ny, nx = b111.shape
+
+    # Wavenumber grid
+    fy = np.fft.fftfreq(ny, d=pixel_spacing)
+    fx = np.fft.fftfreq(nx, d=pixel_spacing)
+    Fx, Fy = np.meshgrid(fx, fy)
+    kx = 2 * np.pi * Fx
+    ky = 2 * np.pi * Fy
+    k = np.sqrt(kx**2 + ky**2)
+
+    # FFT of B111
+    F_b111 = np.fft.fft2(b111)
+
+    # Step 1: B111 → Bz (invert NV projection)
+    # Regularize wavenumber components to avoid singularities
+    kx_safe = kx + epsilon
+    ky_safe = ky + epsilon
+    k_safe = np.sqrt(kx_safe**2 + ky_safe**2)
+
+    denom = uz * k_safe - uy * 1j * ky_safe - ux * 1j * kx_safe
+    H_bz = k_safe / denom
+    F_bz = F_b111 * H_bz
+
+    # Step 2: Bz → Bx, By (free-space Maxwell)
+    bz = np.real(np.fft.ifft2(F_bz))
+    bx = np.real(np.fft.ifft2(F_bz * (-1j * kx_safe / k_safe)))
+    by = np.real(np.fft.ifft2(F_bz * (-1j * ky_safe / k_safe)))
+
+    return bx, by, bz
+
+
+@dataclass(frozen=True)
+class MagneticMap:
+    """Full 3D magnetic field reconstructed from a B111 map.
+
+    All field components are xr.DataArray with dims (y, x) and units µT.
+    This is an immutable result object; no modifications are allowed post-construction.
+    """
+
+    b111: xr.DataArray
+    bx: xr.DataArray
+    by: xr.DataArray
+    bz: xr.DataArray
+    btotal: xr.DataArray
+    nv_axis: tuple[float, float, float]
+
+    @classmethod
+    def from_b111(
+        cls,
+        b111: xr.DataArray,
+        nv_axis: tuple[float, float, float] | None = None,
+        epsilon: float | None = None,
+    ) -> MagneticMap:
+        """Reconstruct Bxyz from a preprocessed B111 map.
+
+        Args:
+            b111: DataArray with dims (y, x), values in µT, and
+                  ``pixel_spacing`` (metres) in ``.attrs``.
+            nv_axis: NV unit vector (ux, uy, uz). Defaults to
+                     ``get_settings().nv.axis``.
+            epsilon: k=0 regularisation. Defaults to
+                     ``get_settings().nv.epsilon``.
+
+        Returns:
+            MagneticMap with b111, bx, by, bz, btotal.
+
+        Raises:
+            ValueError: If pixel_spacing not in b111.attrs.
+        """
+        from QDMpy.settings import get_settings
+
+        if 'pixel_spacing' not in b111.attrs:
+            raise ValueError("b111.attrs must contain 'pixel_spacing' (metres)")
+
+        settings = get_settings()
+        nv = nv_axis or settings.nv.axis
+        eps = epsilon if epsilon is not None else settings.nv.epsilon
+        ps = float(b111.attrs['pixel_spacing'])
+
+        bx_arr, by_arr, bz_arr = _reconstruct_bxyz(b111.values, ps, nv, eps)
+        btotal_arr = np.sqrt(bx_arr**2 + by_arr**2 + bz_arr**2)
+
+        def _da(arr: np.ndarray, name: str) -> xr.DataArray:
+            return xr.DataArray(
+                arr,
+                dims=b111.dims,
+                coords=b111.coords,
+                attrs={**b111.attrs, 'component': name},
+            )
+
+        return cls(
+            b111=b111,
+            bx=_da(bx_arr, 'Bx'),
+            by=_da(by_arr, 'By'),
+            bz=_da(bz_arr, 'Bz'),
+            btotal=_da(btotal_arr, 'Btotal'),
+            nv_axis=nv,
+        )
+
+    def to_dataset(self) -> xr.Dataset:
+        """Return all components as a single xr.Dataset.
+
+        Returns:
+            Dataset with variables {b111, Bx, By, Bz, Btotal} and metadata.
+        """
+        return xr.Dataset(
+            {
+                'b111': self.b111,
+                'Bx': self.bx,
+                'By': self.by,
+                'Bz': self.bz,
+                'Btotal': self.btotal,
+            },
+            attrs={'units': 'µT', 'nv_axis': list(self.nv_axis)},
+        )
+
+    def display(
+        self,
+        component: Literal['b111', 'Bx', 'By', 'Bz', 'Btotal'] = 'Bz',
+        **imshow_kwargs: object,
+    ) -> None:
+        """Quick matplotlib display of one component.
+
+        Args:
+            component: Which component to display (case-insensitive for Bx/By/Bz).
+            **imshow_kwargs: Passed to xarray `.plot(**imshow_kwargs)`.
+
+        Raises:
+            ValueError: If component is not recognized.
+        """
+        import matplotlib.pyplot as plt
+
+        component_lower = component.lower()
+        valid_components = {'b111', 'bx', 'by', 'bz', 'btotal'}
+
+        if component_lower not in valid_components:
+            raise ValueError(
+                f'Component {component!r} not in {valid_components}'
+            )
+
+        da = getattr(self, component_lower)
+        da.plot(**imshow_kwargs)
+        plt.title(component)
+        plt.show()
+
+    def save(self, path: str | Path) -> None:
+        """Save all components to NetCDF.
+
+        Args:
+            path: File path for NetCDF output.
+        """
+        path_obj = Path(path) if isinstance(path, str) else path
+        self.to_dataset().to_netcdf(path_obj)
+        logger.info('MagneticMap saved', path=str(path_obj))

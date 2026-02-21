@@ -163,6 +163,25 @@ class LoggingSettings(BaseModel):
     model_config = ConfigDict(extra='ignore')
 
 
+class NvSettings(BaseModel):
+    """Settings for NV centre geometry.
+
+    Used for B111 → Bxyz reconstruction; stores NV axis orientation in lab frame.
+    """
+
+    axis: tuple[float, float, float] = Field(
+        default=(0.0, 0.8164966, 0.5773503),
+        description='NV unit vector (ux, uy, uz) in lab frame. '
+        'Default: QDM2 [111] orientation.',
+    )
+    epsilon: float = Field(
+        default=1e-30,
+        description='Regularisation term added to wavenumbers to avoid k=0 singularity.',
+    )
+
+    model_config = ConfigDict(frozen=True, extra='ignore')
+
+
 class QDMpySettings(BaseSettings):
     """Main QDMpy settings class."""
 
@@ -178,6 +197,9 @@ class QDMpySettings(BaseSettings):
     )
     logging: LoggingSettings = Field(
         default_factory=LoggingSettings, description='Logging settings'
+    )
+    nv: NvSettings = Field(
+        default_factory=NvSettings, description='NV centre geometry settings'
     )
 
     model_config = SettingsConfigDict(
