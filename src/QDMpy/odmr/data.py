@@ -18,7 +18,8 @@ from loguru import logger
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from QDMpy.constants import FRANGE_LABELS, GAMMA_NV, POLARITY_LABELS, validate_frequencies
+from QDMpy.constants import FRANGE_LABELS, GAMMA_NV, POLARITY_LABELS
+from QDMpy.odmr._validators import validate_frequencies
 from QDMpy.exceptions import DataValidationError
 
 if TYPE_CHECKING:

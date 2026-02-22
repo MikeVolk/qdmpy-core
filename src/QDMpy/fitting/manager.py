@@ -18,7 +18,7 @@ import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
 
-from QDMpy.constants import validate_frequencies
+from QDMpy.odmr._validators import validate_frequencies
 from QDMpy.exceptions import (
     DataValidationError,
     DependencyError,
