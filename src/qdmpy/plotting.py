@@ -11,10 +11,10 @@ from typing import TYPE_CHECKING
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from qdmpy_core.utils import double_norm
+from qdmpy.utils import double_norm
 
 if TYPE_CHECKING:
-    from qdmpy_core.fitting.result import FitResult
+    from qdmpy.fitting.result import FitResult
 
 # Set white background for all QDMpy figures
 mpl.rcParams["figure.facecolor"] = "white"

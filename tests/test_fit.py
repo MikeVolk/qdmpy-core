@@ -13,17 +13,17 @@ import pytest
 import xarray as xr
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 
-from qdmpy_core.exceptions import (
+from qdmpy.exceptions import (
     DataValidationError,
     ModelNotFoundError,
     ParameterError,
 )
-from qdmpy_core.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
-from qdmpy_core.fitting.guesser import ParameterGuesser
-from qdmpy_core.fitting.manager import FitManager
-from qdmpy_core.fitting.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
-from qdmpy_core.fitting.result import FitResult
-from qdmpy_core.settings import (
+from qdmpy.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
+from qdmpy.fitting.guesser import ParameterGuesser
+from qdmpy.fitting.manager import FitManager
+from qdmpy.fitting.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
+from qdmpy.fitting.result import FitResult
+from qdmpy.settings import (
     FitSettings,
     ModelConstraintsSettings,
     ModelSettings,
@@ -663,7 +663,7 @@ def test_fit_auto_model_resolution(mock_fit_constrained, sample_data, sample_fre
         0.5,
     ]
 
-    with patch("qdmpy_core.fitting.manager.guess_model", return_value=resolved_model):
+    with patch("qdmpy.fitting.manager.guess_model", return_value=resolved_model):
         result = fit.fit(sample_data, sample_frequencies)
         assert isinstance(result, FitResult)
         assert fit.model is not None

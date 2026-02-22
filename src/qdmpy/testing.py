@@ -13,12 +13,12 @@ import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
 
-from qdmpy_core.constants import D_ZFS, GAMMA_NV
+from qdmpy.constants import D_ZFS, GAMMA_NV
 
 if TYPE_CHECKING:
-    from qdmpy_core.fitting.result import FitResult
-    from qdmpy_core.odmr.data import ODMRData
-    from qdmpy_core.result import QDMResult
+    from qdmpy.fitting.result import FitResult
+    from qdmpy.odmr.data import ODMRData
+    from qdmpy.result import QDMResult
 
 
 def _dipole_field(shape: tuple[int, int], amplitude: float = 50.0) -> NDArray:
@@ -55,13 +55,13 @@ def make_synthetic_odmr_data(
         ODMRData with dims (polarity=2, freq_range=2, y, x, freq_idx).
 
     Example:
-        >>> from qdmpy_core.testing import make_synthetic_odmr_data
+        >>> from qdmpy.testing import make_synthetic_odmr_data
         >>> data = make_synthetic_odmr_data(shape=(8, 8))
         >>> data.data.dims
         ('polarity', 'freq_range', 'y', 'x', 'freq_idx')
     """
-    from qdmpy_core.fitting.models import ModelRegistry
-    from qdmpy_core.odmr.data import ODMRData
+    from qdmpy.fitting.models import ModelRegistry
+    from qdmpy.odmr.data import ODMRData
 
     rng = np.random.default_rng(seed)
     H, W = shape
@@ -149,12 +149,12 @@ def make_synthetic_fit_result(
         FitResult with scan_dimensions=shape and all model parameters set.
 
     Example:
-        >>> from qdmpy_core.testing import make_synthetic_fit_result
+        >>> from qdmpy.testing import make_synthetic_fit_result
         >>> res = make_synthetic_fit_result(shape=(32, 32))
         >>> res.b111_remanent.shape
         (32, 32)
     """
-    from qdmpy_core.fitting.result import FitResult
+    from qdmpy.fitting.result import FitResult
 
     rng = np.random.default_rng(seed)
     H, W = shape
@@ -250,12 +250,12 @@ def make_synthetic_qdm_result(
         QDMResult ready for ``b111_remanent``, ``show()``, ``magnetic_map``.
 
     Example:
-        >>> from qdmpy_core.testing import make_synthetic_qdm_result
+        >>> from qdmpy.testing import make_synthetic_qdm_result
         >>> result = make_synthetic_qdm_result(shape=(32, 32))
         >>> result.b111_remanent.shape
         (32, 32)
     """
-    from qdmpy_core.result import QDMResult
+    from qdmpy.result import QDMResult
 
     fit_result = make_synthetic_fit_result(
         shape=shape, model_name=model_name, seed=seed, pixel_spacing=pixel_spacing

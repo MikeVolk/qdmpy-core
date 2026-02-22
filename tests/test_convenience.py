@@ -15,10 +15,10 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from qdmpy_core.fitting.result import FitResult
-from qdmpy_core.odmr.data import ODMRData
-from qdmpy_core.odmr.manager import ODMR
-from qdmpy_core.result import QDMResult
+from qdmpy.fitting.result import FitResult
+from qdmpy.odmr.data import ODMRData
+from qdmpy.odmr.manager import ODMR
+from qdmpy.result import QDMResult
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -153,27 +153,27 @@ class TestODMRPlotSpectra:
 
 class TestFitResultPlot:
     def test_plot_calls_plot_fit_result_parameter_map(self, fit_result: FitResult) -> None:
-        with patch("qdmpy_core.plotting.plot_fit_result_parameter_map") as mock:
+        with patch("qdmpy.plotting.plot_fit_result_parameter_map") as mock:
             fit_result.plot("chi2")
             mock.assert_called_once_with(fit_result, "chi2", save=False, filename=None)
 
     def test_plot_default_param_is_center(self, fit_result: FitResult) -> None:
-        with patch("qdmpy_core.plotting.plot_fit_result_parameter_map") as mock:
+        with patch("qdmpy.plotting.plot_fit_result_parameter_map") as mock:
             fit_result.plot()
             mock.assert_called_once_with(fit_result, "center", save=False, filename=None)
 
     def test_plot_forwards_kwargs(self, fit_result: FitResult) -> None:
-        with patch("qdmpy_core.plotting.plot_fit_result_parameter_map") as mock:
+        with patch("qdmpy.plotting.plot_fit_result_parameter_map") as mock:
             fit_result.plot("chi2", save=True, filename="out.png")
             mock.assert_called_once_with(fit_result, "chi2", save=True, filename="out.png")
 
     def test_show_calls_plot_fit_result_overview(self, fit_result: FitResult) -> None:
-        with patch("qdmpy_core.plotting.plot_fit_result_overview") as mock:
+        with patch("qdmpy.plotting.plot_fit_result_overview") as mock:
             fit_result.show()
             mock.assert_called_once_with(fit_result, save=False, filename=None)
 
     def test_show_forwards_kwargs(self, fit_result: FitResult) -> None:
-        with patch("qdmpy_core.plotting.plot_fit_result_overview") as mock:
+        with patch("qdmpy.plotting.plot_fit_result_overview") as mock:
             fit_result.show(save=True)
             mock.assert_called_once_with(fit_result, save=True, filename=None)
 
@@ -185,16 +185,16 @@ class TestFitResultPlot:
 
 class TestQDMResultPlotDelegation:
     def test_plot_delegates_to_fit_result(self, qdm_result: QDMResult) -> None:
-        with patch("qdmpy_core.plotting.plot_fit_result_parameter_map") as mock:
+        with patch("qdmpy.plotting.plot_fit_result_parameter_map") as mock:
             qdm_result.plot("chi2")
             mock.assert_called_once_with(qdm_result.fit_result, "chi2", save=False, filename=None)
 
     def test_show_delegates_to_fit_result(self, qdm_result: QDMResult) -> None:
-        with patch("qdmpy_core.plotting.plot_fit_result_overview") as mock:
+        with patch("qdmpy.plotting.plot_fit_result_overview") as mock:
             qdm_result.show()
             mock.assert_called_once_with(qdm_result.fit_result, save=False, filename=None)
 
     def test_plot_default_param(self, qdm_result: QDMResult) -> None:
-        with patch("qdmpy_core.plotting.plot_fit_result_parameter_map") as mock:
+        with patch("qdmpy.plotting.plot_fit_result_parameter_map") as mock:
             qdm_result.plot()
             mock.assert_called_once_with(qdm_result.fit_result, "center", save=False, filename=None)

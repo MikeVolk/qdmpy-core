@@ -1,6 +1,6 @@
 # Installation
 
-qdmpy_core can be installed using pip or from source.
+qdmpy can be installed using pip or from source.
 
 ## Prerequisites
 
@@ -9,29 +9,29 @@ qdmpy_core can be installed using pip or from source.
 
 ## Installing with pip
 
-The recommended way to install qdmpy_core is using pip:
+The recommended way to install qdmpy is using pip:
 
 ```bash
-pip install qdmpy_core
+pip install qdmpy
 ```
 
-For development purposes, you can install qdmpy_core in editable mode:
+For development purposes, you can install qdmpy in editable mode:
 
 ```bash
-git clone https://github.com/mikevolk/qdmpy_core.git
-cd qdmpy_core
+git clone https://github.com/mikevolk/qdmpy.git
+cd qdmpy
 pip install -e .
 ```
 
 ## Using UV (recommended)
 
-qdmpy_core can also be installed using UV, a fast Python package installer:
+qdmpy can also be installed using UV, a fast Python package installer:
 
 ```bash
 # Install UV if you don't have it
 curl -sSf https://install.undefined.io/uv/ | python3 -
 
-# Create a virtual environment and install qdmpy_core
+# Create a virtual environment and install qdmpy
 uv venv
 source .venv/bin/activate
 uv pip install -e .
@@ -39,7 +39,7 @@ uv pip install -e .
 
 ## Dependencies
 
-qdmpy_core has the following core dependencies:
+qdmpy has the following core dependencies:
 
 - NumPy: For numerical operations
 - Matplotlib: For plotting
@@ -57,7 +57,7 @@ For GPU-accelerated fitting, you'll need to install pyGpufit. This can be done v
 pip install pyGpufit
 ```
 
-Or, for Windows users, you can use the pre-built wheel provided with qdmpy_core:
+Or, for Windows users, you can use the pre-built wheel provided with qdmpy:
 
 ```bash
 pip install src/pyGpufit/win/pyGpufit-1.2.0-py2.py3-none-any.whl
@@ -71,9 +71,9 @@ pip install src/pyGpufit/linux/pyGpufit-1.2.0-py2.py3-none-any.whl
 
 ## Verifying Installation
 
-After installation, you can verify that qdmpy_core is working correctly by importing it in Python:
+After installation, you can verify that qdmpy is working correctly by importing it in Python:
 
 ```python
-import qdmpy_core
-print(qdmpy_core.__version__)
+import qdmpy
+print(qdmpy.__version__)
 ```

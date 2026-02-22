@@ -7,8 +7,8 @@ import pytest
 import xarray as xr
 from pydantic import ValidationError
 
-from qdmpy_core.odmr.data import ODMRData
-from qdmpy_core.odmr.processors import (
+from qdmpy.odmr.data import ODMRData
+from qdmpy.odmr.processors import (
     BaseProcessor,
     BinningProcessor,
     FluorescenceCorrectionProcessor,
@@ -208,7 +208,7 @@ class TestFluorescenceCorrectionProcessor:
             dims=("polarity", "freq_range", "freq_idx"),
         )
         monkeypatch.setattr(
-            "qdmpy_core.odmr.processors.analyze_fluorescence_effects",
+            "qdmpy.odmr.processors.analyze_fluorescence_effects",
             lambda data, pixel_idx=None: (0, mock_baseline),
         )
 
@@ -231,7 +231,7 @@ class TestFluorescenceCorrectionProcessor:
             dims=("polarity", "freq_range", "freq_idx"),
         )
         monkeypatch.setattr(
-            "qdmpy_core.odmr.processors.analyze_fluorescence_effects",
+            "qdmpy.odmr.processors.analyze_fluorescence_effects",
             lambda data, pixel_idx=None: (0, mock_baseline),
         )
 

@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from qdmpy_core.settings import (
+from qdmpy.settings import (
     DefaultPathsSettings,
     FitSettings,
     LocalOutlierFactorSettings,
@@ -278,11 +278,11 @@ class TestQDMpySettings:
             # Mock the config file path
             with (
                 patch(
-                    "qdmpy_core.settings.Path.home",
+                    "qdmpy.settings.Path.home",
                     return_value=Path(tmpdir),
                 ),
                 patch(
-                    "qdmpy_core.settings.QDMpySettings.model_config",
+                    "qdmpy.settings.QDMpySettings.model_config",
                     {"toml_file": config_path},
                     create=True,
                 ),
@@ -335,6 +335,6 @@ class TestGetSettings:
 
     def test_get_settings_re_exported_from_package(self) -> None:
         """get_settings is importable from the top-level QDMpy package."""
-        from qdmpy_core import get_settings as pkg_get_settings
+        from qdmpy import get_settings as pkg_get_settings
 
         assert pkg_get_settings is get_settings

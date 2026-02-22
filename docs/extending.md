@@ -1,7 +1,7 @@
-# Extending qdmpy_core
+# Extending qdmpy
 
 This guide covers the three main extension points for developers who want to
-plug in custom algorithms without modifying the qdmpy_core source.
+plug in custom algorithms without modifying the qdmpy source.
 
 ---
 
@@ -20,7 +20,7 @@ and register with `@ModelRegistry.register`:
 from typing import ClassVar
 import numpy as np
 from numpy.typing import NDArray
-from qdmpy_core import Model, ModelRegistry
+from qdmpy import Model, ModelRegistry
 
 @ModelRegistry.register
 class MyModel(Model):
@@ -69,16 +69,16 @@ class MyModel(Model):
 ### Using the model
 
 ```python
-import qdmpy_core
+import qdmpy
 
-m = qdmpy_core.load('/data/FOV18x')
+m = qdmpy.load('/data/FOV18x')
 result = m.fit_odmr(model='MYMODEL')
 ```
 
 ### Discovering registered models
 
 ```python
-from qdmpy_core import ModelRegistry
+from qdmpy import ModelRegistry
 ModelRegistry.available_models()
 # ['ESR14N', 'ESR15N', 'ESRSINGLE', 'MYMODEL']
 ```
@@ -96,7 +96,7 @@ experiment-specific artefact removal step.
 Implement the `Processor` protocol — two methods, no base class required:
 
 ```python
-from qdmpy_core.odmr.data import ODMRData
+from qdmpy.odmr.data import ODMRData
 
 class MyProcessor:
     def process(self, data: ODMRData) -> ODMRData:
@@ -111,9 +111,9 @@ class MyProcessor:
 ### Inserting into the pipeline
 
 ```python
-import qdmpy_core
+import qdmpy
 
-m = qdmpy_core.load('/data/FOV18x')
+m = qdmpy.load('/data/FOV18x')
 m.odmr.processor_manager.add_processor(MyProcessor())
 m.odmr.process_data()   # re-run pipeline with the new step
 ```
@@ -167,17 +167,17 @@ class MyReconstructor:
 Pass it to `QDMResult` or directly to `MagneticMap.from_b111()`:
 
 ```python
-import qdmpy_core
+import qdmpy
 
-result = qdmpy_core.load('/data/FOV18x').fit_odmr()
+result = qdmpy.load('/data/FOV18x').fit_odmr()
 
 # Option A: via QDMResult (most common)
-from qdmpy_core import QDMResult
+from qdmpy import QDMResult
 qdm = QDMResult(fit_result=result.fit_result, reconstructor=MyReconstructor())
 mm  = qdm.magnetic_map   # uses MyReconstructor
 
 # Option B: directly
-from qdmpy_core.magnetic_map import MagneticMap
+from qdmpy.magnetic_map import MagneticMap
 import xarray as xr
 b111_da = xr.DataArray(
     result.b111_remanent,
@@ -195,8 +195,8 @@ All three protocols use `@runtime_checkable`, so you can verify compliance at
 runtime:
 
 ```python
-from qdmpy_core import Processor, FieldReconstructor
-from qdmpy_core.fitting.models import Model
+from qdmpy import Processor, FieldReconstructor
+from qdmpy.fitting.models import Model
 
 isinstance(MyProcessor(), Processor)               # True
 isinstance(MyReconstructor(), FieldReconstructor)  # True

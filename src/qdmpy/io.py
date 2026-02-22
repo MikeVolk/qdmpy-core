@@ -14,7 +14,7 @@ import matplotlib.image as mpimg
 import numpy as np
 from loguru import logger
 
-from qdmpy_core.exceptions import DataLoadError
+from qdmpy.exceptions import DataLoadError
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray

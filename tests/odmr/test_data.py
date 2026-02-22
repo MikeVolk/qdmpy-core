@@ -10,10 +10,10 @@ import pytest
 import xarray as xr
 from numpy.typing import NDArray
 
-from qdmpy_core.constants import GAMMA_NV
-from qdmpy_core.exceptions import DataLoadError, DataValidationError
-from qdmpy_core.odmr.analysis import b111_from_dip_positions
-from qdmpy_core.odmr.data import EXPECTED_DIMS, ODMRData
+from qdmpy.constants import GAMMA_NV
+from qdmpy.exceptions import DataLoadError, DataValidationError
+from qdmpy.odmr.analysis import b111_from_dip_positions
+from qdmpy.odmr.data import EXPECTED_DIMS, ODMRData
 
 N_POL = 2
 N_FRANGE = 2
@@ -209,7 +209,7 @@ class TestFromLoader:
 
     def test_from_loader_with_real_data(self) -> None:
         """Test from_loader with MatlabLoader against real test data."""
-        from qdmpy_core.odmr.io import MatlabLoader
+        from qdmpy.odmr.io import MatlabLoader
 
         test_data_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
         if not os.path.isdir(test_data_path):

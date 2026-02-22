@@ -12,10 +12,10 @@ import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 
-from qdmpy_core.constants import DEFAULT_VMAX, DEFAULT_VMIN
-from qdmpy_core.exceptions import ParameterError
-from qdmpy_core.fitting.guess import cumsum_center, cumsum_contrast, cumsum_width
-from qdmpy_core.fitting.models import Model
+from qdmpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
+from qdmpy.exceptions import ParameterError
+from qdmpy.fitting.guess import cumsum_center, cumsum_contrast, cumsum_width
+from qdmpy.fitting.models import Model
 
 
 class ParameterGuesser:

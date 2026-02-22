@@ -11,8 +11,8 @@ import tempfile
 import numpy as np
 import pytest
 
-from qdmpy_core.exceptions import DataLoadError
-from qdmpy_core.io import get_image, get_image_file, has_csv
+from qdmpy.exceptions import DataLoadError
+from qdmpy.io import get_image, get_image_file, has_csv
 
 
 class TestIO:

@@ -6,7 +6,7 @@ The ODMR processors module provides signal processing algorithms for ODMR data.
 
 The `BaseProcessor` is an abstract base class for all ODMR processors.
 
-::: qdmpy_core.odmr.processors.BaseProcessor
+::: qdmpy.odmr.processors.BaseProcessor
     options:
       show_root_heading: true
       show_source: true
@@ -15,7 +15,7 @@ The `BaseProcessor` is an abstract base class for all ODMR processors.
 
 The `NormalizationProcessor` normalizes ODMR data to a common scale.
 
-::: qdmpy_core.odmr.processors.NormalizationProcessor
+::: qdmpy.odmr.processors.NormalizationProcessor
     options:
       show_root_heading: true
       show_source: true
@@ -24,7 +24,7 @@ The `NormalizationProcessor` normalizes ODMR data to a common scale.
 
 The `BinningProcessor` performs spatial binning on ODMR data.
 
-::: qdmpy_core.odmr.processors.BinningProcessor
+::: qdmpy.odmr.processors.BinningProcessor
     options:
       show_root_heading: true
       show_source: true
@@ -33,7 +33,7 @@ The `BinningProcessor` performs spatial binning on ODMR data.
 
 The `OutlierProcessor` identifies and removes outlier pixels.
 
-::: qdmpy_core.odmr.processors.OutlierProcessor
+::: qdmpy.odmr.processors.OutlierProcessor
     options:
       show_root_heading: true
       show_source: true
@@ -42,7 +42,7 @@ The `OutlierProcessor` identifies and removes outlier pixels.
 
 The `FluorescenceCorrectionProcessor` corrects for global fluorescence variations.
 
-::: qdmpy_core.odmr.processors.FluorescenceCorrectionProcessor
+::: qdmpy.odmr.processors.FluorescenceCorrectionProcessor
     options:
       show_root_heading: true
       show_source: true
@@ -51,7 +51,7 @@ The `FluorescenceCorrectionProcessor` corrects for global fluorescence variation
 
 The `ODMRProcessorManager` coordinates multiple processors in a pipeline.
 
-::: qdmpy_core.odmr.processors.ODMRProcessorManager
+::: qdmpy.odmr.processors.ODMRProcessorManager
     options:
       show_root_heading: true
       show_source: true

@@ -27,8 +27,8 @@ from loguru import logger
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
 
-from qdmpy_core.constants import D_ZFS, GAMMA_NV, POLARITY_LABELS
-from qdmpy_core.exceptions import DataLoadError, DataShapeError, DataValidationError, ParameterError
+from qdmpy.constants import D_ZFS, GAMMA_NV, POLARITY_LABELS
+from qdmpy.exceptions import DataLoadError, DataShapeError, DataValidationError, ParameterError
 
 
 class FitResult(BaseModel):
@@ -569,7 +569,7 @@ class FitResult(BaseModel):
             save: If True, save the figure to disk.
             filename: Output filename (uses a default name if None).
         """
-        from qdmpy_core.plotting import plot_fit_result_parameter_map
+        from qdmpy.plotting import plot_fit_result_parameter_map
 
         plot_fit_result_parameter_map(self, param, save=save, filename=filename)
 
@@ -580,7 +580,7 @@ class FitResult(BaseModel):
             save: If True, save the figure to disk.
             filename: Output filename (uses a default name if None).
         """
-        from qdmpy_core.plotting import plot_fit_result_overview
+        from qdmpy.plotting import plot_fit_result_overview
 
         plot_fit_result_overview(self, save=save, filename=filename)
 

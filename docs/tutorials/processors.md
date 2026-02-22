@@ -1,12 +1,12 @@
 # ODMR Processors Tutorial
 
-This tutorial explores the various signal processing techniques available in qdmpy_core for ODMR data analysis.
+This tutorial explores the various signal processing techniques available in qdmpy for ODMR data analysis.
 
 [View the full tutorial notebook](../processor_tutorial.ipynb)
 
 ## Available Processors
 
-qdmpy_core includes several ODMR processors:
+qdmpy includes several ODMR processors:
 
 1. **NormalizationProcessor**: Normalizes data to a common scale
 2. **BinningProcessor**: Performs spatial binning to improve SNR
@@ -18,8 +18,8 @@ qdmpy_core includes several ODMR processors:
 The `ODMRProcessorManager` provides a convenient way to create and execute a processing pipeline:
 
 ```python
-import qdmpy_core
-from qdmpy_core.odmr.processors import (
+import qdmpy
+from qdmpy.odmr.processors import (
     ODMRProcessorManager,
     NormalizationProcessor,
     BinningProcessor,
@@ -27,7 +27,7 @@ from qdmpy_core.odmr.processors import (
 )
 
 # Create an ODMR instance with data
-odmr = qdmpy_core.ODMR.from_files(['data.mat'])
+odmr = qdmpy.ODMR.from_files(['data.mat'])
 
 # Create a processor manager
 processor_manager = ODMRProcessorManager()
@@ -49,7 +49,7 @@ odmr.processed_data = processed_data
 You can create custom processors by subclassing `BaseProcessor`:
 
 ```python
-from qdmpy_core.odmr.processors import BaseProcessor
+from qdmpy.odmr.processors import BaseProcessor
 import numpy as np
 
 class SmoothingProcessor(BaseProcessor):

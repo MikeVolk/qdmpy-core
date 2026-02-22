@@ -27,9 +27,9 @@ Key Features:
 
 Usage Example:
     ```python
-    from qdmpy_core.odmr.data import ODMRData
-    from qdmpy_core.odmr.io import MatlabLoader
-    from qdmpy_core.odmr.processors import NormalizationProcessor, ODMRProcessorManager
+    from qdmpy.odmr.data import ODMRData
+    from qdmpy.odmr.io import MatlabLoader
+    from qdmpy.odmr.processors import NormalizationProcessor, ODMRProcessorManager
 
     # Load data
     loader = MatlabLoader(data_folder="path/to/matlab/files")
@@ -48,6 +48,6 @@ offering a robust and extensible solution for their data management and analysis
 
 from __future__ import annotations
 
-from qdmpy_core.odmr.analysis import b111_from_dip_positions
-from qdmpy_core.odmr.data import ODMRData
-from qdmpy_core.odmr.manager import ODMR
+from qdmpy.odmr.analysis import b111_from_dip_positions
+from qdmpy.odmr.data import ODMRData
+from qdmpy.odmr.manager import ODMR

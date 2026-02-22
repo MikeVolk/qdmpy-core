@@ -78,13 +78,35 @@ ignore = [
     "PT006",    # pytest parametrize wrong type
 ]
 "**/__init__.py" = ["F401", "E402", "RUF022"]  # Ignore unused imports, import order, and unsorted __all__ (grouped by category)
+"scripts/**" = [
+    "D100", "D101", "D102", "D103", "D104", "D107",  # docstrings optional in scripts
+    "ANN001", "ANN002", "ANN201", "ANN202",            # type annotations optional in scripts
+    "N806",                                             # uppercase vars (physics notation)
+    "S101", "S112",                                    # security relaxations for scripts
+    "T201",                                            # print allowed in scripts
+    "C901", "PLR0912", "PLR0915",                      # complexity ok in scripts
+    "ERA001",                                          # commented-out code ok in scripts
+    "E501",                                            # long lines ok in scripts
+    "RUF001",                                          # unicode symbols (×) ok in bench scripts
+    "ARG001", "ARG002",                                # unused args ok in benchmark harnesses
+]
+"examples/**" = [
+    "D100", "D101", "D102", "D103", "D104", "D107",  # docstrings optional in examples
+    "ANN001", "ANN002", "ANN201", "ANN202",            # type annotations optional in examples
+    "N806",                                             # uppercase vars (physics notation)
+    "S101", "S112",                                    # security relaxations for examples
+    "T201",                                            # print allowed in examples
+    "C901", "PLR0912", "PLR0915",                      # complexity ok in examples
+    "ERA001",                                          # commented-out code ok in examples
+    "E501",                                            # long lines ok in examples
+]
 # Physics/math files use uppercase variables (X, Y, Fx, Fy, H, F) as standard mathematical notation
-"src/qdmpy_core/field_processing.py" = ["N806"]
-"src/qdmpy_core/magnetic_map.py" = ["N806"]
-"src/qdmpy_core/fitting/models.py" = ["N806"]
-"src/qdmpy_core/fitting/guess.py" = ["N806"]
-"src/qdmpy_core/fitting/guesser.py" = ["N806"]
-"src/qdmpy_core/testing.py" = ["N806"]  # H, W, B_BIAS_T are physics/image dimension variables
+"src/qdmpy/field_processing.py" = ["N806"]
+"src/qdmpy/magnetic_map.py" = ["N806"]
+"src/qdmpy/fitting/models.py" = ["N806"]
+"src/qdmpy/fitting/guess.py" = ["N806"]
+"src/qdmpy/fitting/guesser.py" = ["N806"]
+"src/qdmpy/testing.py" = ["N806"]  # H, W, B_BIAS_T are physics/image dimension variables
 "tutorial.ipynb" = ["ALL"]   # Ignore all errors in notebooks
 "test.ipynb" = ["ALL"]       # Ignore all errors in notebooks
 

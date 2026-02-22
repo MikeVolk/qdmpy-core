@@ -1,8 +1,8 @@
 # API Documentation
 
-This page provides the full API documentation for qdmpy_core. Please see the specialized API pages in the API Reference section for more organized documentation.
+This page provides the full API documentation for qdmpy. Please see the specialized API pages in the API Reference section for more organized documentation.
 
-:::qdmpy_core
+:::qdmpy
     options:
       show_root_heading: true
       show_source: true
@@ -11,21 +11,21 @@ This page provides the full API documentation for qdmpy_core. Please see the spe
 ## Core Components
 
 ### Fit
-:::qdmpy_core.fit
+:::qdmpy.fit
     options:
       show_root_heading: true
       show_source: true
       members_order: alphabetical
 
 ### Models
-:::qdmpy_core.models
+:::qdmpy.models
     options:
       show_root_heading: true
       show_source: true
       members_order: alphabetical
 
 ### Measurement
-:::qdmpy_core.measurement
+:::qdmpy.measurement
     options:
       show_root_heading: true
       show_source: true
@@ -34,28 +34,28 @@ This page provides the full API documentation for qdmpy_core. Please see the spe
 ## ODMR Components
 
 ### ODMR Class
-:::qdmpy_core.odmr.odmr
+:::qdmpy.odmr.odmr
     options:
       show_root_heading: true
       show_source: true
       members_order: alphabetical
 
 ### ODMR Processors
-:::qdmpy_core.odmr.processors
+:::qdmpy.odmr.processors
     options:
       show_root_heading: true
       show_source: true
       members_order: alphabetical
 
 ### ODMR Data
-:::qdmpy_core.odmr.data
+:::qdmpy.odmr.data
     options:
       show_root_heading: true
       show_source: true
       members_order: alphabetical
 
 ### ODMR I/O
-:::qdmpy_core.odmr.io
+:::qdmpy.odmr.io
     options:
       show_root_heading: true
       show_source: true
@@ -64,21 +64,21 @@ This page provides the full API documentation for qdmpy_core. Please see the spe
 ## Utilities
 
 ### Constants
-:::qdmpy_core.constants
+:::qdmpy.constants
     options:
       show_root_heading: true
       show_source: true
       members_order: alphabetical
 
 ### Exceptions
-:::qdmpy_core.exceptions
+:::qdmpy.exceptions
     options:
       show_root_heading: true
       show_source: true
       members_order: alphabetical
 
 ### Utils
-:::qdmpy_core.utils
+:::qdmpy.utils
     options:
       show_root_heading: true
       show_source: true

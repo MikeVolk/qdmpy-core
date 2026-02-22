@@ -9,9 +9,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from qdmpy_core.constants import D_ZFS, GAMMA_NV
-from qdmpy_core.exceptions import DataLoadError, DataShapeError, DataValidationError, ParameterError
-from qdmpy_core.fitting.result import FitResult
+from qdmpy.constants import D_ZFS, GAMMA_NV
+from qdmpy.exceptions import DataLoadError, DataShapeError, DataValidationError, ParameterError
+from qdmpy.fitting.result import FitResult
 
 
 class TestFitResult:
@@ -136,7 +136,7 @@ class TestFitResult:
 
     def test_contrasts_property_raises_when_missing(self, sample_parameters) -> None:
         """Test contrasts raises ParameterError when no contrast key exists."""
-        from qdmpy_core.exceptions import ParameterError
+        from qdmpy.exceptions import ParameterError
 
         params = {k: v for k, v in sample_parameters.items() if not k.startswith("contrast")}
         result = FitResult(

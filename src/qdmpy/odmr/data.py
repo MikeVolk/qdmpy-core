@@ -18,12 +18,12 @@ from loguru import logger
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from qdmpy_core.constants import FRANGE_LABELS, POLARITY_LABELS
-from qdmpy_core.exceptions import DataValidationError
-from qdmpy_core.odmr._validators import validate_frequencies
+from qdmpy.constants import FRANGE_LABELS, POLARITY_LABELS
+from qdmpy.exceptions import DataValidationError
+from qdmpy.odmr._validators import validate_frequencies
 
 if TYPE_CHECKING:
-    from qdmpy_core.odmr.io import BaseLoader
+    from qdmpy.odmr.io import BaseLoader
 
 EXPECTED_DIMS = ("polarity", "freq_range", "y", "x", "freq_idx")
 
@@ -90,7 +90,7 @@ class ODMRData(BaseModel):
             return cls(data=data)
         except Exception as e:
             logger.exception(f"Failed to load data using loader {loader.__class__.__name__}: {e}")
-            from qdmpy_core.exceptions import DataLoadError
+            from qdmpy.exceptions import DataLoadError
 
             msg = f"Data loading failed: {e}"
             raise DataLoadError(msg) from e

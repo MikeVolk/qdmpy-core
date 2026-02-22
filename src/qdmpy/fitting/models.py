@@ -17,7 +17,7 @@ import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 
-from qdmpy_core.constants import AHYP_14N, AHYP_15N
+from qdmpy.constants import AHYP_14N, AHYP_15N
 
 
 def esr14n(
@@ -188,7 +188,7 @@ class Model(ABC):
     .. code-block:: python
 
         from typing import ClassVar
-        from qdmpy_core import Model, ModelRegistry
+        from qdmpy import Model, ModelRegistry
         import numpy as np
         from numpy.typing import NDArray
 
@@ -236,7 +236,7 @@ class Model(ABC):
         n_peaks: Number of resonance peaks in the model (1 for single, 2 for 15N, 3 for 14N).
 
     Example:
-        >>> from qdmpy_core.fitting.models import ESR14N
+        >>> from qdmpy.fitting.models import ESR14N
         >>> model = ESR14N()
         >>> print(f"Model: {model.name}, Parameters: {model.n_parameters}")
         Model: ESR14N, Parameters: 6

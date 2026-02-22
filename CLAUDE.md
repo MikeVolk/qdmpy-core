@@ -69,12 +69,12 @@ dimension: `[:, 0]` = negatively-signed dB, `[:, 1]` = positively-signed dB. Ext
 ## Testing
 - Run all tests: `uv run pytest`
 - Run single test: `uv run pytest tests/test_file.py::test_function -v`
-- Run with coverage: `uv run pytest --cov=qdmpy_core --cov-report=term-missing`
+- Run with coverage: `uv run pytest --cov=qdmpy --cov-report=term-missing`
 
 ## Linting
 - Run all checks: `pre-commit run --all-files`
 - Run ruff: `uv run ruff check .`
-- Run ty: `uv run ty src/qdmpy_core`
+- Run ty: `uv run ty src/qdmpy`
 
 ## Code Style
 - Python >=3.12
