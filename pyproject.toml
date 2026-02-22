@@ -27,9 +27,9 @@ dependencies = [
 ]
 
 [project.urls]
-Documentation = "https://mikevolk.github.io/QDMpy"
-Homepage = "https://mikevolk.github.io/QDMpy"
-Repository = "https://github.com/mikevolk/QDMpy"
+Documentation = "https://mikevolk.github.io/qdmpy-core"
+Homepage = "https://mikevolk.github.io/qdmpy-core"
+Repository = "https://github.com/mikevolk/qdmpy-core"
 
 
 [tool.uv.sources]
