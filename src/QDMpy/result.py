@@ -211,8 +211,8 @@ class QDMResult(BaseModel):
     def load(cls: type[QDMResult], path: str | PathLike) -> QDMResult:
         """Load a QDMResult from a pickle-free NPZ file.
 
-        Opens the file once and reconstructs both FitResult and nv_axis from
-        the same data handle.
+        Opens the file exactly once and reconstructs both FitResult and
+        nv_axis from the same data handle.
 
         Args:
             path: Path to the .npz file created by QDMResult.save().
@@ -224,9 +224,22 @@ class QDMResult(BaseModel):
         Raises:
             DataLoadError: If the file does not exist or is not in the safe format.
         """
-        fit_result = FitResult.load_results(path)
+        from QDMpy.exceptions import DataLoadError
 
-        data = np.load(path, allow_pickle=False)
+        path = Path(path)
+
+        if not path.exists():
+            msg = f'Results file not found: {path}'
+            raise DataLoadError(msg)
+
+        try:
+            data = np.load(path, allow_pickle=False)
+        except ValueError as exc:
+            msg = f'File {path} contains pickled objects and cannot be loaded safely.'
+            raise DataLoadError(msg) from exc
+
+        fit_result = FitResult._from_npz(data, source=str(path))
+
         nv_axis: tuple[float, float, float] | None = None
         if 'nv_axis' in data:
             nv_axis = tuple(float(v) for v in data['nv_axis'])  # type: ignore[assignment]

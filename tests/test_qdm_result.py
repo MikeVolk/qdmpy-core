@@ -217,7 +217,6 @@ class TestPersistence:
         """QDMResult.save() produces a file loadable without pickle."""
         out = tmp_path / 'result'
         qdm_result.save(out)
-        npz_path = out.with_suffix('.npz') if out.with_suffix('.npz').exists() else out
-        # Must not raise
-        data = np.load(npz_path, allow_pickle=False)
+        # savez_compressed always appends .npz
+        data = np.load(out.with_suffix('.npz'), allow_pickle=False)
         assert '__meta__' in data.files
