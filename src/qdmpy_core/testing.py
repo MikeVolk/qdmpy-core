@@ -7,11 +7,18 @@ GPU fitting hardware, or any external resources.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
 
 from qdmpy_core.constants import D_ZFS, GAMMA_NV
+
+if TYPE_CHECKING:
+    from qdmpy_core.fitting.result import FitResult
+    from qdmpy_core.odmr.data import ODMRData
+    from qdmpy_core.result import QDMResult
 
 
 def _dipole_field(shape: tuple[int, int], amplitude: float = 50.0) -> NDArray:
@@ -25,11 +32,11 @@ def _dipole_field(shape: tuple[int, int], amplitude: float = 50.0) -> NDArray:
 def make_synthetic_odmr_data(
     shape: tuple[int, int] = (16, 16),
     n_freq: int = 50,
-    model_name: str = 'ESR14N',
+    model_name: str = "ESR14N",
     noise: float = 0.002,
     seed: int = 42,
     pixel_spacing: float = 4e-6,
-) -> 'ODMRData':
+) -> ODMRData:
     """Generate synthetic ODMR data for tutorials and tests.
 
     Creates realistic ODMR spectra using the requested model, with a
@@ -94,24 +101,24 @@ def make_synthetic_odmr_data(
     data_5d = spectra.reshape(2, 2, H, W, n_freq)
     da = xr.DataArray(
         data_5d,
-        dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
+        dims=("polarity", "freq_range", "y", "x", "freq_idx"),
         coords={
-            'polarity': ['neg', 'pos'],
-            'freq_range': ['low', 'high'],
-            'freq_ghz': (('freq_range', 'freq_idx'), freqs),
+            "polarity": ["neg", "pos"],
+            "freq_range": ["low", "high"],
+            "freq_ghz": (("freq_range", "freq_idx"), freqs),
         },
     )
-    return ODMRData(data=da, metadata={'pixel_spacing': pixel_spacing})
+    return ODMRData(data=da, metadata={"pixel_spacing": pixel_spacing})
 
 
 def _make_params(model_name: str, center: NDArray, n_pixels: int) -> NDArray:
     """Build a (n_pixels, n_params) parameter array for the given model."""
     width = np.full(n_pixels, 0.0025)
     offset = np.zeros(n_pixels)
-    if model_name == 'ESR14N':
+    if model_name == "ESR14N":
         contrast = np.full(n_pixels, 0.07)
         return np.column_stack([center, width, contrast, contrast, contrast, offset])
-    if model_name == 'ESR15N':
+    if model_name == "ESR15N":
         contrast = np.full(n_pixels, 0.08)
         return np.column_stack([center, width, contrast, contrast, offset])
     # ESRSINGLE
@@ -121,10 +128,10 @@ def _make_params(model_name: str, center: NDArray, n_pixels: int) -> NDArray:
 
 def make_synthetic_fit_result(
     shape: tuple[int, int] = (16, 16),
-    model_name: str = 'ESR14N',
+    model_name: str = "ESR14N",
     seed: int = 42,
     pixel_spacing: float = 4e-6,
-) -> 'FitResult':
+) -> FitResult:
     """Generate a synthetic FitResult for tutorials and tests.
 
     Constructs realistic fitted parameters (center, width, contrast, chi2)
@@ -157,7 +164,7 @@ def make_synthetic_fit_result(
     b111_µt = _dipole_field(shape, amplitude=50.0).flatten()  # µT
     b111_t = b111_µt * 1e-6  # T
 
-    # center[pol, frange, pixel]
+    # shape: (n_pol=2, n_frange=2, n_pixels)
     center = np.zeros((2, 2, n_pixels))
     for i_pol, pol_sign in enumerate([-1, 1]):
         b_total_t = pol_sign * B_BIAS_T + b111_t
@@ -169,29 +176,38 @@ def make_synthetic_fit_result(
     chi2 = rng.exponential(5e-7, (2, 2, n_pixels))
     states = np.zeros((2, 2, n_pixels), dtype=np.int32)
 
-    if model_name == 'ESR14N':
+    if model_name == "ESR14N":
         contrast = 0.07 + rng.normal(0, 0.002, (2, 2, n_pixels))
         parameters = {
-            'center': center, 'width': width,
-            'contrast_0': contrast, 'contrast_1': contrast * 0.95,
-            'contrast_2': contrast * 1.05,
-            'offset': rng.normal(0, 0.001, (2, 2, n_pixels)),
-            'chi2': chi2, 'states': states,
+            "center": center,
+            "width": width,
+            "contrast_0": contrast,
+            "contrast_1": contrast * 0.95,
+            "contrast_2": contrast * 1.05,
+            "offset": rng.normal(0, 0.001, (2, 2, n_pixels)),
+            "chi2": chi2,
+            "states": states,
         }
-    elif model_name == 'ESR15N':
+    elif model_name == "ESR15N":
         contrast = 0.08 + rng.normal(0, 0.002, (2, 2, n_pixels))
         parameters = {
-            'center': center, 'width': width,
-            'contrast_0': contrast, 'contrast_1': contrast * 0.95,
-            'offset': rng.normal(0, 0.001, (2, 2, n_pixels)),
-            'chi2': chi2, 'states': states,
+            "center": center,
+            "width": width,
+            "contrast_0": contrast,
+            "contrast_1": contrast * 0.95,
+            "offset": rng.normal(0, 0.001, (2, 2, n_pixels)),
+            "chi2": chi2,
+            "states": states,
         }
     else:  # ESRSINGLE
         contrast = 0.10 + rng.normal(0, 0.003, (2, 2, n_pixels))
         parameters = {
-            'center': center, 'width': width, 'contrast': contrast,
-            'offset': rng.normal(0, 0.001, (2, 2, n_pixels)),
-            'chi2': chi2, 'states': states,
+            "center": center,
+            "width": width,
+            "contrast": contrast,
+            "offset": rng.normal(0, 0.001, (2, 2, n_pixels)),
+            "chi2": chi2,
+            "states": states,
         }
 
     return FitResult(
@@ -200,13 +216,13 @@ def make_synthetic_fit_result(
         pixel_spacing=pixel_spacing,
         model_name=model_name,
         metadata={
-            'synthetic': True,
-            'quality_metrics': {
-                'mean_chi2': float(chi2.mean()),
-                'convergence_rate': 1.0,
-                'n_pixels': int(n_pixels * 4),
-                'n_converged': int(n_pixels * 4),
-                'total_fit_time': 0.0,
+            "synthetic": True,
+            "quality_metrics": {
+                "mean_chi2": float(chi2.mean()),
+                "convergence_rate": 1.0,
+                "n_pixels": int(n_pixels * 4),
+                "n_converged": int(n_pixels * 4),
+                "total_fit_time": 0.0,
             },
         },
     )
@@ -214,10 +230,10 @@ def make_synthetic_fit_result(
 
 def make_synthetic_qdm_result(
     shape: tuple[int, int] = (16, 16),
-    model_name: str = 'ESR14N',
+    model_name: str = "ESR14N",
     seed: int = 42,
     pixel_spacing: float = 4e-6,
-) -> 'QDMResult':
+) -> QDMResult:
     """Generate a synthetic QDMResult for tutorials and tests.
 
     Wraps :func:`make_synthetic_fit_result` in a ``QDMResult`` container.

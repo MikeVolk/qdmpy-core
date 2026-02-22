@@ -22,7 +22,6 @@ from qdmpy_core.magnetic_map import MagneticMap
 from qdmpy_core.odmr.data import ODMRData
 from qdmpy_core.result import QDMResult
 
-
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
@@ -38,12 +37,12 @@ def fit_result() -> FitResult:
     # center needs shape (n_pol, n_frange, n_pixels) for b111_remanent to work
     return FitResult(
         parameters={
-            'center': rng.uniform(2.82, 2.92, (N_POL, N_FRANGE, n_pixels)),
-            'chi2': rng.random(n_pixels),
+            "center": rng.uniform(2.82, 2.92, (N_POL, N_FRANGE, n_pixels)),
+            "chi2": rng.random(n_pixels),
         },
         scan_dimensions=(H, W),
         pixel_spacing=4e-6,
-        model_name='ESRSINGLE',
+        model_name="ESRSINGLE",
     )
 
 
@@ -51,7 +50,7 @@ def fit_result() -> FitResult:
 def b111_da() -> xr.DataArray:
     rng = np.random.default_rng(7)
     arr = rng.random((H, W)).astype(float)
-    return xr.DataArray(arr, dims=('y', 'x'), attrs={'pixel_spacing': 4e-6})
+    return xr.DataArray(arr, dims=("y", "x"), attrs={"pixel_spacing": 4e-6})
 
 
 # ---------------------------------------------------------------------------
@@ -63,23 +62,23 @@ def b111_da() -> xr.DataArray:
 class _TestSingleLorentz(Model):
     """Minimal single-Lorentzian model for testing extension point."""
 
-    name: ClassVar[str] = '_TESTLORENTZ'
+    name: ClassVar[str] = "_TESTLORENTZ"
 
     def __init__(self) -> None:
         super().__init__(
-            '_TESTLORENTZ',
+            "_TESTLORENTZ",
             n_peaks=1,
-            parameter_names=['center', 'width', 'contrast', 'offset'],
+            parameter_names=["center", "width", "contrast", "offset"],
         )
         self.model_id = -1
 
     @property
     def parameter_types(self) -> dict[str, str]:
-        return {'center': 'center', 'width': 'width', 'contrast': 'contrast', 'offset': 'offset'}
+        return {"center": "center", "width": "width", "contrast": "contrast", "offset": "offset"}
 
     @property
     def frequency_parameters(self) -> list[str]:
-        return ['center']
+        return ["center"]
 
     def func(self, x: NDArray, parameters: NDArray) -> NDArray:
         parameters = np.atleast_2d(parameters)
@@ -93,25 +92,25 @@ class _TestSingleLorentz(Model):
 
 class TestCustomModel:
     def test_registered(self) -> None:
-        assert '_TESTLORENTZ' in ModelRegistry.available_models()
+        assert "_TESTLORENTZ" in ModelRegistry.available_models()
 
     def test_get_returns_instance(self) -> None:
-        model = ModelRegistry.get('_TESTLORENTZ')
+        model = ModelRegistry.get("_TESTLORENTZ")
         assert isinstance(model, _TestSingleLorentz)
 
     def test_n_parameters(self) -> None:
-        model = ModelRegistry.get('_TESTLORENTZ')
+        model = ModelRegistry.get("_TESTLORENTZ")
         assert model.n_parameters == 4
 
     def test_func_output_shape(self) -> None:
-        model = ModelRegistry.get('_TESTLORENTZ')
+        model = ModelRegistry.get("_TESTLORENTZ")
         x = np.linspace(2.82, 2.92, 50)
         params = np.array([[2.87, 0.002, 0.1, 0.0]])  # shape (1, 4)
         out = model.func(x, params)
         assert out.shape == (1, 50)
 
     def test_func_scalar_params_broadcast(self) -> None:
-        model = ModelRegistry.get('_TESTLORENTZ')
+        model = ModelRegistry.get("_TESTLORENTZ")
         x = np.linspace(2.82, 2.92, 50)
         params = np.array([2.87, 0.002, 0.1, 0.0])  # 1D — atleast_2d inside func
         out = model.func(x, params)
@@ -119,9 +118,9 @@ class TestCustomModel:
 
     def test_available_models_includes_builtins(self) -> None:
         names = ModelRegistry.available_models()
-        assert 'ESR14N' in names
-        assert 'ESR15N' in names
-        assert 'ESRSINGLE' in names
+        assert "ESR14N" in names
+        assert "ESR15N" in names
+        assert "ESRSINGLE" in names
 
     def test_available_models_is_sorted(self) -> None:
         names = ModelRegistry.available_models()
@@ -143,7 +142,7 @@ class _ScalingProcessor:
         return ODMRData(data=data.data * self.scale, metadata=data.metadata.copy())
 
     def describe(self) -> str:
-        return f'_ScalingProcessor(scale={self.scale})'
+        return f"_ScalingProcessor(scale={self.scale})"
 
 
 class TestProcessorProtocol:
@@ -157,11 +156,11 @@ class TestProcessorProtocol:
         freq_ghz = np.tile(np.linspace(2.82, 2.92, n_freq), (2, 1))
         da = xr.DataArray(
             arr,
-            dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
+            dims=("polarity", "freq_range", "y", "x", "freq_idx"),
             coords={
-                'polarity': ['neg', 'pos'],
-                'freq_range': ['low', 'high'],
-                'freq_ghz': (('freq_range', 'freq_idx'), freq_ghz),
+                "polarity": ["neg", "pos"],
+                "freq_range": ["low", "high"],
+                "freq_ghz": (("freq_range", "freq_idx"), freq_ghz),
             },
         )
         data = ODMRData(data=da)
@@ -175,6 +174,7 @@ class TestProcessorProtocol:
 
     def test_baseprocessor_satisfies_protocol(self) -> None:
         from qdmpy_core.odmr.processors import NormalizationProcessor
+
         assert isinstance(NormalizationProcessor(), Processor)
 
 
@@ -192,12 +192,14 @@ class _IdentityReconstructor:
         nv_axis: tuple[float, float, float],
     ) -> xr.Dataset:
         zeros = xr.zeros_like(b111)
-        return xr.Dataset({
-            'bx': zeros,
-            'by': zeros,
-            'bz': b111,
-            'btotal': abs(b111),
-        })
+        return xr.Dataset(
+            {
+                "bx": zeros,
+                "by": zeros,
+                "bz": b111,
+                "btotal": abs(b111),
+            }
+        )
 
 
 class TestFieldReconstructorProtocol:

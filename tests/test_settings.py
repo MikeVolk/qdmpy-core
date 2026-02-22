@@ -7,8 +7,6 @@ from unittest.mock import patch
 
 import pytest
 
-import pytest
-
 from qdmpy_core.settings import (
     DefaultPathsSettings,
     FitSettings,
@@ -280,11 +278,11 @@ class TestQDMpySettings:
             # Mock the config file path
             with (
                 patch(
-                    "QDMpy.settings.Path.home",
+                    "qdmpy_core.settings.Path.home",
                     return_value=Path(tmpdir),
                 ),
                 patch(
-                    "QDMpy.settings.QDMpySettings.model_config",
+                    "qdmpy_core.settings.QDMpySettings.model_config",
                     {"toml_file": config_path},
                     create=True,
                 ),

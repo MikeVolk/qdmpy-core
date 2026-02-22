@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
 
@@ -21,14 +20,14 @@ if TYPE_CHECKING:
 
 def _validate_b111_coords(data: xr.DataArray) -> None:
     """Raise DataValidationError if polarity or freq_range coords are incomplete."""
-    for label in ('neg', 'pos'):
-        if label not in data.coords['polarity'].values:
-            found = list(data.coords['polarity'].values)
+    for label in ("neg", "pos"):
+        if label not in data.coords["polarity"].values:
+            found = list(data.coords["polarity"].values)
             msg = f"b111_from_dip_positions requires polarity='{label}'; found {found}"
             raise DataValidationError(msg)
-    for label in ('low', 'high'):
-        if label not in data.coords['freq_range'].values:
-            found = list(data.coords['freq_range'].values)
+    for label in ("low", "high"):
+        if label not in data.coords["freq_range"].values:
+            found = list(data.coords["freq_range"].values)
             msg = f"b111_from_dip_positions requires freq_range='{label}'; found {found}"
             raise DataValidationError(msg)
 
@@ -64,21 +63,21 @@ def b111_from_dip_positions(data: xr.DataArray) -> dict[str, NDArray]:
     """
     _validate_b111_coords(data)
 
-    freq_ghz_arr = data.coords['freq_ghz'].values  # (n_frange, n_freq)
-    frange_labels = list(data.coords['freq_range'].values)
-    i_low = frange_labels.index('low')
-    i_high = frange_labels.index('high')
+    freq_ghz_arr = data.coords["freq_ghz"].values  # (n_frange, n_freq)
+    frange_labels = list(data.coords["freq_range"].values)
+    i_low = frange_labels.index("low")
+    i_high = frange_labels.index("high")
 
-    _sign = {'neg': -1.0, 'pos': 1.0}
+    _sign = {"neg": -1.0, "pos": 1.0}
     delta: dict[str, NDArray] = {}
-    for pol in ('neg', 'pos'):
-        idx_low = data.sel(polarity=pol, freq_range='low').argmin(dim='freq_idx').values
-        idx_high = data.sel(polarity=pol, freq_range='high').argmin(dim='freq_idx').values
+    for pol in ("neg", "pos"):
+        idx_low = data.sel(polarity=pol, freq_range="low").argmin(dim="freq_idx").values
+        idx_high = data.sel(polarity=pol, freq_range="high").argmin(dim="freq_idx").values
         dip_low = freq_ghz_arr[i_low][idx_low]
         dip_high = freq_ghz_arr[i_high][idx_high]
         delta[pol] = _sign[pol] * (dip_high - dip_low) / 2.0 / GAMMA_NV * 1e6
 
     return {
-        'remanent': (delta['neg'] + delta['pos']) / 2.0,
-        'induced': (delta['neg'] - delta['pos']) / 2.0,
+        "remanent": (delta["neg"] + delta["pos"]) / 2.0,
+        "induced": (delta["neg"] - delta["pos"]) / 2.0,
     }

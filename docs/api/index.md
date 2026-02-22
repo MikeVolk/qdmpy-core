@@ -10,13 +10,13 @@ qdmpy_core is organized into several main modules:
   - `fit`: Parameter fitting with constraint management
   - `models`: Spectral models for ODMR data analysis
   - `measurement`: Base classes for scientific measurements
-  
+
 - **ODMR**: Optically Detected Magnetic Resonance functionality
   - `odmr`: Main ODMR data structures and methods
   - `processors`: Signal processing algorithms for ODMR data
   - `data`: ODMR data management
   - `io`: Input/output operations for ODMR data
-  
+
 - **Utilities**:
   - `utils`: General utility functions
   - `constants`: Physical and mathematical constants

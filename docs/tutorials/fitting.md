@@ -77,7 +77,7 @@ for param, constraint in constraints.items():
 
 # Set more restrictive constraints on center frequency
 fit_manager.set_constraints(
-    'center', 
+    'center',
     vmin=2.87e9,      # Lower bound (in Hz)
     vmax=2.88e9,      # Upper bound (in Hz)
     constraint_type='LOWER_UPPER'
@@ -85,14 +85,14 @@ fit_manager.set_constraints(
 
 # Set a minimum width to avoid unrealistically narrow features
 fit_manager.set_constraints(
-    'width_0', 
+    'width_0',
     vmin=2e6,         # Lower bound (in Hz)
     constraint_type='LOWER'
 )
 
 # Set a maximum contrast to avoid over-fitting
 fit_manager.set_constraints(
-    'contrast', 
+    'contrast',
     vmax=0.2,         # Upper bound
     constraint_type='UPPER'
 )

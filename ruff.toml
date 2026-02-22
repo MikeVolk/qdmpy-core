@@ -29,27 +29,38 @@ select = [
 ]
 
 ignore = [
-    "D203",  # one-blank-line-before-class (conflicts with no-blank-line-before-class)
-    "D213",  # multi-line-summary-second-line (conflicts with multi-line-summary-first-line)
-    "COM812", # Avoid conflicts with formatter
-    "Q000",   # Avoid conflicts with formatter quote style
-    "Q003"    # Avoid conflicts with formatter quote style
+    "D203",    # one-blank-line-before-class (conflicts with no-blank-line-before-class)
+    "D213",    # multi-line-summary-second-line (conflicts with multi-line-summary-first-line)
+    "COM812",  # Avoid conflicts with formatter
+    "Q000",    # Avoid conflicts with formatter quote style
+    "Q003",    # Avoid conflicts with formatter quote style
+    # Scientific Python conventions
+    "PLC0415", # import-outside-toplevel: lazy imports are intentional (circular deps, optional heavy deps)
+    "PLC2401", # non-ASCII variable names: Greek letters (γ, µ) are standard in physics code
+    "RUF002",  # ambiguous-unicode-character-docstring: physics symbols (µT, γ, etc.) are intentional
+    "RUF003",  # ambiguous-unicode-character-comment: same as above
+    "TRY003",  # long exception messages: inline messages are fine for scientific code
+    "PLR0913", # too-many-arguments: factory/analysis functions legitimately have many params
+    "PLR2004", # magic-value-comparison: domain constants (2 polarities, 3 hyperfine dips) are self-documenting
 ]
 
 [lint.per-file-ignores]
-"tests/*" = [
+"tests/**" = [
     # Docstrings - not needed in tests
     "D100", "D101", "D102", "D103", "D104", "D105", "D107", "D205", "D414", "D415",
     # Type annotations - less critical in tests
-    "ANN001", "ANN101", "ANN201", "ANN202", "ANN401",
+    "ANN001", "ANN002", "ANN003", "ANN101", "ANN201", "ANN202", "ANN204", "ANN401",
     # Test-specific patterns
-    "S101",  # assert
+    "S101",   # assert
+    "S108",   # probable insecure temp file usage
     "PT015", "PT011", "PT009", "PT012",  # pytest assertions
-    "B011",  # assert False
+    "B011",   # assert False
+    "B017",   # pytest.raises with bare Exception - sometimes intentional in tests
+    "B018",   # useless expression - sometimes used for coverage
     # Magic values and constants in test data
     "PLR2004",  # magic-value-comparison
     # Variable naming in tests
-    "N806", "N803", "N802",  # non-lowercase variable names
+    "N806", "N803", "N802", "N817",  # non-lowercase / alias naming
     # Exception handling is less critical in tests
     "TRY003", "B904", "TRY300", "TRY301",
     # Unused arguments in test fixtures
@@ -58,8 +69,22 @@ ignore = [
     "T201",
     # Complexity - tests can be more complex for data setup
     "C901", "PLR0912", "PLR0913", "PLR0915",
+    # Style relaxations
+    "ERA001",   # commented-out code is common in tests
+    "RUF059",   # unused lambda arg
+    "SIM117",   # nested with
+    "E501",     # long lines - test messages can be verbose
+    "F841",     # unused variable
+    "PT006",    # pytest parametrize wrong type
 ]
-"**/__init__.py" = ["F401", "E402"]  # Ignore unused imports and module level imports not at top in __init__.py files
+"**/__init__.py" = ["F401", "E402", "RUF022"]  # Ignore unused imports, import order, and unsorted __all__ (grouped by category)
+# Physics/math files use uppercase variables (X, Y, Fx, Fy, H, F) as standard mathematical notation
+"src/qdmpy_core/field_processing.py" = ["N806"]
+"src/qdmpy_core/magnetic_map.py" = ["N806"]
+"src/qdmpy_core/fitting/models.py" = ["N806"]
+"src/qdmpy_core/fitting/guess.py" = ["N806"]
+"src/qdmpy_core/fitting/guesser.py" = ["N806"]
+"src/qdmpy_core/testing.py" = ["N806"]  # H, W, B_BIAS_T are physics/image dimension variables
 "tutorial.ipynb" = ["ALL"]   # Ignore all errors in notebooks
 "test.ipynb" = ["ALL"]       # Ignore all errors in notebooks
 

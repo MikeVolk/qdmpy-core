@@ -9,7 +9,7 @@ This tutorial introduces the fundamental concepts of qdmpy_core for analyzing OD
 qdmpy_core provides a complete workflow for ODMR analysis:
 
 1. **Load** data from various formats (.mat, .csv)
-2. **Process** data with built-in processors  
+2. **Process** data with built-in processors
 3. **Fit** spectra using physics-based models
 4. **Visualize** results with built-in plotting
 5. **Export** processed data and results

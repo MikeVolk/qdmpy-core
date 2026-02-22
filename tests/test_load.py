@@ -1,9 +1,9 @@
-"""Tests for QDMpy.load() and Measurement.from_folder()."""
+"""Tests for qdmpy_core.load() and Measurement.from_folder()."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -13,7 +13,6 @@ import qdmpy_core
 from qdmpy_core.measurement import Measurement
 from qdmpy_core.odmr.data import ODMRData
 from qdmpy_core.odmr.manager import ODMR
-
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
@@ -29,11 +28,11 @@ def _make_xr_data() -> xr.DataArray:
     freq_ghz = np.linspace(2.82, 2.92, N_FREQ)
     return xr.DataArray(
         arr,
-        dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
+        dims=("polarity", "freq_range", "y", "x", "freq_idx"),
         coords={
-            'polarity': ['neg', 'pos'],
-            'freq_range': ['low', 'high'],
-            'freq_ghz': (['freq_range', 'freq_idx'], np.stack([freq_ghz, freq_ghz])),
+            "polarity": ["neg", "pos"],
+            "freq_range": ["low", "high"],
+            "freq_ghz": (["freq_range", "freq_idx"], np.stack([freq_ghz, freq_ghz])),
         },
     )
 
@@ -53,17 +52,19 @@ def patched_from_folder(tmp_path: Path, mock_loader_data: xr.DataArray):
     odmr = ODMR(odmr_data)
     odmr.process_data()  # sets up processed_data with scan_dimensions
 
+    from qdmpy_core.exceptions import DataLoadError
+
     class _Ctx:
         def __init__(self):
             self.mocks: dict = {}
 
         def __enter__(self):
             self._patches = [
-                patch('QDMpy.odmr.io.MatlabLoader.load', return_value=mock_loader_data),
-                patch('QDMpy.measurement.os.listdir', return_value=[]),
+                patch("qdmpy_core.odmr.io.MatlabLoader.load", return_value=mock_loader_data),
+                patch("qdmpy_core.measurement.os.listdir", return_value=[]),
                 patch(
-                    'QDMpy.measurement.get_image',
-                    side_effect=__import__('QDMpy.exceptions', fromlist=['DataLoadError']).DataLoadError('no image'),
+                    "qdmpy_core.measurement.get_image",
+                    side_effect=DataLoadError("no image"),
                 ),
             ]
             for p in self._patches:
@@ -78,16 +79,16 @@ def patched_from_folder(tmp_path: Path, mock_loader_data: xr.DataArray):
 
 
 # ---------------------------------------------------------------------------
-# QDMpy.load() smoke test
+# qdmpy_core.load() smoke test
 # ---------------------------------------------------------------------------
 
 
 def test_load_is_callable() -> None:
-    assert callable(QDMpy.load)
+    assert callable(qdmpy_core.load)
 
 
 def test_load_in_all() -> None:
-    assert 'load' in QDMpy.__all__
+    assert "load" in qdmpy_core.__all__
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +101,8 @@ class TestFromFolderProcessors:
 
     def _run(self, tmp_path: Path, **kwargs) -> list[str]:
         """Return list of processor type names added to the ODMR instance."""
+        from qdmpy_core.exceptions import DataLoadError
+
         xr_data = _make_xr_data()
 
         added_processors: list[str] = []
@@ -115,13 +118,11 @@ class TestFromFolderProcessors:
                 self._processors.append(p)
 
         with (
-            patch('QDMpy.odmr.io.MatlabLoader.load', return_value=xr_data),
-            patch('QDMpy.measurement.os.listdir', return_value=[]),
+            patch("qdmpy_core.odmr.io.MatlabLoader.load", return_value=xr_data),
+            patch("qdmpy_core.measurement.os.listdir", return_value=[]),
             patch(
-                'QDMpy.measurement.get_image',
-                side_effect=__import__(
-                    'QDMpy.exceptions', fromlist=['DataLoadError']
-                ).DataLoadError('no image'),
+                "qdmpy_core.measurement.get_image",
+                side_effect=DataLoadError("no image"),
             ),
         ):
             m = Measurement.from_folder(tmp_path, **kwargs)
@@ -130,15 +131,15 @@ class TestFromFolderProcessors:
 
     def _processors_on(self, tmp_path: Path, **kwargs) -> tuple[list[str], Measurement]:
         """Return (processor_names, measurement) by inspecting the ODMR manager."""
+        from qdmpy_core.exceptions import DataLoadError
+
         xr_data = _make_xr_data()
         with (
-            patch('QDMpy.odmr.io.MatlabLoader.load', return_value=xr_data),
-            patch('QDMpy.measurement.os.listdir', return_value=[]),
+            patch("qdmpy_core.odmr.io.MatlabLoader.load", return_value=xr_data),
+            patch("qdmpy_core.measurement.os.listdir", return_value=[]),
             patch(
-                'QDMpy.measurement.get_image',
-                side_effect=__import__(
-                    'QDMpy.exceptions', fromlist=['DataLoadError']
-                ).DataLoadError('no image'),
+                "qdmpy_core.measurement.get_image",
+                side_effect=DataLoadError("no image"),
             ),
         ):
             m = Measurement.from_folder(tmp_path, **kwargs)
@@ -148,31 +149,31 @@ class TestFromFolderProcessors:
     def test_no_processors_by_default_except_normalization(self, tmp_path: Path) -> None:
         procs, _ = self._processors_on(tmp_path)
         # Default: normalize=True, fluorescence_correction=0.2 → 2 processors
-        assert 'NormalizationProcessor' in procs
-        assert 'FluorescenceCorrectionProcessor' in procs
+        assert "NormalizationProcessor" in procs
+        assert "FluorescenceCorrectionProcessor" in procs
 
     def test_bin_factor_adds_binning_processor(self, tmp_path: Path) -> None:
         procs, _ = self._processors_on(tmp_path, bin_factor=2)
-        assert 'BinningProcessor' in procs
+        assert "BinningProcessor" in procs
 
     def test_bin_factor_1_skips_binning(self, tmp_path: Path) -> None:
         procs, _ = self._processors_on(tmp_path, bin_factor=1)
-        assert 'BinningProcessor' not in procs
+        assert "BinningProcessor" not in procs
 
     def test_normalize_false_skips_normalization(self, tmp_path: Path) -> None:
         procs, _ = self._processors_on(tmp_path, normalize=False)
-        assert 'NormalizationProcessor' not in procs
+        assert "NormalizationProcessor" not in procs
 
     def test_fluorescence_none_skips_correction(self, tmp_path: Path) -> None:
         procs, _ = self._processors_on(tmp_path, fluorescence_correction=None)
-        assert 'FluorescenceCorrectionProcessor' not in procs
+        assert "FluorescenceCorrectionProcessor" not in procs
 
     def test_fluorescence_factor_is_passed(self, tmp_path: Path) -> None:
         _, m = self._processors_on(tmp_path, fluorescence_correction=0.5)
         flu_proc = next(
             p
             for p in m.odmr.processor_manager.processors
-            if type(p).__name__ == 'FluorescenceCorrectionProcessor'
+            if type(p).__name__ == "FluorescenceCorrectionProcessor"
         )
         assert flu_proc.correction_factor == 0.5
 
@@ -189,16 +190,14 @@ class TestFromFolderImages:
 
         xr_data = _make_xr_data()
         folder_files = folder_files or []
-        get_image_side_effect = get_image_side_effect or DLE('no image')
+        get_image_side_effect = get_image_side_effect or DLE("no image")
 
         with (
-            patch('QDMpy.odmr.io.MatlabLoader.load', return_value=xr_data),
-            patch('QDMpy.measurement.os.listdir', return_value=folder_files),
-            patch('QDMpy.measurement.get_image', side_effect=get_image_side_effect),
+            patch("qdmpy_core.odmr.io.MatlabLoader.load", return_value=xr_data),
+            patch("qdmpy_core.measurement.os.listdir", return_value=folder_files),
+            patch("qdmpy_core.measurement.get_image", side_effect=get_image_side_effect),
         ):
-            return Measurement.from_folder(
-                tmp_path, normalize=False, fluorescence_correction=None
-            )
+            return Measurement.from_folder(tmp_path, normalize=False, fluorescence_correction=None)
 
     def test_missing_images_fall_back_to_zeros(self, tmp_path: Path) -> None:
         m = self._make(tmp_path)
@@ -220,20 +219,20 @@ class TestFromFolderImages:
 
         def capture_get_image(folder, lst):
             captured_calls.append(list(lst))
-            raise DLE('no image')
+            raise DLE("no image")
 
-        folder_files = ['light_ref.jpg', 'laser_ref.jpg', 'run_00000.mat', 'other.txt']
+        folder_files = ["light_ref.jpg", "laser_ref.jpg", "run_00000.mat", "other.txt"]
         with (
-            patch('QDMpy.odmr.io.MatlabLoader.load', return_value=xr_data),
-            patch('QDMpy.measurement.os.listdir', return_value=folder_files),
-            patch('QDMpy.measurement.get_image', side_effect=capture_get_image),
+            patch("qdmpy_core.odmr.io.MatlabLoader.load", return_value=xr_data),
+            patch("qdmpy_core.measurement.os.listdir", return_value=folder_files),
+            patch("qdmpy_core.measurement.get_image", side_effect=capture_get_image),
         ):
             Measurement.from_folder(tmp_path, normalize=False, fluorescence_correction=None)
 
         # First call = light (should only include 'light_ref.jpg')
-        assert captured_calls[0] == ['light_ref.jpg']
+        assert captured_calls[0] == ["light_ref.jpg"]
         # Second call = laser (should only include 'laser_ref.jpg')
-        assert captured_calls[1] == ['laser_ref.jpg']
+        assert captured_calls[1] == ["laser_ref.jpg"]
 
     def test_found_image_is_used(self, tmp_path: Path) -> None:
         dummy_img = np.ones((H, W))
@@ -246,7 +245,7 @@ class TestFromFolderImages:
 
         m = self._make(
             tmp_path,
-            folder_files=['light_img.jpg', 'laser_img.jpg'],
+            folder_files=["light_img.jpg", "laser_img.jpg"],
             get_image_side_effect=get_image_alternating,
         )
         np.testing.assert_array_equal(m.light_image, dummy_img)
@@ -264,9 +263,9 @@ class TestFromFolderConfig:
 
         xr_data = _make_xr_data()
         with (
-            patch('QDMpy.odmr.io.MatlabLoader.load', return_value=xr_data),
-            patch('QDMpy.measurement.os.listdir', return_value=[]),
-            patch('QDMpy.measurement.get_image', side_effect=DLE('no image')),
+            patch("qdmpy_core.odmr.io.MatlabLoader.load", return_value=xr_data),
+            patch("qdmpy_core.measurement.os.listdir", return_value=[]),
+            patch("qdmpy_core.measurement.get_image", side_effect=DLE("no image")),
         ):
             return Measurement.from_folder(tmp_path, **kwargs)
 
@@ -279,14 +278,14 @@ class TestFromFolderConfig:
         assert m.pixel_spacing == 2e-6
 
     def test_model_passed_through(self, tmp_path: Path) -> None:
-        m = self._make(tmp_path, model='ESR14N')
-        assert m._fit_model == 'ESR14N'
+        m = self._make(tmp_path, model="ESR14N")
+        assert m._fit_model == "ESR14N"
 
     def test_default_output_directory(self, tmp_path: Path) -> None:
         m = self._make(tmp_path)
-        assert m.output_directory == tmp_path / 'results'
+        assert m.output_directory == tmp_path / "results"
 
     def test_custom_output_directory(self, tmp_path: Path) -> None:
-        custom = tmp_path / 'custom_out'
+        custom = tmp_path / "custom_out"
         m = self._make(tmp_path, output_directory=custom)
         assert m.output_directory == custom

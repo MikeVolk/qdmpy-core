@@ -276,13 +276,13 @@ class FitResult(BaseModel):
         Raises:
             DataShapeError: If resonance has an unexpected number of dimensions.
         """
-        if resonance.ndim == 4:  # noqa: PLR2004
+        if resonance.ndim == 4:
             n_pol, n_frange, n_pixels, _ = resonance.shape
             resonance = np.squeeze(resonance, axis=-1)
             logger.debug(f"Squeezed 4D resonance to shape {resonance.shape}")
-        elif resonance.ndim == 3:  # noqa: PLR2004
+        elif resonance.ndim == 3:
             n_pol, n_frange, n_pixels = resonance.shape
-        elif resonance.ndim == 2:  # noqa: PLR2004
+        elif resonance.ndim == 2:
             n_pol = 2
             n_frange = resonance.shape[0] // n_pol
             n_pixels = resonance.shape[1]
@@ -320,13 +320,12 @@ class FitResult(BaseModel):
         """
         d = np.array([-1, 1])[:n_pol].reshape(n_pol, 1, 1)
 
-        if n_frange >= 2:  # noqa: PLR2004
+        if n_frange >= 2:
             freq_diff = (resonance[:, 1] - resonance[:, 0]).reshape(n_pol, height, width)
             return freq_diff / 2 / GAMMA_NV * 1e6 * d
 
         freq_shift = (resonance[:, 0] - D_ZFS).reshape(n_pol, height, width)
         return freq_shift / GAMMA_NV * 1e6 * d
-
 
     def _compute_delta_resonance(self: Self) -> xr.DataArray:
         """Compute signed frequency difference per polarity.
@@ -515,27 +514,27 @@ class FitResult(BaseModel):
             ``cache_*`` keys for cached derived arrays.
         """
         meta = {
-            'model_name': self.model_name,
-            'scan_dimensions': list(self.scan_dimensions),
-            'pixel_spacing': self.pixel_spacing,
-            'metadata': self.metadata,
+            "model_name": self.model_name,
+            "scan_dimensions": list(self.scan_dimensions),
+            "pixel_spacing": self.pixel_spacing,
+            "metadata": self.metadata,
         }
         meta_bytes = json.dumps(meta, default=str).encode()
 
         save_dict: dict[str, NDArray | np.void] = {
-            '__meta__': np.void(meta_bytes),
+            "__meta__": np.void(meta_bytes),
         }
 
         for name, arr in self.parameters.items():
-            save_dict[f'param_{name}'] = np.asarray(arr)
+            save_dict[f"param_{name}"] = np.asarray(arr)
 
         if self._b_field_cache is not None:
-            save_dict['cache_b_field'] = self._b_field_cache
+            save_dict["cache_b_field"] = self._b_field_cache
         if self._delta_resonance_cache is not None:
-            save_dict['cache_delta_resonance'] = self._delta_resonance_cache.values
+            save_dict["cache_delta_resonance"] = self._delta_resonance_cache.values
         if self._b111_cache is not None:
-            save_dict['cache_b111_remanent'] = self._b111_cache['remanent'].values
-            save_dict['cache_b111_induced'] = self._b111_cache['induced'].values
+            save_dict["cache_b111_remanent"] = self._b111_cache["remanent"].values
+            save_dict["cache_b111_induced"] = self._b111_cache["induced"].values
 
         return save_dict
 
@@ -552,32 +551,43 @@ class FitResult(BaseModel):
         """
         filepath = Path(filepath)
         save_dict = self._build_save_dict()
-        np.savez_compressed(filepath, **save_dict)
-        logger.info(f'Fit results saved to: {filepath}')
+        arrays = {k: np.asarray(v) for k, v in save_dict.items()}
+        np.savez_compressed(filepath, allow_pickle=False, **arrays)
+        logger.info(f"Fit results saved to: {filepath}")
 
-    def plot(self: Self, param: str = 'center', **kwargs: object) -> None:
+    def plot(
+        self: Self,
+        param: str = "center",
+        *,
+        save: bool = False,
+        filename: str | None = None,
+    ) -> None:
         """Quick-plot a parameter map.
 
         Args:
             param: Parameter name to visualise ('center', 'chi2', 'contrast', …).
-            **kwargs: Forwarded to plot_fit_result_parameter_map (e.g. save, filename).
+            save: If True, save the figure to disk.
+            filename: Output filename (uses a default name if None).
         """
         from qdmpy_core.plotting import plot_fit_result_parameter_map
 
-        plot_fit_result_parameter_map(self, param, **kwargs)
+        plot_fit_result_parameter_map(self, param, save=save, filename=filename)
 
-    def show(self: Self, **kwargs: object) -> None:
+    def show(self: Self, *, save: bool = False, filename: str | None = None) -> None:
         """Quick-plot overview of all fitted parameters and B111 maps.
 
         Args:
-            **kwargs: Forwarded to plot_fit_result_overview (e.g. save, filename).
+            save: If True, save the figure to disk.
+            filename: Output filename (uses a default name if None).
         """
         from qdmpy_core.plotting import plot_fit_result_overview
 
-        plot_fit_result_overview(self, **kwargs)
+        plot_fit_result_overview(self, save=save, filename=filename)
 
     @classmethod
-    def _from_npz(cls: type[FitResult], data: Any, *, source: str = '<unknown>') -> FitResult:
+    def _from_npz(
+        cls: type[FitResult], data: np.lib.npyio.NpzFile, *, source: str = "<unknown>"
+    ) -> FitResult:
         """Reconstruct a FitResult from an open NpzFile handle.
 
         Used by both ``load_results`` and ``QDMResult.load`` so the file is
@@ -594,38 +604,38 @@ class FitResult(BaseModel):
             DataLoadError: If ``__meta__`` is missing, corrupt, or no ``param_*``
                 keys are found.
         """
-        if '__meta__' not in data.files:
+        if "__meta__" not in data.files:
             msg = (
-                f'File {source} is missing the __meta__ key. '
-                'This file was created with an older format that is no longer supported.'
+                f"File {source} is missing the __meta__ key. "
+                "This file was created with an older format that is no longer supported."
             )
             raise DataLoadError(msg)
 
         try:
-            meta = json.loads(bytes(data['__meta__']))
+            meta = json.loads(bytes(data["__meta__"]))
         except json.JSONDecodeError as exc:
-            msg = f'File {source} has a corrupt __meta__ field: {exc}'
+            msg = f"File {source} has a corrupt __meta__ field: {exc}"
             raise DataLoadError(msg) from exc
 
         parameters: dict[str, NDArray] = {}
         for key in data.files:
-            if key.startswith('param_'):
-                param_name = key[len('param_'):]
+            if key.startswith("param_"):
+                param_name = key[len("param_") :]
                 parameters[param_name] = data[key]
 
         if not parameters:
             msg = (
-                f'File {source} contains no param_* keys. '
-                'The file may be corrupt or from an incompatible format.'
+                f"File {source} contains no param_* keys. "
+                "The file may be corrupt or from an incompatible format."
             )
             raise DataLoadError(msg)
 
         return cls(
             parameters=parameters,
-            scan_dimensions=tuple(meta['scan_dimensions']),
-            pixel_spacing=float(meta['pixel_spacing']),
-            model_name=str(meta['model_name']),
-            metadata=meta.get('metadata', {}),
+            scan_dimensions=tuple(meta["scan_dimensions"]),
+            pixel_spacing=float(meta["pixel_spacing"]),
+            model_name=str(meta["model_name"]),
+            metadata=meta.get("metadata", {}),
         )
 
     @classmethod
@@ -648,19 +658,19 @@ class FitResult(BaseModel):
         filepath = Path(filepath)
 
         if not filepath.exists():
-            msg = f'Results file not found: {filepath}'
+            msg = f"Results file not found: {filepath}"
             raise DataLoadError(msg)
 
         try:
             data = np.load(filepath, allow_pickle=False)
         except ValueError as exc:
             msg = (
-                f'File {filepath} contains pickled objects and cannot be loaded safely. '
-                'Re-save from the original data using FitResult.save_results() '
-                'to convert to the safe format.'
+                f"File {filepath} contains pickled objects and cannot be loaded safely. "
+                "Re-save from the original data using FitResult.save_results() "
+                "to convert to the safe format."
             )
             raise DataLoadError(msg) from exc
 
         result = cls._from_npz(data, source=str(filepath))
-        logger.info(f'Fit results loaded from: {filepath}')
+        logger.info(f"Fit results loaded from: {filepath}")
         return result

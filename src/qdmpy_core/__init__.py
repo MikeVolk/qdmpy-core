@@ -1,4 +1,3 @@
-# noqa: N999
 """QDMpy: A Python package for Quantum Diamond Microscopy data analysis.
 
 This package provides tools for processing, analyzing, and visualizing data from
@@ -13,19 +12,19 @@ from __future__ import annotations
 
 from os import PathLike
 
-__version__ = '0.1.0a'
+__version__ = "0.1.0a"
 
 
 def load(
     path: str | PathLike,
     *,
     bin_factor: int = 1,
-    model: str = 'auto',
+    model: str = "auto",
     pixel_spacing: float = 4e-6,
     normalize: bool = True,
     fluorescence_correction: float | None = 0.2,
     output_directory: str | PathLike | None = None,
-) -> 'Measurement':
+) -> Measurement:
     """Load ODMR data from a folder and return a ready-to-fit Measurement.
 
     One-line entry point for the common case: load data, apply standard
@@ -46,7 +45,7 @@ def load(
 
     Example:
         >>> import qdmpy_core
-        >>> result = QDMpy.load('/data/FOV18x').fit_odmr()
+        >>> result = qdmpy_core.load('/data/FOV18x').fit_odmr()
         >>> result.b111_remanent
     """
     from qdmpy_core.measurement import Measurement as _Measurement
@@ -63,12 +62,26 @@ def load(
 
 
 # --- Entry points (User 1) ---
+# --- Field processing ---
+from qdmpy_core.field_processing import (
+    BaseFieldProcessor,
+    BlankSubtractor,
+    FieldProcessingPipeline,
+    HotPixelFilter,
+    QuadraticBackgroundSubtractor,
+    UpwardContinuation,
+)
+
+# --- Fitting ---
+from qdmpy_core.fitting import FitManager, FitResult, Model, ModelRegistry
+
+# --- Magnetic reconstruction ---
+from qdmpy_core.magnetic_map import FieldReconstructor, MagneticMap
 from qdmpy_core.measurement import Measurement
-from qdmpy_core.result import QDMResult
+from qdmpy_core.odmr.data import ODMRData
 
 # --- Data loading ---
 from qdmpy_core.odmr.io import MatlabLoader
-from qdmpy_core.odmr.data import ODMRData
 from qdmpy_core.odmr.manager import ODMR
 
 # --- Processing ---
@@ -79,12 +92,7 @@ from qdmpy_core.odmr.processors import (
     OutlierProcessor,
     Processor,
 )
-
-# --- Fitting ---
-from qdmpy_core.fitting import FitManager, FitResult, Model, ModelRegistry
-
-# --- Magnetic reconstruction ---
-from qdmpy_core.magnetic_map import FieldReconstructor, MagneticMap
+from qdmpy_core.result import QDMResult
 
 # --- Settings ---
 from qdmpy_core.settings import (
@@ -92,16 +100,6 @@ from qdmpy_core.settings import (
     get_settings,
     is_pygpufit_available,
     reset_settings,
-)
-
-# --- Field processing ---
-from qdmpy_core.field_processing import (
-    BaseFieldProcessor,
-    BlankSubtractor,
-    FieldProcessingPipeline,
-    HotPixelFilter,
-    QuadraticBackgroundSubtractor,
-    UpwardContinuation,
 )
 
 # --- Testing / tutorial utilities ---
@@ -116,41 +114,41 @@ _ = get_settings()
 
 __all__ = [
     # Entry points
-    'load',
-    'Measurement',
-    'QDMResult',
+    "load",
+    "Measurement",
+    "QDMResult",
     # Data loading
-    'MatlabLoader',
-    'ODMRData',
-    'ODMR',
+    "MatlabLoader",
+    "ODMRData",
+    "ODMR",
     # Processing
-    'BinningProcessor',
-    'FluorescenceCorrectionProcessor',
-    'NormalizationProcessor',
-    'OutlierProcessor',
-    'Processor',
+    "BinningProcessor",
+    "FluorescenceCorrectionProcessor",
+    "NormalizationProcessor",
+    "OutlierProcessor",
+    "Processor",
     # Fitting
-    'FitManager',
-    'FitResult',
-    'Model',
-    'ModelRegistry',
+    "FitManager",
+    "FitResult",
+    "Model",
+    "ModelRegistry",
     # Magnetic reconstruction
-    'FieldReconstructor',
-    'MagneticMap',
+    "FieldReconstructor",
+    "MagneticMap",
     # Settings
-    'NvSettings',
-    'get_settings',
-    'is_pygpufit_available',
-    'reset_settings',
+    "NvSettings",
+    "get_settings",
+    "is_pygpufit_available",
+    "reset_settings",
     # Testing / tutorial utilities
-    'make_synthetic_fit_result',
-    'make_synthetic_odmr_data',
-    'make_synthetic_qdm_result',
+    "make_synthetic_fit_result",
+    "make_synthetic_odmr_data",
+    "make_synthetic_qdm_result",
     # Field processing
-    'BaseFieldProcessor',
-    'BlankSubtractor',
-    'FieldProcessingPipeline',
-    'HotPixelFilter',
-    'QuadraticBackgroundSubtractor',
-    'UpwardContinuation',
+    "BaseFieldProcessor",
+    "BlankSubtractor",
+    "FieldProcessingPipeline",
+    "HotPixelFilter",
+    "QuadraticBackgroundSubtractor",
+    "UpwardContinuation",
 ]

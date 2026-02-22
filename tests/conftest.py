@@ -25,7 +25,7 @@ from qdmpy_core.settings import (
 # Mock settings for tests (all frequencies in GHz)
 MOCK_SETTINGS = QDMpySettings(
     fit=FitSettings(
-        estimator='LSE',
+        estimator="LSE",
         max_number_iterations=100,
         tolerance=1e-6,
     ),
@@ -33,16 +33,16 @@ MOCK_SETTINGS = QDMpySettings(
         constraints=ModelConstraintsSettings(
             center_min=2.8,
             center_max=2.9,
-            center_type='FREE',
+            center_type="FREE",
             width_min=0.001,
             width_max=0.01,
-            width_type='FREE',
+            width_type="FREE",
             contrast_min=0.0,
             contrast_max=1.0,
-            contrast_type='FREE',
+            contrast_type="FREE",
             offset_min=-0.1,
             offset_max=0.1,
-            offset_type='FREE',
+            offset_type="FREE",
         )
     ),
 )
@@ -51,6 +51,7 @@ MOCK_SETTINGS = QDMpySettings(
 # ============================================================================
 # Helpers
 # ============================================================================
+
 
 def make_xr_data(numpy_4d: np.ndarray) -> xr.DataArray:
     """Convert 4D numpy (n_pol, n_frange, n_pixel, n_freq) to 5D xr.DataArray.
@@ -66,18 +67,18 @@ def make_xr_data(numpy_4d: np.ndarray) -> xr.DataArray:
     """
     n_pol, n_frange, n_pixel, n_freq = numpy_4d.shape
     side = int(np.sqrt(n_pixel))
-    assert side * side == n_pixel, f'n_pixel={n_pixel} is not a perfect square'
+    assert side * side == n_pixel, f"n_pixel={n_pixel} is not a perfect square"
 
     data_5d = numpy_4d.reshape(n_pol, n_frange, side, side, n_freq)
     freq_ghz = np.tile(np.linspace(2.87, 2.88, n_freq), (n_frange, 1))
 
     return xr.DataArray(
         data_5d,
-        dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
+        dims=("polarity", "freq_range", "y", "x", "freq_idx"),
         coords={
-            'polarity': ['neg', 'pos'][:n_pol],
-            'freq_range': ['low', 'high'][:n_frange],
-            'freq_ghz': (('freq_range', 'freq_idx'), freq_ghz),
+            "polarity": ["neg", "pos"][:n_pol],
+            "freq_range": ["low", "high"][:n_frange],
+            "freq_ghz": (("freq_range", "freq_idx"), freq_ghz),
         },
     )
 
@@ -85,6 +86,7 @@ def make_xr_data(numpy_4d: np.ndarray) -> xr.DataArray:
 # ============================================================================
 # Basic Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def rng() -> np.random.Generator:
@@ -130,6 +132,7 @@ def sample_frequencies() -> np.ndarray:
 # xarray and ODMR Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def sample_data(sample_numpy_data: np.ndarray) -> tuple[xr.DataArray, tuple[int, int], np.ndarray]:
     """Create sample xr.DataArray, scan dimensions, and frequencies.
@@ -150,6 +153,7 @@ def sample_data(sample_numpy_data: np.ndarray) -> tuple[xr.DataArray, tuple[int,
 # FitResult Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def sample_parameters() -> dict[str, np.ndarray]:
     """Create sample fit parameters for FitResult testing.
@@ -159,12 +163,12 @@ def sample_parameters() -> dict[str, np.ndarray]:
     """
     n_pixels = 100
     return {
-        'center': np.random.normal(2.87, 0.001, n_pixels),  # ~2.87 GHz
-        'width_0': np.random.normal(0.0005, 0.00001, n_pixels),  # ~0.5 MHz in GHz
-        'contrast': np.random.uniform(0.01, 0.1, n_pixels),  # 1-10% contrast
-        'offset': np.random.normal(0, 0.01, n_pixels),  # Small offsets
-        'chi2': np.random.exponential(1.0, n_pixels),  # Chi-squared values
-        'states': np.random.choice([0, 1], n_pixels, p=[0.9, 0.1]),  # 90% convergence
+        "center": np.random.normal(2.87, 0.001, n_pixels),  # ~2.87 GHz
+        "width_0": np.random.normal(0.0005, 0.00001, n_pixels),  # ~0.5 MHz in GHz
+        "contrast": np.random.uniform(0.01, 0.1, n_pixels),  # 1-10% contrast
+        "offset": np.random.normal(0, 0.01, n_pixels),  # Small offsets
+        "chi2": np.random.exponential(1.0, n_pixels),  # Chi-squared values
+        "states": np.random.choice([0, 1], n_pixels, p=[0.9, 0.1]),  # 90% convergence
     }
 
 
@@ -182,6 +186,6 @@ def sample_fit_result(sample_parameters: dict[str, np.ndarray]) -> FitResult:
         parameters=sample_parameters,
         scan_dimensions=(10, 10),
         pixel_spacing=4e-6,
-        model_name='ESR15N',
-        metadata={'test': True, 'quality_metrics': {'mean_chi2': 1.0}},
+        model_name="ESR15N",
+        metadata={"test": True, "quality_metrics": {"mean_chi2": 1.0}},
     )

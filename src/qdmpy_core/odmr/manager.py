@@ -118,8 +118,8 @@ class ODMR:
         self: Self,
         y: int,
         x: int,
-        polarity: str = 'neg',
-        freq_range: str = 'low',
+        polarity: str = "neg",
+        freq_range: str = "low",
         *,
         processed: bool = True,
     ) -> tuple[NDArray, NDArray]:
@@ -136,7 +136,7 @@ class ODMR:
             Tuple (freq_ghz, intensity) each shape (n_freq,).
         """
         data = self.processed_data if processed else self.raw_data
-        freq = data.data.coords['freq_ghz'].sel(freq_range=freq_range).values
+        freq = data.data.coords["freq_ghz"].sel(freq_range=freq_range).values
         intensity = data.data.sel(polarity=polarity, freq_range=freq_range).values[y, x, :]
         return freq, intensity
 
@@ -160,23 +160,21 @@ class ODMR:
         import matplotlib.pyplot as plt
 
         data = self.processed_data if processed else self.raw_data
-        polarities = data.data.coords['polarity'].values.tolist()
-        freq_ranges = data.data.coords['freq_range'].values.tolist()
+        polarities = data.data.coords["polarity"].values.tolist()
+        freq_ranges = data.data.coords["freq_range"].values.tolist()
 
         n_pol = len(polarities)
         n_frange = len(freq_ranges)
-        fig, axes = plt.subplots(
-            n_pol, n_frange, figsize=(5 * n_frange, 3 * n_pol), squeeze=False
-        )
+        fig, axes = plt.subplots(n_pol, n_frange, figsize=(5 * n_frange, 3 * n_pol), squeeze=False)
 
         for i, pol in enumerate(polarities):
             for j, fr in enumerate(freq_ranges):
                 freq, spec = self.spectrum(y, x, polarity=pol, freq_range=fr, processed=processed)
                 axes[i, j].plot(freq, spec)
-                axes[i, j].set_title(f'polarity={pol}, freq_range={fr}')
-                axes[i, j].set_xlabel('Frequency (GHz)')
-                axes[i, j].set_ylabel('Intensity')
+                axes[i, j].set_title(f"polarity={pol}, freq_range={fr}")
+                axes[i, j].set_xlabel("Frequency (GHz)")
+                axes[i, j].set_ylabel("Intensity")
 
-        fig.suptitle(f'ODMR spectra at pixel ({y}, {x})')
+        fig.suptitle(f"ODMR spectra at pixel ({y}, {x})")
         plt.tight_layout()
         plt.show()

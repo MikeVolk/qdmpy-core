@@ -23,7 +23,7 @@ sequenceDiagram
     User->>MatlabLoader: load()
     MatlabLoader->>MatlabLoader: _process_mat_file()
     MatlabLoader-->>User: (raw_data, scan_dims, frequencies)
-    
+
     User->>ODMRData: from_loader(loader)
     ODMRData->>MatlabLoader: load()
     MatlabLoader-->>ODMRData: (raw_data, scan_dims, frequencies)
@@ -61,25 +61,25 @@ sequenceDiagram
 
     %% Unified Fitting Interface
     User->>Measurement: fit_odmr(model_name=None)
-    
+
     %% Auto Model Detection (when model_name=None)
     Measurement->>GuessModule: guess_model(processed_data)
     GuessModule-->>Measurement: detected_model
-    
+
     %% FitManager Creation and Execution
     Measurement->>FitManager: new FitManager(data, frequencies, model_name)
     FitManager->>ModelRegistry: get(model_name)
     ModelRegistry-->>FitManager: model
     FitManager->>ConstraintManager: new ConstraintManager(model_params, settings, units)
     ConstraintManager-->>FitManager: constraint_manager
-    
+
     Measurement->>FitManager: fit_odmr()
     FitManager->>FitManager: get_initial_parameter()
     FitManager->>ConstraintManager: get_constraints_array()
     ConstraintManager-->>FitManager: constraints
     FitManager->>PyGpufit: fit_constrained(data, frequencies, constraints, ...)
     PyGpufit-->>FitManager: raw_fit_results
-    
+
     %% Parameter Extraction and FitResult Creation
     Measurement->>FitManager: get_param('center')
     FitManager-->>Measurement: centers
@@ -89,7 +89,7 @@ sequenceDiagram
     FitManager-->>Measurement: contrasts
     Measurement->>FitManager: get_param('chi2')
     FitManager-->>Measurement: quality_metrics
-    
+
     Measurement->>FitResult: new FitResult(parameters, scan_dims, pixel_spacing, model_name, metadata)
     FitResult-->>Measurement: fit_result
     Measurement-->>User: FitResult object
@@ -97,15 +97,15 @@ sequenceDiagram
     %% Analysis and Visualization Phase
     User->>FitResult: calculate_b_field()
     FitResult-->>User: magnetic_field_map
-    
+
     User->>FitResult: get_parameter_map('center')
     FitResult-->>User: center_frequencies_map
-    
+
     User->>PlottingFunctions: plot_fit_result_field_map(fit_result)
     PlottingFunctions->>FitResult: calculate_b_field()
     FitResult-->>PlottingFunctions: b_field_data
     PlottingFunctions-->>User: magnetic_field_plot
-    
+
     User->>PlottingFunctions: plot_fit_result_overview(fit_result)
     PlottingFunctions->>FitResult: get_parameter_map('center')
     FitResult-->>PlottingFunctions: center_map

@@ -53,14 +53,15 @@ class QDMResult(BaseModel):
     def model_post_init(self: Self, __context: object) -> None:
         """Log initialization."""
         logger.info(
-            f'QDMResult initialized: model={self.fit_result.model_name}, '
-            f'scan={self.fit_result.scan_dimensions}'
+            f"QDMResult initialized: model={self.fit_result.model_name}, "
+            f"scan={self.fit_result.scan_dimensions}"
         )
 
     def __repr__(self: Self) -> str:
+        """Return a concise string representation of this QDMResult."""
         return (
-            f'QDMResult(model={self.fit_result.model_name!r}, '
-            f'scan_dimensions={self.fit_result.scan_dimensions})'
+            f"QDMResult(model={self.fit_result.model_name!r}, "
+            f"scan_dimensions={self.fit_result.scan_dimensions})"
         )
 
     # ------------------------------------------------------------------
@@ -144,13 +145,19 @@ class QDMResult(BaseModel):
         """Return fit quality statistics (chi2 stats, convergence rate)."""
         return self.fit_result.get_fit_quality_metrics()
 
-    def plot(self: Self, param: str = 'center', **kwargs: object) -> None:
+    def plot(
+        self: Self,
+        param: str = "center",
+        *,
+        save: bool = False,
+        filename: str | None = None,
+    ) -> None:
         """Quick-plot a fitted parameter map. Delegates to FitResult.plot()."""
-        self.fit_result.plot(param, **kwargs)
+        self.fit_result.plot(param, save=save, filename=filename)
 
-    def show(self: Self, **kwargs: object) -> None:
+    def show(self: Self, *, save: bool = False, filename: str | None = None) -> None:
         """Quick-plot overview of all fitted parameters. Delegates to FitResult.show()."""
-        self.fit_result.show(**kwargs)
+        self.fit_result.show(save=save, filename=filename)
 
     # ------------------------------------------------------------------
     # Magnetic map (lazy)
@@ -175,13 +182,15 @@ class QDMResult(BaseModel):
         """Construct MagneticMap from b111_remanent and pixel_spacing."""
         from qdmpy_core.magnetic_map import MagneticMap
 
-        logger.info('Building MagneticMap from B111 remanent field')
+        logger.info("Building MagneticMap from B111 remanent field")
         b111_da = xr.DataArray(
             self.fit_result.b111_remanent,
-            dims=('y', 'x'),
-            attrs={'pixel_spacing': self.fit_result.pixel_spacing},
+            dims=("y", "x"),
+            attrs={"pixel_spacing": self.fit_result.pixel_spacing},
         )
-        return MagneticMap.from_b111(b111_da, nv_axis=self.nv_axis, reconstructor=self.reconstructor)
+        return MagneticMap.from_b111(
+            b111_da, nv_axis=self.nv_axis, reconstructor=self.reconstructor
+        )
 
     # ------------------------------------------------------------------
     # Persistence
@@ -198,14 +207,15 @@ class QDMResult(BaseModel):
             path: Destination file path (.npz extension added if absent).
         """
         path = Path(path)
-        logger.info(f'Saving QDMResult to {path}')
+        logger.info(f"Saving QDMResult to {path}")
 
         save_dict = self.fit_result._build_save_dict()
         if self.nv_axis is not None:
-            save_dict['nv_axis'] = np.array(self.nv_axis)
+            save_dict["nv_axis"] = np.array(self.nv_axis)
 
-        np.savez_compressed(path, **save_dict)
-        logger.info(f'QDMResult saved to {path}')
+        arrays = {k: np.asarray(v) for k, v in save_dict.items()}
+        np.savez_compressed(path, allow_pickle=False, **arrays)
+        logger.info(f"QDMResult saved to {path}")
 
     @classmethod
     def load(cls: type[QDMResult], path: str | PathLike) -> QDMResult:
@@ -229,20 +239,20 @@ class QDMResult(BaseModel):
         path = Path(path)
 
         if not path.exists():
-            msg = f'Results file not found: {path}'
+            msg = f"Results file not found: {path}"
             raise DataLoadError(msg)
 
         try:
             data = np.load(path, allow_pickle=False)
         except ValueError as exc:
-            msg = f'File {path} contains pickled objects and cannot be loaded safely.'
+            msg = f"File {path} contains pickled objects and cannot be loaded safely."
             raise DataLoadError(msg) from exc
 
         fit_result = FitResult._from_npz(data, source=str(path))
 
         nv_axis: tuple[float, float, float] | None = None
-        if 'nv_axis' in data:
-            nv_axis = tuple(float(v) for v in data['nv_axis'])  # type: ignore[assignment]
+        if "nv_axis" in data:
+            nv_axis = tuple(float(v) for v in data["nv_axis"])  # type: ignore[assignment]
 
-        logger.info(f'QDMResult loaded from {path}')
+        logger.info(f"QDMResult loaded from {path}")
         return cls(fit_result=fit_result, nv_axis=nv_axis)

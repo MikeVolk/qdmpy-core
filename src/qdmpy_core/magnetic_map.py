@@ -167,7 +167,7 @@ class MagneticMap:
         """
         from qdmpy_core.settings import get_settings
 
-        if 'pixel_spacing' not in b111.attrs:
+        if "pixel_spacing" not in b111.attrs:
             raise ValueError("b111.attrs must contain 'pixel_spacing' (metres)")
 
         settings = get_settings()
@@ -178,33 +178,33 @@ class MagneticMap:
                 arr,
                 dims=b111.dims,
                 coords=b111.coords,
-                attrs={**b111.attrs, 'component': name},
+                attrs={**b111.attrs, "component": name},
             )
 
         if reconstructor is not None:
-            logger.info('Using custom FieldReconstructor for Bxyz reconstruction')
+            logger.info("Using custom FieldReconstructor for Bxyz reconstruction")
             ds = reconstructor.reconstruct(b111, nv)
             return cls(
                 b111=b111,
-                bx=ds['bx'],
-                by=ds['by'],
-                bz=ds['bz'],
-                btotal=ds['btotal'],
+                bx=ds["bx"],
+                by=ds["by"],
+                bz=ds["bz"],
+                btotal=ds["btotal"],
                 nv_axis=nv,
             )
 
         eps = epsilon if epsilon is not None else settings.nv.epsilon
-        ps = float(b111.attrs['pixel_spacing'])
+        ps = float(b111.attrs["pixel_spacing"])
 
         bx_arr, by_arr, bz_arr = _reconstruct_bxyz(b111.values, ps, nv, eps)
         btotal_arr = np.sqrt(bx_arr**2 + by_arr**2 + bz_arr**2)
 
         return cls(
             b111=b111,
-            bx=_da(bx_arr, 'Bx'),
-            by=_da(by_arr, 'By'),
-            bz=_da(bz_arr, 'Bz'),
-            btotal=_da(btotal_arr, 'Btotal'),
+            bx=_da(bx_arr, "Bx"),
+            by=_da(by_arr, "By"),
+            bz=_da(bz_arr, "Bz"),
+            btotal=_da(btotal_arr, "Btotal"),
             nv_axis=nv,
         )
 
@@ -216,18 +216,18 @@ class MagneticMap:
         """
         return xr.Dataset(
             {
-                'b111': self.b111,
-                'Bx': self.bx,
-                'By': self.by,
-                'Bz': self.bz,
-                'Btotal': self.btotal,
+                "b111": self.b111,
+                "Bx": self.bx,
+                "By": self.by,
+                "Bz": self.bz,
+                "Btotal": self.btotal,
             },
-            attrs={'units': 'µT', 'nv_axis': list(self.nv_axis)},
+            attrs={"units": "µT", "nv_axis": list(self.nv_axis)},
         )
 
     def display(
         self,
-        component: Literal['b111', 'Bx', 'By', 'Bz', 'Btotal'] = 'Bz',
+        component: Literal["b111", "Bx", "By", "Bz", "Btotal"] = "Bz",
         **imshow_kwargs: object,
     ) -> None:
         """Quick matplotlib display of one component.
@@ -242,12 +242,10 @@ class MagneticMap:
         import matplotlib.pyplot as plt
 
         component_lower = component.lower()
-        valid_components = {'b111', 'bx', 'by', 'bz', 'btotal'}
+        valid_components = {"b111", "bx", "by", "bz", "btotal"}
 
         if component_lower not in valid_components:
-            raise ValueError(
-                f'Component {component!r} not in {valid_components}'
-            )
+            raise ValueError(f"Component {component!r} not in {valid_components}")
 
         da = getattr(self, component_lower)
         da.plot(**imshow_kwargs)
@@ -262,4 +260,4 @@ class MagneticMap:
         """
         path_obj = Path(path) if isinstance(path, str) else path
         self.to_dataset().to_netcdf(path_obj)
-        logger.info('MagneticMap saved', path=str(path_obj))
+        logger.info("MagneticMap saved", path=str(path_obj))

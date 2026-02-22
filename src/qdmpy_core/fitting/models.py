@@ -391,8 +391,9 @@ class ModelRegistry:
         Returns:
             The model class, unchanged.
         """
-        cls._registry[model_cls.name] = model_cls
-        logger.info(f"Registered model: {model_cls.name}")
+        model_name: str = model_cls.name  # type: ignore[attr-defined]
+        cls._registry[model_name] = model_cls
+        logger.info(f"Registered model: {model_name}")
         return model_cls
 
     @classmethod

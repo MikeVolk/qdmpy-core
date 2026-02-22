@@ -30,7 +30,6 @@ from hypothesis import settings as hyp_settings
 from hypothesis import strategies as st
 from pydantic import ValidationError
 
-
 # ---------------------------------------------------------------------------
 # Shared test helpers
 # ---------------------------------------------------------------------------
@@ -57,9 +56,9 @@ def _make_field_map(
 
     return xr.DataArray(
         values,
-        dims=('y', 'x'),
-        coords={'y': y_coords, 'x': x_coords},
-        attrs={'pixel_spacing': pixel_spacing, 'units': 'µT'},
+        dims=("y", "x"),
+        coords={"y": y_coords, "x": x_coords},
+        attrs={"pixel_spacing": pixel_spacing, "units": "µT"},
     )
 
 
@@ -88,9 +87,9 @@ def synthetic_hot_pixel_field() -> xr.DataArray:
     x = np.arange(20) * 1e-6
     return xr.DataArray(
         values,
-        dims=('y', 'x'),
-        coords={'y': y, 'x': x},
-        attrs={'pixel_spacing': 1e-6, 'units': 'µT'},
+        dims=("y", "x"),
+        coords={"y": y, "x": x},
+        attrs={"pixel_spacing": 1e-6, "units": "µT"},
     )
 
 
@@ -104,19 +103,24 @@ def synthetic_background_field() -> xr.DataArray:
     x_raw = np.arange(w) * ps
     Xg, Yg = np.meshgrid(x_raw, y_raw)
     # Quadratic surface: a=3, b=2, c=1, d=-4, e=5, f=0.5
-    background = 3.0 + 2.0 * Xg / (w * ps) + 1.0 * Yg / (h * ps) + (
-        -4.0 * (Xg / (w * ps)) ** 2
-        + 5.0 * (Xg / (w * ps)) * (Yg / (h * ps))
-        + 0.5 * (Yg / (h * ps)) ** 2
+    background = (
+        3.0
+        + 2.0 * Xg / (w * ps)
+        + 1.0 * Yg / (h * ps)
+        + (
+            -4.0 * (Xg / (w * ps)) ** 2
+            + 5.0 * (Xg / (w * ps)) * (Yg / (h * ps))
+            + 0.5 * (Yg / (h * ps)) ** 2
+        )
     )
     # Small noise on top
     signal = rng.uniform(-0.01, 0.01, size=(h, w))
     values = background + signal
     return xr.DataArray(
         values,
-        dims=('y', 'x'),
-        coords={'y': y_raw, 'x': x_raw},
-        attrs={'pixel_spacing': ps, 'units': 'µT'},
+        dims=("y", "x"),
+        coords={"y": y_raw, "x": x_raw},
+        attrs={"pixel_spacing": ps, "units": "µT"},
     )
 
 
@@ -130,12 +134,12 @@ def synthetic_gaussian_field() -> xr.DataArray:
     Xg, Yg = np.meshgrid(x_raw, y_raw)
     cy, cx = h // 2 * ps, w // 2 * ps
     sigma = 5 * ps
-    values = np.exp(-((Xg - cx) ** 2 + (Yg - cy) ** 2) / (2 * sigma ** 2))
+    values = np.exp(-((Xg - cx) ** 2 + (Yg - cy) ** 2) / (2 * sigma**2))
     return xr.DataArray(
         values,
-        dims=('y', 'x'),
-        coords={'y': y_raw, 'x': x_raw},
-        attrs={'pixel_spacing': ps, 'units': 'µT'},
+        dims=("y", "x"),
+        coords={"y": y_raw, "x": x_raw},
+        attrs={"pixel_spacing": ps, "units": "µT"},
     )
 
 
@@ -148,9 +152,9 @@ def synthetic_blank() -> xr.DataArray:
     x = np.arange(20) * 1e-6
     return xr.DataArray(
         values,
-        dims=('y', 'x'),
-        coords={'y': y, 'x': x},
-        attrs={'pixel_spacing': 1e-6, 'units': 'µT'},
+        dims=("y", "x"),
+        coords={"y": y, "x": x},
+        attrs={"pixel_spacing": 1e-6, "units": "µT"},
     )
 
 
@@ -173,17 +177,19 @@ class TestHotPixelFilterConfig:
         f = HotPixelFilter()
         assert f.threshold_sigma == 5.0
         assert f.window_size == 3
-        assert f.replacement == 'mean'
+        assert f.replacement == "mean"
         assert f.absolute_threshold is None
 
     def test_custom_config(self) -> None:
         """Custom config fields are stored and accessible."""
         from qdmpy_core.field_processing import HotPixelFilter
 
-        f = HotPixelFilter(threshold_sigma=3.0, window_size=5, replacement='nan', absolute_threshold=10.0)
+        f = HotPixelFilter(
+            threshold_sigma=3.0, window_size=5, replacement="nan", absolute_threshold=10.0
+        )
         assert f.threshold_sigma == 3.0
         assert f.window_size == 5
-        assert f.replacement == 'nan'
+        assert f.replacement == "nan"
         assert f.absolute_threshold == pytest.approx(10.0)
 
     def test_frozen_prevents_mutation(self) -> None:
@@ -195,11 +201,11 @@ class TestHotPixelFilterConfig:
             f.threshold_sigma = 1.0  # type: ignore[misc]
 
     def test_invalid_replacement_raises(self) -> None:
-        """replacement must be 'mean', 'nan', or 'zero'."""
+        """Replacement must be 'mean', 'nan', or 'zero'."""
         from qdmpy_core.field_processing import HotPixelFilter
 
         with pytest.raises((ValidationError, ValueError)):
-            HotPixelFilter(replacement='median')  # type: ignore[arg-type]
+            HotPixelFilter(replacement="median")  # type: ignore[arg-type]
 
     def test_is_base_field_processor_subclass(self) -> None:
         """HotPixelFilter is a subclass of BaseFieldProcessor."""
@@ -215,7 +221,7 @@ class TestHotPixelFilterAlgorithm:
         """A single extreme spike at known position is detected (its value changes)."""
         from qdmpy_core.field_processing import HotPixelFilter
 
-        f = HotPixelFilter(threshold_sigma=3.0, replacement='zero')
+        f = HotPixelFilter(threshold_sigma=3.0, replacement="zero")
         result = f.process(synthetic_hot_pixel_field)
         # The spike at (5,5) had value 1000; background is ~0. It should change.
         assert abs(result.values[5, 5]) < 1000.0
@@ -224,11 +230,11 @@ class TestHotPixelFilterAlgorithm:
         """All four injected spikes are replaced."""
         from qdmpy_core.field_processing import HotPixelFilter
 
-        f = HotPixelFilter(threshold_sigma=3.0, replacement='zero')
+        f = HotPixelFilter(threshold_sigma=3.0, replacement="zero")
         result = f.process(synthetic_hot_pixel_field)
         for row, col in [(5, 5), (10, 10), (3, 15), (17, 2)]:
             assert abs(result.values[row, col]) < 100.0, (
-                f'Spike at ({row},{col}) not replaced: {result.values[row, col]}'
+                f"Spike at ({row},{col}) not replaced: {result.values[row, col]}"
             )
 
     def test_no_outliers_leaves_field_unchanged(self) -> None:
@@ -267,13 +273,17 @@ class TestHotPixelFilterAlgorithm:
         np.testing.assert_array_equal(synthetic_hot_pixel_field.values, original)
 
     def test_coords_preserved(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
-        """y and x coordinates are preserved in the output."""
+        """Y and x coordinates are preserved in the output."""
         from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter()
         result = f.process(synthetic_hot_pixel_field)
-        np.testing.assert_array_equal(result.coords['y'].values, synthetic_hot_pixel_field.coords['y'].values)
-        np.testing.assert_array_equal(result.coords['x'].values, synthetic_hot_pixel_field.coords['x'].values)
+        np.testing.assert_array_equal(
+            result.coords["y"].values, synthetic_hot_pixel_field.coords["y"].values
+        )
+        np.testing.assert_array_equal(
+            result.coords["x"].values, synthetic_hot_pixel_field.coords["x"].values
+        )
 
     def test_attrs_preserved(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
         """pixel_spacing and other attrs are preserved in the output."""
@@ -281,8 +291,8 @@ class TestHotPixelFilterAlgorithm:
 
         f = HotPixelFilter()
         result = f.process(synthetic_hot_pixel_field)
-        assert result.attrs.get('pixel_spacing') == pytest.approx(1e-6)
-        assert result.attrs.get('units') == 'µT'
+        assert result.attrs.get("pixel_spacing") == pytest.approx(1e-6)
+        assert result.attrs.get("units") == "µT"
 
     def test_dims_preserved(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
         """Output dims are ('y', 'x')."""
@@ -290,7 +300,7 @@ class TestHotPixelFilterAlgorithm:
 
         f = HotPixelFilter()
         result = f.process(synthetic_hot_pixel_field)
-        assert result.dims == ('y', 'x')
+        assert result.dims == ("y", "x")
 
 
 class TestHotPixelFilterReplacementModes:
@@ -300,7 +310,7 @@ class TestHotPixelFilterReplacementModes:
         """'zero' replacement sets detected outliers to 0.0."""
         from qdmpy_core.field_processing import HotPixelFilter
 
-        f = HotPixelFilter(threshold_sigma=3.0, replacement='zero')
+        f = HotPixelFilter(threshold_sigma=3.0, replacement="zero")
         result = f.process(synthetic_hot_pixel_field)
         # Spike positions should become exactly 0.0
         assert result.values[5, 5] == pytest.approx(0.0)
@@ -310,7 +320,7 @@ class TestHotPixelFilterReplacementModes:
         """'nan' replacement sets detected outliers to NaN."""
         from qdmpy_core.field_processing import HotPixelFilter
 
-        f = HotPixelFilter(threshold_sigma=3.0, replacement='nan')
+        f = HotPixelFilter(threshold_sigma=3.0, replacement="nan")
         result = f.process(synthetic_hot_pixel_field)
         assert np.isnan(result.values[5, 5])
         assert np.isnan(result.values[10, 10])
@@ -319,7 +329,7 @@ class TestHotPixelFilterReplacementModes:
         """'mean' replacement uses nanmean of window neighbours."""
         from qdmpy_core.field_processing import HotPixelFilter
 
-        f = HotPixelFilter(threshold_sigma=3.0, replacement='mean')
+        f = HotPixelFilter(threshold_sigma=3.0, replacement="mean")
         result = f.process(synthetic_hot_pixel_field)
         # Replaced value should be in a sane range (~background level, not 1000)
         assert abs(result.values[5, 5]) < 10.0
@@ -334,17 +344,20 @@ class TestHotPixelFilterReplacementModes:
         values[7, 7] = 500.0
         y = np.arange(15) * 1e-6
         x = np.arange(15) * 1e-6
-        field = xr.DataArray(values, dims=('y', 'x'), coords={'y': y, 'x': x},
-                             attrs={'pixel_spacing': 1e-6})
-        f = HotPixelFilter(threshold_sigma=3.0, replacement='mean')
+        field = xr.DataArray(
+            values, dims=("y", "x"), coords={"y": y, "x": x}, attrs={"pixel_spacing": 1e-6}
+        )
+        f = HotPixelFilter(threshold_sigma=3.0, replacement="mean")
         result = f.process(field)
         assert not np.any(np.isnan(result.values))
 
-    def test_replacement_zero_non_outliers_unchanged(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
+    def test_replacement_zero_non_outliers_unchanged(
+        self, synthetic_hot_pixel_field: xr.DataArray
+    ) -> None:
         """Non-outlier pixels are unmodified when using 'zero' replacement."""
         from qdmpy_core.field_processing import HotPixelFilter
 
-        f = HotPixelFilter(threshold_sigma=3.0, replacement='zero')
+        f = HotPixelFilter(threshold_sigma=3.0, replacement="zero")
         result = f.process(synthetic_hot_pixel_field)
         # Non-spike pixels should remain the same (checking a known-safe pixel)
         assert result.values[0, 0] == pytest.approx(synthetic_hot_pixel_field.values[0, 0])
@@ -361,9 +374,10 @@ class TestHotPixelFilterAbsoluteThreshold:
         values[5, 5] = 50.0  # clearly above threshold
         y = np.arange(10) * 1e-6
         x = np.arange(10) * 1e-6
-        field = xr.DataArray(values, dims=('y', 'x'), coords={'y': y, 'x': x},
-                             attrs={'pixel_spacing': 1e-6})
-        f = HotPixelFilter(threshold_sigma=100.0, replacement='zero', absolute_threshold=10.0)
+        field = xr.DataArray(
+            values, dims=("y", "x"), coords={"y": y, "x": x}, attrs={"pixel_spacing": 1e-6}
+        )
+        f = HotPixelFilter(threshold_sigma=100.0, replacement="zero", absolute_threshold=10.0)
         result = f.process(field)
         assert result.values[5, 5] == pytest.approx(0.0)
 
@@ -375,10 +389,11 @@ class TestHotPixelFilterAbsoluteThreshold:
         values[5, 5] = 8.0  # within sigma range of background
         y = np.arange(10) * 1e-6
         x = np.arange(10) * 1e-6
-        field = xr.DataArray(values, dims=('y', 'x'), coords={'y': y, 'x': x},
-                             attrs={'pixel_spacing': 1e-6})
+        field = xr.DataArray(
+            values, dims=("y", "x"), coords={"y": y, "x": x}, attrs={"pixel_spacing": 1e-6}
+        )
         # With very high sigma and no absolute threshold, value=8.0 should NOT be filtered
-        f = HotPixelFilter(threshold_sigma=100.0, replacement='zero', absolute_threshold=None)
+        f = HotPixelFilter(threshold_sigma=100.0, replacement="zero", absolute_threshold=None)
         result = f.process(field)
         # The slightly elevated value should remain
         assert result.values[5, 5] == pytest.approx(8.0)
@@ -393,9 +408,10 @@ class TestHotPixelFilterAbsoluteThreshold:
         values[8, 8] = -20.0  # caught by absolute_threshold=5.0
         y = np.arange(15) * 1e-6
         x = np.arange(15) * 1e-6
-        field = xr.DataArray(values, dims=('y', 'x'), coords={'y': y, 'x': x},
-                             attrs={'pixel_spacing': 1e-6})
-        f = HotPixelFilter(threshold_sigma=50.0, replacement='zero', absolute_threshold=5.0)
+        field = xr.DataArray(
+            values, dims=("y", "x"), coords={"y": y, "x": x}, attrs={"pixel_spacing": 1e-6}
+        )
+        f = HotPixelFilter(threshold_sigma=50.0, replacement="zero", absolute_threshold=5.0)
         result = f.process(field)
         assert result.values[3, 3] == pytest.approx(0.0)
         assert result.values[8, 8] == pytest.approx(0.0)
@@ -410,7 +426,9 @@ class TestHotPixelFilterPropertyBased:
         threshold=st.floats(min_value=1.0, max_value=10.0, allow_nan=False),
     )
     @hyp_settings(max_examples=20)
-    def test_output_shape_equals_input_shape(self, height: int, width: int, threshold: float) -> None:
+    def test_output_shape_equals_input_shape(
+        self, height: int, width: int, threshold: float
+    ) -> None:
         """For any valid input, output shape equals input shape."""
         from qdmpy_core.field_processing import HotPixelFilter
 
@@ -434,9 +452,10 @@ class TestHotPixelFilterPropertyBased:
         values = rng.uniform(-1.0, 1.0, size=(height, width))
         y = np.arange(height) * 1e-6
         x = np.arange(width) * 1e-6
-        field = xr.DataArray(values, dims=('y', 'x'), coords={'y': y, 'x': x},
-                             attrs={'pixel_spacing': 1e-6})
-        f = HotPixelFilter(threshold_sigma=3.0, replacement='mean')
+        field = xr.DataArray(
+            values, dims=("y", "x"), coords={"y": y, "x": x}, attrs={"pixel_spacing": 1e-6}
+        )
+        f = HotPixelFilter(threshold_sigma=3.0, replacement="mean")
         result = f.process(field)
         assert not np.any(np.isnan(result.values))
 
@@ -462,7 +481,7 @@ class TestQuadraticBackgroundSubtractorConfig:
         assert p.mask is None
 
     def test_custom_degree(self) -> None:
-        """degree field is stored as provided."""
+        """Degree field is stored as provided."""
         from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         p = QuadraticBackgroundSubtractor(degree=1)
@@ -486,7 +505,9 @@ class TestQuadraticBackgroundSubtractorConfig:
 class TestQuadraticBackgroundSubtractorAlgorithm:
     """QuadraticBackgroundSubtractor fits and removes polynomial backgrounds."""
 
-    def test_output_shape_equals_input_shape(self, synthetic_background_field: xr.DataArray) -> None:
+    def test_output_shape_equals_input_shape(
+        self, synthetic_background_field: xr.DataArray
+    ) -> None:
         """Output shape equals input shape."""
         from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
@@ -523,9 +544,9 @@ class TestQuadraticBackgroundSubtractorAlgorithm:
         Xg, Yg = np.meshgrid(x_raw, y_raw)
         # Pure linear field: 2x + 3y + 1
         values = 1.0 + 2.0 * Xg / (w * ps) + 3.0 * Yg / (h * ps)
-        field = xr.DataArray(values, dims=('y', 'x'),
-                             coords={'y': y_raw, 'x': x_raw},
-                             attrs={'pixel_spacing': ps})
+        field = xr.DataArray(
+            values, dims=("y", "x"), coords={"y": y_raw, "x": x_raw}, attrs={"pixel_spacing": ps}
+        )
         p = QuadraticBackgroundSubtractor(degree=1)
         result = p.process(field)
         np.testing.assert_allclose(result.values, 0.0, atol=1e-8)
@@ -555,10 +576,10 @@ class TestQuadraticBackgroundSubtractorAlgorithm:
         p = QuadraticBackgroundSubtractor(degree=2)
         result = p.process(synthetic_background_field)
         np.testing.assert_array_equal(
-            result.coords['y'].values, synthetic_background_field.coords['y'].values
+            result.coords["y"].values, synthetic_background_field.coords["y"].values
         )
         np.testing.assert_array_equal(
-            result.coords['x'].values, synthetic_background_field.coords['x'].values
+            result.coords["x"].values, synthetic_background_field.coords["x"].values
         )
 
     def test_attrs_preserved(self, synthetic_background_field: xr.DataArray) -> None:
@@ -567,7 +588,7 @@ class TestQuadraticBackgroundSubtractorAlgorithm:
 
         p = QuadraticBackgroundSubtractor(degree=2)
         result = p.process(synthetic_background_field)
-        assert result.attrs.get('pixel_spacing') == pytest.approx(1e-6)
+        assert result.attrs.get("pixel_spacing") == pytest.approx(1e-6)
 
     def test_dims_preserved(self, synthetic_background_field: xr.DataArray) -> None:
         """Output dims are ('y', 'x')."""
@@ -575,7 +596,7 @@ class TestQuadraticBackgroundSubtractorAlgorithm:
 
         p = QuadraticBackgroundSubtractor(degree=2)
         result = p.process(synthetic_background_field)
-        assert result.dims == ('y', 'x')
+        assert result.dims == ("y", "x")
 
 
 class TestQuadraticBackgroundSubtractorWithMask:
@@ -607,9 +628,9 @@ class TestQuadraticBackgroundSubtractorWithMask:
         # Encode mask as ((row0, row1, ...), (col0, col1, ...))
         mask = (tuple(mask_rows), tuple(mask_cols))
 
-        field = xr.DataArray(values, dims=('y', 'x'),
-                             coords={'y': y_raw, 'x': x_raw},
-                             attrs={'pixel_spacing': ps})
+        field = xr.DataArray(
+            values, dims=("y", "x"), coords={"y": y_raw, "x": x_raw}, attrs={"pixel_spacing": ps}
+        )
 
         p = QuadraticBackgroundSubtractor(degree=1, mask=mask)
         result = p.process(field)
@@ -638,9 +659,9 @@ class TestQuadraticBackgroundSubtractorWithMask:
         y_raw = np.arange(h) * ps
         x_raw = np.arange(w) * ps
         values = np.ones((h, w)) * 3.0  # constant field
-        field = xr.DataArray(values, dims=('y', 'x'),
-                             coords={'y': y_raw, 'x': x_raw},
-                             attrs={'pixel_spacing': ps})
+        field = xr.DataArray(
+            values, dims=("y", "x"), coords={"y": y_raw, "x": x_raw}, attrs={"pixel_spacing": ps}
+        )
         # Mask first row
         mask = (tuple(range(w)), (0,) * w)
         p = QuadraticBackgroundSubtractor(degree=0, mask=mask)
@@ -649,7 +670,7 @@ class TestQuadraticBackgroundSubtractorWithMask:
         np.testing.assert_allclose(result.values, 0.0, atol=1e-8)
 
     def test_mask_stored_as_nested_tuples(self) -> None:
-        """mask field stored as nested tuples (Pydantic-serialisable)."""
+        """Mask field stored as nested tuples (Pydantic-serialisable)."""
         from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         mask = ((0, 1, 2), (0, 1, 2))
@@ -702,9 +723,9 @@ class TestQuadraticBackgroundSubtractorPropertyBased:
         x_raw = np.arange(w) * ps
         Xg, Yg = np.meshgrid(x_raw, y_raw)
         values = a + b * Xg / (w * ps) + c * Yg / (h * ps)
-        field = xr.DataArray(values, dims=('y', 'x'),
-                             coords={'y': y_raw, 'x': x_raw},
-                             attrs={'pixel_spacing': ps})
+        field = xr.DataArray(
+            values, dims=("y", "x"), coords={"y": y_raw, "x": x_raw}, attrs={"pixel_spacing": ps}
+        )
         p = QuadraticBackgroundSubtractor(degree=1)
         result = p.process(field)
         np.testing.assert_allclose(result.values, 0.0, atol=1e-6)
@@ -723,7 +744,7 @@ class TestUpwardContinuationConfig:
         from qdmpy_core.field_processing import UpwardContinuation  # noqa: F401
 
     def test_required_dz(self) -> None:
-        """dz is required; construction without it raises."""
+        """Dz is required; construction without it raises."""
         from qdmpy_core.field_processing import UpwardContinuation
 
         with pytest.raises((ValidationError, TypeError)):
@@ -800,17 +821,19 @@ class TestUpwardContinuationAlgorithm:
         # Peak amplitude should increase
         assert np.max(np.abs(result.values)) > np.max(np.abs(synthetic_gaussian_field.values))
 
-    def test_downward_continuation_logs_warning(self, synthetic_gaussian_field: xr.DataArray) -> None:
-        """dz < 0 logs a warning (downward continuation amplifies noise)."""
+    def test_downward_continuation_logs_warning(
+        self, synthetic_gaussian_field: xr.DataArray
+    ) -> None:
+        """Dz < 0 logs a warning (downward continuation amplifies noise)."""
         from qdmpy_core.field_processing import UpwardContinuation
 
         log_calls: list[Any] = []
-        with patch('QDMpy.field_processing.logger') as mock_logger:
+        with patch("qdmpy_core.field_processing.logger") as mock_logger:
             mock_logger.warning = lambda *a, **kw: log_calls.append((a, kw))
             u = UpwardContinuation(dz=-1e-6)
             u.process(synthetic_gaussian_field)
 
-        assert len(log_calls) >= 1, 'Expected at least one warning log for downward continuation'
+        assert len(log_calls) >= 1, "Expected at least one warning log for downward continuation"
 
     def test_process_does_not_mutate_input(self, synthetic_gaussian_field: xr.DataArray) -> None:
         """Input DataArray is not modified by process()."""
@@ -827,8 +850,12 @@ class TestUpwardContinuationAlgorithm:
 
         u = UpwardContinuation(dz=5e-6)
         result = u.process(synthetic_gaussian_field)
-        np.testing.assert_array_equal(result.coords['y'].values, synthetic_gaussian_field.coords['y'].values)
-        np.testing.assert_array_equal(result.coords['x'].values, synthetic_gaussian_field.coords['x'].values)
+        np.testing.assert_array_equal(
+            result.coords["y"].values, synthetic_gaussian_field.coords["y"].values
+        )
+        np.testing.assert_array_equal(
+            result.coords["x"].values, synthetic_gaussian_field.coords["x"].values
+        )
 
     def test_attrs_preserved(self, synthetic_gaussian_field: xr.DataArray) -> None:
         """pixel_spacing and units attrs are preserved."""
@@ -836,7 +863,7 @@ class TestUpwardContinuationAlgorithm:
 
         u = UpwardContinuation(dz=5e-6)
         result = u.process(synthetic_gaussian_field)
-        assert result.attrs.get('pixel_spacing') == pytest.approx(1e-6)
+        assert result.attrs.get("pixel_spacing") == pytest.approx(1e-6)
 
     def test_dims_preserved(self, synthetic_gaussian_field: xr.DataArray) -> None:
         """Output dims are ('y', 'x')."""
@@ -844,7 +871,7 @@ class TestUpwardContinuationAlgorithm:
 
         u = UpwardContinuation(dz=5e-6)
         result = u.process(synthetic_gaussian_field)
-        assert result.dims == ('y', 'x')
+        assert result.dims == ("y", "x")
 
     def test_large_dz_strong_attenuation(self, synthetic_gaussian_field: xr.DataArray) -> None:
         """Very large dz produces strongly attenuated output amplitude.
@@ -869,8 +896,9 @@ class TestUpwardContinuationAlgorithm:
         values = np.ones((h, w))
         y = np.arange(h) * ps
         x = np.arange(w) * ps
-        field = xr.DataArray(values, dims=('y', 'x'), coords={'y': y, 'x': x},
-                             attrs={'pixel_spacing': ps})
+        field = xr.DataArray(
+            values, dims=("y", "x"), coords={"y": y, "x": x}, attrs={"pixel_spacing": ps}
+        )
         u = UpwardContinuation(dz=1e-6, padding_factor=3.0)
         result = u.process(field)
         assert result.shape == (h, w)
@@ -919,10 +947,10 @@ class TestUpwardContinuationPropertyBased:
         Xg, Yg = np.meshgrid(x_raw, y_raw)
         cy, cx = h // 2 * ps, w // 2 * ps
         sigma = 4 * ps
-        values = np.exp(-((Xg - cx) ** 2 + (Yg - cy) ** 2) / (2 * sigma ** 2))
-        field = xr.DataArray(values, dims=('y', 'x'),
-                             coords={'y': y_raw, 'x': x_raw},
-                             attrs={'pixel_spacing': ps})
+        values = np.exp(-((Xg - cx) ** 2 + (Yg - cy) ** 2) / (2 * sigma**2))
+        field = xr.DataArray(
+            values, dims=("y", "x"), coords={"y": y_raw, "x": x_raw}, attrs={"pixel_spacing": ps}
+        )
 
         u1 = UpwardContinuation(dz=dz1, padding_factor=2.0, oversampling=1)
         u2 = UpwardContinuation(dz=dz2, padding_factor=2.0, oversampling=1)
@@ -957,7 +985,7 @@ class TestBlankSubtractorConfig:
             BlankSubtractor()  # type: ignore[call-arg]
 
     def test_blank_stored_as_nested_tuples(self) -> None:
-        """blank is stored as nested tuples (Pydantic-serialisable)."""
+        """Blank is stored as nested tuples (Pydantic-serialisable)."""
         from qdmpy_core.field_processing import BlankSubtractor
 
         blank_data = ((1.0, 2.0), (3.0, 4.0))
@@ -966,7 +994,7 @@ class TestBlankSubtractorConfig:
         assert isinstance(b.blank[0], tuple)
 
     def test_frozen_prevents_mutation(self) -> None:
-        """blank field is immutable after construction."""
+        """Blank field is immutable after construction."""
         from qdmpy_core.field_processing import BlankSubtractor
 
         blank_data = ((1.0, 2.0), (3.0, 4.0))
@@ -985,7 +1013,7 @@ class TestBlankSubtractorAlgorithm:
     """BlankSubtractor subtracts a blank map element-wise."""
 
     def test_basic_subtraction(self, synthetic_blank: xr.DataArray) -> None:
-        """output = input - blank element-wise."""
+        """Output = input - blank element-wise."""
         from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=20, width=20)
@@ -1025,7 +1053,7 @@ class TestBlankSubtractorAlgorithm:
         assert result.shape == field.shape
 
     def test_shape_mismatch_raises_data_shape_error(self) -> None:
-        """blank shape != field shape raises DataShapeError."""
+        """Blank shape != field shape raises DataShapeError."""
         from qdmpy_core.exceptions import DataShapeError
         from qdmpy_core.field_processing import BlankSubtractor
 
@@ -1044,7 +1072,7 @@ class TestBlankSubtractorAlgorithm:
         field = _make_field_map(height=10, width=10)
         blank_tuple = tuple(tuple(0.0 for _ in range(8)) for _ in range(8))
         b = BlankSubtractor(blank=blank_tuple)
-        with pytest.raises(DataShapeError, match=r'.*\(8.*8\)|.*\(10.*10\)'):
+        with pytest.raises(DataShapeError, match=r".*\(8.*8\)|.*\(10.*10\)"):
             b.process(field)
 
     def test_process_does_not_mutate_input(self) -> None:
@@ -1059,15 +1087,15 @@ class TestBlankSubtractorAlgorithm:
         np.testing.assert_array_equal(field.values, original)
 
     def test_coords_preserved(self) -> None:
-        """y and x coordinates are preserved after subtraction."""
+        """Y and x coordinates are preserved after subtraction."""
         from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=10, width=10)
         blank_tuple = tuple(tuple(0.0 for _ in range(10)) for _ in range(10))
         b = BlankSubtractor(blank=blank_tuple)
         result = b.process(field)
-        np.testing.assert_array_equal(result.coords['y'].values, field.coords['y'].values)
-        np.testing.assert_array_equal(result.coords['x'].values, field.coords['x'].values)
+        np.testing.assert_array_equal(result.coords["y"].values, field.coords["y"].values)
+        np.testing.assert_array_equal(result.coords["x"].values, field.coords["x"].values)
 
     def test_attrs_preserved(self) -> None:
         """pixel_spacing and other attrs are preserved in the output."""
@@ -1077,8 +1105,8 @@ class TestBlankSubtractorAlgorithm:
         blank_tuple = tuple(tuple(0.0 for _ in range(10)) for _ in range(10))
         b = BlankSubtractor(blank=blank_tuple)
         result = b.process(field)
-        assert result.attrs.get('pixel_spacing') == pytest.approx(1e-6)
-        assert result.attrs.get('units') == 'µT'
+        assert result.attrs.get("pixel_spacing") == pytest.approx(1e-6)
+        assert result.attrs.get("units") == "µT"
 
     def test_dims_preserved(self) -> None:
         """Output dims are ('y', 'x')."""
@@ -1088,7 +1116,7 @@ class TestBlankSubtractorAlgorithm:
         blank_tuple = tuple(tuple(0.0 for _ in range(10)) for _ in range(10))
         b = BlankSubtractor(blank=blank_tuple)
         result = b.process(field)
-        assert result.dims == ('y', 'x')
+        assert result.dims == ("y", "x")
 
     def test_large_blank_produces_negative_output(self) -> None:
         """A blank much larger than the field produces a negative output."""
@@ -1130,8 +1158,9 @@ class TestBlankSubtractorAlgorithm:
         y = np.arange(h) * ps
         x = np.arange(w) * ps
         values = np.ones((h, w)) * 5.0
-        field = xr.DataArray(values, dims=('y', 'x'), coords={'y': y, 'x': x},
-                             attrs={'pixel_spacing': ps})
+        field = xr.DataArray(
+            values, dims=("y", "x"), coords={"y": y, "x": x}, attrs={"pixel_spacing": ps}
+        )
         blank_tuple = tuple(tuple(2.0 for _ in range(w)) for _ in range(h))
         b = BlankSubtractor(blank=blank_tuple)
         result = b.process(field)

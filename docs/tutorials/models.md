@@ -9,7 +9,7 @@ This tutorial explains how to understand and use the ODMR spectral models in qdm
 qdmpy_core provides three built-in spectral models for fitting ODMR data from nitrogen-vacancy centers:
 
 1. **ESR14N** - For NV centers with ¹⁴N isotope (3 dips)
-2. **ESR15N** - For NV centers with ¹⁵N isotope (2 dips)  
+2. **ESR15N** - For NV centers with ¹⁵N isotope (2 dips)
 3. **ESRSINGLE** - For single resonance systems (1 dip)
 
 These models are implemented using Lorentzian lineshapes and are optimized for GPU-accelerated fitting.
@@ -171,7 +171,7 @@ When using models with fitting routines, you can specify constraints:
 # Example constraint dictionary for ESR14N
 constraints = {
     'center': [2.8e9, 2.9e9],      # Center frequency bounds
-    'width': [1e6, 1e7],           # Linewidth bounds  
+    'width': [1e6, 1e7],           # Linewidth bounds
     'contrast': [0.0, 1.0],        # Contrast bounds
     'offset': [-0.1, 0.1],         # Offset bounds
 }
