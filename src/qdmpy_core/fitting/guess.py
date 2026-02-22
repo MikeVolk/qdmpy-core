@@ -17,17 +17,17 @@ from numba import njit, prange
 from numpy.typing import NDArray
 from scipy.signal import find_peaks
 
-from QDMpy.constants import PROMINENCE
-from QDMpy.exceptions import (
+from qdmpy_core.constants import PROMINENCE
+from qdmpy_core.exceptions import (
     DataShapeError,
     DataValidationError,
     ModelGuessNotPossibleError,
     ModelNotFoundError,
 )
-from QDMpy.fitting.models import ModelRegistry
+from qdmpy_core.fitting.models import ModelRegistry
 
 if TYPE_CHECKING:
-    from QDMpy.fitting.models import Model
+    from qdmpy_core.fitting.models import Model
 
 
 @njit(fastmath=True)

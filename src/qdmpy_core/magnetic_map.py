@@ -26,7 +26,7 @@ class FieldReconstructor(Protocol):
     .. code-block:: python
 
         import xarray as xr
-        from QDMpy import FieldReconstructor, QDMResult
+        from qdmpy_core import FieldReconstructor, QDMResult
 
         class MyReconstructor:
             def reconstruct(
@@ -165,7 +165,7 @@ class MagneticMap:
         Raises:
             ValueError: If pixel_spacing not in b111.attrs.
         """
-        from QDMpy.settings import get_settings
+        from qdmpy_core.settings import get_settings
 
         if 'pixel_spacing' not in b111.attrs:
             raise ValueError("b111.attrs must contain 'pixel_spacing' (metres)")

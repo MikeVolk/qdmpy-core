@@ -8,7 +8,7 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
 
-from QDMpy.exceptions import DataValidationError
+from qdmpy_core.exceptions import DataValidationError
 
 # Frequency range bounds for NV centers (in GHz)
 NV_FREQ_MIN_GHZ = 2.0

@@ -15,10 +15,10 @@ from loguru import logger
 from matplotlib import pyplot as plt
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
-from QDMpy.constants import FLUORESCENCE_DELTA_THRESHOLD
+from qdmpy_core.constants import FLUORESCENCE_DELTA_THRESHOLD
 
 if TYPE_CHECKING:
-    from QDMpy.odmr.data import ODMRData
+    from qdmpy_core.odmr.data import ODMRData
 
 
 @runtime_checkable
@@ -34,7 +34,7 @@ class Processor(Protocol):
 
     .. code-block:: python
 
-        from QDMpy import Processor, ODMR, ODMRData
+        from qdmpy_core import Processor, ODMR, ODMRData
 
         class MyProcessor:
             def process(self, data: ODMRData) -> ODMRData:
@@ -105,7 +105,7 @@ class NormalizationProcessor(BaseProcessor):
 
     def process(self, data: ODMRData) -> ODMRData:
         """Normalize the data based on the selected method."""
-        from QDMpy.odmr.data import ODMRData
+        from qdmpy_core.odmr.data import ODMRData
 
         logger.debug(f'Normalizing data using method: {self.method}')
         factors = self._get_norm_factors(data.data, self.method)
@@ -133,7 +133,7 @@ class BinningProcessor(BaseProcessor):
 
     def process(self, data: ODMRData) -> ODMRData:
         """Bin the data spatially by the specified factor."""
-        from QDMpy.odmr.data import ODMRData
+        from qdmpy_core.odmr.data import ODMRData
 
         logger.debug(f'Binning data with factor: {self.bin_factor}')
         binned = data.data.coarsen(y=self.bin_factor, x=self.bin_factor, boundary='trim').mean()  # type: ignore[attr-defined]
@@ -152,7 +152,7 @@ class OutlierProcessor(BaseProcessor):
 
     def process(self, data: ODMRData) -> ODMRData:
         """Apply an outlier mask based on the z-score threshold."""
-        from QDMpy.odmr.data import ODMRData
+        from qdmpy_core.odmr.data import ODMRData
 
         logger.debug(f'Masking outliers with z_score_threshold: {self.z_score_threshold}')
         data_mean = data.data.mean(dim='freq_idx')
@@ -175,7 +175,7 @@ class FluorescenceCorrectionProcessor(BaseProcessor):
 
     def process(self, data: ODMRData) -> ODMRData:
         """Apply fluorescence correction to the ODMR data."""
-        from QDMpy.odmr.data import ODMRData
+        from qdmpy_core.odmr.data import ODMRData
 
         logger.info(f'Applying fluorescence correction with factor: {self.correction_factor}')
         _, baseline_corrected = analyze_fluorescence_effects(data)
@@ -339,7 +339,7 @@ class ODMRProcessorManager:
 
     def process(self, data: ODMRData) -> ODMRData:
         """Apply all processors sequentially and record the pipeline config in metadata."""
-        from QDMpy.odmr.data import ODMRData as _ODMRData
+        from qdmpy_core.odmr.data import ODMRData as _ODMRData
 
         logger.info('Starting processing pipeline.')
         pipeline_config = [

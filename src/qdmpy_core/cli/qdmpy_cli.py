@@ -11,7 +11,7 @@ import sys
 
 from loguru import logger
 
-from QDMpy.fitting.models import ModelRegistry
+from qdmpy_core.fitting.models import ModelRegistry
 
 
 def create_parser(version: str) -> argparse.ArgumentParser:

@@ -56,8 +56,8 @@ ALL_NAMES = [
 
 @pytest.mark.parametrize('name,kind', ALL_NAMES)
 def test_name_importable_from_qdmpy(name: str, kind: str) -> None:
-    """Each name in __all__ must be importable directly from QDMpy."""
-    import QDMpy
+    """Each name in __all__ must be importable directly from qdmpy_core."""
+    import qdmpy_core
     assert hasattr(QDMpy, name), f'QDMpy.{name} not found'
     obj = getattr(QDMpy, name)
     if kind == 'class':
@@ -68,7 +68,7 @@ def test_name_importable_from_qdmpy(name: str, kind: str) -> None:
 
 def test_all_is_complete() -> None:
     """__all__ must contain exactly the names listed in ALL_NAMES (no surprises)."""
-    import QDMpy
+    import qdmpy_core
     expected = {name for name, _ in ALL_NAMES}
     actual = set(QDMpy.__all__)
     missing = expected - actual

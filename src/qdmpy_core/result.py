@@ -20,12 +20,12 @@ from loguru import logger
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
-from QDMpy.fitting.result import FitResult
+from qdmpy_core.fitting.result import FitResult
 
 if TYPE_CHECKING:
     from os import PathLike
 
-    from QDMpy.magnetic_map import MagneticMap
+    from qdmpy_core.magnetic_map import MagneticMap
 
 
 class QDMResult(BaseModel):
@@ -39,7 +39,7 @@ class QDMResult(BaseModel):
     Attributes:
         fit_result: The underlying fitted parameters and B111 analysis.
         nv_axis: NV axis unit vector (ux, uy, uz). When None, the value is
-            read from QDMpy settings at the time magnetic_map is first accessed.
+            read from qdmpy_core settings at the time magnetic_map is first accessed.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -173,7 +173,7 @@ class QDMResult(BaseModel):
 
     def _build_magnetic_map(self: Self) -> MagneticMap:
         """Construct MagneticMap from b111_remanent and pixel_spacing."""
-        from QDMpy.magnetic_map import MagneticMap
+        from qdmpy_core.magnetic_map import MagneticMap
 
         logger.info('Building MagneticMap from B111 remanent field')
         b111_da = xr.DataArray(
@@ -224,7 +224,7 @@ class QDMResult(BaseModel):
         Raises:
             DataLoadError: If the file does not exist or is not in the safe format.
         """
-        from QDMpy.exceptions import DataLoadError
+        from qdmpy_core.exceptions import DataLoadError
 
         path = Path(path)
 

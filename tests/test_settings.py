@@ -9,7 +9,7 @@ import pytest
 
 import pytest
 
-from QDMpy.settings import (
+from qdmpy_core.settings import (
     DefaultPathsSettings,
     FitSettings,
     LocalOutlierFactorSettings,
@@ -337,6 +337,6 @@ class TestGetSettings:
 
     def test_get_settings_re_exported_from_package(self) -> None:
         """get_settings is importable from the top-level QDMpy package."""
-        from QDMpy import get_settings as pkg_get_settings
+        from qdmpy_core import get_settings as pkg_get_settings
 
         assert pkg_get_settings is get_settings

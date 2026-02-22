@@ -11,7 +11,7 @@ import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
 
-from QDMpy.constants import D_ZFS, GAMMA_NV
+from qdmpy_core.constants import D_ZFS, GAMMA_NV
 
 
 def _dipole_field(shape: tuple[int, int], amplitude: float = 50.0) -> NDArray:
@@ -48,13 +48,13 @@ def make_synthetic_odmr_data(
         ODMRData with dims (polarity=2, freq_range=2, y, x, freq_idx).
 
     Example:
-        >>> from QDMpy.testing import make_synthetic_odmr_data
+        >>> from qdmpy_core.testing import make_synthetic_odmr_data
         >>> data = make_synthetic_odmr_data(shape=(8, 8))
         >>> data.data.dims
         ('polarity', 'freq_range', 'y', 'x', 'freq_idx')
     """
-    from QDMpy.fitting.models import ModelRegistry
-    from QDMpy.odmr.data import ODMRData
+    from qdmpy_core.fitting.models import ModelRegistry
+    from qdmpy_core.odmr.data import ODMRData
 
     rng = np.random.default_rng(seed)
     H, W = shape
@@ -142,12 +142,12 @@ def make_synthetic_fit_result(
         FitResult with scan_dimensions=shape and all model parameters set.
 
     Example:
-        >>> from QDMpy.testing import make_synthetic_fit_result
+        >>> from qdmpy_core.testing import make_synthetic_fit_result
         >>> res = make_synthetic_fit_result(shape=(32, 32))
         >>> res.b111_remanent.shape
         (32, 32)
     """
-    from QDMpy.fitting.result import FitResult
+    from qdmpy_core.fitting.result import FitResult
 
     rng = np.random.default_rng(seed)
     H, W = shape
@@ -234,12 +234,12 @@ def make_synthetic_qdm_result(
         QDMResult ready for ``b111_remanent``, ``show()``, ``magnetic_map``.
 
     Example:
-        >>> from QDMpy.testing import make_synthetic_qdm_result
+        >>> from qdmpy_core.testing import make_synthetic_qdm_result
         >>> result = make_synthetic_qdm_result(shape=(32, 32))
         >>> result.b111_remanent.shape
         (32, 32)
     """
-    from QDMpy.result import QDMResult
+    from qdmpy_core.result import QDMResult
 
     fit_result = make_synthetic_fit_result(
         shape=shape, model_name=model_name, seed=seed, pixel_spacing=pixel_spacing

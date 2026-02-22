@@ -4,7 +4,7 @@ import unittest
 
 import numpy as np
 
-from QDMpy.utils import (
+from qdmpy_core.utils import (
     double_norm,
     idx2rc,
     millify,

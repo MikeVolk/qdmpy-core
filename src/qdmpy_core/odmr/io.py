@@ -18,8 +18,8 @@ from loguru import logger
 from numpy.typing import NDArray
 from scipy.io import loadmat
 
-from QDMpy.exceptions import DataLoadError
-from QDMpy.odmr.data import FRANGE_LABELS, POLARITY_LABELS
+from qdmpy_core.exceptions import DataLoadError
+from qdmpy_core.odmr.data import FRANGE_LABELS, POLARITY_LABELS
 
 
 class BaseLoader(ABC):

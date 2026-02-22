@@ -12,13 +12,13 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from QDMpy.exceptions import DataNotLoadedError, DependencyError
-from QDMpy.fitting.result import FitResult
-from QDMpy.measurement import Measurement
-from QDMpy.result import QDMResult
-from QDMpy.odmr.data import ODMRData
-from QDMpy.odmr.manager import ODMR
-from QDMpy.odmr.processors import BinningProcessor
+from qdmpy_core.exceptions import DataNotLoadedError, DependencyError
+from qdmpy_core.fitting.result import FitResult
+from qdmpy_core.measurement import Measurement
+from qdmpy_core.result import QDMResult
+from qdmpy_core.odmr.data import ODMRData
+from qdmpy_core.odmr.manager import ODMR
+from qdmpy_core.odmr.processors import BinningProcessor
 
 
 @pytest.fixture

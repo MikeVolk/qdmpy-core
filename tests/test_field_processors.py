@@ -3,7 +3,7 @@
 RED phase — all tests should FAIL until the processors are implemented.
 
 Import paths under test:
-    from QDMpy.field_processing import (
+    from qdmpy_core.field_processing import (
         HotPixelFilter,
         QuadraticBackgroundSubtractor,
         UpwardContinuation,
@@ -163,12 +163,12 @@ class TestHotPixelFilterConfig:
     """HotPixelFilter is a frozen Pydantic model with validated config fields."""
 
     def test_import(self) -> None:
-        """HotPixelFilter can be imported from QDMpy.field_processing."""
-        from QDMpy.field_processing import HotPixelFilter  # noqa: F401
+        """HotPixelFilter can be imported from qdmpy_core.field_processing."""
+        from qdmpy_core.field_processing import HotPixelFilter  # noqa: F401
 
     def test_default_config(self) -> None:
         """Default config: threshold_sigma=5.0, window_size=3, replacement='mean'."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter()
         assert f.threshold_sigma == 5.0
@@ -178,7 +178,7 @@ class TestHotPixelFilterConfig:
 
     def test_custom_config(self) -> None:
         """Custom config fields are stored and accessible."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter(threshold_sigma=3.0, window_size=5, replacement='nan', absolute_threshold=10.0)
         assert f.threshold_sigma == 3.0
@@ -188,7 +188,7 @@ class TestHotPixelFilterConfig:
 
     def test_frozen_prevents_mutation(self) -> None:
         """HotPixelFilter fields are immutable after construction."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter()
         with pytest.raises((ValidationError, TypeError)):
@@ -196,14 +196,14 @@ class TestHotPixelFilterConfig:
 
     def test_invalid_replacement_raises(self) -> None:
         """replacement must be 'mean', 'nan', or 'zero'."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         with pytest.raises((ValidationError, ValueError)):
             HotPixelFilter(replacement='median')  # type: ignore[arg-type]
 
     def test_is_base_field_processor_subclass(self) -> None:
         """HotPixelFilter is a subclass of BaseFieldProcessor."""
-        from QDMpy.field_processing import BaseFieldProcessor, HotPixelFilter
+        from qdmpy_core.field_processing import BaseFieldProcessor, HotPixelFilter
 
         assert issubclass(HotPixelFilter, BaseFieldProcessor)
 
@@ -213,7 +213,7 @@ class TestHotPixelFilterAlgorithm:
 
     def test_single_spike_detected(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
         """A single extreme spike at known position is detected (its value changes)."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter(threshold_sigma=3.0, replacement='zero')
         result = f.process(synthetic_hot_pixel_field)
@@ -222,7 +222,7 @@ class TestHotPixelFilterAlgorithm:
 
     def test_multiple_spikes_detected(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
         """All four injected spikes are replaced."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter(threshold_sigma=3.0, replacement='zero')
         result = f.process(synthetic_hot_pixel_field)
@@ -233,7 +233,7 @@ class TestHotPixelFilterAlgorithm:
 
     def test_no_outliers_leaves_field_unchanged(self) -> None:
         """A uniform constant field has no outliers; output equals input."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter(threshold_sigma=5.0)
         field = _make_field_map(fill_value=1.0)
@@ -242,7 +242,7 @@ class TestHotPixelFilterAlgorithm:
 
     def test_all_zeros_no_outliers(self) -> None:
         """An all-zero field has no outliers; output is all zeros."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter(threshold_sigma=5.0)
         field = _make_field_map(fill_value=0.0)
@@ -251,7 +251,7 @@ class TestHotPixelFilterAlgorithm:
 
     def test_output_shape_equals_input_shape(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
         """Output shape is identical to input shape."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter()
         result = f.process(synthetic_hot_pixel_field)
@@ -259,7 +259,7 @@ class TestHotPixelFilterAlgorithm:
 
     def test_process_does_not_mutate_input(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
         """process() leaves the input DataArray unchanged."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter(threshold_sigma=3.0)
         original = synthetic_hot_pixel_field.values.copy()
@@ -268,7 +268,7 @@ class TestHotPixelFilterAlgorithm:
 
     def test_coords_preserved(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
         """y and x coordinates are preserved in the output."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter()
         result = f.process(synthetic_hot_pixel_field)
@@ -277,7 +277,7 @@ class TestHotPixelFilterAlgorithm:
 
     def test_attrs_preserved(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
         """pixel_spacing and other attrs are preserved in the output."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter()
         result = f.process(synthetic_hot_pixel_field)
@@ -286,7 +286,7 @@ class TestHotPixelFilterAlgorithm:
 
     def test_dims_preserved(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
         """Output dims are ('y', 'x')."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter()
         result = f.process(synthetic_hot_pixel_field)
@@ -298,7 +298,7 @@ class TestHotPixelFilterReplacementModes:
 
     def test_replacement_zero(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
         """'zero' replacement sets detected outliers to 0.0."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter(threshold_sigma=3.0, replacement='zero')
         result = f.process(synthetic_hot_pixel_field)
@@ -308,7 +308,7 @@ class TestHotPixelFilterReplacementModes:
 
     def test_replacement_nan(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
         """'nan' replacement sets detected outliers to NaN."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter(threshold_sigma=3.0, replacement='nan')
         result = f.process(synthetic_hot_pixel_field)
@@ -317,7 +317,7 @@ class TestHotPixelFilterReplacementModes:
 
     def test_replacement_mean(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
         """'mean' replacement uses nanmean of window neighbours."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter(threshold_sigma=3.0, replacement='mean')
         result = f.process(synthetic_hot_pixel_field)
@@ -327,7 +327,7 @@ class TestHotPixelFilterReplacementModes:
 
     def test_replacement_mean_no_nans_in_output(self) -> None:
         """'mean' mode produces no NaNs in a clean field."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         rng = np.random.default_rng(99)
         values = rng.uniform(-1.0, 1.0, size=(15, 15))
@@ -342,7 +342,7 @@ class TestHotPixelFilterReplacementModes:
 
     def test_replacement_zero_non_outliers_unchanged(self, synthetic_hot_pixel_field: xr.DataArray) -> None:
         """Non-outlier pixels are unmodified when using 'zero' replacement."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter(threshold_sigma=3.0, replacement='zero')
         result = f.process(synthetic_hot_pixel_field)
@@ -355,7 +355,7 @@ class TestHotPixelFilterAbsoluteThreshold:
 
     def test_absolute_threshold_filters_large_values(self) -> None:
         """absolute_threshold=10.0 causes |field| > 10 to be replaced."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         values = np.zeros((10, 10))
         values[5, 5] = 50.0  # clearly above threshold
@@ -369,7 +369,7 @@ class TestHotPixelFilterAbsoluteThreshold:
 
     def test_absolute_threshold_none_skipped(self) -> None:
         """When absolute_threshold is None, no absolute pre-filter is applied."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         values = np.full((10, 10), 5.0)
         values[5, 5] = 8.0  # within sigma range of background
@@ -385,7 +385,7 @@ class TestHotPixelFilterAbsoluteThreshold:
 
     def test_absolute_threshold_union_with_sigma(self) -> None:
         """Outlier mask is union: pixels exceeding either criterion are replaced."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         rng = np.random.default_rng(7)
         values = rng.uniform(-1.0, 1.0, size=(15, 15))
@@ -412,7 +412,7 @@ class TestHotPixelFilterPropertyBased:
     @hyp_settings(max_examples=20)
     def test_output_shape_equals_input_shape(self, height: int, width: int, threshold: float) -> None:
         """For any valid input, output shape equals input shape."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         f = HotPixelFilter(threshold_sigma=threshold)
         field = _make_field_map(height=height, width=width)
@@ -428,7 +428,7 @@ class TestHotPixelFilterPropertyBased:
         self, height: int, width: int
     ) -> None:
         """'mean' replacement on a field without NaNs should produce no NaNs."""
-        from QDMpy.field_processing import HotPixelFilter
+        from qdmpy_core.field_processing import HotPixelFilter
 
         rng = np.random.default_rng(42)
         values = rng.uniform(-1.0, 1.0, size=(height, width))
@@ -450,12 +450,12 @@ class TestQuadraticBackgroundSubtractorConfig:
     """QuadraticBackgroundSubtractor is a frozen Pydantic model."""
 
     def test_import(self) -> None:
-        """QuadraticBackgroundSubtractor can be imported from QDMpy.field_processing."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor  # noqa: F401
+        """QuadraticBackgroundSubtractor can be imported from qdmpy_core.field_processing."""
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor  # noqa: F401
 
     def test_default_config(self) -> None:
         """Default: degree=2, mask=None."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         p = QuadraticBackgroundSubtractor()
         assert p.degree == 2
@@ -463,14 +463,14 @@ class TestQuadraticBackgroundSubtractorConfig:
 
     def test_custom_degree(self) -> None:
         """degree field is stored as provided."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         p = QuadraticBackgroundSubtractor(degree=1)
         assert p.degree == 1
 
     def test_frozen_prevents_mutation(self) -> None:
         """Fields are immutable after construction."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         p = QuadraticBackgroundSubtractor()
         with pytest.raises((ValidationError, TypeError)):
@@ -478,7 +478,7 @@ class TestQuadraticBackgroundSubtractorConfig:
 
     def test_is_base_field_processor_subclass(self) -> None:
         """QuadraticBackgroundSubtractor subclasses BaseFieldProcessor."""
-        from QDMpy.field_processing import BaseFieldProcessor, QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import BaseFieldProcessor, QuadraticBackgroundSubtractor
 
         assert issubclass(QuadraticBackgroundSubtractor, BaseFieldProcessor)
 
@@ -488,7 +488,7 @@ class TestQuadraticBackgroundSubtractorAlgorithm:
 
     def test_output_shape_equals_input_shape(self, synthetic_background_field: xr.DataArray) -> None:
         """Output shape equals input shape."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         p = QuadraticBackgroundSubtractor(degree=2)
         result = p.process(synthetic_background_field)
@@ -496,7 +496,7 @@ class TestQuadraticBackgroundSubtractorAlgorithm:
 
     def test_removes_quadratic_background(self, synthetic_background_field: xr.DataArray) -> None:
         """After subtraction, a field dominated by quadratic background has small residuals."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         p = QuadraticBackgroundSubtractor(degree=2)
         result = p.process(synthetic_background_field)
@@ -505,7 +505,7 @@ class TestQuadraticBackgroundSubtractorAlgorithm:
 
     def test_constant_field_becomes_zero(self) -> None:
         """A constant field has a constant background; output should be near zero."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         field = _make_field_map(fill_value=5.0)
         p = QuadraticBackgroundSubtractor(degree=2)
@@ -514,7 +514,7 @@ class TestQuadraticBackgroundSubtractorAlgorithm:
 
     def test_plane_fit_removes_linear_background(self) -> None:
         """degree=1 correctly removes a linear background."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         h, w = 20, 20
         ps = 1e-6
@@ -532,7 +532,7 @@ class TestQuadraticBackgroundSubtractorAlgorithm:
 
     def test_constant_fit_degree_zero(self) -> None:
         """degree=0 fits and removes only a constant offset."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         field = _make_field_map(fill_value=7.5)
         p = QuadraticBackgroundSubtractor(degree=0)
@@ -541,7 +541,7 @@ class TestQuadraticBackgroundSubtractorAlgorithm:
 
     def test_process_does_not_mutate_input(self, synthetic_background_field: xr.DataArray) -> None:
         """Input DataArray is not modified."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         p = QuadraticBackgroundSubtractor(degree=2)
         original = synthetic_background_field.values.copy()
@@ -550,7 +550,7 @@ class TestQuadraticBackgroundSubtractorAlgorithm:
 
     def test_coords_preserved(self, synthetic_background_field: xr.DataArray) -> None:
         """Coordinates are preserved after background subtraction."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         p = QuadraticBackgroundSubtractor(degree=2)
         result = p.process(synthetic_background_field)
@@ -563,7 +563,7 @@ class TestQuadraticBackgroundSubtractorAlgorithm:
 
     def test_attrs_preserved(self, synthetic_background_field: xr.DataArray) -> None:
         """pixel_spacing and other attrs are preserved in the output."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         p = QuadraticBackgroundSubtractor(degree=2)
         result = p.process(synthetic_background_field)
@@ -571,7 +571,7 @@ class TestQuadraticBackgroundSubtractorAlgorithm:
 
     def test_dims_preserved(self, synthetic_background_field: xr.DataArray) -> None:
         """Output dims are ('y', 'x')."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         p = QuadraticBackgroundSubtractor(degree=2)
         result = p.process(synthetic_background_field)
@@ -583,7 +583,7 @@ class TestQuadraticBackgroundSubtractorWithMask:
 
     def test_mask_excludes_pixels_from_fit(self) -> None:
         """Mask indices are excluded from the polynomial fit."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         h, w = 20, 20
         ps = 1e-6
@@ -622,7 +622,7 @@ class TestQuadraticBackgroundSubtractorWithMask:
 
     def test_no_mask_uses_all_pixels(self, synthetic_background_field: xr.DataArray) -> None:
         """When mask is None, all pixels are used in the fit."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         p_no_mask = QuadraticBackgroundSubtractor(degree=2, mask=None)
         result = p_no_mask.process(synthetic_background_field)
@@ -631,7 +631,7 @@ class TestQuadraticBackgroundSubtractorWithMask:
 
     def test_mask_evaluates_surface_at_all_pixels(self) -> None:
         """The fitted surface is subtracted from ALL pixels, including masked ones."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         h, w = 10, 10
         ps = 1e-6
@@ -650,7 +650,7 @@ class TestQuadraticBackgroundSubtractorWithMask:
 
     def test_mask_stored_as_nested_tuples(self) -> None:
         """mask field stored as nested tuples (Pydantic-serialisable)."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         mask = ((0, 1, 2), (0, 1, 2))
         p = QuadraticBackgroundSubtractor(mask=mask)
@@ -659,7 +659,7 @@ class TestQuadraticBackgroundSubtractorWithMask:
 
     def test_output_shape_with_mask(self) -> None:
         """Output shape equals input shape even when a mask is provided."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         field = _make_field_map(height=15, width=15)
         mask = ((0, 1), (0, 1))
@@ -679,7 +679,7 @@ class TestQuadraticBackgroundSubtractorPropertyBased:
     @hyp_settings(max_examples=15)
     def test_output_shape_equals_input_shape(self, height: int, width: int, degree: int) -> None:
         """For any valid input and degree, output shape equals input shape."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         field = _make_field_map(height=height, width=width)
         p = QuadraticBackgroundSubtractor(degree=degree)
@@ -694,7 +694,7 @@ class TestQuadraticBackgroundSubtractorPropertyBased:
     @hyp_settings(max_examples=15)
     def test_removing_plane_from_plane_gives_near_zero(self, a: float, b: float, c: float) -> None:
         """Subtracting a fitted plane from a pure planar field yields near-zero residuals."""
-        from QDMpy.field_processing import QuadraticBackgroundSubtractor
+        from qdmpy_core.field_processing import QuadraticBackgroundSubtractor
 
         h, w = 12, 12
         ps = 1e-6
@@ -719,19 +719,19 @@ class TestUpwardContinuationConfig:
     """UpwardContinuation is a frozen Pydantic model."""
 
     def test_import(self) -> None:
-        """UpwardContinuation can be imported from QDMpy.field_processing."""
-        from QDMpy.field_processing import UpwardContinuation  # noqa: F401
+        """UpwardContinuation can be imported from qdmpy_core.field_processing."""
+        from qdmpy_core.field_processing import UpwardContinuation  # noqa: F401
 
     def test_required_dz(self) -> None:
         """dz is required; construction without it raises."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         with pytest.raises((ValidationError, TypeError)):
             UpwardContinuation()  # type: ignore[call-arg]
 
     def test_default_config(self) -> None:
         """Default padding_factor=3.0, oversampling=2."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=1e-6)
         assert u.dz == pytest.approx(1e-6)
@@ -740,7 +740,7 @@ class TestUpwardContinuationConfig:
 
     def test_custom_config(self) -> None:
         """Custom padding_factor and oversampling are stored."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=5e-6, padding_factor=2.0, oversampling=4)
         assert u.padding_factor == pytest.approx(2.0)
@@ -748,7 +748,7 @@ class TestUpwardContinuationConfig:
 
     def test_frozen_prevents_mutation(self) -> None:
         """Fields are immutable after construction."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=1e-6)
         with pytest.raises((ValidationError, TypeError)):
@@ -756,7 +756,7 @@ class TestUpwardContinuationConfig:
 
     def test_is_base_field_processor_subclass(self) -> None:
         """UpwardContinuation subclasses BaseFieldProcessor."""
-        from QDMpy.field_processing import BaseFieldProcessor, UpwardContinuation
+        from qdmpy_core.field_processing import BaseFieldProcessor, UpwardContinuation
 
         assert issubclass(UpwardContinuation, BaseFieldProcessor)
 
@@ -766,7 +766,7 @@ class TestUpwardContinuationAlgorithm:
 
     def test_output_shape_equals_input_shape(self, synthetic_gaussian_field: xr.DataArray) -> None:
         """Output shape equals input shape."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=5e-6)
         result = u.process(synthetic_gaussian_field)
@@ -774,7 +774,7 @@ class TestUpwardContinuationAlgorithm:
 
     def test_upward_attenuates_amplitude(self, synthetic_gaussian_field: xr.DataArray) -> None:
         """Upward continuation (dz > 0) attenuates the field amplitude."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=20e-6)
         result = u.process(synthetic_gaussian_field)
@@ -783,7 +783,7 @@ class TestUpwardContinuationAlgorithm:
 
     def test_zero_dz_preserves_field(self, synthetic_gaussian_field: xr.DataArray) -> None:
         """dz=0 returns a field very close to the input."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=0.0)
         result = u.process(synthetic_gaussian_field)
@@ -793,7 +793,7 @@ class TestUpwardContinuationAlgorithm:
 
     def test_downward_continuation_amplifies(self, synthetic_gaussian_field: xr.DataArray) -> None:
         """Downward continuation (dz < 0) amplifies the field amplitude."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=-5e-6)
         result = u.process(synthetic_gaussian_field)
@@ -802,7 +802,7 @@ class TestUpwardContinuationAlgorithm:
 
     def test_downward_continuation_logs_warning(self, synthetic_gaussian_field: xr.DataArray) -> None:
         """dz < 0 logs a warning (downward continuation amplifies noise)."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         log_calls: list[Any] = []
         with patch('QDMpy.field_processing.logger') as mock_logger:
@@ -814,7 +814,7 @@ class TestUpwardContinuationAlgorithm:
 
     def test_process_does_not_mutate_input(self, synthetic_gaussian_field: xr.DataArray) -> None:
         """Input DataArray is not modified by process()."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=5e-6)
         original = synthetic_gaussian_field.values.copy()
@@ -823,7 +823,7 @@ class TestUpwardContinuationAlgorithm:
 
     def test_coords_preserved(self, synthetic_gaussian_field: xr.DataArray) -> None:
         """Coordinates are preserved in the output."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=5e-6)
         result = u.process(synthetic_gaussian_field)
@@ -832,7 +832,7 @@ class TestUpwardContinuationAlgorithm:
 
     def test_attrs_preserved(self, synthetic_gaussian_field: xr.DataArray) -> None:
         """pixel_spacing and units attrs are preserved."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=5e-6)
         result = u.process(synthetic_gaussian_field)
@@ -840,7 +840,7 @@ class TestUpwardContinuationAlgorithm:
 
     def test_dims_preserved(self, synthetic_gaussian_field: xr.DataArray) -> None:
         """Output dims are ('y', 'x')."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=5e-6)
         result = u.process(synthetic_gaussian_field)
@@ -852,7 +852,7 @@ class TestUpwardContinuationAlgorithm:
         Low frequencies (DC and near-DC) survive; high frequencies are exponentially
         attenuated. With dz=1e-3 (1 mm) and ps=1e-6 (1 µm), expect ~99% attenuation.
         """
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=1e-3)  # huge compared to pixel_spacing=1e-6
         result = u.process(synthetic_gaussian_field)
@@ -862,7 +862,7 @@ class TestUpwardContinuationAlgorithm:
 
     def test_small_image_with_padding(self) -> None:
         """A 5×5 image with default padding_factor works without error."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         h, w = 5, 5
         ps = 1e-6
@@ -877,7 +877,7 @@ class TestUpwardContinuationAlgorithm:
 
     def test_returns_xr_dataarray(self, synthetic_gaussian_field: xr.DataArray) -> None:
         """process() returns an xr.DataArray."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=5e-6)
         result = u.process(synthetic_gaussian_field)
@@ -895,7 +895,7 @@ class TestUpwardContinuationPropertyBased:
     @hyp_settings(max_examples=15)
     def test_output_shape_equals_input_shape(self, height: int, width: int, dz: float) -> None:
         """For any valid input, output shape equals input shape."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=dz, padding_factor=2.0, oversampling=1)
         field = _make_field_map(height=height, width=width)
@@ -909,7 +909,7 @@ class TestUpwardContinuationPropertyBased:
     @hyp_settings(max_examples=10)
     def test_additive_continuation_heights(self, dz1: float, dz2: float) -> None:
         """Applying dz1 then dz2 ≈ applying dz1+dz2 in a single step (for smooth fields)."""
-        from QDMpy.field_processing import UpwardContinuation
+        from qdmpy_core.field_processing import UpwardContinuation
 
         # Use a smooth Gaussian field
         h, w = 20, 20
@@ -946,19 +946,19 @@ class TestBlankSubtractorConfig:
     """BlankSubtractor is a frozen Pydantic model."""
 
     def test_import(self) -> None:
-        """BlankSubtractor can be imported from QDMpy.field_processing."""
-        from QDMpy.field_processing import BlankSubtractor  # noqa: F401
+        """BlankSubtractor can be imported from qdmpy_core.field_processing."""
+        from qdmpy_core.field_processing import BlankSubtractor  # noqa: F401
 
     def test_blank_required(self) -> None:
         """Construction without 'blank' raises."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         with pytest.raises((ValidationError, TypeError)):
             BlankSubtractor()  # type: ignore[call-arg]
 
     def test_blank_stored_as_nested_tuples(self) -> None:
         """blank is stored as nested tuples (Pydantic-serialisable)."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         blank_data = ((1.0, 2.0), (3.0, 4.0))
         b = BlankSubtractor(blank=blank_data)
@@ -967,7 +967,7 @@ class TestBlankSubtractorConfig:
 
     def test_frozen_prevents_mutation(self) -> None:
         """blank field is immutable after construction."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         blank_data = ((1.0, 2.0), (3.0, 4.0))
         b = BlankSubtractor(blank=blank_data)
@@ -976,7 +976,7 @@ class TestBlankSubtractorConfig:
 
     def test_is_base_field_processor_subclass(self) -> None:
         """BlankSubtractor subclasses BaseFieldProcessor."""
-        from QDMpy.field_processing import BaseFieldProcessor, BlankSubtractor
+        from qdmpy_core.field_processing import BaseFieldProcessor, BlankSubtractor
 
         assert issubclass(BlankSubtractor, BaseFieldProcessor)
 
@@ -986,7 +986,7 @@ class TestBlankSubtractorAlgorithm:
 
     def test_basic_subtraction(self, synthetic_blank: xr.DataArray) -> None:
         """output = input - blank element-wise."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=20, width=20)
         blank_tuple = tuple(tuple(float(v) for v in row) for row in synthetic_blank.values)
@@ -996,7 +996,7 @@ class TestBlankSubtractorAlgorithm:
 
     def test_zero_blank_leaves_field_unchanged(self) -> None:
         """A blank of all zeros leaves the field unchanged."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=10, width=10)
         blank_tuple = tuple(tuple(0.0 for _ in range(10)) for _ in range(10))
@@ -1006,7 +1006,7 @@ class TestBlankSubtractorAlgorithm:
 
     def test_blank_equal_to_field_gives_zeros(self) -> None:
         """When blank equals the field, output is all zeros."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=8, width=8, fill_value=3.0)
         blank_tuple = tuple(tuple(3.0 for _ in range(8)) for _ in range(8))
@@ -1016,7 +1016,7 @@ class TestBlankSubtractorAlgorithm:
 
     def test_output_shape_equals_input_shape(self) -> None:
         """Output shape equals input shape."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=12, width=12)
         blank_tuple = tuple(tuple(0.0 for _ in range(12)) for _ in range(12))
@@ -1026,8 +1026,8 @@ class TestBlankSubtractorAlgorithm:
 
     def test_shape_mismatch_raises_data_shape_error(self) -> None:
         """blank shape != field shape raises DataShapeError."""
-        from QDMpy.exceptions import DataShapeError
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.exceptions import DataShapeError
+        from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=10, width=10)
         # blank is 8×8, field is 10×10 — mismatch
@@ -1038,8 +1038,8 @@ class TestBlankSubtractorAlgorithm:
 
     def test_shape_mismatch_error_includes_both_shapes(self) -> None:
         """DataShapeError message mentions both the blank shape and field shape."""
-        from QDMpy.exceptions import DataShapeError
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.exceptions import DataShapeError
+        from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=10, width=10)
         blank_tuple = tuple(tuple(0.0 for _ in range(8)) for _ in range(8))
@@ -1049,7 +1049,7 @@ class TestBlankSubtractorAlgorithm:
 
     def test_process_does_not_mutate_input(self) -> None:
         """Input DataArray is not modified by process()."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=10, width=10)
         blank_tuple = tuple(tuple(0.0 for _ in range(10)) for _ in range(10))
@@ -1060,7 +1060,7 @@ class TestBlankSubtractorAlgorithm:
 
     def test_coords_preserved(self) -> None:
         """y and x coordinates are preserved after subtraction."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=10, width=10)
         blank_tuple = tuple(tuple(0.0 for _ in range(10)) for _ in range(10))
@@ -1071,7 +1071,7 @@ class TestBlankSubtractorAlgorithm:
 
     def test_attrs_preserved(self) -> None:
         """pixel_spacing and other attrs are preserved in the output."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=10, width=10)
         blank_tuple = tuple(tuple(0.0 for _ in range(10)) for _ in range(10))
@@ -1082,7 +1082,7 @@ class TestBlankSubtractorAlgorithm:
 
     def test_dims_preserved(self) -> None:
         """Output dims are ('y', 'x')."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=10, width=10)
         blank_tuple = tuple(tuple(0.0 for _ in range(10)) for _ in range(10))
@@ -1092,7 +1092,7 @@ class TestBlankSubtractorAlgorithm:
 
     def test_large_blank_produces_negative_output(self) -> None:
         """A blank much larger than the field produces a negative output."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=8, width=8, fill_value=1.0)
         blank_tuple = tuple(tuple(100.0 for _ in range(8)) for _ in range(8))
@@ -1102,7 +1102,7 @@ class TestBlankSubtractorAlgorithm:
 
     def test_blank_converted_to_ndarray_internally(self) -> None:
         """Internal computation converts nested tuples to NDArray (output is numeric)."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=5, width=5, fill_value=2.0)
         blank_tuple = tuple(tuple(1.0 for _ in range(5)) for _ in range(5))
@@ -1113,7 +1113,7 @@ class TestBlankSubtractorAlgorithm:
 
     def test_returns_xr_dataarray(self) -> None:
         """process() returns an xr.DataArray."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         field = _make_field_map(height=5, width=5)
         blank_tuple = tuple(tuple(0.0 for _ in range(5)) for _ in range(5))
@@ -1123,7 +1123,7 @@ class TestBlankSubtractorAlgorithm:
 
     def test_non_square_field_and_blank(self) -> None:
         """BlankSubtractor works for non-square (H != W) fields."""
-        from QDMpy.field_processing import BlankSubtractor
+        from qdmpy_core.field_processing import BlankSubtractor
 
         h, w = 8, 12
         ps = 1e-6

@@ -11,14 +11,14 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
-from QDMpy.exceptions import (
+from qdmpy_core.constants import DEFAULT_VMAX, DEFAULT_VMIN
+from qdmpy_core.exceptions import (
     DataShapeError,
     DataValidationError,
     ModelGuessNotPossibleError,
     ModelNotFoundError,
 )
-from QDMpy.fitting.guess import (
+from qdmpy_core.fitting.guess import (
     cumsum_center,
     cumsum_contrast,
     cumsum_width,
@@ -28,7 +28,7 @@ from QDMpy.fitting.guess import (
     normalize_pixel,
     validate_array,
 )
-from QDMpy.fitting.models import ESR14N, ESR15N, ESRSINGLE
+from qdmpy_core.fitting.models import ESR14N, ESR15N, ESRSINGLE
 
 
 @pytest.fixture

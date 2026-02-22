@@ -1,5 +1,5 @@
 [project]
-name = "QDMpy"
+name = "qdmpy-core"
 version = "0.0.1"
 description = "A python package for calculating magnetic maps from ODMR spectra measured on a quantum diamond microscope"
 requires-python = ">=3.13"
@@ -61,7 +61,7 @@ dev = [
 
 [tool.pytest.ini_options]
 addopts = """\
-    --cov QDMpy \
+    --cov qdmpy_core \
     --cov tests \
     --cov-report term-missing \
     --no-cov-on-fail \
@@ -84,7 +84,7 @@ show_error_codes = true
 ignore_missing_imports = true
 
 [project.scripts]
-qdmpy = "QDMpy.cli:main"
+qdmpy = "qdmpy_core.cli:main"
 
 [tool.uv]
 package = true

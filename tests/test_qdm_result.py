@@ -10,8 +10,8 @@ import pytest
 import xarray as xr
 from pydantic import ValidationError
 
-from QDMpy.fitting.result import FitResult
-from QDMpy.result import QDMResult
+from qdmpy_core.fitting.result import FitResult
+from qdmpy_core.result import QDMResult
 
 
 # ---------------------------------------------------------------------------

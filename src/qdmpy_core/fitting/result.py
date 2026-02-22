@@ -27,8 +27,8 @@ from loguru import logger
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
 
-from QDMpy.constants import D_ZFS, GAMMA_NV, POLARITY_LABELS
-from QDMpy.exceptions import DataLoadError, DataShapeError, DataValidationError, ParameterError
+from qdmpy_core.constants import D_ZFS, GAMMA_NV, POLARITY_LABELS
+from qdmpy_core.exceptions import DataLoadError, DataShapeError, DataValidationError, ParameterError
 
 
 class FitResult(BaseModel):
@@ -562,7 +562,7 @@ class FitResult(BaseModel):
             param: Parameter name to visualise ('center', 'chi2', 'contrast', …).
             **kwargs: Forwarded to plot_fit_result_parameter_map (e.g. save, filename).
         """
-        from QDMpy.plotting import plot_fit_result_parameter_map
+        from qdmpy_core.plotting import plot_fit_result_parameter_map
 
         plot_fit_result_parameter_map(self, param, **kwargs)
 
@@ -572,7 +572,7 @@ class FitResult(BaseModel):
         Args:
             **kwargs: Forwarded to plot_fit_result_overview (e.g. save, filename).
         """
-        from QDMpy.plotting import plot_fit_result_overview
+        from qdmpy_core.plotting import plot_fit_result_overview
 
         plot_fit_result_overview(self, **kwargs)
 

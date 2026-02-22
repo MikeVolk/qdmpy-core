@@ -45,11 +45,11 @@ def load(
         Measurement configured and ready for fit_odmr().
 
     Example:
-        >>> import QDMpy
+        >>> import qdmpy_core
         >>> result = QDMpy.load('/data/FOV18x').fit_odmr()
         >>> result.b111_remanent
     """
-    from QDMpy.measurement import Measurement as _Measurement
+    from qdmpy_core.measurement import Measurement as _Measurement
 
     return _Measurement.from_folder(
         path,
@@ -63,16 +63,16 @@ def load(
 
 
 # --- Entry points (User 1) ---
-from QDMpy.measurement import Measurement
-from QDMpy.result import QDMResult
+from qdmpy_core.measurement import Measurement
+from qdmpy_core.result import QDMResult
 
 # --- Data loading ---
-from QDMpy.odmr.io import MatlabLoader
-from QDMpy.odmr.data import ODMRData
-from QDMpy.odmr.manager import ODMR
+from qdmpy_core.odmr.io import MatlabLoader
+from qdmpy_core.odmr.data import ODMRData
+from qdmpy_core.odmr.manager import ODMR
 
 # --- Processing ---
-from QDMpy.odmr.processors import (
+from qdmpy_core.odmr.processors import (
     BinningProcessor,
     FluorescenceCorrectionProcessor,
     NormalizationProcessor,
@@ -81,13 +81,13 @@ from QDMpy.odmr.processors import (
 )
 
 # --- Fitting ---
-from QDMpy.fitting import FitManager, FitResult, Model, ModelRegistry
+from qdmpy_core.fitting import FitManager, FitResult, Model, ModelRegistry
 
 # --- Magnetic reconstruction ---
-from QDMpy.magnetic_map import FieldReconstructor, MagneticMap
+from qdmpy_core.magnetic_map import FieldReconstructor, MagneticMap
 
 # --- Settings ---
-from QDMpy.settings import (
+from qdmpy_core.settings import (
     NvSettings,
     get_settings,
     is_pygpufit_available,
@@ -95,7 +95,7 @@ from QDMpy.settings import (
 )
 
 # --- Field processing ---
-from QDMpy.field_processing import (
+from qdmpy_core.field_processing import (
     BaseFieldProcessor,
     BlankSubtractor,
     FieldProcessingPipeline,
@@ -105,7 +105,7 @@ from QDMpy.field_processing import (
 )
 
 # --- Testing / tutorial utilities ---
-from QDMpy.testing import (
+from qdmpy_core.testing import (
     make_synthetic_fit_result,
     make_synthetic_odmr_data,
     make_synthetic_qdm_result,

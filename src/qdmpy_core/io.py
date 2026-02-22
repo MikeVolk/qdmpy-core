@@ -13,7 +13,7 @@ import matplotlib.image as mpimg
 import numpy as np
 from loguru import logger
 
-from QDMpy.exceptions import DataLoadError
+from qdmpy_core.exceptions import DataLoadError
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray

@@ -24,14 +24,14 @@ import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 
-from QDMpy.exceptions import DataLoadError, DataNotLoadedError, DependencyError
-from QDMpy.io import get_image
-from QDMpy.odmr.manager import ODMR
+from qdmpy_core.exceptions import DataLoadError, DataNotLoadedError, DependencyError
+from qdmpy_core.io import get_image
+from qdmpy_core.odmr.manager import ODMR
 
 if TYPE_CHECKING:
     from os import PathLike
 
-    from QDMpy.odmr.data import ODMRData
+    from qdmpy_core.odmr.data import ODMRData
 
 
 class Measurement:
@@ -158,13 +158,13 @@ class Measurement:
             Measurement configured and ready for fit_odmr().
 
         Example:
-            >>> import QDMpy
+            >>> import qdmpy_core
             >>> result = QDMpy.load('/data/FOV18x').fit_odmr()
             >>> result.b111_remanent
         """
-        from QDMpy.odmr.data import ODMRData
-        from QDMpy.odmr.io import MatlabLoader
-        from QDMpy.odmr.processors import (
+        from qdmpy_core.odmr.data import ODMRData
+        from qdmpy_core.odmr.io import MatlabLoader
+        from qdmpy_core.odmr.processors import (
             BinningProcessor,
             FluorescenceCorrectionProcessor,
             NormalizationProcessor,
@@ -269,7 +269,7 @@ class Measurement:
             msg = "ODMR data must be processed before fitting. Call odmr.process_data() first."
             raise DataNotLoadedError(msg) from e
 
-        from QDMpy.settings import is_pygpufit_available
+        from qdmpy_core.settings import is_pygpufit_available
 
         if not is_pygpufit_available():
             msg = (
@@ -298,8 +298,8 @@ class Measurement:
             DataNotLoadedError: If ODMR data hasn't been processed yet.
             DependencyError: If required fitting dependencies are not available.
         """
-        from QDMpy.fitting.manager import FitManager
-        from QDMpy.result import QDMResult
+        from qdmpy_core.fitting.manager import FitManager
+        from qdmpy_core.result import QDMResult
 
         model_name = model_name or 'auto'
         logger.info(f"Starting ODMR fitting with model: {model_name}")

@@ -18,20 +18,20 @@ import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
 
-from QDMpy.odmr._validators import validate_frequencies
-from QDMpy.exceptions import (
+from qdmpy_core.odmr._validators import validate_frequencies
+from qdmpy_core.exceptions import (
     DataValidationError,
     DependencyError,
     ModelGuessNotPossibleError,
     ModelNotFoundError,
     ParameterError,
 )
-from QDMpy.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
-from QDMpy.fitting.guess import guess_model
-from QDMpy.fitting.guesser import ParameterGuesser
-from QDMpy.fitting.models import Model, ModelRegistry
-from QDMpy.fitting.result import FitResult
-from QDMpy.settings import (
+from qdmpy_core.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
+from qdmpy_core.fitting.guess import guess_model
+from qdmpy_core.fitting.guesser import ParameterGuesser
+from qdmpy_core.fitting.models import Model, ModelRegistry
+from qdmpy_core.fitting.result import FitResult
+from qdmpy_core.settings import (
     QDMpySettings,
     get_settings,
     is_pygpufit_available,

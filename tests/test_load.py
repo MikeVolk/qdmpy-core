@@ -9,10 +9,10 @@ import numpy as np
 import pytest
 import xarray as xr
 
-import QDMpy
-from QDMpy.measurement import Measurement
-from QDMpy.odmr.data import ODMRData
-from QDMpy.odmr.manager import ODMR
+import qdmpy_core
+from qdmpy_core.measurement import Measurement
+from qdmpy_core.odmr.data import ODMRData
+from qdmpy_core.odmr.manager import ODMR
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +185,7 @@ class TestFromFolderProcessors:
 class TestFromFolderImages:
     def _make(self, tmp_path: Path, folder_files=None, get_image_side_effect=None):
         """Run from_folder with controllable image loading."""
-        from QDMpy.exceptions import DataLoadError as DLE
+        from qdmpy_core.exceptions import DataLoadError as DLE
 
         xr_data = _make_xr_data()
         folder_files = folder_files or []
@@ -213,7 +213,7 @@ class TestFromFolderImages:
 
     def test_light_files_filtered_by_keyword(self, tmp_path: Path) -> None:
         """Only files with 'light' in name are passed to get_image for light."""
-        from QDMpy.exceptions import DataLoadError as DLE
+        from qdmpy_core.exceptions import DataLoadError as DLE
 
         xr_data = _make_xr_data()
         captured_calls: list = []
@@ -260,7 +260,7 @@ class TestFromFolderImages:
 
 class TestFromFolderConfig:
     def _make(self, tmp_path: Path, **kwargs) -> Measurement:
-        from QDMpy.exceptions import DataLoadError as DLE
+        from qdmpy_core.exceptions import DataLoadError as DLE
 
         xr_data = _make_xr_data()
         with (

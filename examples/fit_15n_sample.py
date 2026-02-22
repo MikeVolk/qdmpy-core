@@ -18,12 +18,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 
-from QDMpy.models import ModelRegistry
-from QDMpy.odmr.odmr import ODMR
+from qdmpy_core.models import ModelRegistry
+from qdmpy_core.odmr.odmr import ODMR
 
-from QDMpy.odmr.data import ODMRData
-from QDMpy.odmr.io import MatlabLoader
-from QDMpy.odmr.processors import BinningProcessor, NormalizationProcessor
+from qdmpy_core.odmr.data import ODMRData
+from qdmpy_core.odmr.io import MatlabLoader
+from qdmpy_core.odmr.processors import BinningProcessor, NormalizationProcessor
 
 
 def main() -> None:

@@ -17,11 +17,11 @@ Public API:
 
 from __future__ import annotations
 
-from QDMpy.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
-from QDMpy.fitting.guesser import ParameterGuesser
-from QDMpy.fitting.manager import FitManager
-from QDMpy.fitting.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
-from QDMpy.fitting.result import FitResult
+from qdmpy_core.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
+from qdmpy_core.fitting.guesser import ParameterGuesser
+from qdmpy_core.fitting.manager import FitManager
+from qdmpy_core.fitting.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
+from qdmpy_core.fitting.result import FitResult
 
 __all__ = [
     "CONSTRAINT_TYPES",

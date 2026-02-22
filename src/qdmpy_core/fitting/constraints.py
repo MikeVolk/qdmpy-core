@@ -11,9 +11,9 @@ from typing import Any, Self
 import numpy as np
 from numpy.typing import NDArray
 
-from QDMpy.exceptions import ParameterError
-from QDMpy.fitting.models import Model
-from QDMpy.settings import ModelConstraintsSettings
+from qdmpy_core.exceptions import ParameterError
+from qdmpy_core.fitting.models import Model
+from qdmpy_core.settings import ModelConstraintsSettings
 
 CONSTRAINT_TYPES = ["FREE", "LOWER", "UPPER", "LOWER_UPPER"]
 

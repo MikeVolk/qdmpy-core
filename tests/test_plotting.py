@@ -97,7 +97,7 @@ class TestFitResultPlotting(unittest.TestCase):
 
     def test_plot_fit_result_field_map(self) -> None:
         """Test plot_fit_result_field_map function."""
-        from QDMpy.plotting import plot_fit_result_field_map
+        from qdmpy_core.plotting import plot_fit_result_field_map
 
         # Should not raise any exceptions
         plot_fit_result_field_map(self.mock_result)
@@ -110,7 +110,7 @@ class TestFitResultPlotting(unittest.TestCase):
         import os
         import tempfile
 
-        from QDMpy.plotting import plot_fit_result_field_map
+        from qdmpy_core.plotting import plot_fit_result_field_map
 
         with tempfile.TemporaryDirectory() as tmpdir:
             filename = os.path.join(tmpdir, "test_field_map.png")
@@ -123,7 +123,7 @@ class TestFitResultPlotting(unittest.TestCase):
 
     def test_plot_fit_result_field_map_basic_call(self) -> None:
         """Test plot_fit_result_field_map basic invocation."""
-        from QDMpy.plotting import plot_fit_result_field_map
+        from qdmpy_core.plotting import plot_fit_result_field_map
 
         plot_fit_result_field_map(self.mock_result)
 
@@ -131,7 +131,7 @@ class TestFitResultPlotting(unittest.TestCase):
 
     def test_plot_fit_result_parameter_map(self) -> None:
         """Test plot_fit_result_parameter_map function."""
-        from QDMpy.plotting import plot_fit_result_parameter_map
+        from qdmpy_core.plotting import plot_fit_result_parameter_map
 
         # Test with different parameters
         plot_fit_result_parameter_map(self.mock_result, "center")
@@ -148,7 +148,7 @@ class TestFitResultPlotting(unittest.TestCase):
         import os
         import tempfile
 
-        from QDMpy.plotting import plot_fit_result_parameter_map
+        from qdmpy_core.plotting import plot_fit_result_parameter_map
 
         with tempfile.TemporaryDirectory() as tmpdir:
             filename = os.path.join(tmpdir, "test_param_map.png")
@@ -160,7 +160,7 @@ class TestFitResultPlotting(unittest.TestCase):
 
     def test_plot_fit_result_parameter_map_basic_call(self) -> None:
         """Test plot_fit_result_parameter_map basic invocation."""
-        from QDMpy.plotting import plot_fit_result_parameter_map
+        from qdmpy_core.plotting import plot_fit_result_parameter_map
 
         plot_fit_result_parameter_map(self.mock_result, "center")
 
@@ -168,7 +168,7 @@ class TestFitResultPlotting(unittest.TestCase):
 
     def test_plot_fit_result_overview(self) -> None:
         """Test plot_fit_result_overview function."""
-        from QDMpy.plotting import plot_fit_result_overview
+        from qdmpy_core.plotting import plot_fit_result_overview
 
         # Should not raise any exceptions
         plot_fit_result_overview(self.mock_result)
@@ -186,7 +186,7 @@ class TestFitResultPlotting(unittest.TestCase):
         import os
         import tempfile
 
-        from QDMpy.plotting import plot_fit_result_overview
+        from qdmpy_core.plotting import plot_fit_result_overview
 
         with tempfile.TemporaryDirectory() as tmpdir:
             filename = os.path.join(tmpdir, "test_overview.png")
@@ -198,7 +198,7 @@ class TestFitResultPlotting(unittest.TestCase):
 
     def test_plot_fit_result_overview_limited_parameters(self) -> None:
         """Test plot_fit_result_overview with limited available parameters."""
-        from QDMpy.plotting import plot_fit_result_overview
+        from qdmpy_core.plotting import plot_fit_result_overview
 
         # Modify mock to have fewer parameters
         self.mock_result.parameters = {
@@ -214,8 +214,8 @@ class TestFitResultPlotting(unittest.TestCase):
 
     def test_plotting_functions_with_real_fitresult(self) -> None:
         """Test plotting functions with a real FitResult object."""
-        from QDMpy.fitting.result import FitResult
-        from QDMpy.plotting import (
+        from qdmpy_core.fitting.result import FitResult
+        from qdmpy_core.plotting import (
             plot_fit_result_field_map,
             plot_fit_result_overview,
             plot_fit_result_parameter_map,
@@ -249,7 +249,7 @@ class TestFitResultPlotting(unittest.TestCase):
 
     def test_plotting_error_handling(self) -> None:
         """Test error handling in plotting functions."""
-        from QDMpy.plotting import plot_fit_result_parameter_map
+        from qdmpy_core.plotting import plot_fit_result_parameter_map
 
         # Test with invalid parameter name
         def mock_get_parameter_map_error(param_name):

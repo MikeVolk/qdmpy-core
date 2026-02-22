@@ -8,10 +8,10 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from QDMpy.exceptions import DataNotLoadedError
-from QDMpy.odmr.data import ODMRData
-from QDMpy.odmr.manager import ODMR
-from QDMpy.odmr.processors import NormalizationProcessor, ODMRProcessorManager
+from qdmpy_core.exceptions import DataNotLoadedError
+from qdmpy_core.odmr.data import ODMRData
+from qdmpy_core.odmr.manager import ODMR
+from qdmpy_core.odmr.processors import NormalizationProcessor, ODMRProcessorManager
 
 
 @pytest.fixture

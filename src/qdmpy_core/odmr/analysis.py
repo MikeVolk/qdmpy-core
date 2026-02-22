@@ -12,8 +12,8 @@ import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
 
-from QDMpy.constants import GAMMA_NV
-from QDMpy.exceptions import DataValidationError
+from qdmpy_core.constants import GAMMA_NV
+from qdmpy_core.exceptions import DataValidationError
 
 if TYPE_CHECKING:
     pass

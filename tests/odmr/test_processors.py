@@ -7,8 +7,8 @@ import pytest
 import xarray as xr
 from pydantic import ValidationError
 
-from QDMpy.odmr.data import ODMRData
-from QDMpy.odmr.processors import (
+from qdmpy_core.odmr.data import ODMRData
+from qdmpy_core.odmr.processors import (
     BaseProcessor,
     BinningProcessor,
     FluorescenceCorrectionProcessor,

@@ -15,10 +15,10 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from QDMpy.fitting.result import FitResult
-from QDMpy.odmr.data import ODMRData
-from QDMpy.odmr.manager import ODMR
-from QDMpy.result import QDMResult
+from qdmpy_core.fitting.result import FitResult
+from qdmpy_core.odmr.data import ODMRData
+from qdmpy_core.odmr.manager import ODMR
+from qdmpy_core.result import QDMResult
 
 
 # ---------------------------------------------------------------------------

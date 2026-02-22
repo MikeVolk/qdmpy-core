@@ -14,7 +14,7 @@ import xarray as xr
 from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field
 
-from QDMpy.exceptions import DataShapeError
+from qdmpy_core.exceptions import DataShapeError
 
 
 class BaseFieldProcessor(BaseModel):
