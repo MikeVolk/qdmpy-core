@@ -70,7 +70,7 @@ def rc2idx(rc: ArrayLike, shape: tuple[int, ...]) -> NDArray:
     return np.ravel_multi_index(rc, shape)  # type: ignore[call-overload]
 
 
-def polyfit2d(  # noqa: PLR0913
+def polyfit2d(
     x: NDArray,
     y: NDArray,
     z: NDArray,

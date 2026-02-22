@@ -20,7 +20,6 @@ from qdmpy_core.odmr.data import ODMRData
 from qdmpy_core.odmr.manager import ODMR
 from qdmpy_core.result import QDMResult
 
-
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
@@ -35,11 +34,11 @@ def odmr() -> ODMR:
     freq_ghz = np.linspace(2.82, 2.92, N_FREQ)
     da = xr.DataArray(
         arr,
-        dims=('polarity', 'freq_range', 'y', 'x', 'freq_idx'),
+        dims=("polarity", "freq_range", "y", "x", "freq_idx"),
         coords={
-            'polarity': ['neg', 'pos'],
-            'freq_range': ['low', 'high'],
-            'freq_ghz': (['freq_range', 'freq_idx'], np.stack([freq_ghz, freq_ghz + 0.1])),
+            "polarity": ["neg", "pos"],
+            "freq_range": ["low", "high"],
+            "freq_ghz": (["freq_range", "freq_idx"], np.stack([freq_ghz, freq_ghz + 0.1])),
         },
     )
     odmr_instance = ODMR(ODMRData(data=da))
@@ -53,12 +52,12 @@ def fit_result() -> FitResult:
     n_pixels = H * W
     return FitResult(
         parameters={
-            'center': rng.uniform(2.82, 2.92, n_pixels),
-            'chi2': rng.random(n_pixels),
+            "center": rng.uniform(2.82, 2.92, n_pixels),
+            "chi2": rng.random(n_pixels),
         },
         scan_dimensions=(H, W),
         pixel_spacing=4e-6,
-        model_name='ESRSINGLE',
+        model_name="ESRSINGLE",
     )
 
 
@@ -88,25 +87,25 @@ class TestODMRSpectrum:
 
     def test_default_polarity_is_neg(self, odmr: ODMR) -> None:
         freq, spec = odmr.spectrum(3, 5)
-        freq_neg, spec_neg = odmr.spectrum(3, 5, polarity='neg')
+        freq_neg, spec_neg = odmr.spectrum(3, 5, polarity="neg")
         np.testing.assert_array_equal(freq, freq_neg)
         np.testing.assert_array_equal(spec, spec_neg)
 
     def test_default_freq_range_is_low(self, odmr: ODMR) -> None:
         freq, spec = odmr.spectrum(3, 5)
-        freq_low, spec_low = odmr.spectrum(3, 5, freq_range='low')
+        freq_low, spec_low = odmr.spectrum(3, 5, freq_range="low")
         np.testing.assert_array_equal(freq, freq_low)
         np.testing.assert_array_equal(spec, spec_low)
 
     def test_high_freq_range_uses_different_frequencies(self, odmr: ODMR) -> None:
-        freq_low, _ = odmr.spectrum(0, 0, freq_range='low')
-        freq_high, _ = odmr.spectrum(0, 0, freq_range='high')
+        freq_low, _ = odmr.spectrum(0, 0, freq_range="low")
+        freq_high, _ = odmr.spectrum(0, 0, freq_range="high")
         # High range is offset by 0.1 GHz in our fixture
         assert not np.allclose(freq_low, freq_high)
 
     def test_pos_polarity_differs_from_neg(self, odmr: ODMR) -> None:
-        _, spec_neg = odmr.spectrum(0, 0, polarity='neg')
-        _, spec_pos = odmr.spectrum(0, 0, polarity='pos')
+        _, spec_neg = odmr.spectrum(0, 0, polarity="neg")
+        _, spec_pos = odmr.spectrum(0, 0, polarity="pos")
         # Random data — different polarity → different spectrum
         assert not np.allclose(spec_neg, spec_pos)
 
@@ -128,18 +127,23 @@ class TestODMRSpectrum:
 
 class TestODMRPlotSpectra:
     def test_calls_plt_show(self, odmr: ODMR) -> None:
-        with patch('matplotlib.pyplot.show') as mock_show:
+        with patch("matplotlib.pyplot.show") as mock_show:
             odmr.plot_spectra(0, 0)
             mock_show.assert_called_once()
 
     def test_creates_correct_subplot_grid(self, odmr: ODMR) -> None:
-        with patch('matplotlib.pyplot.show'):
-            with patch('matplotlib.pyplot.subplots', wraps=__import__('matplotlib.pyplot', fromlist=['subplots']).subplots) as mock_subplots:
-                odmr.plot_spectra(0, 0)
-                call_kwargs = mock_subplots.call_args
-                # 2 polarities × 2 freq_ranges
-                assert call_kwargs[0][0] == N_POL
-                assert call_kwargs[0][1] == N_FRANGE
+        with (
+            patch("matplotlib.pyplot.show"),
+            patch(
+                "matplotlib.pyplot.subplots",
+                wraps=__import__("matplotlib.pyplot", fromlist=["subplots"]).subplots,
+            ) as mock_subplots,
+        ):
+            odmr.plot_spectra(0, 0)
+            call_kwargs = mock_subplots.call_args
+            # 2 polarities × 2 freq_ranges
+            assert call_kwargs[0][0] == N_POL
+            assert call_kwargs[0][1] == N_FRANGE
 
 
 # ---------------------------------------------------------------------------
@@ -148,30 +152,28 @@ class TestODMRPlotSpectra:
 
 
 class TestFitResultPlot:
-    def test_plot_calls_plot_fit_result_parameter_map(
-        self, fit_result: FitResult
-    ) -> None:
-        with patch('QDMpy.plotting.plot_fit_result_parameter_map') as mock:
-            fit_result.plot('chi2')
-            mock.assert_called_once_with(fit_result, 'chi2')
+    def test_plot_calls_plot_fit_result_parameter_map(self, fit_result: FitResult) -> None:
+        with patch("QDMpy.plotting.plot_fit_result_parameter_map") as mock:
+            fit_result.plot("chi2")
+            mock.assert_called_once_with(fit_result, "chi2")
 
     def test_plot_default_param_is_center(self, fit_result: FitResult) -> None:
-        with patch('QDMpy.plotting.plot_fit_result_parameter_map') as mock:
+        with patch("QDMpy.plotting.plot_fit_result_parameter_map") as mock:
             fit_result.plot()
-            mock.assert_called_once_with(fit_result, 'center')
+            mock.assert_called_once_with(fit_result, "center")
 
     def test_plot_forwards_kwargs(self, fit_result: FitResult) -> None:
-        with patch('QDMpy.plotting.plot_fit_result_parameter_map') as mock:
-            fit_result.plot('chi2', save=True, filename='out.png')
-            mock.assert_called_once_with(fit_result, 'chi2', save=True, filename='out.png')
+        with patch("QDMpy.plotting.plot_fit_result_parameter_map") as mock:
+            fit_result.plot("chi2", save=True, filename="out.png")
+            mock.assert_called_once_with(fit_result, "chi2", save=True, filename="out.png")
 
     def test_show_calls_plot_fit_result_overview(self, fit_result: FitResult) -> None:
-        with patch('QDMpy.plotting.plot_fit_result_overview') as mock:
+        with patch("QDMpy.plotting.plot_fit_result_overview") as mock:
             fit_result.show()
             mock.assert_called_once_with(fit_result)
 
     def test_show_forwards_kwargs(self, fit_result: FitResult) -> None:
-        with patch('QDMpy.plotting.plot_fit_result_overview') as mock:
+        with patch("QDMpy.plotting.plot_fit_result_overview") as mock:
             fit_result.show(save=True)
             mock.assert_called_once_with(fit_result, save=True)
 
@@ -183,16 +185,16 @@ class TestFitResultPlot:
 
 class TestQDMResultPlotDelegation:
     def test_plot_delegates_to_fit_result(self, qdm_result: QDMResult) -> None:
-        with patch('QDMpy.plotting.plot_fit_result_parameter_map') as mock:
-            qdm_result.plot('chi2')
-            mock.assert_called_once_with(qdm_result.fit_result, 'chi2')
+        with patch("QDMpy.plotting.plot_fit_result_parameter_map") as mock:
+            qdm_result.plot("chi2")
+            mock.assert_called_once_with(qdm_result.fit_result, "chi2")
 
     def test_show_delegates_to_fit_result(self, qdm_result: QDMResult) -> None:
-        with patch('QDMpy.plotting.plot_fit_result_overview') as mock:
+        with patch("QDMpy.plotting.plot_fit_result_overview") as mock:
             qdm_result.show()
             mock.assert_called_once_with(qdm_result.fit_result)
 
     def test_plot_default_param(self, qdm_result: QDMResult) -> None:
-        with patch('QDMpy.plotting.plot_fit_result_parameter_map') as mock:
+        with patch("QDMpy.plotting.plot_fit_result_parameter_map") as mock:
             qdm_result.plot()
-            mock.assert_called_once_with(qdm_result.fit_result, 'center')
+            mock.assert_called_once_with(qdm_result.fit_result, "center")

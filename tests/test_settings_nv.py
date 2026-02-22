@@ -10,14 +10,15 @@ Import path under test:
 from __future__ import annotations
 
 import math
-import tempfile
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from hypothesis import given, settings as hyp_settings
+from hypothesis import given
+from hypothesis import settings as hyp_settings
 from hypothesis import strategies as st
 from pydantic import ValidationError
+
+from qdmpy_core.settings import QDMpySettings
 
 # ---------------------------------------------------------------------------
 # Expected constants (from QEP-034 proposal)
@@ -70,7 +71,7 @@ class TestNvSettingsDefaults:
         from qdmpy_core.settings import NvSettings
 
         nv = NvSettings()
-        magnitude = math.sqrt(sum(v ** 2 for v in nv.axis))
+        magnitude = math.sqrt(sum(v**2 for v in nv.axis))
         assert abs(magnitude - 1.0) < _ATOL
 
     def test_default_epsilon_is_1e_minus_30(self) -> None:
@@ -148,8 +149,8 @@ class TestNvSettingsImmutability:
         """Extra keyword arguments do not raise; they are silently dropped."""
         from qdmpy_core.settings import NvSettings
 
-        nv = NvSettings(unknown_field='should_be_ignored')
-        assert not hasattr(nv, 'unknown_field')
+        nv = NvSettings(unknown_field="should_be_ignored")
+        assert not hasattr(nv, "unknown_field")
 
 
 class TestNvSettingsTypeValidation:
@@ -174,7 +175,7 @@ class TestNvSettingsTypeValidation:
         from qdmpy_core.settings import NvSettings
 
         with pytest.raises(ValidationError):
-            NvSettings(axis=('a', 'b', 'c'))
+            NvSettings(axis=("a", "b", "c"))
 
     def test_epsilon_zero_is_accepted(self) -> None:
         """Epsilon of 0.0 is technically valid (no Pydantic constraint)."""
@@ -189,10 +190,8 @@ class TestNvSettingsQDMpySettingsIntegration:
 
     def test_qdmpy_settings_has_nv_field(self) -> None:
         """QDMpySettings exposes an 'nv' attribute."""
-        from qdmpy_core.settings import qdmpy_coreSettings
-
         settings = QDMpySettings()
-        assert hasattr(settings, 'nv')
+        assert hasattr(settings, "nv")
 
     def test_qdmpy_settings_nv_is_nv_settings_instance(self) -> None:
         """QDMpySettings().nv is an NvSettings instance."""
@@ -203,8 +202,6 @@ class TestNvSettingsQDMpySettingsIntegration:
 
     def test_qdmpy_settings_nv_defaults_are_correct(self) -> None:
         """QDMpySettings().nv uses the correct default axis and epsilon."""
-        from qdmpy_core.settings import qdmpy_coreSettings
-
         settings = QDMpySettings()
         assert abs(settings.nv.axis[1] - _EXPECTED_AXIS_Y) < _ATOL
         assert settings.nv.epsilon == _EXPECTED_EPSILON
@@ -238,26 +235,20 @@ class TestNvSettingsTomlSerialization:
 
         nv = NvSettings()
         data = nv.model_dump()
-        assert 'axis' in data
-        assert 'epsilon' in data
-        assert len(data['axis']) == 3
+        assert "axis" in data
+        assert "epsilon" in data
+        assert len(data["axis"]) == 3
 
     def test_qdmpy_settings_env_var_nv_axis_override(self) -> None:
         """QDMPY_NV__AXIS env var overrides the NV axis."""
-        import json
-
-        from qdmpy_core.settings import qdmpy_coreSettings
-
-        with patch.dict('os.environ', {'QDMPY_NV__AXIS': '[0.0, 0.0, 1.0]'}):
+        with patch.dict("os.environ", {"QDMPY_NV__AXIS": "[0.0, 0.0, 1.0]"}):
             settings = QDMpySettings()
             # Env var override: axis should reflect [0, 0, 1]
             assert abs(settings.nv.axis[2] - 1.0) < _ATOL
 
     def test_qdmpy_settings_env_var_nv_epsilon_override(self) -> None:
         """QDMPY_NV__EPSILON env var overrides epsilon."""
-        from qdmpy_core.settings import qdmpy_coreSettings
-
-        with patch.dict('os.environ', {'QDMPY_NV__EPSILON': '1e-20'}):
+        with patch.dict("os.environ", {"QDMPY_NV__EPSILON": "1e-20"}):
             settings = QDMpySettings()
             assert settings.nv.epsilon == pytest.approx(1e-20)
 

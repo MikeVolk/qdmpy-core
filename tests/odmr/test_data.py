@@ -342,7 +342,6 @@ class TestB111FromDipPositions:
             b111_from_dip_positions(bad)
 
 
-
 class TestODMRDataValidation:
     """Tests for ODMRData Pydantic validation."""
 

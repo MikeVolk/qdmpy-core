@@ -7,8 +7,6 @@ from unittest.mock import patch
 
 import pytest
 
-import pytest
-
 from qdmpy_core.settings import (
     DefaultPathsSettings,
     FitSettings,

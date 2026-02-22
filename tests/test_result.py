@@ -129,14 +129,19 @@ class TestFitResult:
         params["contrast_0"] = np.random.uniform(0.01, 0.1, 100)
         params["contrast_1"] = np.random.uniform(0.01, 0.1, 100)
         params["contrast_2"] = np.random.uniform(0.01, 0.1, 100)
-        result = FitResult(parameters=params, scan_dimensions=(10, 10), pixel_spacing=4e-6, model_name="ESR14N")
+        result = FitResult(
+            parameters=params, scan_dimensions=(10, 10), pixel_spacing=4e-6, model_name="ESR14N"
+        )
         np.testing.assert_array_equal(result.contrasts, params["contrast_0"])
 
     def test_contrasts_property_raises_when_missing(self, sample_parameters) -> None:
         """Test contrasts raises ParameterError when no contrast key exists."""
         from qdmpy_core.exceptions import ParameterError
+
         params = {k: v for k, v in sample_parameters.items() if not k.startswith("contrast")}
-        result = FitResult(parameters=params, scan_dimensions=(10, 10), pixel_spacing=4e-6, model_name="ESR14N")
+        result = FitResult(
+            parameters=params, scan_dimensions=(10, 10), pixel_spacing=4e-6, model_name="ESR14N"
+        )
         with pytest.raises(ParameterError):
             _ = result.contrasts
 
@@ -509,7 +514,6 @@ class TestComputeDeltaResonanceOrchestrator:
         assert list(delta.coords["polarity"].values) == ["neg", "pos"]
 
 
-
 class TestFitResultValidation:
     """Tests for FitResult Pydantic validation."""
 
@@ -621,9 +625,7 @@ class TestSafeSerializationFormat:
 
         assert set(loaded.parameters.keys()) == set(sample_fit_result.parameters.keys())
         for key in sample_fit_result.parameters:
-            np.testing.assert_array_equal(
-                loaded.parameters[key], sample_fit_result.parameters[key]
-            )
+            np.testing.assert_array_equal(loaded.parameters[key], sample_fit_result.parameters[key])
 
     def test_roundtrip_preserves_metadata(self, sample_fit_result, tmp_path: Path) -> None:
         """Metadata dict survives a save/load roundtrip."""
@@ -646,8 +648,9 @@ class TestSafeSerializationFormat:
     def test_rejects_no_param_keys(self, tmp_path: Path) -> None:
         """File with __meta__ but no param_* keys raises DataLoadError."""
         filepath = tmp_path / "no_params.npz"
-        meta_bytes = json.dumps({"model_name": "ESR15N", "scan_dimensions": [10, 10],
-                                  "pixel_spacing": 4e-6}).encode()
+        meta_bytes = json.dumps(
+            {"model_name": "ESR15N", "scan_dimensions": [10, 10], "pixel_spacing": 4e-6}
+        ).encode()
         np.savez_compressed(filepath, __meta__=np.void(meta_bytes))
         with pytest.raises(DataLoadError, match="no param_\\* keys"):
             FitResult.load_results(filepath)

@@ -54,21 +54,21 @@ import numpy as np
 
 class SmoothingProcessor(BaseProcessor):
     """Processor that applies Gaussian smoothing to ODMR spectra."""
-    
+
     def __init__(self, sigma=1.0):
         """Initialize with smoothing parameter."""
         self.sigma = sigma
-        
+
     def process(self, data):
         """Apply smoothing to each spectrum."""
         from scipy.ndimage import gaussian_filter1d
-        
+
         # Get data dimensions
         n_pol, n_frange, n_freq, n_pixel = data.shape
-        
+
         # Create output array
         result = np.zeros_like(data)
-        
+
         # Apply smoothing to each spectrum
         for pol in range(n_pol):
             for frange in range(n_frange):
@@ -77,7 +77,7 @@ class SmoothingProcessor(BaseProcessor):
                     result[pol, frange, :, pixel] = gaussian_filter1d(
                         spectrum, sigma=self.sigma
                     )
-        
+
         return result
 ```
 

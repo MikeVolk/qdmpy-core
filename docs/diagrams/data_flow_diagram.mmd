@@ -5,90 +5,90 @@ flowchart TD
     %% Raw Data Sources
     A[MATLAB Files<br/>run_00000.mat<br/>run_00001.mat] --> B[MatlabLoader]
     A1[Other Data Sources<br/>Custom Loaders] --> B1[BaseLoader Implementations]
-    
+
     %% Data Loading
     B --> C[Raw Arrays<br/>raw_data: 4D NDArray<br/>scan_dimensions: 2D<br/>frequencies: 1D]
     B1 --> C
-    
+
     %% ODMRData Creation
     C --> D[ODMRData Object<br/>Shape: polarities × freq_ranges × pixels × frequencies<br/>Example: 2 × 2 × 36000 × 51]
-    
+
     %% ODMR Management
     D --> E[ODMR Instance<br/>_raw_data: ODMRData<br/>_processed_data: None<br/>processor_manager: ODMRProcessorManager]
-    
+
     %% Processing Pipeline Setup
     E --> F[Processing Pipeline]
     F --> F1[BinningProcessor<br/>bin_factor: 2<br/>Reduces spatial resolution<br/>36000 → 9000 pixels]
     F --> F2[NormalizationProcessor<br/>method: 'max'<br/>Normalizes spectra to max value]
     F --> F3[OutlierProcessor<br/>threshold: float<br/>Masks statistical outliers]
     F --> F4[FluorescenceCorrectionProcessor<br/>correction_factor: float<br/>Corrects background fluorescence]
-    
+
     %% Data Processing
     F1 --> G[Processed ODMRData<br/>Shape: 2 × 2 × 9000 × 51<br/>Spatial binning applied]
     F2 --> H[Normalized Data<br/>All spectra scaled 0-1<br/>Consistent contrast]
     F3 --> I[Outlier-filtered Data<br/>Anomalous points → NaN<br/>Improved data quality]
     F4 --> J[Fluorescence-corrected Data<br/>Background compensation<br/>Enhanced contrast]
-    
+
     %% Sequential Processing
     G --> H
     H --> I
     I --> J
-    
+
     %% Model Selection
     K[ModelRegistry] --> L[ESR14N Model<br/>3 dips: mI = -1, 0, +1<br/>6 parameters]
     K --> M[ESR15N Model<br/>2 dips: mI = ±1/2<br/>5 parameters]
     K --> N[ESRSINGLE Model<br/>1 dip<br/>4 parameters]
-    
+
     %% Fitting Setup
     J --> O[FitManager<br/>data: processed ODMRData<br/>frequencies: GHz<br/>model: selected model]
     L --> O
     M --> O
     N --> O
-    
+
     %% Parameter Estimation
     O --> P[Initial Parameter Guess<br/>guess_center: peak detection<br/>guess_width: spectral analysis<br/>guess_contrast: amplitude estimation]
-    
+
     %% Constraint Management
     Q[Settings Config<br/>model.constraints<br/>center_min/max<br/>width_min/max<br/>contrast_min/max] --> R[ConstraintManager<br/>Parameter bounds<br/>Constraint types<br/>LOWER_UPPER, FREE, etc.]
     R --> O
-    
+
     %% GPU Fitting
     P --> S[PyGpufit Interface<br/>fit_constrained function<br/>GPU-accelerated<br/>Levenberg-Marquardt]
     O --> S
-    
+
     %% Fit Results
     S --> T[Raw Fit Results<br/>fitted_parameters: NDArray<br/>chi_squares: NDArray<br/>states: convergence status<br/>execution_time: float]
-    
+
     %% High-Level Integration
     W[Measurement Class<br/>odmr: ODMR instance<br/>light_image: NDArray<br/>laser_image: NDArray<br/>pixel_spacing: float] --> X[fit_odmr method<br/>Auto model detection<br/>Parameter extraction<br/>Metadata management]
-    
+
     J --> W
     T --> X
     O --> X
-    
+
     %% FitResult Creation
     X --> Y[FitResult Object<br/>parameters: dict of NDArrays<br/>scan_dimensions: tuple<br/>pixel_spacing: float<br/>model_name: str<br/>metadata: dict]
-    
+
     %% FitResult Analysis Methods
     Y --> Z[Analysis Interface<br/>centers: resonance frequencies<br/>linewidths: spectral widths<br/>contrasts: signal amplitudes<br/>calculate_b_field: magnetic field map<br/>get_fit_quality_metrics: statistics]
-    
+
     %% Visualization via Plotting Functions
     Z --> AA[Plotting Functions<br/>plot_fit_result_field_map<br/>plot_fit_result_parameter_map<br/>plot_fit_result_overview]
-    
+
     %% Result Persistence
     Y --> BB[Save/Load Interface<br/>save_results: NPZ format<br/>load_results: data reconstruction<br/>Lightweight serialization]
-    
+
     %% Final Outputs
     AA --> V[Analysis Outputs<br/>Magnetic field maps<br/>Parameter maps<br/>Quality metrics<br/>Visualization plots]
     BB --> V
-    
+
     %% Styling
     classDef dataClass fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     classDef processClass fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
     classDef modelClass fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
     classDef resultClass fill:#fff3e0,stroke:#e65100,stroke-width:2px
     classDef integrationClass fill:#fce4ec,stroke:#880e4f,stroke-width:2px
-    
+
     class A,A1,C,D,G,H,I,J dataClass
     class B,B1,E,F,F1,F2,F3,F4,O,P,R,S processClass
     class K,L,M,N,Q modelClass

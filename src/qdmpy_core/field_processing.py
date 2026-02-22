@@ -53,9 +53,9 @@ class BaseFieldProcessor(BaseModel):
         Raises:
             ValueError: If pixel_spacing not in attrs.
         """
-        if 'pixel_spacing' not in field_map.attrs:
+        if "pixel_spacing" not in field_map.attrs:
             raise ValueError("field_map.attrs must contain 'pixel_spacing' (metres)")
-        return float(field_map.attrs['pixel_spacing'])
+        return float(field_map.attrs["pixel_spacing"])
 
 
 class FieldProcessingPipeline:
@@ -95,7 +95,7 @@ class FieldProcessingPipeline:
         for proc in self._processors:
             result = proc.process(result)
             logger.debug(
-                'Field processor applied',
+                "Field processor applied",
                 processor=proc.__class__.__name__,
                 shape=result.shape,
             )
@@ -109,13 +109,13 @@ class HotPixelFilter(BaseFieldProcessor):
     Replacement can be mean of neighbors, NaN, or zero.
     """
 
-    threshold_sigma: float = Field(default=5.0, description='Sigma threshold for outlier detection')
-    window_size: int = Field(default=3, description='Half-width of replacement window')
-    replacement: Literal['mean', 'nan', 'zero'] = Field(
-        default='mean', description='Replacement strategy'
+    threshold_sigma: float = Field(default=5.0, description="Sigma threshold for outlier detection")
+    window_size: int = Field(default=3, description="Half-width of replacement window")
+    replacement: Literal["mean", "nan", "zero"] = Field(
+        default="mean", description="Replacement strategy"
     )
     absolute_threshold: float | None = Field(
-        default=None, description='Absolute threshold: filter |field| > this first'
+        default=None, description="Absolute threshold: filter |field| > this first"
     )
 
     model_config = ConfigDict(frozen=True)
@@ -158,11 +158,11 @@ class HotPixelFilter(BaseFieldProcessor):
                     # Exclude center pixel
                     window[r - r_min, c - c_min] = np.nan
 
-                    if self.replacement == 'mean':
+                    if self.replacement == "mean":
                         data[r, c] = np.nanmean(window)
-                    elif self.replacement == 'nan':
+                    elif self.replacement == "nan":
                         data[r, c] = np.nan
-                    elif self.replacement == 'zero':
+                    elif self.replacement == "zero":
                         data[r, c] = 0.0
 
         return xr.DataArray(
@@ -177,10 +177,10 @@ class QuadraticBackgroundSubtractor(BaseFieldProcessor):
     to exclude pixels. Subtracts the fitted surface from all pixels.
     """
 
-    degree: int = Field(default=2, description='Polynomial degree (0=const, 1=plane, 2=quadratic)')
+    degree: int = Field(default=2, description="Polynomial degree (0=const, 1=plane, 2=quadratic)")
     mask: tuple[tuple[int, ...], ...] | None = Field(
         default=None,
-        description='Tuple of (row_indices, col_indices) to EXCLUDE from fit',
+        description="Tuple of (row_indices, col_indices) to EXCLUDE from fit",
     )
 
     model_config = ConfigDict(frozen=True)
@@ -211,22 +211,26 @@ class QuadraticBackgroundSubtractor(BaseFieldProcessor):
         if self.degree == 0:
             features = np.ones((h * w, 1))
         elif self.degree == 1:
-            features = np.column_stack([
-                np.ones(h * w),
-                x_norm.ravel(),
-                y_norm.ravel(),
-            ])
+            features = np.column_stack(
+                [
+                    np.ones(h * w),
+                    x_norm.ravel(),
+                    y_norm.ravel(),
+                ]
+            )
         elif self.degree == 2:
-            features = np.column_stack([
-                np.ones(h * w),
-                x_norm.ravel(),
-                y_norm.ravel(),
-                x_norm.ravel() ** 2,
-                (x_norm * y_norm).ravel(),
-                y_norm.ravel() ** 2,
-            ])
+            features = np.column_stack(
+                [
+                    np.ones(h * w),
+                    x_norm.ravel(),
+                    y_norm.ravel(),
+                    x_norm.ravel() ** 2,
+                    (x_norm * y_norm).ravel(),
+                    y_norm.ravel() ** 2,
+                ]
+            )
         else:
-            raise ValueError(f'degree must be 0, 1, or 2; got {self.degree}')
+            raise ValueError(f"degree must be 0, 1, or 2; got {self.degree}")
 
         # Determine which pixels to use for fit
         if self.mask is None:
@@ -234,14 +238,12 @@ class QuadraticBackgroundSubtractor(BaseFieldProcessor):
         else:
             active = np.ones(h * w, dtype=bool)
             mask_rows, mask_cols = self.mask
-            for r, c in zip(mask_rows, mask_cols):
+            for r, c in zip(mask_rows, mask_cols, strict=True):
                 if 0 <= r < h and 0 <= c < w:
                     active[r * w + c] = False
 
         # Fit: lstsq on active pixels only
-        coeffs = np.linalg.lstsq(
-            features[active], data.ravel()[active], rcond=None
-        )[0]
+        coeffs = np.linalg.lstsq(features[active], data.ravel()[active], rcond=None)[0]
 
         # Evaluate surface at all pixels
         surface = features @ coeffs
@@ -262,9 +264,9 @@ class UpwardContinuation(BaseFieldProcessor):
     simulating field at a different height above the source.
     """
 
-    dz: float = Field(description='Continuation height in metres (>0=up, <0=down)')
-    padding_factor: float = Field(default=3.0, description='Padding multiplier')
-    oversampling: int = Field(default=2, description='FFT oversampling factor')
+    dz: float = Field(description="Continuation height in metres (>0=up, <0=down)")
+    padding_factor: float = Field(default=3.0, description="Padding multiplier")
+    oversampling: int = Field(default=2, description="FFT oversampling factor")
 
     model_config = ConfigDict(frozen=True)
 
@@ -286,7 +288,7 @@ class UpwardContinuation(BaseFieldProcessor):
 
         if self.dz < 0:
             logger.warning(
-                'Downward continuation (dz < 0) amplifies high frequencies and noise',
+                "Downward continuation (dz < 0) amplifies high frequencies and noise",
                 dz=self.dz,
             )
 
@@ -317,7 +319,7 @@ class UpwardContinuation(BaseFieldProcessor):
         out = np.real(np.fft.ifft2(F_cont))
 
         # Crop back: first to padded size, then to original
-        out_padded = out[: pad_h, : pad_w]
+        out_padded = out[:pad_h, :pad_w]
         result = out_padded[offset_h : offset_h + h, offset_w : offset_w + w]
 
         return xr.DataArray(
@@ -332,7 +334,7 @@ class BlankSubtractor(BaseFieldProcessor):
     """
 
     blank: tuple[tuple[float, ...], ...] = Field(
-        description='Blank map as nested tuple (must match field shape)'
+        description="Blank map as nested tuple (must match field shape)"
     )
 
     model_config = ConfigDict(frozen=True)
@@ -354,7 +356,7 @@ class BlankSubtractor(BaseFieldProcessor):
 
         if blank_array.shape != field_map.shape:
             raise DataShapeError(
-                f'Blank shape {blank_array.shape} != field shape {field_map.shape}'
+                f"Blank shape {blank_array.shape} != field shape {field_map.shape}"
             )
 
         result = field_map.values - blank_array

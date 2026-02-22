@@ -1,4 +1,3 @@
-# noqa: N999
 """Framework for handling and processing ODMR data.
 
 The `QDMpy.odmr` module provides a comprehensive framework for handling, processing,

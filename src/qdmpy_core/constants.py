@@ -31,5 +31,5 @@ PROMINENCE = 0.0004
 FLUORESCENCE_DELTA_THRESHOLD = 0.001
 
 # Coordinate system labels for ODMR data
-POLARITY_LABELS = ['neg', 'pos']
-FRANGE_LABELS = ['low', 'high']
+POLARITY_LABELS = ["neg", "pos"]
+FRANGE_LABELS = ["low", "high"]

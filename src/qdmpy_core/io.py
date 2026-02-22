@@ -7,7 +7,8 @@ used across the package.
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 import matplotlib.image as mpimg
 import numpy as np
@@ -28,7 +29,7 @@ def has_csv(lst: Sequence[str | bytes | os.PathLike[Any]]) -> bool:
     Returns:
         True if at least one file has a .csv extension, False otherwise.
     """
-    return any('.csv' in str(s).lower() for s in lst)
+    return any(".csv" in str(s).lower() for s in lst)
 
 
 def get_image_file(lst: Sequence[str | bytes | os.PathLike[Any]]) -> str:
@@ -46,16 +47,16 @@ def get_image_file(lst: Sequence[str | bytes | os.PathLike[Any]]) -> str:
         DataLoadError: If no suitable image files are found.
     """
     if has_csv(lst):
-        filtered_lst = [s for s in lst if '.csv' in str(s).lower()]
+        filtered_lst = [s for s in lst if ".csv" in str(s).lower()]
     else:
-        filtered_lst = [s for s in lst if '.jpg' in str(s).lower()]
+        filtered_lst = [s for s in lst if ".jpg" in str(s).lower()]
 
     if not filtered_lst:
-        msg = 'No suitable image files found in the list'
+        msg = "No suitable image files found in the list"
         raise DataLoadError(msg)
 
     selected = str(filtered_lst[0])
-    logger.debug(f'Selected image file: {selected}')
+    logger.debug(f"Selected image file: {selected}")
     return selected
 
 
@@ -82,20 +83,20 @@ def get_image(
     try:
         image_file = get_image_file(lst)
         file_path = os.path.join(folder_str, image_file)
-        logger.debug(f'Loading image from: {file_path}')
+        logger.debug(f"Loading image from: {file_path}")
 
-        if image_file.lower().endswith('.csv'):
+        if image_file.lower().endswith(".csv"):
             try:
-                img = np.loadtxt(file_path, delimiter=',')
+                img = np.loadtxt(file_path, delimiter=",")
             except ValueError:
-                logger.debug('CSV comma delimiter failed, falling back to whitespace')
+                logger.debug("CSV comma delimiter failed, falling back to whitespace")
                 img = np.loadtxt(file_path)
         else:
             img = mpimg.imread(file_path)
     except Exception as e:
-        msg = f'Failed to load image: {e!s}'
+        msg = f"Failed to load image: {e!s}"
         raise DataLoadError(msg) from e
     else:
         result = np.array(img)
-        logger.info(f'Loaded image {file_path} with shape {result.shape}')
+        logger.info(f"Loaded image {file_path} with shape {result.shape}")
         return result

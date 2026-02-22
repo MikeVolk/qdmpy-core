@@ -18,7 +18,6 @@ import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
 
-from qdmpy_core.odmr._validators import validate_frequencies
 from qdmpy_core.exceptions import (
     DataValidationError,
     DependencyError,
@@ -31,6 +30,7 @@ from qdmpy_core.fitting.guess import guess_model
 from qdmpy_core.fitting.guesser import ParameterGuesser
 from qdmpy_core.fitting.models import Model, ModelRegistry
 from qdmpy_core.fitting.result import FitResult
+from qdmpy_core.odmr._validators import validate_frequencies
 from qdmpy_core.settings import (
     QDMpySettings,
     get_settings,

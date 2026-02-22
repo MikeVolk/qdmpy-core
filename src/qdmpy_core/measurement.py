@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from os import PathLike
 
     from qdmpy_core.odmr.data import ODMRData
+    from qdmpy_core.result import QDMResult
 
 
 class Measurement:
@@ -56,7 +57,7 @@ class Measurement:
         metadata (Dict[str, Any]): Additional metadata for the measurement.
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self: Self,
         odmr: ODMR,
         light_image: NDArray,
@@ -126,12 +127,12 @@ class Measurement:
         self._fit_model = fit_model
 
     @classmethod
-    def from_folder(  # noqa: PLR0913
+    def from_folder(
         cls: type[Measurement],
         path: str | PathLike,
         *,
         bin_factor: int = 1,
-        model: str = 'auto',
+        model: str = "auto",
         pixel_spacing: float = 4e-6,
         normalize: bool = True,
         fluorescence_correction: float | None = 0.2,
@@ -171,7 +172,7 @@ class Measurement:
         )
 
         path = Path(path)
-        logger.info(f'Loading measurement from {path}')
+        logger.info(f"Loading measurement from {path}")
 
         odmr = ODMR(ODMRData.from_loader(MatlabLoader(str(path))))
 
@@ -188,8 +189,8 @@ class Measurement:
         scan_dimensions = odmr.processed_data.scan_dimensions
         folder_files = os.listdir(path)
 
-        light_image = cls._load_image_or_zeros(path, folder_files, 'light', scan_dimensions)
-        laser_image = cls._load_image_or_zeros(path, folder_files, 'laser', scan_dimensions)
+        light_image = cls._load_image_or_zeros(path, folder_files, "light", scan_dimensions)
+        laser_image = cls._load_image_or_zeros(path, folder_files, "laser", scan_dimensions)
 
         return cls(
             odmr=odmr,
@@ -197,7 +198,7 @@ class Measurement:
             laser_image=laser_image,
             pixel_spacing=pixel_spacing,
             fit_model=model,
-            output_directory=output_directory or path / 'results',
+            output_directory=output_directory or path / "results",
         )
 
     @staticmethod
@@ -223,7 +224,7 @@ class Measurement:
             return get_image(folder, matching)
         except DataLoadError:
             logger.warning(
-                f'No {kind} image found in {folder}; using zeros array of shape {scan_dimensions}'
+                f"No {kind} image found in {folder}; using zeros array of shape {scan_dimensions}"
             )
             return np.zeros(scan_dimensions)
 
@@ -284,7 +285,7 @@ class Measurement:
         model_name: str | None = None,
         *,
         constraints: dict[str, Any] | None = None,
-    ) -> 'QDMResult':
+    ) -> QDMResult:
         """Fit ODMR spectra and return unified result container.
 
         Args:
@@ -301,7 +302,7 @@ class Measurement:
         from qdmpy_core.fitting.manager import FitManager
         from qdmpy_core.result import QDMResult
 
-        model_name = model_name or 'auto'
+        model_name = model_name or "auto"
         logger.info(f"Starting ODMR fitting with model: {model_name}")
         processed_data = self._validate_fit_prerequisites()
 

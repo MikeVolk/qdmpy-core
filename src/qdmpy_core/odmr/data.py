@@ -18,9 +18,9 @@ from loguru import logger
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from qdmpy_core.constants import FRANGE_LABELS, GAMMA_NV, POLARITY_LABELS
-from qdmpy_core.odmr._validators import validate_frequencies
+from qdmpy_core.constants import FRANGE_LABELS, POLARITY_LABELS
 from qdmpy_core.exceptions import DataValidationError
+from qdmpy_core.odmr._validators import validate_frequencies
 
 if TYPE_CHECKING:
     from qdmpy_core.odmr.io import BaseLoader
@@ -165,5 +165,3 @@ class ODMRData(BaseModel):
     def shape(self: Self) -> tuple[int, ...]:
         """Shape of the underlying DataArray."""
         return self.data.shape
-
-

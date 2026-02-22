@@ -33,11 +33,11 @@ def validate_frequencies(frequencies: NDArray) -> None:
     frequencies = np.asarray(frequencies)
 
     if frequencies.size == 0:
-        msg = 'Frequency array must not be empty'
+        msg = "Frequency array must not be empty"
         raise DataValidationError(msg)
 
     if not np.all(np.isfinite(frequencies)):
-        msg = 'Frequency array contains non-finite values'
+        msg = "Frequency array contains non-finite values"
         raise DataValidationError(msg)
 
     if frequencies.ndim <= 1:
@@ -47,13 +47,13 @@ def validate_frequencies(frequencies: NDArray) -> None:
 
     for row in rows:
         if row.size > 1 and not np.all(np.diff(row) > 0):
-            msg = 'Frequency array must be monotonically increasing'
+            msg = "Frequency array must be monotonically increasing"
             raise DataValidationError(msg)
 
     flat = frequencies.ravel()
     if flat.min() < NV_FREQ_MIN_GHZ or flat.max() > NV_FREQ_MAX_GHZ:
         logger.warning(
-            f'Frequencies [{flat.min():.3f}, {flat.max():.3f}] GHz '
-            f'are outside expected NV diamond range '
-            f'[{NV_FREQ_MIN_GHZ}, {NV_FREQ_MAX_GHZ}] GHz'
+            f"Frequencies [{flat.min():.3f}, {flat.max():.3f}] GHz "
+            f"are outside expected NV diamond range "
+            f"[{NV_FREQ_MIN_GHZ}, {NV_FREQ_MAX_GHZ}] GHz"
         )

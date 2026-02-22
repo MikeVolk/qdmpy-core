@@ -39,15 +39,15 @@ class TestBaseProcessor:
 
     def test_to_config_round_trip(self) -> None:
         """Test that to_config produces a JSON-compatible dict."""
-        processor = NormalizationProcessor(method='max')
+        processor = NormalizationProcessor(method="max")
         config = processor.to_config()
-        assert config == {'type': 'NormalizationProcessor', 'method': 'max'}
+        assert config == {"type": "NormalizationProcessor", "method": "max"}
 
     def test_frozen_prevents_mutation(self) -> None:
         """Test that processor fields cannot be mutated after construction."""
         processor = NormalizationProcessor()
         with pytest.raises(ValidationError):
-            processor.method = 'min'  # type: ignore[misc]
+            processor.method = "min"  # type: ignore[misc]
 
 
 class TestNormalizationProcessor:
@@ -56,41 +56,41 @@ class TestNormalizationProcessor:
     def test_init_default(self) -> None:
         """Test initialization with default parameters."""
         processor = NormalizationProcessor()
-        assert processor.method == 'max'
+        assert processor.method == "max"
 
     def test_init_custom(self) -> None:
         """Test initialization with custom parameters."""
-        processor = NormalizationProcessor(method='custom')
-        assert processor.method == 'custom'
+        processor = NormalizationProcessor(method="custom")
+        assert processor.method == "custom"
 
     def test_type_field(self) -> None:
         """Test that type discriminator field is correct."""
         processor = NormalizationProcessor()
-        assert processor.type == 'NormalizationProcessor'
+        assert processor.type == "NormalizationProcessor"
 
     def test_process_max_method(self, sample_odmr_data) -> None:
         """Test process method with 'max' normalization."""
-        processor = NormalizationProcessor(method='max')
+        processor = NormalizationProcessor(method="max")
         result = processor.process(sample_odmr_data)
 
         assert result is not sample_odmr_data
         assert isinstance(result, ODMRData)
         assert isinstance(result.data, xr.DataArray)
 
-        max_values = result.data.max(dim='freq_idx')
+        max_values = result.data.max(dim="freq_idx")
         np.testing.assert_allclose(max_values.values, 1.0)
 
     def test_process_unsupported_method(self, sample_odmr_data) -> None:
         """Test process method with unsupported normalization method."""
-        processor = NormalizationProcessor(method='unsupported')
+        processor = NormalizationProcessor(method="unsupported")
         with pytest.raises(NotImplementedError):
             processor.process(sample_odmr_data)
 
     def test_to_config(self) -> None:
         """Test serialization to config dict."""
-        processor = NormalizationProcessor(method='max')
+        processor = NormalizationProcessor(method="max")
         config = processor.to_config()
-        assert config == {'type': 'NormalizationProcessor', 'method': 'max'}
+        assert config == {"type": "NormalizationProcessor", "method": "max"}
 
 
 class TestBinningProcessor:
@@ -112,7 +112,7 @@ class TestBinningProcessor:
     def test_type_field(self) -> None:
         """Test that type discriminator field is correct."""
         processor = BinningProcessor(bin_factor=4)
-        assert processor.type == 'BinningProcessor'
+        assert processor.type == "BinningProcessor"
 
     def test_process(self, sample_odmr_data) -> None:
         """Test process method reduces spatial dimensions."""
@@ -130,7 +130,7 @@ class TestBinningProcessor:
         """Test serialization to config dict."""
         processor = BinningProcessor(bin_factor=4)
         config = processor.to_config()
-        assert config == {'type': 'BinningProcessor', 'bin_factor': 4}
+        assert config == {"type": "BinningProcessor", "bin_factor": 4}
 
 
 class TestOutlierProcessor:
@@ -157,7 +157,7 @@ class TestOutlierProcessor:
     def test_type_field(self) -> None:
         """Test that type discriminator field is correct."""
         processor = OutlierProcessor()
-        assert processor.type == 'OutlierProcessor'
+        assert processor.type == "OutlierProcessor"
 
     def test_process(self, sample_odmr_data) -> None:
         """Test process method masks outlier values as NaN."""
@@ -175,7 +175,7 @@ class TestOutlierProcessor:
         """Test serialization to config dict."""
         processor = OutlierProcessor(z_score_threshold=0.01)
         config = processor.to_config()
-        assert config == {'type': 'OutlierProcessor', 'z_score_threshold': 0.01}
+        assert config == {"type": "OutlierProcessor", "z_score_threshold": 0.01}
 
 
 class TestFluorescenceCorrectionProcessor:
@@ -199,16 +199,16 @@ class TestFluorescenceCorrectionProcessor:
     def test_type_field(self) -> None:
         """Test that type discriminator field is correct."""
         processor = FluorescenceCorrectionProcessor()
-        assert processor.type == 'FluorescenceCorrectionProcessor'
+        assert processor.type == "FluorescenceCorrectionProcessor"
 
     def test_process(self, sample_odmr_data, monkeypatch) -> None:
         """Test process method applies fluorescence correction."""
         mock_baseline = xr.DataArray(
             np.ones((2, 2, 50)) * 0.1,
-            dims=('polarity', 'freq_range', 'freq_idx'),
+            dims=("polarity", "freq_range", "freq_idx"),
         )
         monkeypatch.setattr(
-            'QDMpy.odmr.processors.analyze_fluorescence_effects',
+            "QDMpy.odmr.processors.analyze_fluorescence_effects",
             lambda data, pixel_idx=None: (0, mock_baseline),
         )
 
@@ -228,10 +228,10 @@ class TestFluorescenceCorrectionProcessor:
         """Test process method uses correction_factor set at init time."""
         mock_baseline = xr.DataArray(
             np.ones((2, 2, 50)) * 0.1,
-            dims=('polarity', 'freq_range', 'freq_idx'),
+            dims=("polarity", "freq_range", "freq_idx"),
         )
         monkeypatch.setattr(
-            'QDMpy.odmr.processors.analyze_fluorescence_effects',
+            "QDMpy.odmr.processors.analyze_fluorescence_effects",
             lambda data, pixel_idx=None: (0, mock_baseline),
         )
 
@@ -246,7 +246,7 @@ class TestFluorescenceCorrectionProcessor:
         """Test serialization to config dict."""
         processor = FluorescenceCorrectionProcessor(correction_factor=0.3)
         config = processor.to_config()
-        assert config == {'type': 'FluorescenceCorrectionProcessor', 'correction_factor': 0.3}
+        assert config == {"type": "FluorescenceCorrectionProcessor", "correction_factor": 0.3}
 
 
 class TestFluorescenceAnalysis:
@@ -258,13 +258,14 @@ class TestFluorescenceAnalysis:
         sample_odmr_data.data.values[:, :, 5, 0, :] = 0.8
 
         idx, baseline_corrected = analyze_fluorescence_effects(
-            sample_odmr_data, pixel_idx=50,
+            sample_odmr_data,
+            pixel_idx=50,
         )
 
         assert idx == 50
 
         assert isinstance(baseline_corrected, xr.DataArray)
-        assert baseline_corrected.dims == ('polarity', 'freq_range', 'freq_idx')
+        assert baseline_corrected.dims == ("polarity", "freq_range", "freq_idx")
 
         assert -0.5 < float(baseline_corrected.mean()) < 0.5
 
@@ -273,11 +274,11 @@ class TestFluorescenceAnalysis:
         idx, baseline_corrected = analyze_fluorescence_effects(sample_odmr_data)
 
         assert isinstance(idx, int)
-        n_pixels = sample_odmr_data.data.sizes['y'] * sample_odmr_data.data.sizes['x']
+        n_pixels = sample_odmr_data.data.sizes["y"] * sample_odmr_data.data.sizes["x"]
         assert 0 <= idx < n_pixels
 
         assert isinstance(baseline_corrected, xr.DataArray)
-        assert baseline_corrected.dims == ('polarity', 'freq_range', 'freq_idx')
+        assert baseline_corrected.dims == ("polarity", "freq_range", "freq_idx")
 
 
 class TestODMRProcessorManager:
@@ -314,8 +315,8 @@ class TestODMRProcessorManager:
         assert result is not sample_odmr_data
         assert isinstance(result, ODMRData)
         # Normalization then binning: 10x10 -> 5x5
-        assert result.data.sizes['y'] == 5
-        assert result.data.sizes['x'] == 5
+        assert result.data.sizes["y"] == 5
+        assert result.data.sizes["x"] == 5
 
     def test_process_writes_pipeline_metadata(self, sample_odmr_data) -> None:
         """Test that process() writes a complete pipeline snapshot to metadata."""
@@ -325,19 +326,19 @@ class TestODMRProcessorManager:
 
         result = manager.process(sample_odmr_data)
 
-        assert 'pipeline' in result.metadata
-        pipeline = result.metadata['pipeline']
+        assert "pipeline" in result.metadata
+        pipeline = result.metadata["pipeline"]
         assert len(pipeline) == 2
-        assert pipeline[0] == {'type': 'NormalizationProcessor', 'method': 'max'}
-        assert pipeline[1] == {'type': 'BinningProcessor', 'bin_factor': 4}
+        assert pipeline[0] == {"type": "NormalizationProcessor", "method": "max"}
+        assert pipeline[1] == {"type": "BinningProcessor", "bin_factor": 4}
 
     def test_process_empty_pipeline(self, sample_odmr_data) -> None:
         """Test that an empty pipeline writes an empty pipeline list to metadata."""
         manager = ODMRProcessorManager()
         result = manager.process(sample_odmr_data)
 
-        assert 'pipeline' in result.metadata
-        assert result.metadata['pipeline'] == []
+        assert "pipeline" in result.metadata
+        assert result.metadata["pipeline"] == []
 
     def test_list_processors(self) -> None:
         """Test list_processors returns type names."""
@@ -350,19 +351,19 @@ class TestODMRProcessorManager:
 
         processor_names = manager.list_processors()
         assert len(processor_names) == 2
-        assert processor_names[0] == 'NormalizationProcessor'
-        assert processor_names[1] == 'BinningProcessor'
+        assert processor_names[0] == "NormalizationProcessor"
+        assert processor_names[1] == "BinningProcessor"
 
     def test_pipeline_config_property(self) -> None:
         """Test pipeline_config property returns serializable list."""
         manager = ODMRProcessorManager()
-        manager.add_processor(NormalizationProcessor(method='max'))
+        manager.add_processor(NormalizationProcessor(method="max"))
         manager.add_processor(OutlierProcessor(z_score_threshold=0.01))
 
         config = manager.pipeline_config
         assert config == [
-            {'type': 'NormalizationProcessor', 'method': 'max'},
-            {'type': 'OutlierProcessor', 'z_score_threshold': 0.01},
+            {"type": "NormalizationProcessor", "method": "max"},
+            {"type": "OutlierProcessor", "z_score_threshold": 0.01},
         ]
 
     def test_from_config_round_trip(self) -> None:
@@ -389,7 +390,7 @@ class TestODMRProcessorManager:
         manager.add_processor(BinningProcessor(bin_factor=2))
 
         processed = manager.process(sample_odmr_data)
-        pipeline_config = processed.metadata['pipeline']
+        pipeline_config = processed.metadata["pipeline"]
 
         restored = ODMRProcessorManager.from_config(pipeline_config)
         assert restored.pipeline_config == pipeline_config
