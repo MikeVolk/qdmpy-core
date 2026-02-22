@@ -27,7 +27,7 @@ from loguru import logger
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
 
-from QDMpy.constants import D_ZFS, GAMMA_NV
+from QDMpy.constants import D_ZFS, GAMMA_NV, POLARITY_LABELS
 from QDMpy.exceptions import DataLoadError, DataShapeError, DataValidationError, ParameterError
 
 
@@ -335,8 +335,6 @@ class FitResult(BaseModel):
             xr.DataArray with dims ('polarity', 'y', 'x') and polarity coords
             'neg'/'pos'. Values in µT with polarity-correct sign applied.
         """
-        from QDMpy.constants import POLARITY_LABELS
-
         logger.debug("Computing delta resonance for B111 calculations")
 
         resonance = self.parameters["center"]
@@ -508,7 +506,7 @@ class FitResult(BaseModel):
 
         return metrics
 
-    def _build_save_dict(self: Self) -> dict[str, NDArray]:
+    def _build_save_dict(self: Self) -> dict[str, NDArray | np.void]:
         """Build a pickle-free save dict for NPZ serialization.
 
         Returns:
@@ -524,7 +522,7 @@ class FitResult(BaseModel):
         }
         meta_bytes = json.dumps(meta, default=str).encode()
 
-        save_dict: dict[str, NDArray] = {
+        save_dict: dict[str, NDArray | np.void] = {
             '__meta__': np.void(meta_bytes),
         }
 
@@ -579,6 +577,58 @@ class FitResult(BaseModel):
         plot_fit_result_overview(self, **kwargs)
 
     @classmethod
+    def _from_npz(cls: type[FitResult], data: Any, *, source: str = '<unknown>') -> FitResult:
+        """Reconstruct a FitResult from an open NpzFile handle.
+
+        Used by both ``load_results`` and ``QDMResult.load`` so the file is
+        opened exactly once.
+
+        Args:
+            data: NpzFile opened with ``allow_pickle=False``.
+            source: File path string for error messages.
+
+        Returns:
+            Reconstructed FitResult.
+
+        Raises:
+            DataLoadError: If ``__meta__`` is missing, corrupt, or no ``param_*``
+                keys are found.
+        """
+        if '__meta__' not in data.files:
+            msg = (
+                f'File {source} is missing the __meta__ key. '
+                'This file was created with an older format that is no longer supported.'
+            )
+            raise DataLoadError(msg)
+
+        try:
+            meta = json.loads(bytes(data['__meta__']))
+        except json.JSONDecodeError as exc:
+            msg = f'File {source} has a corrupt __meta__ field: {exc}'
+            raise DataLoadError(msg) from exc
+
+        parameters: dict[str, NDArray] = {}
+        for key in data.files:
+            if key.startswith('param_'):
+                param_name = key[len('param_'):]
+                parameters[param_name] = data[key]
+
+        if not parameters:
+            msg = (
+                f'File {source} contains no param_* keys. '
+                'The file may be corrupt or from an incompatible format.'
+            )
+            raise DataLoadError(msg)
+
+        return cls(
+            parameters=parameters,
+            scan_dimensions=tuple(meta['scan_dimensions']),
+            pixel_spacing=float(meta['pixel_spacing']),
+            model_name=str(meta['model_name']),
+            metadata=meta.get('metadata', {}),
+        )
+
+    @classmethod
     def load_results(cls: type[FitResult], filepath: str | Path) -> FitResult:
         """Load saved fit results from a pickle-free NPZ file.
 
@@ -611,26 +661,6 @@ class FitResult(BaseModel):
             )
             raise DataLoadError(msg) from exc
 
-        if '__meta__' not in data.files:
-            msg = (
-                f'File {filepath} is missing the __meta__ key. '
-                'This file was created with an older format that is no longer supported.'
-            )
-            raise DataLoadError(msg)
-
-        meta = json.loads(bytes(data['__meta__']))
-
-        parameters: dict[str, NDArray] = {}
-        for key in data.files:
-            if key.startswith('param_'):
-                param_name = key[len('param_'):]
-                parameters[param_name] = data[key]
-
+        result = cls._from_npz(data, source=str(filepath))
         logger.info(f'Fit results loaded from: {filepath}')
-        return cls(
-            parameters=parameters,
-            scan_dimensions=tuple(meta['scan_dimensions']),
-            pixel_spacing=float(meta['pixel_spacing']),
-            model_name=str(meta['model_name']),
-            metadata=meta.get('metadata', {}),
-        )
+        return result

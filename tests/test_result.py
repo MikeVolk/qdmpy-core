@@ -344,7 +344,7 @@ class TestFitResult:
             filepath = Path(tmpdir) / "roundtrip_test.npz"
 
             # Calculate B-field to populate cache
-            original_b_field = sample_fit_result.calculate_b_field()
+            sample_fit_result.calculate_b_field()
 
             # Save
             sample_fit_result.save_results(filepath)
@@ -594,19 +594,6 @@ class TestSafeSerializationFormat:
             metadata={"test": True, "quality_metrics": {"mean_chi2": 1.0}},
         )
 
-    def test_rejects_pickle_or_old_format(self, tmp_path: Path) -> None:
-        """File without __meta__ key is rejected (pickle or old format)."""
-        filepath = tmp_path / "evil.npz"
-        # Create an NPZ without __meta__ — either pickle rejection or
-        # missing-key rejection fires depending on numpy version
-        np.savez_compressed(
-            filepath,
-            model_name="ESR15N",
-            scan_dimensions=np.array([10, 10]),
-        )
-        with pytest.raises(DataLoadError):
-            FitResult.load_results(filepath)
-
     def test_rejects_missing_meta_key(self, tmp_path: Path) -> None:
         """NPZ without __meta__ key is rejected."""
         filepath = tmp_path / "old_format.npz"
@@ -648,3 +635,19 @@ class TestSafeSerializationFormat:
         assert loaded.model_name == sample_fit_result.model_name
         assert loaded.scan_dimensions == sample_fit_result.scan_dimensions
         assert loaded.pixel_spacing == sample_fit_result.pixel_spacing
+
+    def test_rejects_corrupt_meta_json(self, tmp_path: Path) -> None:
+        """Corrupt __meta__ JSON raises DataLoadError."""
+        filepath = tmp_path / "corrupt.npz"
+        np.savez_compressed(filepath, __meta__=np.void(b"not valid json{{{"))
+        with pytest.raises(DataLoadError, match="corrupt __meta__ field"):
+            FitResult.load_results(filepath)
+
+    def test_rejects_no_param_keys(self, tmp_path: Path) -> None:
+        """File with __meta__ but no param_* keys raises DataLoadError."""
+        filepath = tmp_path / "no_params.npz"
+        meta_bytes = json.dumps({"model_name": "ESR15N", "scan_dimensions": [10, 10],
+                                  "pixel_spacing": 4e-6}).encode()
+        np.savez_compressed(filepath, __meta__=np.void(meta_bytes))
+        with pytest.raises(DataLoadError, match="no param_\\* keys"):
+            FitResult.load_results(filepath)
