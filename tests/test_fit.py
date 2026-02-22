@@ -663,7 +663,7 @@ def test_fit_auto_model_resolution(mock_fit_constrained, sample_data, sample_fre
         0.5,
     ]
 
-    with patch("QDMpy.fitting.manager.guess_model", return_value=resolved_model):
+    with patch("qdmpy_core.fitting.manager.guess_model", return_value=resolved_model):
         result = fit.fit(sample_data, sample_frequencies)
         assert isinstance(result, FitResult)
         assert fit.model is not None

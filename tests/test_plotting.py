@@ -9,8 +9,8 @@ import pytest
 
 
 @unittest.skipIf(
-    importlib.util.find_spec("QDMpy._core") is None,
-    "QDMpy._core module not found - skipping plotting tests",
+    importlib.util.find_spec("qdmpy_core") is None,
+    "qdmpy_core module not found - skipping plotting tests",
 )
 class TestPlotting(unittest.TestCase):
     """Tests for plotting functions in QDMpy."""

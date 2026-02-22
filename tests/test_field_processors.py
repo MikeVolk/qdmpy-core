@@ -828,7 +828,7 @@ class TestUpwardContinuationAlgorithm:
         from qdmpy_core.field_processing import UpwardContinuation
 
         log_calls: list[Any] = []
-        with patch("QDMpy.field_processing.logger") as mock_logger:
+        with patch("qdmpy_core.field_processing.logger") as mock_logger:
             mock_logger.warning = lambda *a, **kw: log_calls.append((a, kw))
             u = UpwardContinuation(dz=-1e-6)
             u.process(synthetic_gaussian_field)

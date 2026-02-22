@@ -481,7 +481,7 @@ class TestFieldProcessingPipelineLogging:
 
         log_calls: list[tuple[Any, ...]] = []
 
-        with patch("QDMpy.field_processing.logger") as mock_logger:
+        with patch("qdmpy_core.field_processing.logger") as mock_logger:
             mock_logger.debug = MagicMock(side_effect=lambda *a, **kw: log_calls.append((a, kw)))
             pipeline.process(simple_field_map)
 
@@ -497,7 +497,7 @@ class TestFieldProcessingPipelineLogging:
 
         log_calls: list[tuple[Any, ...]] = []
 
-        with patch("QDMpy.field_processing.logger") as mock_logger:
+        with patch("qdmpy_core.field_processing.logger") as mock_logger:
             mock_logger.debug = MagicMock(side_effect=lambda *a, **kw: log_calls.append((a, kw)))
             pipeline.process(simple_field_map)
 
@@ -519,7 +519,7 @@ class TestFieldProcessingPipelineLogging:
 
         log_calls: list[tuple[Any, ...]] = []
 
-        with patch("QDMpy.field_processing.logger") as mock_logger:
+        with patch("qdmpy_core.field_processing.logger") as mock_logger:
             mock_logger.debug = MagicMock(side_effect=lambda *a, **kw: log_calls.append((a, kw)))
             pipeline.process(simple_field_map)
 

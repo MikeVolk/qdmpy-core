@@ -208,7 +208,7 @@ class TestFluorescenceCorrectionProcessor:
             dims=("polarity", "freq_range", "freq_idx"),
         )
         monkeypatch.setattr(
-            "QDMpy.odmr.processors.analyze_fluorescence_effects",
+            "qdmpy_core.odmr.processors.analyze_fluorescence_effects",
             lambda data, pixel_idx=None: (0, mock_baseline),
         )
 
@@ -231,7 +231,7 @@ class TestFluorescenceCorrectionProcessor:
             dims=("polarity", "freq_range", "freq_idx"),
         )
         monkeypatch.setattr(
-            "QDMpy.odmr.processors.analyze_fluorescence_effects",
+            "qdmpy_core.odmr.processors.analyze_fluorescence_effects",
             lambda data, pixel_idx=None: (0, mock_baseline),
         )
 
