@@ -1,38 +1,38 @@
 # Quick Start Guide
 
-This guide will help you get started with QDMpy quickly for analyzing ODMR data from NV centers in diamond.
+This guide will help you get started with qdmpy_core quickly for analyzing ODMR data from NV centers in diamond.
 
 ## Installation
 
-Install QDMpy using pip:
+Install qdmpy_core using pip:
 
 ```bash
-pip install QDMpy
+pip install qdmpy_core
 ```
 
 Or with UV (recommended):
 
 ```bash
-uv pip install QDMpy
+uv pip install qdmpy_core
 ```
 
 ## Basic Usage
 
-Here's a minimal example to get you started with QDMpy:
+Here's a minimal example to get you started with qdmpy_core:
 
 ```python
 import numpy as np
 import matplotlib.pyplot as plt
-import QDMpy
+import qdmpy_core
 
 # Load ODMR data
-odmr = QDMpy.ODMR.from_files(['path/to/your/data.mat'])
+odmr = qdmpy_core.ODMR.from_files(['path/to/your/data.mat'])
 
 # Process the data
 odmr.process_data()
 
 # Fit the data
-fit = QDMpy.FitManager(odmr.processed_data, odmr.frequencies)
+fit = qdmpy_core.FitManager(odmr.processed_data, odmr.frequencies)
 fit.fit_odmr()
 
 # Visualize results
@@ -60,7 +60,7 @@ plt.show()
 
 ## Command Line Interface
 
-QDMpy also provides a command-line interface for quick data analysis:
+qdmpy_core also provides a command-line interface for quick data analysis:
 
 ```bash
 qdmpy process data.mat --output results.mat

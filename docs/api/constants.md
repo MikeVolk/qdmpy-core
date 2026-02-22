@@ -1,8 +1,8 @@
 # Constants Module
 
-The constants module provides physical and mathematical constants used throughout QDMpy.
+The constants module provides physical and mathematical constants used throughout qdmpy_core.
 
-::: QDMpy.constants
+::: qdmpy_core.constants
     options:
       show_root_heading: true
       show_source: true

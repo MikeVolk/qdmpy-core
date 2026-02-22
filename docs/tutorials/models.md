@@ -1,12 +1,12 @@
 # ODMR Spectral Models Tutorial
 
-This tutorial explains how to understand and use the ODMR spectral models in QDMpy for fitting nitrogen-vacancy (NV) center data.
+This tutorial explains how to understand and use the ODMR spectral models in qdmpy_core for fitting nitrogen-vacancy (NV) center data.
 
 [View the full tutorial notebook](../tutorial_models.ipynb)
 
 ## Overview of ODMR Models
 
-QDMpy provides three built-in spectral models for fitting ODMR data from nitrogen-vacancy centers:
+qdmpy_core provides three built-in spectral models for fitting ODMR data from nitrogen-vacancy centers:
 
 1. **ESR14N** - For NV centers with ¹⁴N isotope (3 dips)
 2. **ESR15N** - For NV centers with ¹⁵N isotope (2 dips)  
@@ -16,7 +16,7 @@ These models are implemented using Lorentzian lineshapes and are optimized for G
 
 ## Model Architecture
 
-The model system in QDMpy consists of:
+The model system in qdmpy_core consists of:
 
 - **Model Functions**: Core mathematical functions (`esr14n`, `esr15n`, `esrsingle`)
 - **Model Classes**: Object-oriented wrappers (`ESR14N`, `ESR15N`, `ESRSINGLE`)
@@ -29,7 +29,7 @@ The model system in QDMpy consists of:
 The ESR14N model represents ODMR spectra from NV centers with ¹⁴N nitrogen isotope (nuclear spin I=1):
 
 ```python
-from QDMpy.models import ModelRegistry
+from qdmpy_core.models import ModelRegistry
 import numpy as np
 
 # Get the 14N model
@@ -144,7 +144,7 @@ plt.show()
 The ModelRegistry provides convenient access to all available models:
 
 ```python
-from QDMpy.models import ModelRegistry
+from qdmpy_core.models import ModelRegistry
 
 # List all available models
 all_models = ModelRegistry.all()
@@ -199,13 +199,13 @@ f(x) = 1 + offset - (contrast × width² / ((x - center)² + width²))
 - Start with ESRSINGLE for initial parameter estimation
 - Use vectorized parameter arrays for batch processing
 
-## Integration with QDMpy Workflow
+## Integration with qdmpy_core Workflow
 
-Models integrate seamlessly with the QDMpy fitting and measurement infrastructure:
+Models integrate seamlessly with the qdmpy_core fitting and measurement infrastructure:
 
 ```python
-from QDMpy import Measurement
-from QDMpy.models import ModelRegistry
+from qdmpy_core import Measurement
+from qdmpy_core.models import ModelRegistry
 
 # In a typical workflow:
 # 1. Load ODMR data
@@ -220,10 +220,10 @@ For complete examples and detailed usage, see the [full tutorial notebook](../tu
 
 ## Summary
 
-QDMpy's model system provides:
+qdmpy_core's model system provides:
 - **Three robust models** covering common NV center configurations
 - **Physics-based implementations** with proper hyperfine splitting
 - **Flexible parameter management** with constraint support
 - **GPU-optimized performance** for large-scale fitting
 
-Choose the model that best matches your experimental system and data quality. The models are designed to work seamlessly with QDMpy's fitting infrastructure while providing the flexibility needed for diverse ODMR applications.
+Choose the model that best matches your experimental system and data quality. The models are designed to work seamlessly with qdmpy_core's fitting infrastructure while providing the flexibility needed for diverse ODMR applications.

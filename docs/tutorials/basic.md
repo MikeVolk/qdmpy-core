@@ -1,12 +1,12 @@
-# Basic QDMpy Tutorial
+# Basic qdmpy_core Tutorial
 
-This tutorial introduces the fundamental concepts of QDMpy for analyzing ODMR data from NV centers in diamond.
+This tutorial introduces the fundamental concepts of qdmpy_core for analyzing ODMR data from NV centers in diamond.
 
 [View the full tutorial notebook](../tutorial.ipynb)
 
 ## Quick Start
 
-QDMpy provides a complete workflow for ODMR analysis:
+qdmpy_core provides a complete workflow for ODMR analysis:
 
 1. **Load** data from various formats (.mat, .csv)
 2. **Process** data with built-in processors  
@@ -17,8 +17,8 @@ QDMpy provides a complete workflow for ODMR analysis:
 ## Loading Data
 
 ```python
-from QDMpy.odmr.io import MatlabLoader
-from QDMpy.odmr import ODMRData
+from qdmpy_core.odmr.io import MatlabLoader
+from qdmpy_core.odmr import ODMRData
 
 # Load data from MATLAB files
 loader = MatlabLoader(data_folder="./data")
@@ -30,11 +30,11 @@ odmr_data = ODMRData(raw_data, scan_dimensions, frequencies)
 
 ## Processing Data
 
-QDMpy uses a modular processing pipeline:
+qdmpy_core uses a modular processing pipeline:
 
 ```python
-from QDMpy.odmr import ODMR
-from QDMpy.odmr.processors import BinningProcessor, NormalizationProcessor
+from qdmpy_core.odmr import ODMR
+from qdmpy_core.odmr.processors import BinningProcessor, NormalizationProcessor
 
 # Create ODMR manager
 odmr = ODMR(odmr_data)
@@ -50,8 +50,8 @@ odmr.process_data()
 ## Automatic Model Selection & Fitting
 
 ```python
-from QDMpy.guess import guess_n_peaks, guess_model
-from QDMpy.fit import Fit
+from qdmpy_core.guess import guess_n_peaks, guess_model
+from qdmpy_core.fit import Fit
 
 # Detect peaks and select model
 n_peaks, doubt, _ = guess_n_peaks(odmr.processed_data.data)
@@ -65,7 +65,7 @@ fit_obj.fit_odmr()
 ## Creating Measurements
 
 ```python
-from QDMpy.measurement import Measurement
+from qdmpy_core.measurement import Measurement
 
 # Combine ODMR data with optical images
 measurement = Measurement(

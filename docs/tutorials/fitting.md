@@ -1,20 +1,20 @@
 # Model Fitting Tutorial
 
-This tutorial explains how to use QDMpy's fitting capabilities, with a focus on the FitManager and ConstraintManager.
+This tutorial explains how to use qdmpy_core's fitting capabilities, with a focus on the FitManager and ConstraintManager.
 
 [View the full tutorial notebook](../tutorial_fitting.ipynb)
 
 ## ODMR Spectral Models
 
-QDMpy includes several spectral models for fitting ODMR data:
+qdmpy_core includes several spectral models for fitting ODMR data:
 
 - **ESRSINGLE**: A single Lorentzian dip for simple ODMR spectra
 - **ESR14N**: Three Lorentzian dips for nitrogen-14 NV centers (hyperfine splitting)
 - **ESR15N**: Two Lorentzian dips for nitrogen-15 NV centers (hyperfine splitting)
 
 ```python
-import QDMpy
-from QDMpy.models import ModelRegistry
+import qdmpy_core
+from qdmpy_core.models import ModelRegistry
 
 # List all available models
 available_models = ModelRegistry.all()
@@ -34,7 +34,7 @@ The `FitManager` class handles all aspects of fitting ODMR spectra:
 
 ```python
 import numpy as np
-from QDMpy.fit import FitManager
+from qdmpy_core.fit import FitManager
 
 # Create or load your ODMR data
 # ...
@@ -103,7 +103,7 @@ fit_manager.set_free_constraints()
 
 ## Constraint Types
 
-QDMpy supports four constraint types:
+qdmpy_core supports four constraint types:
 
 1. **FREE**: No constraints (parameters can take any value)
 2. **LOWER**: Only a lower bound is applied

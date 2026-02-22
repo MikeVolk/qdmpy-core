@@ -1,13 +1,13 @@
 # Command Line Interface
 
-QDMpy includes a command-line interface (CLI) for performing common tasks without writing Python code.
+qdmpy_core includes a command-line interface (CLI) for performing common tasks without writing Python code.
 
 ## Installation
 
-When you install QDMpy, the CLI is automatically installed:
+When you install qdmpy_core, the CLI is automatically installed:
 
 ```bash
-pip install QDMpy
+pip install qdmpy_core
 ```
 
 ## Basic Commands

@@ -1,10 +1,10 @@
 # API Reference
 
-Welcome to the QDMpy API Reference. This section provides detailed documentation for all modules, classes, and functions in the QDMpy package.
+Welcome to the qdmpy_core API Reference. This section provides detailed documentation for all modules, classes, and functions in the qdmpy_core package.
 
 ## Package Structure
 
-QDMpy is organized into several main modules:
+qdmpy_core is organized into several main modules:
 
 - **Core**: Fundamental classes for data management and analysis
   - `fit`: Parameter fitting with constraint management
@@ -24,19 +24,19 @@ QDMpy is organized into several main modules:
 
 ## Using the API
 
-The QDMpy API is designed to be intuitive and flexible. Most users will interact primarily with the high-level classes:
+The qdmpy_core API is designed to be intuitive and flexible. Most users will interact primarily with the high-level classes:
 
 ```python
-import QDMpy
+import qdmpy_core
 
 # Load ODMR data
-odmr = QDMpy.ODMR.from_files(['data.mat'])
+odmr = qdmpy_core.ODMR.from_files(['data.mat'])
 
 # Process the data
 odmr.process_data()
 
 # Fit the data
-fit = QDMpy.FitManager(odmr.processed_data, odmr.frequencies)
+fit = qdmpy_core.FitManager(odmr.processed_data, odmr.frequencies)
 fit.fit_odmr()
 
 # Get results
