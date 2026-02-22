@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 import xarray as xr
+from pydantic import ValidationError
 
 from QDMpy.fitting.result import FitResult
 from QDMpy.result import QDMResult
@@ -62,6 +63,10 @@ class TestQDMResultConstruction:
         axis = (0.0, 0.8164966, 0.5773503)
         result = QDMResult(fit_result=two_pol_fit_result, nv_axis=axis)
         assert result.nv_axis == axis
+
+    def test_rejects_non_fitresult(self) -> None:
+        with pytest.raises(ValidationError):
+            QDMResult(fit_result='garbage')
 
     def test_repr(self, qdm_result: QDMResult) -> None:
         r = repr(qdm_result)
@@ -207,3 +212,12 @@ class TestPersistence:
         np.testing.assert_allclose(
             loaded.b111_remanent, qdm_result.b111_remanent
         )
+
+    def test_save_is_pickle_free(self, qdm_result: QDMResult, tmp_path: Path) -> None:
+        """QDMResult.save() produces a file loadable without pickle."""
+        out = tmp_path / 'result'
+        qdm_result.save(out)
+        npz_path = out.with_suffix('.npz') if out.with_suffix('.npz').exists() else out
+        # Must not raise
+        data = np.load(npz_path, allow_pickle=False)
+        assert '__meta__' in data.files

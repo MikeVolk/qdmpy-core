@@ -1,6 +1,6 @@
 # QDMpy Development Guide
 
-for the claude based refactoring, the claude branch acts as main/master branch. NEVER merge into main/master. Create new branches from claude, merge them into claude when finished.
+The `claude` branch acts as main/master. NEVER commit directly to `claude` or `main`/`master`. Always create a feature branch from `claude`, do all work there, then merge back into `claude` when finished.
 
 ## Principles
 - Follow **clean code** principles: meaningful names, small focused functions, single responsibility, DRY, no dead code, minimal comments (code should be self-documenting)

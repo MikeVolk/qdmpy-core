@@ -20,6 +20,8 @@ from loguru import logger
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
+from QDMpy.fitting.result import FitResult
+
 if TYPE_CHECKING:
     from os import PathLike
 
@@ -42,7 +44,7 @@ class QDMResult(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    fit_result: Any  # FitResult — typed as Any to avoid circular import at module level
+    fit_result: FitResult
     nv_axis: tuple[float, float, float] | None = None
     reconstructor: Any | None = None  # FieldReconstructor | None
 
@@ -186,10 +188,11 @@ class QDMResult(BaseModel):
     # ------------------------------------------------------------------
 
     def save(self: Self, path: str | PathLike) -> None:
-        """Save QDMResult to an NPZ file.
+        """Save QDMResult to a pickle-free NPZ file.
 
-        Saves FitResult data plus nv_axis so the full result can be restored.
-        MagneticMap is not serialised — it is recomputed lazily after loading.
+        Delegates to ``FitResult._build_save_dict()`` for the fitting data and
+        appends ``nv_axis`` if present. MagneticMap is not serialised — it is
+        recomputed lazily after loading.
 
         Args:
             path: Destination file path (.npz extension added if absent).
@@ -197,23 +200,19 @@ class QDMResult(BaseModel):
         path = Path(path)
         logger.info(f'Saving QDMResult to {path}')
 
-        fr = self.fit_result
-        numpy_data: dict[str, Any] = {
-            'model_name': fr.model_name,
-            'scan_dimensions': np.array(fr.scan_dimensions),
-            'pixel_spacing': fr.pixel_spacing,
-            'metadata': np.array([fr.metadata], dtype=object),
-            'parameters': np.array([fr.parameters], dtype=object),
-        }
+        save_dict = self.fit_result._build_save_dict()
         if self.nv_axis is not None:
-            numpy_data['nv_axis'] = np.array(self.nv_axis)
+            save_dict['nv_axis'] = np.array(self.nv_axis)
 
-        np.savez_compressed(path, **numpy_data)
+        np.savez_compressed(path, **save_dict)
         logger.info(f'QDMResult saved to {path}')
 
     @classmethod
     def load(cls: type[QDMResult], path: str | PathLike) -> QDMResult:
-        """Load a QDMResult from an NPZ file.
+        """Load a QDMResult from a pickle-free NPZ file.
+
+        Opens the file once and reconstructs both FitResult and nv_axis from
+        the same data handle.
 
         Args:
             path: Path to the .npz file created by QDMResult.save().
@@ -223,13 +222,11 @@ class QDMResult(BaseModel):
             access to .magnetic_map.
 
         Raises:
-            DataLoadError: If the file does not exist.
+            DataLoadError: If the file does not exist or is not in the safe format.
         """
-        from QDMpy.fitting.result import FitResult
-
         fit_result = FitResult.load_results(path)
 
-        data = np.load(path, allow_pickle=True)
+        data = np.load(path, allow_pickle=False)
         nv_axis: tuple[float, float, float] | None = None
         if 'nv_axis' in data:
             nv_axis = tuple(float(v) for v in data['nv_axis'])  # type: ignore[assignment]
