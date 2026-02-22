@@ -17,6 +17,7 @@ The FitResult class handles:
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any, Self
 
@@ -507,51 +508,54 @@ class FitResult(BaseModel):
 
         return metrics
 
-    def save_results(self: Self, filepath: str | Path) -> None:
-        """Save fit results to file.
+    def _build_save_dict(self: Self) -> dict[str, NDArray]:
+        """Build a pickle-free save dict for NPZ serialization.
 
-        Args:
-            filepath: Path where to save the results
-
-        Note:
-            This saves the essential fit results in a format that can be
-            reloaded later. The full FitManager state may not be preserved.
+        Returns:
+            Dictionary with ``__meta__`` (JSON-encoded as ``np.void``) and
+            ``param_{name}`` keys for each fitted parameter, plus optional
+            ``cache_*`` keys for cached derived arrays.
         """
-        filepath = Path(filepath)
+        meta = {
+            'model_name': self.model_name,
+            'scan_dimensions': list(self.scan_dimensions),
+            'pixel_spacing': self.pixel_spacing,
+            'metadata': self.metadata,
+        }
+        meta_bytes = json.dumps(meta, default=str).encode()
 
-        # Prepare data for saving
-        save_data = {
-            "model_name": self.model_name,
-            "scan_dimensions": self.scan_dimensions,
-            "pixel_spacing": self.pixel_spacing,
-            "metadata": self.metadata,
-            "parameters": self.parameters.copy(),  # Copy all parameters
+        save_dict: dict[str, NDArray] = {
+            '__meta__': np.void(meta_bytes),
         }
 
-        # Add cached calculations if available
+        for name, arr in self.parameters.items():
+            save_dict[f'param_{name}'] = np.asarray(arr)
+
         if self._b_field_cache is not None:
-            save_data["b_field"] = self._b_field_cache
+            save_dict['cache_b_field'] = self._b_field_cache
         if self._delta_resonance_cache is not None:
-            save_data["delta_resonance"] = self._delta_resonance_cache.values
+            save_dict['cache_delta_resonance'] = self._delta_resonance_cache.values
         if self._b111_cache is not None:
-            save_data["b111_remanent"] = self._b111_cache["remanent"].values
-            save_data["b111_induced"] = self._b111_cache["induced"].values
+            save_dict['cache_b111_remanent'] = self._b111_cache['remanent'].values
+            save_dict['cache_b111_induced'] = self._b111_cache['induced'].values
 
-        # Save to NPZ format for efficiency
-        # Extract numpy arrays and convert other types to numpy-compatible formats
-        numpy_save_data = {}
-        for key, value in save_data.items():
-            if isinstance(value, (np.ndarray, np.number, int, float, str, bool)):
-                numpy_save_data[key] = value
-            elif isinstance(value, dict):
-                # Convert dict to array for numpy compatibility
-                numpy_save_data[key] = np.array([value], dtype=object)
-            else:
-                # Convert other types to arrays
-                numpy_save_data[key] = np.array(value)
+        return save_dict
 
-        np.savez_compressed(filepath, **numpy_save_data)
-        logger.info(f"Fit results saved to: {filepath}")
+    def save_results(self: Self, filepath: str | Path) -> None:
+        """Save fit results to a pickle-free NPZ file.
+
+        The file uses a flat namespace: ``__meta__`` holds JSON-encoded scalar
+        fields and ``param_{name}`` keys hold each fitted parameter array.
+        No ``dtype=object`` or pickle is used, so the file can be loaded with
+        ``np.load(..., allow_pickle=False)``.
+
+        Args:
+            filepath: Path where to save the results.
+        """
+        filepath = Path(filepath)
+        save_dict = self._build_save_dict()
+        np.savez_compressed(filepath, **save_dict)
+        logger.info(f'Fit results saved to: {filepath}')
 
     def plot(self: Self, param: str = 'center', **kwargs: object) -> None:
         """Quick-plot a parameter map.
@@ -576,54 +580,57 @@ class FitResult(BaseModel):
 
     @classmethod
     def load_results(cls: type[FitResult], filepath: str | Path) -> FitResult:
-        """Load saved fit results from file and reconstruct a FitResult instance.
+        """Load saved fit results from a pickle-free NPZ file.
+
+        Expects the new format with ``__meta__`` (JSON) and ``param_*`` keys.
+        Rejects files that require pickle deserialization.
 
         Args:
-            filepath: Path to the saved results file (NPZ format)
+            filepath: Path to the saved results file (NPZ format).
 
         Returns:
-            FitResult instance reconstructed from saved data
+            FitResult instance reconstructed from saved data.
 
         Raises:
-            DataLoadError: If the file does not exist or is invalid
+            DataLoadError: If the file does not exist, contains pickle data,
+                or is missing the ``__meta__`` key.
         """
         filepath = Path(filepath)
 
         if not filepath.exists():
-            msg = f"Results file not found: {filepath}"
+            msg = f'Results file not found: {filepath}'
             raise DataLoadError(msg)
 
-        data = np.load(filepath, allow_pickle=True)
+        try:
+            data = np.load(filepath, allow_pickle=False)
+        except ValueError as exc:
+            msg = (
+                f'File {filepath} contains pickled objects and cannot be loaded safely. '
+                'Re-save from the original data using FitResult.save_results() '
+                'to convert to the safe format.'
+            )
+            raise DataLoadError(msg) from exc
 
-        # Extract FitResult constructor arguments
-        result_data = {key: data[key] for key in data.files}
+        if '__meta__' not in data.files:
+            msg = (
+                f'File {filepath} is missing the __meta__ key. '
+                'This file was created with an older format that is no longer supported.'
+            )
+            raise DataLoadError(msg)
 
-        # Handle parameters: may be saved as object array containing dict
-        if 'parameters' in result_data:
-            param_val = result_data['parameters']
-            if isinstance(param_val, np.ndarray) and param_val.dtype == object:
-                parameters = dict(param_val[0])  # Extract dict from object array
-            else:
-                parameters = dict(param_val)
-        else:
-            parameters = {}
+        meta = json.loads(bytes(data['__meta__']))
 
-        # Handle metadata: may be saved as object array containing dict
-        if 'metadata' in result_data:
-            meta_val = result_data['metadata']
-            if isinstance(meta_val, np.ndarray) and meta_val.dtype == object:
-                metadata = dict(meta_val[0])
-            else:
-                metadata = dict(meta_val)
-        else:
-            metadata = {}
+        parameters: dict[str, NDArray] = {}
+        for key in data.files:
+            if key.startswith('param_'):
+                param_name = key[len('param_'):]
+                parameters[param_name] = data[key]
 
-        # Reconstruct FitResult from saved data
-        logger.info(f"Fit results loaded from: {filepath}")
+        logger.info(f'Fit results loaded from: {filepath}')
         return cls(
             parameters=parameters,
-            scan_dimensions=tuple(result_data['scan_dimensions']),
-            pixel_spacing=float(result_data['pixel_spacing']),
-            model_name=str(result_data['model_name']),
-            metadata=metadata,
+            scan_dimensions=tuple(meta['scan_dimensions']),
+            pixel_spacing=float(meta['pixel_spacing']),
+            model_name=str(meta['model_name']),
+            metadata=meta.get('metadata', {}),
         )

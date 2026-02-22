@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 from pathlib import Path
 
@@ -295,7 +296,7 @@ class TestFitResult:
         assert metrics["mean_chi2"] == 1.0  # From metadata override
 
     def test_save_results_to_file(self, sample_fit_result) -> None:
-        """Test saving results to file."""
+        """Test saving results uses the new pickle-free format."""
         with tempfile.TemporaryDirectory() as tmpdir:
             filepath = Path(tmpdir) / "test_results.npz"
 
@@ -303,11 +304,20 @@ class TestFitResult:
 
             assert filepath.exists()
 
-            # Load and verify content
-            data = np.load(filepath, allow_pickle=True)
-            assert "model_name" in data
-            assert "scan_dimensions" in data
-            assert "parameters" in data
+            # Must load without pickle
+            data = np.load(filepath, allow_pickle=False)
+            assert "__meta__" in data.files
+            assert "param_center" in data.files
+            assert "param_chi2" in data.files
+
+            # No old-format keys
+            assert "parameters" not in data.files
+            assert "model_name" not in data.files
+
+            # Verify __meta__ is valid JSON
+            meta = json.loads(bytes(data["__meta__"]))
+            assert meta["model_name"] == "ESR15N"
+            assert meta["scan_dimensions"] == [10, 10]
 
     def test_load_results_from_file(self, sample_fit_result) -> None:
         """Test loading results from file."""
@@ -564,3 +574,77 @@ class TestFitResultValidation:
             model_name="ESR15N",
         )
         assert isinstance(result, BaseModel)
+
+
+class TestSafeSerializationFormat:
+    """Tests for QEP-CORE-001: pickle-free NPZ serialization."""
+
+    @pytest.fixture
+    def sample_fit_result(self):
+        rng = np.random.default_rng(42)
+        return FitResult(
+            parameters={
+                "center": rng.normal(2.87, 0.001, 100),
+                "width_0": rng.normal(0.0005, 0.00001, 100),
+                "chi2": rng.exponential(1.0, 100),
+            },
+            scan_dimensions=(10, 10),
+            pixel_spacing=4e-6,
+            model_name="ESR15N",
+            metadata={"test": True, "quality_metrics": {"mean_chi2": 1.0}},
+        )
+
+    def test_rejects_pickle_or_old_format(self, tmp_path: Path) -> None:
+        """File without __meta__ key is rejected (pickle or old format)."""
+        filepath = tmp_path / "evil.npz"
+        # Create an NPZ without __meta__ — either pickle rejection or
+        # missing-key rejection fires depending on numpy version
+        np.savez_compressed(
+            filepath,
+            model_name="ESR15N",
+            scan_dimensions=np.array([10, 10]),
+        )
+        with pytest.raises(DataLoadError):
+            FitResult.load_results(filepath)
+
+    def test_rejects_missing_meta_key(self, tmp_path: Path) -> None:
+        """NPZ without __meta__ key is rejected."""
+        filepath = tmp_path / "old_format.npz"
+        np.savez_compressed(
+            filepath,
+            model_name="ESR15N",
+            scan_dimensions=np.array([10, 10]),
+        )
+        with pytest.raises(DataLoadError, match="missing the __meta__ key"):
+            FitResult.load_results(filepath)
+
+    def test_no_allow_pickle_in_save_output(self, sample_fit_result, tmp_path: Path) -> None:
+        """Saved file loads cleanly with allow_pickle=False."""
+        filepath = tmp_path / "safe.npz"
+        sample_fit_result.save_results(filepath)
+        # Must not raise
+        data = np.load(filepath, allow_pickle=False)
+        assert "__meta__" in data.files
+
+    def test_roundtrip_preserves_all_parameters(self, sample_fit_result, tmp_path: Path) -> None:
+        """All parameter arrays survive a save/load roundtrip."""
+        filepath = tmp_path / "roundtrip.npz"
+        sample_fit_result.save_results(filepath)
+        loaded = FitResult.load_results(filepath)
+
+        assert set(loaded.parameters.keys()) == set(sample_fit_result.parameters.keys())
+        for key in sample_fit_result.parameters:
+            np.testing.assert_array_equal(
+                loaded.parameters[key], sample_fit_result.parameters[key]
+            )
+
+    def test_roundtrip_preserves_metadata(self, sample_fit_result, tmp_path: Path) -> None:
+        """Metadata dict survives a save/load roundtrip."""
+        filepath = tmp_path / "meta.npz"
+        sample_fit_result.save_results(filepath)
+        loaded = FitResult.load_results(filepath)
+
+        assert loaded.metadata == sample_fit_result.metadata
+        assert loaded.model_name == sample_fit_result.model_name
+        assert loaded.scan_dimensions == sample_fit_result.scan_dimensions
+        assert loaded.pixel_spacing == sample_fit_result.pixel_spacing
