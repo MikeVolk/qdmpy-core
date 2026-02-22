@@ -1,22 +1,45 @@
 repos:
   # Core pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0  # Use the latest version
+    rev: v5.0.0
     hooks:
       - id: check-ast
       - id: check-merge-conflict
       - id: check-case-conflict
       - id: check-json
       - id: check-yaml
+        exclude: mkdocs\.yml
       - id: debug-statements
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: mixed-line-ending
+      - id: check-added-large-files
+        args: ['--maxkb=1500']
+      - id: no-commit-to-branch
+        args: ['--branch', 'main', '--branch', 'develop']
 
-  # Ruff: Python linting and formatting
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.0  # Use the latest version of Ruff
+  # Strip outputs and metadata from Jupyter notebooks (Rust — ~200x faster than nbstripout)
+  - repo: https://github.com/deshaw/nbstripout-fast
+    rev: v1.1.1
+    hooks:
+      - id: nbstripout-fast
+
+  # Use locally-installed ruff and ty (avoids version skew, reuses ruff.toml)
+  - repo: local
     hooks:
       - id: ruff
-        args: ["--fix"]  # Auto-fix issues, including formatting
-        types: [python]  # Apply only to Python files
+        name: ruff (lint)
+        language: system
+        entry: uv run ruff check --fix
+        types: [python]
+      - id: ruff-format
+        name: ruff (format)
+        language: system
+        entry: uv run ruff format
+        types: [python]
+      - id: ty
+        name: ty (type check)
+        language: system
+        entry: uv run ty check src/qdmpy_core
+        pass_filenames: false
+        types: [python]
