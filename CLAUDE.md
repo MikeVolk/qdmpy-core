@@ -1,6 +1,17 @@
-# QDMpy Development Guide
+# qdmpy-core Development Guide
 
-The `claude` branch acts as main/master. NEVER commit directly to `claude` or `main`/`master`. Always create a feature branch from `claude`, do all work there, then merge back into `claude` when finished.
+## Git Workflow (Gitflow)
+
+This repo uses **Gitflow** for branch management:
+
+- **`main`**: Production/release code. Merge only via PR from `release/*` or `hotfix/*` branches
+- **`develop`**: Integration branch for features. Merge completed features here via PR
+- **Feature branches**: `feature/<name>` branched from `develop`. Merge back to `develop` when ready
+- **Bug fixes**: `bugfix/<name>` branched from `develop` for non-production bugs
+- **Release prep**: `release/<version>` branched from `develop` for final release testing
+- **Hotfixes**: `hotfix/<name>` branched from `main` for critical production fixes
+
+**NEVER commit directly to `main` or `develop`**. Always work on a feature/bugfix/release/hotfix branch and submit a PR.
 
 ## Principles
 - Follow **clean code** principles: meaningful names, small focused functions, single responsibility, DRY, no dead code, minimal comments (code should be self-documenting)
@@ -58,12 +69,12 @@ dimension: `[:, 0]` = negatively-signed dB, `[:, 1]` = positively-signed dB. Ext
 ## Testing
 - Run all tests: `uv run pytest`
 - Run single test: `uv run pytest tests/test_file.py::test_function -v`
-- Run with coverage: `uv run pytest --cov=QDMpy --cov-report=term-missing`
+- Run with coverage: `uv run pytest --cov=qdmpy_core --cov-report=term-missing`
 
 ## Linting
 - Run all checks: `pre-commit run --all-files`
 - Run ruff: `uv run ruff check .`
-- Run ty: `uv run ty src/QDMpy`
+- Run ty: `uv run ty src/qdmpy_core`
 
 ## Code Style
 - Python >=3.12
