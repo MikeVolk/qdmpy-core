@@ -6,7 +6,7 @@ The ODMR module provides the main class for Optically Detected Magnetic Resonanc
 
 The `ODMR` class is the central class for ODMR data management and analysis in qdmpy.
 
-::: qdmpy.odmr.odmr.ODMR
+::: qdmpy.odmr.manager.ODMR
     options:
       show_root_heading: true
       show_source: true

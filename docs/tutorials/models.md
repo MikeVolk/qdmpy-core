@@ -2,7 +2,7 @@
 
 This tutorial explains how to understand and use the ODMR spectral models in qdmpy for fitting nitrogen-vacancy (NV) center data.
 
-[View the full tutorial notebook](../tutorial_models.ipynb)
+[View the full tutorial notebook](tutorial_models.ipynb)
 
 ## Overview of ODMR Models
 
@@ -216,7 +216,7 @@ model = ModelRegistry.get('ESR14N')  # or 'ESR15N', 'ESRSINGLE'
 # measurement.fit_odmr(model=model)
 ```
 
-For complete examples and detailed usage, see the [full tutorial notebook](../tutorial_models.ipynb).
+For complete examples and detailed usage, see the [full tutorial notebook](tutorial_models.ipynb).
 
 ## Summary
 

@@ -2,7 +2,7 @@
 
 This tutorial explains how to use qdmpy's fitting capabilities, with a focus on the FitManager and ConstraintManager.
 
-[View the full tutorial notebook](../tutorial_fitting.ipynb)
+[View the full tutorial notebook](tutorial_fitting.ipynb)
 
 ## ODMR Spectral Models
 
@@ -110,4 +110,4 @@ qdmpy supports four constraint types:
 3. **UPPER**: Only an upper bound is applied
 4. **LOWER_UPPER**: Both lower and upper bounds are applied
 
-For the full tutorial with detailed explanations and examples, please see [the complete Jupyter notebook](../tutorial_fitting.ipynb).
+For the full tutorial with detailed explanations and examples, please see [the complete Jupyter notebook](tutorial_fitting.ipynb).

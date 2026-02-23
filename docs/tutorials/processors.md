@@ -2,7 +2,7 @@
 
 This tutorial explores the various signal processing techniques available in qdmpy for ODMR data analysis.
 
-[View the full tutorial notebook](../processor_tutorial.ipynb)
+[View the full tutorial notebook](processor_tutorial.ipynb)
 
 ## Available Processors
 
@@ -81,4 +81,4 @@ class SmoothingProcessor(BaseProcessor):
         return result
 ```
 
-For the full tutorial with detailed explanations and examples, please see [the complete Jupyter notebook](../processor_tutorial.ipynb).
+For the full tutorial with detailed explanations and examples, please see [the complete Jupyter notebook](processor_tutorial.ipynb).

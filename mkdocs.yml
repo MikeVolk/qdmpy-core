@@ -38,6 +38,11 @@ nav:
     - ODMR Processors: tutorials/processors.md
     - Model Fitting: tutorials/fitting.md
     - Custom Models: tutorials/models.md
+    - Settings & Configuration: tutorials/settings_configuration.md
+    - Tutorial Notebook: tutorials/tutorial.ipynb
+    - Fitting Notebook: tutorials/tutorial_fitting.ipynb
+    - Models Notebook: tutorials/tutorial_models.ipynb
+    - Processors Notebook: tutorials/processor_tutorial.ipynb
   - API Reference:
     - api/index.md
     - Core:

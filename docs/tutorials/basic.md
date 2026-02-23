@@ -2,7 +2,7 @@
 
 This tutorial introduces the fundamental concepts of qdmpy for analyzing ODMR data from NV centers in diamond.
 
-[View the full tutorial notebook](../tutorial.ipynb)
+[View the full tutorial notebook](tutorial.ipynb)
 
 ## Quick Start
 
@@ -76,4 +76,4 @@ measurement = Measurement(
 )
 ```
 
-For the complete tutorial with detailed explanations and examples, see [the full Jupyter notebook](../tutorial.ipynb).
+For the complete tutorial with detailed explanations and examples, see [the full Jupyter notebook](tutorial.ipynb).
