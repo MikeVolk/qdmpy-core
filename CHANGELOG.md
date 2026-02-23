@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **QEP-048 (partial)** — `NormalizationProcessor` now uses mean-normalization exclusively:
+  - Default `method` changed from `'max'` to `'mean'`
+  - `method='max'` raises `ValueError` at construction with a migration message explaining why max-normalization is physically invalid (it destroys per-pixel baseline variation needed for fluorescence correction)
+  - `OdmrSettings.norm_method` Literal narrowed to `"mean"` only
+  - Updated all examples, scripts, and integration tests to use `method='mean'`
+
 ### Added
 - **QEP-046** — Notebook tutorials for three user types:
   - `src/QDMpy/testing.py` — three public helpers for tutorials and tests: `make_synthetic_odmr_data()`, `make_synthetic_fit_result()`, `make_synthetic_qdm_result()`; all exported from top-level `QDMpy`

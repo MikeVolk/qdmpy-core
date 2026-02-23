@@ -38,7 +38,7 @@ Usage Example:
 
     # Process data
     processor_manager = ODMRProcessorManager()
-    processor_manager.add_processor(NormalizationProcessor(method="max"))
+    processor_manager.add_processor(NormalizationProcessor())
     processed_data = processor_manager.process(odmr_data)
     ```
 

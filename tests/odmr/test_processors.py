@@ -39,9 +39,9 @@ class TestBaseProcessor:
 
     def test_to_config_round_trip(self) -> None:
         """Test that to_config produces a JSON-compatible dict."""
-        processor = NormalizationProcessor(method="max")
+        processor = NormalizationProcessor()
         config = processor.to_config()
-        assert config == {"type": "NormalizationProcessor", "method": "max"}
+        assert config == {"type": "NormalizationProcessor", "method": "mean"}
 
     def test_frozen_prevents_mutation(self) -> None:
         """Test that processor fields cannot be mutated after construction."""
@@ -56,41 +56,41 @@ class TestNormalizationProcessor:
     def test_init_default(self) -> None:
         """Test initialization with default parameters."""
         processor = NormalizationProcessor()
-        assert processor.method == "max"
-
-    def test_init_custom(self) -> None:
-        """Test initialization with custom parameters."""
-        processor = NormalizationProcessor(method="custom")
-        assert processor.method == "custom"
+        assert processor.method == "mean"
 
     def test_type_field(self) -> None:
         """Test that type discriminator field is correct."""
         processor = NormalizationProcessor()
         assert processor.type == "NormalizationProcessor"
 
-    def test_process_max_method(self, sample_odmr_data) -> None:
-        """Test process method with 'max' normalization."""
-        processor = NormalizationProcessor(method="max")
+    def test_process_mean_method(self, sample_odmr_data) -> None:
+        """Test that mean normalization divides each pixel by its mean intensity."""
+        processor = NormalizationProcessor()
         result = processor.process(sample_odmr_data)
 
         assert result is not sample_odmr_data
         assert isinstance(result, ODMRData)
         assert isinstance(result.data, xr.DataArray)
 
-        max_values = result.data.max(dim="freq_idx")
-        np.testing.assert_allclose(max_values.values, 1.0)
+        # After mean-normalisation, each pixel's mean across freq_idx should be 1.0
+        mean_values = result.data.mean(dim="freq_idx")
+        np.testing.assert_allclose(mean_values.values, 1.0, rtol=1e-12)
 
-    def test_process_unsupported_method(self, sample_odmr_data) -> None:
-        """Test process method with unsupported normalization method."""
-        processor = NormalizationProcessor(method="unsupported")
-        with pytest.raises(NotImplementedError):
-            processor.process(sample_odmr_data)
+    def test_process_max_raises_validation_error(self) -> None:
+        """Test that method='max' is rejected at construction time."""
+        with pytest.raises(ValidationError, match="method='max' is not physically valid"):
+            NormalizationProcessor(method="max")
+
+    def test_process_unsupported_method_raises_validation_error(self) -> None:
+        """Test that an unknown method is rejected at construction time."""
+        with pytest.raises(ValidationError, match="Unsupported normalization method"):
+            NormalizationProcessor(method="unsupported")
 
     def test_to_config(self) -> None:
         """Test serialization to config dict."""
-        processor = NormalizationProcessor(method="max")
+        processor = NormalizationProcessor()
         config = processor.to_config()
-        assert config == {"type": "NormalizationProcessor", "method": "max"}
+        assert config == {"type": "NormalizationProcessor", "method": "mean"}
 
 
 class TestBinningProcessor:
@@ -329,7 +329,7 @@ class TestODMRProcessorManager:
         assert "pipeline" in result.metadata
         pipeline = result.metadata["pipeline"]
         assert len(pipeline) == 2
-        assert pipeline[0] == {"type": "NormalizationProcessor", "method": "max"}
+        assert pipeline[0] == {"type": "NormalizationProcessor", "method": "mean"}
         assert pipeline[1] == {"type": "BinningProcessor", "bin_factor": 4}
 
     def test_process_empty_pipeline(self, sample_odmr_data) -> None:
@@ -357,12 +357,12 @@ class TestODMRProcessorManager:
     def test_pipeline_config_property(self) -> None:
         """Test pipeline_config property returns serializable list."""
         manager = ODMRProcessorManager()
-        manager.add_processor(NormalizationProcessor(method="max"))
+        manager.add_processor(NormalizationProcessor())
         manager.add_processor(OutlierProcessor(z_score_threshold=0.01))
 
         config = manager.pipeline_config
         assert config == [
-            {"type": "NormalizationProcessor", "method": "max"},
+            {"type": "NormalizationProcessor", "method": "mean"},
             {"type": "OutlierProcessor", "z_score_threshold": 0.01},
         ]
 
