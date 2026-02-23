@@ -35,7 +35,7 @@ This repo uses **Gitflow** for branch management:
 - **`frange_0`** = low-frequency branch (below ZFS, ~2.72–2.87 GHz)
 - **`frange_1`** = high-frequency branch (above ZFS, ~2.87–3.02 GHz)
 - **All internal frequencies are in GHz.** Hz↔GHz conversion only at pygpufit boundary in `fit.py`
-- Diamond type: 14N is standard (3 hyperfine dips, model `ESR14N`, gpufit model_id=13)
+- Diamond type: 14N is standard (3 hyperfine dips, model `ESR14N`, gpufit model_id=15)
 
 ## B111 Physics
 The field along the NV [111] axis is extracted from the splitting between the two frequency branches:
