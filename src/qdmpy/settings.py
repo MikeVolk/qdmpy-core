@@ -35,8 +35,8 @@ class DefaultPathsSettings(BaseModel):
 class OdmrSettings(BaseModel):
     """Settings for ODMR processing."""
 
-    norm_method: Literal["max", "min", "mean"] = Field(
-        default="max", description="Normalization method for ODMR data"
+    norm_method: Literal["mean"] = Field(
+        default="mean", description="Normalization method for ODMR data"
     )
 
 

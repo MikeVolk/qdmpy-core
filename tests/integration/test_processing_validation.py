@@ -32,7 +32,7 @@ class TestProcessingValidation:
 
         # Apply normalization
         odmr.processor_manager.processors = []
-        odmr.processor_manager.add_processor(NormalizationProcessor(method="max"))
+        odmr.processor_manager.add_processor(NormalizationProcessor(method="mean"))
         odmr.process_data()
 
         # Get reference normalized data
@@ -68,7 +68,7 @@ class TestProcessingValidation:
 
         # Apply normalization and binning
         odmr.processor_manager.processors = []
-        odmr.processor_manager.add_processor(NormalizationProcessor(method="max"))
+        odmr.processor_manager.add_processor(NormalizationProcessor(method="mean"))
         odmr.processor_manager.add_processor(BinningProcessor(bin_factor=bin_factor))
         odmr.process_data()
 
@@ -116,7 +116,7 @@ class TestProcessingValidation:
 
         # Apply full processing pipeline
         odmr.processor_manager.processors = []
-        odmr.processor_manager.add_processor(NormalizationProcessor(method="max"))
+        odmr.processor_manager.add_processor(NormalizationProcessor(method="mean"))
         if bin_factor > 1:
             odmr.processor_manager.add_processor(BinningProcessor(bin_factor=bin_factor))
         odmr.processor_manager.add_processor(FluorescenceCorrectionProcessor(factor=0.2))
@@ -165,7 +165,7 @@ class TestProcessingPerformance:
 
             # Apply full processing pipeline
             odmr.processor_manager.processors = []
-            odmr.processor_manager.add_processor(NormalizationProcessor(method="max"))
+            odmr.processor_manager.add_processor(NormalizationProcessor(method="mean"))
             if bin_factor > 1:
                 odmr.processor_manager.add_processor(BinningProcessor(bin_factor=bin_factor))
             odmr.processor_manager.add_processor(FluorescenceCorrectionProcessor(factor=0.2))

@@ -13,7 +13,7 @@ import numpy as np
 import xarray as xr
 from loguru import logger
 from matplotlib import pyplot as plt
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
 from qdmpy.constants import FLUORESCENCE_DELTA_THRESHOLD
 
@@ -94,31 +94,43 @@ class BaseProcessor(BaseModel):
 
 
 class NormalizationProcessor(BaseProcessor):
-    """Normalizes ODMR data along the frequency dimension.
+    """Normalizes ODMR data by dividing each pixel's spectrum by its mean intensity.
+
+    Mean-normalization preserves per-pixel off-resonance baseline variation, which
+    is required for downstream fluorescence correction. Max-normalization forces
+    every pixel's off-resonance level to exactly 1.0, destroying this information,
+    and is therefore not supported.
 
     Attributes:
-        method: The normalization method to use (e.g., 'max').
+        method: The normalization method. Only ``'mean'`` is supported.
     """
 
     type: Literal["NormalizationProcessor"] = "NormalizationProcessor"
-    method: str = "max"
+    method: str = "mean"
+
+    @field_validator("method")
+    @classmethod
+    def validate_method(cls, v: str) -> str:
+        """Reject max-normalization and unknown methods at construction time."""
+        if v == "max":
+            raise ValueError(
+                "method='max' is not physically valid: max-normalization forces every "
+                "pixel's off-resonance level to exactly 1.0, destroying the per-pixel "
+                "baseline variation required for fluorescence correction. "
+                "Replace with method='mean'."
+            )
+        if v != "mean":
+            raise ValueError(f"Unsupported normalization method '{v}'. Only 'mean' is supported.")
+        return v
 
     def process(self, data: ODMRData) -> ODMRData:
-        """Normalize the data based on the selected method."""
+        """Normalize the data by the per-pixel mean across the frequency dimension."""
         from qdmpy.odmr.data import ODMRData
 
         logger.debug(f"Normalizing data using method: {self.method}")
-        factors = self._get_norm_factors(data.data, self.method)
+        factors = data.data.mean(dim="freq_idx")
         normalized = data.data / factors
         return ODMRData(data=normalized, metadata=data.metadata.copy())
-
-    def _get_norm_factors(self, da: xr.DataArray, method: str) -> xr.DataArray:
-        """Calculate normalization factors."""
-        if method == "max":
-            return da.max(dim="freq_idx")
-        raise NotImplementedError(
-            f"Normalization method '{method}' is not implemented.",
-        )
 
 
 class BinningProcessor(BaseProcessor):

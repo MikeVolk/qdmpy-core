@@ -119,7 +119,7 @@ def main() -> None:
 
     # Add processors for data cleaning and preparation
     logger.info("Setting up data processors")
-    odmr.processor_manager.add_processor(NormalizationProcessor(method="max"))
+    odmr.processor_manager.add_processor(NormalizationProcessor())
     odmr.processor_manager.add_processor(BinningProcessor(bin_factor=2))
     odmr.processor_manager.add_processor(OutlierProcessor(threshold=3.0))
     odmr.processor_manager.add_processor(FluorescenceCorrectionProcessor(correction_factor=0.2))

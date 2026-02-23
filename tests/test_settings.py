@@ -44,13 +44,12 @@ class TestOdmrSettings:
     def test_default_norm_method(self) -> None:
         """Test default normalization method."""
         settings = OdmrSettings()
-        assert settings.norm_method == "max"
+        assert settings.norm_method == "mean"
 
-    def test_custom_norm_method(self) -> None:
-        """Test custom normalization method."""
-        for method in ["max", "min", "mean"]:
-            settings = OdmrSettings(norm_method=method)
-            assert settings.norm_method == method
+    def test_mean_norm_method(self) -> None:
+        """Test that 'mean' is accepted as the normalization method."""
+        settings = OdmrSettings(norm_method="mean")
+        assert settings.norm_method == "mean"
 
     def test_invalid_norm_method(self) -> None:
         """Test invalid normalization method raises error."""

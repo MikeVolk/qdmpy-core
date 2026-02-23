@@ -40,7 +40,7 @@ def main() -> None:
 
     # Add processors to the pipeline
     odmr.processor_manager.add_processor(BinningProcessor(bin_factor=2))
-    odmr.processor_manager.add_processor(NormalizationProcessor(method="max"))
+    odmr.processor_manager.add_processor(NormalizationProcessor())
 
     # Apply processing
     odmr.process_data()
