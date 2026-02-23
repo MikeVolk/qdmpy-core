@@ -35,7 +35,7 @@ Repository = "https://github.com/mikevolk/qdmpy-core"
 [tool.uv.sources]
 pygpufit = [
     { path = "src/pyGpufit/win/pyGpufit-1.2.0-py2.py3-none-any.whl", marker = "sys_platform == 'win32'" },
-    { path = "src/pyGpufit/linux/pyGpufit-1.2.0-py2.py3-none-any.whl", marker = "sys_platform != 'win32'" },
+    { path = "src/pyGpufit/linux/pygpufit-1.3.0-py2.py3-none-any.whl", marker = "sys_platform != 'win32'" },
 ]
 
 [dependency-groups]
