@@ -34,13 +34,13 @@ from loguru import logger
 
 sys.path.append("/home/mike/git/QDMpy/src")
 
-from qdmpy_core.models import ESR14N, ESR15N, ESRSINGLE, ModelRegistry
-from qdmpy_core.odmr.odmr import ODMR
+from qdmpy.models import ESR14N, ESR15N, ESRSINGLE, ModelRegistry
+from qdmpy.odmr.odmr import ODMR
 
-from qdmpy_core.measurement import Measurement
-from qdmpy_core.odmr.data import ODMRData
-from qdmpy_core.odmr.io import MatlabLoader
-from qdmpy_core.odmr.processors import (
+from qdmpy.measurement import Measurement
+from qdmpy.odmr.data import ODMRData
+from qdmpy.odmr.io import MatlabLoader
+from qdmpy.odmr.processors import (
     BinningProcessor,
     FluorescenceCorrectionProcessor,
     NormalizationProcessor,
@@ -146,7 +146,7 @@ def main() -> None:
 
     # Step 5: Guess the model if needed (can be done automatically)
     try:
-        from qdmpy_core.guess import guess_model
+        from qdmpy.guess import guess_model
 
         model = guess_model(odmr.processed_data.data)
         logger.info(f"Auto-detected model: {model.name}")

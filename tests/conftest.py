@@ -10,8 +10,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from qdmpy_core.fitting.result import FitResult
-from qdmpy_core.settings import (
+from qdmpy.fitting.result import FitResult
+from qdmpy.settings import (
     FitSettings,
     ModelConstraintsSettings,
     ModelSettings,

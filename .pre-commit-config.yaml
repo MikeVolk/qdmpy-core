@@ -40,6 +40,6 @@ repos:
       - id: ty
         name: ty (type check)
         language: system
-        entry: uv run ty check src/qdmpy_core
+        entry: uv run ty check src/qdmpy
         pass_filenames: false
         types: [python]

@@ -50,8 +50,8 @@ def print_timings(timings: dict[str, float]) -> None:
 
 def stage_load(data_folder: Path) -> tuple:
     """Load raw ODMR data from disk."""
-    from qdmpy_core.odmr.data import ODMRData
-    from qdmpy_core.odmr.io import MatlabLoader
+    from qdmpy.odmr.data import ODMRData
+    from qdmpy.odmr.io import MatlabLoader
 
     loader = MatlabLoader(data_folder=str(data_folder))
     return ODMRData.from_loader(loader=loader)
@@ -59,8 +59,8 @@ def stage_load(data_folder: Path) -> tuple:
 
 def stage_build_odmr(odmr_data, bin_factor: int):
     """Construct the ODMR manager (no processing yet)."""
-    from qdmpy_core.odmr.manager import ODMR
-    from qdmpy_core.odmr.processors import BinningProcessor, NormalizationProcessor
+    from qdmpy.odmr.manager import ODMR
+    from qdmpy.odmr.processors import BinningProcessor, NormalizationProcessor
 
     odmr = ODMR(odmr_data)
     if bin_factor > 1:
@@ -76,7 +76,7 @@ def stage_process(odmr) -> None:
 
 def stage_fit(odmr, model_name: str = "auto"):
     """Build FitManager and run GPU fitting."""
-    from qdmpy_core.fitting.manager import FitManager
+    from qdmpy.fitting.manager import FitManager
 
     processed = odmr.processed_data
     fm = FitManager(
@@ -129,8 +129,8 @@ def run_cprofile(data_folder: Path, bin_factor: int, model_name: str) -> None:
 
 def run_guess_bench(data_folder: Path, bin_factor: int) -> None:
     """Micro-benchmark each guess function with proper JIT warm-up."""
-    from qdmpy_core.constants import DEFAULT_VMAX, DEFAULT_VMIN
-    from qdmpy_core.fitting import guess as guess_mod
+    from qdmpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
+    from qdmpy.fitting import guess as guess_mod
 
     odmr_data = stage_load(data_folder)
     odmr = stage_build_odmr(odmr_data, bin_factor)
@@ -174,11 +174,11 @@ def run_line_profiler(data_folder: Path, bin_factor: int, model_name: str) -> No
     except ImportError:
         sys.exit(1)
 
-    from qdmpy_core.fitting import guess
-    from qdmpy_core.fitting.manager import FitManager
-    from qdmpy_core.odmr.data import ODMRData
-    from qdmpy_core.odmr.io import MatlabLoader
-    from qdmpy_core.odmr.manager import ODMR
+    from qdmpy.fitting import guess
+    from qdmpy.fitting.manager import FitManager
+    from qdmpy.odmr.data import ODMRData
+    from qdmpy.odmr.io import MatlabLoader
+    from qdmpy.odmr.manager import ODMR
 
     lp = LineProfiler()
 

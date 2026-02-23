@@ -1,4 +1,4 @@
-"""Tests for qdmpy_core.load() and Measurement.from_folder()."""
+"""Tests for qdmpy.load() and Measurement.from_folder()."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ import numpy as np
 import pytest
 import xarray as xr
 
-import qdmpy_core
-from qdmpy_core.measurement import Measurement
-from qdmpy_core.odmr.data import ODMRData
-from qdmpy_core.odmr.manager import ODMR
+import qdmpy
+from qdmpy.measurement import Measurement
+from qdmpy.odmr.data import ODMRData
+from qdmpy.odmr.manager import ODMR
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
@@ -52,7 +52,7 @@ def patched_from_folder(tmp_path: Path, mock_loader_data: xr.DataArray):
     odmr = ODMR(odmr_data)
     odmr.process_data()  # sets up processed_data with scan_dimensions
 
-    from qdmpy_core.exceptions import DataLoadError
+    from qdmpy.exceptions import DataLoadError
 
     class _Ctx:
         def __init__(self):
@@ -60,10 +60,10 @@ def patched_from_folder(tmp_path: Path, mock_loader_data: xr.DataArray):
 
         def __enter__(self):
             self._patches = [
-                patch("qdmpy_core.odmr.io.MatlabLoader.load", return_value=mock_loader_data),
-                patch("qdmpy_core.measurement.os.listdir", return_value=[]),
+                patch("qdmpy.odmr.io.MatlabLoader.load", return_value=mock_loader_data),
+                patch("qdmpy.measurement.os.listdir", return_value=[]),
                 patch(
-                    "qdmpy_core.measurement.get_image",
+                    "qdmpy.measurement.get_image",
                     side_effect=DataLoadError("no image"),
                 ),
             ]
@@ -79,16 +79,16 @@ def patched_from_folder(tmp_path: Path, mock_loader_data: xr.DataArray):
 
 
 # ---------------------------------------------------------------------------
-# qdmpy_core.load() smoke test
+# qdmpy.load() smoke test
 # ---------------------------------------------------------------------------
 
 
 def test_load_is_callable() -> None:
-    assert callable(qdmpy_core.load)
+    assert callable(qdmpy.load)
 
 
 def test_load_in_all() -> None:
-    assert "load" in qdmpy_core.__all__
+    assert "load" in qdmpy.__all__
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +101,7 @@ class TestFromFolderProcessors:
 
     def _run(self, tmp_path: Path, **kwargs) -> list[str]:
         """Return list of processor type names added to the ODMR instance."""
-        from qdmpy_core.exceptions import DataLoadError
+        from qdmpy.exceptions import DataLoadError
 
         xr_data = _make_xr_data()
 
@@ -118,10 +118,10 @@ class TestFromFolderProcessors:
                 self._processors.append(p)
 
         with (
-            patch("qdmpy_core.odmr.io.MatlabLoader.load", return_value=xr_data),
-            patch("qdmpy_core.measurement.os.listdir", return_value=[]),
+            patch("qdmpy.odmr.io.MatlabLoader.load", return_value=xr_data),
+            patch("qdmpy.measurement.os.listdir", return_value=[]),
             patch(
-                "qdmpy_core.measurement.get_image",
+                "qdmpy.measurement.get_image",
                 side_effect=DataLoadError("no image"),
             ),
         ):
@@ -131,14 +131,14 @@ class TestFromFolderProcessors:
 
     def _processors_on(self, tmp_path: Path, **kwargs) -> tuple[list[str], Measurement]:
         """Return (processor_names, measurement) by inspecting the ODMR manager."""
-        from qdmpy_core.exceptions import DataLoadError
+        from qdmpy.exceptions import DataLoadError
 
         xr_data = _make_xr_data()
         with (
-            patch("qdmpy_core.odmr.io.MatlabLoader.load", return_value=xr_data),
-            patch("qdmpy_core.measurement.os.listdir", return_value=[]),
+            patch("qdmpy.odmr.io.MatlabLoader.load", return_value=xr_data),
+            patch("qdmpy.measurement.os.listdir", return_value=[]),
             patch(
-                "qdmpy_core.measurement.get_image",
+                "qdmpy.measurement.get_image",
                 side_effect=DataLoadError("no image"),
             ),
         ):
@@ -186,16 +186,16 @@ class TestFromFolderProcessors:
 class TestFromFolderImages:
     def _make(self, tmp_path: Path, folder_files=None, get_image_side_effect=None):
         """Run from_folder with controllable image loading."""
-        from qdmpy_core.exceptions import DataLoadError as DLE
+        from qdmpy.exceptions import DataLoadError as DLE
 
         xr_data = _make_xr_data()
         folder_files = folder_files or []
         get_image_side_effect = get_image_side_effect or DLE("no image")
 
         with (
-            patch("qdmpy_core.odmr.io.MatlabLoader.load", return_value=xr_data),
-            patch("qdmpy_core.measurement.os.listdir", return_value=folder_files),
-            patch("qdmpy_core.measurement.get_image", side_effect=get_image_side_effect),
+            patch("qdmpy.odmr.io.MatlabLoader.load", return_value=xr_data),
+            patch("qdmpy.measurement.os.listdir", return_value=folder_files),
+            patch("qdmpy.measurement.get_image", side_effect=get_image_side_effect),
         ):
             return Measurement.from_folder(tmp_path, normalize=False, fluorescence_correction=None)
 
@@ -212,7 +212,7 @@ class TestFromFolderImages:
 
     def test_light_files_filtered_by_keyword(self, tmp_path: Path) -> None:
         """Only files with 'light' in name are passed to get_image for light."""
-        from qdmpy_core.exceptions import DataLoadError as DLE
+        from qdmpy.exceptions import DataLoadError as DLE
 
         xr_data = _make_xr_data()
         captured_calls: list = []
@@ -223,9 +223,9 @@ class TestFromFolderImages:
 
         folder_files = ["light_ref.jpg", "laser_ref.jpg", "run_00000.mat", "other.txt"]
         with (
-            patch("qdmpy_core.odmr.io.MatlabLoader.load", return_value=xr_data),
-            patch("qdmpy_core.measurement.os.listdir", return_value=folder_files),
-            patch("qdmpy_core.measurement.get_image", side_effect=capture_get_image),
+            patch("qdmpy.odmr.io.MatlabLoader.load", return_value=xr_data),
+            patch("qdmpy.measurement.os.listdir", return_value=folder_files),
+            patch("qdmpy.measurement.get_image", side_effect=capture_get_image),
         ):
             Measurement.from_folder(tmp_path, normalize=False, fluorescence_correction=None)
 
@@ -259,13 +259,13 @@ class TestFromFolderImages:
 
 class TestFromFolderConfig:
     def _make(self, tmp_path: Path, **kwargs) -> Measurement:
-        from qdmpy_core.exceptions import DataLoadError as DLE
+        from qdmpy.exceptions import DataLoadError as DLE
 
         xr_data = _make_xr_data()
         with (
-            patch("qdmpy_core.odmr.io.MatlabLoader.load", return_value=xr_data),
-            patch("qdmpy_core.measurement.os.listdir", return_value=[]),
-            patch("qdmpy_core.measurement.get_image", side_effect=DLE("no image")),
+            patch("qdmpy.odmr.io.MatlabLoader.load", return_value=xr_data),
+            patch("qdmpy.measurement.os.listdir", return_value=[]),
+            patch("qdmpy.measurement.get_image", side_effect=DLE("no image")),
         ):
             return Measurement.from_folder(tmp_path, **kwargs)
 

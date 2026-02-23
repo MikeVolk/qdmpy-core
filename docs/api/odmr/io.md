@@ -6,7 +6,7 @@ The ODMR IO module provides classes for loading and saving ODMR data from variou
 
 The `BaseLoader` is an abstract base class for all ODMR data loaders.
 
-::: qdmpy_core.odmr.io.BaseLoader
+::: qdmpy.odmr.io.BaseLoader
     options:
       show_root_heading: true
       show_source: true
@@ -15,7 +15,7 @@ The `BaseLoader` is an abstract base class for all ODMR data loaders.
 
 The `MatlabLoader` loads ODMR data from MATLAB (.mat) files.
 
-::: qdmpy_core.odmr.io.MatlabLoader
+::: qdmpy.odmr.io.MatlabLoader
     options:
       show_root_heading: true
       show_source: true

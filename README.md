@@ -170,17 +170,6 @@ uv run mypy src/QDMpy
 
 QDMpy is distributed under the [MIT License](LICENCE).
 
-## Citation
-
-If you use QDMpy in your research, please cite:
-
-```
-Volk, M. et al. (2023). QDMpy: A Python package for Quantum Diamond Microscopy data analysis.
-Journal of Open Source Software, X(XX), XXXX. https://doi.org/10.XXXX/XXXX.XXXX
-```
-
----
-
 ## Acknowledgments
 
 QDMpy incorporates code and concepts from the quantum sensing community and relies on several open-source Python libraries. Special thanks to all contributors and the broader scientific community working on quantum sensing technologies.

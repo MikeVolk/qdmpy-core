@@ -11,14 +11,14 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from qdmpy_core.constants import DEFAULT_VMAX, DEFAULT_VMIN
-from qdmpy_core.exceptions import (
+from qdmpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
+from qdmpy.exceptions import (
     DataShapeError,
     DataValidationError,
     ModelGuessNotPossibleError,
     ModelNotFoundError,
 )
-from qdmpy_core.fitting.guess import (
+from qdmpy.fitting.guess import (
     cumsum_center,
     cumsum_contrast,
     cumsum_width,
@@ -28,7 +28,7 @@ from qdmpy_core.fitting.guess import (
     normalize_pixel,
     validate_array,
 )
-from qdmpy_core.fitting.models import ESR14N, ESR15N, ESRSINGLE
+from qdmpy.fitting.models import ESR14N, ESR15N, ESRSINGLE
 
 
 @pytest.fixture
@@ -124,7 +124,7 @@ class TestGuessNPeaks:
         """Test guessing the number of peaks with mocked find_peaks."""
         mock_data = np.random.random((2, 3, 10, 100))
 
-        with patch("qdmpy_core.fitting.guess.find_peaks") as mock_find_peaks:
+        with patch("qdmpy.fitting.guess.find_peaks") as mock_find_peaks:
             mock_find_peaks.return_value = (np.array([30, 70]), {})
             n_peaks, doubt, indices = guess_n_peaks(mock_data)
 
@@ -136,7 +136,7 @@ class TestGuessNPeaks:
         """Test guessing peaks when there's doubt (inconsistent counts)."""
         mock_data = np.random.random((2, 3, 10, 100))
 
-        with patch("qdmpy_core.fitting.guess.find_peaks") as mock_find_peaks:
+        with patch("qdmpy.fitting.guess.find_peaks") as mock_find_peaks:
 
             def side_effect_fn(data, prominence):
                 call_count = mock_find_peaks.call_count - 1
@@ -192,7 +192,7 @@ class TestGetModelByPeaks:
 class TestGuessModel:
     """Test cases for guess_model function."""
 
-    @patch("qdmpy_core.fitting.guess.guess_n_peaks")
+    @patch("qdmpy.fitting.guess.guess_n_peaks")
     def test_guess_model_no_doubt(self, mock_guess_n_peaks) -> None:
         """Test guessing model when there's no doubt."""
         mock_guess_n_peaks.return_value = (2, False, [])
@@ -202,7 +202,7 @@ class TestGuessModel:
         assert isinstance(model, ESR15N)
         assert model.n_peaks == 2
 
-    @patch("qdmpy_core.fitting.guess.guess_n_peaks")
+    @patch("qdmpy.fitting.guess.guess_n_peaks")
     def test_guess_model_with_doubt(self, mock_guess_n_peaks) -> None:
         """Test guessing model when there's doubt."""
         mock_guess_n_peaks.return_value = (2, True, [])

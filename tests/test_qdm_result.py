@@ -10,8 +10,8 @@ import pytest
 import xarray as xr
 from pydantic import ValidationError
 
-from qdmpy_core.fitting.result import FitResult
-from qdmpy_core.result import QDMResult
+from qdmpy.fitting.result import FitResult
+from qdmpy.result import QDMResult
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -147,7 +147,7 @@ class TestMagneticMap:
 
     def test_magnetic_map_uses_settings_nv_axis_by_default(self, qdm_result: QDMResult) -> None:
         """When nv_axis is None, from_b111 uses settings.nv.axis."""
-        with patch("qdmpy_core.magnetic_map.MagneticMap.from_b111") as mock_from_b111:
+        with patch("qdmpy.magnetic_map.MagneticMap.from_b111") as mock_from_b111:
             mock_from_b111.return_value = MagicMock()
             _ = qdm_result.magnetic_map
             call_kwargs = mock_from_b111.call_args
@@ -157,7 +157,7 @@ class TestMagneticMap:
     def test_magnetic_map_passes_custom_nv_axis(self, two_pol_fit_result: FitResult) -> None:
         axis = (0.1, 0.8, 0.6)
         result = QDMResult(fit_result=two_pol_fit_result, nv_axis=axis)
-        with patch("qdmpy_core.magnetic_map.MagneticMap.from_b111") as mock_from_b111:
+        with patch("qdmpy.magnetic_map.MagneticMap.from_b111") as mock_from_b111:
             mock_from_b111.return_value = MagicMock()
             _ = result.magnetic_map
             call_kwargs = mock_from_b111.call_args

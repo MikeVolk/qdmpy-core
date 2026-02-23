@@ -16,11 +16,11 @@ import pytest
 import xarray as xr
 from numpy.typing import NDArray
 
-from qdmpy_core import FieldReconstructor, Model, ModelRegistry, Processor
-from qdmpy_core.fitting.result import FitResult
-from qdmpy_core.magnetic_map import MagneticMap
-from qdmpy_core.odmr.data import ODMRData
-from qdmpy_core.result import QDMResult
+from qdmpy import FieldReconstructor, Model, ModelRegistry, Processor
+from qdmpy.fitting.result import FitResult
+from qdmpy.magnetic_map import MagneticMap
+from qdmpy.odmr.data import ODMRData
+from qdmpy.result import QDMResult
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -173,7 +173,7 @@ class TestProcessorProtocol:
         assert isinstance(_ScalingProcessor().describe(), str)
 
     def test_baseprocessor_satisfies_protocol(self) -> None:
-        from qdmpy_core.odmr.processors import NormalizationProcessor
+        from qdmpy.odmr.processors import NormalizationProcessor
 
         assert isinstance(NormalizationProcessor(), Processor)
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from qdmpy_core import constants
+from qdmpy import constants
 
 
 class TestConstants(unittest.TestCase):

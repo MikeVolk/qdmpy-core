@@ -12,13 +12,13 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from qdmpy_core.exceptions import DataNotLoadedError, DependencyError
-from qdmpy_core.fitting.result import FitResult
-from qdmpy_core.measurement import Measurement
-from qdmpy_core.odmr.data import ODMRData
-from qdmpy_core.odmr.manager import ODMR
-from qdmpy_core.odmr.processors import BinningProcessor
-from qdmpy_core.result import QDMResult
+from qdmpy.exceptions import DataNotLoadedError, DependencyError
+from qdmpy.fitting.result import FitResult
+from qdmpy.measurement import Measurement
+from qdmpy.odmr.data import ODMRData
+from qdmpy.odmr.manager import ODMR
+from qdmpy.odmr.processors import BinningProcessor
+from qdmpy.result import QDMResult
 
 
 @pytest.fixture
@@ -257,16 +257,16 @@ class TestMeasurement:
             fit_model="auto",
         )
 
-        with patch("qdmpy_core.fitting.guess.guess_model") as mock_guess:
+        with patch("qdmpy.fitting.guess.guess_model") as mock_guess:
             mock_model = type("MockModel", (), {"name": "ESR15N"})()
             mock_guess.return_value = mock_model
 
-            with patch("qdmpy_core.fitting.manager.FitManager") as mock_fit_manager:
+            with patch("qdmpy.fitting.manager.FitManager") as mock_fit_manager:
                 mock_fit_instance = mock_fit_manager.return_value
                 expected_result = self._make_fit_result("ESR15N")
                 mock_fit_instance.fit.return_value = expected_result
 
-                with patch("qdmpy_core.is_pygpufit_available", return_value=True):
+                with patch("qdmpy.is_pygpufit_available", return_value=True):
                     result = measurement.fit_odmr()
 
                 mock_fit_manager.assert_called_once()
@@ -286,12 +286,12 @@ class TestMeasurement:
             fit_model="ESR14N",
         )
 
-        with patch("qdmpy_core.fitting.manager.FitManager") as mock_fit_manager:
+        with patch("qdmpy.fitting.manager.FitManager") as mock_fit_manager:
             mock_fit_instance = mock_fit_manager.return_value
             expected_result = self._make_fit_result("ESR14N")
             mock_fit_instance.fit.return_value = expected_result
 
-            with patch("qdmpy_core.is_pygpufit_available", return_value=True):
+            with patch("qdmpy.is_pygpufit_available", return_value=True):
                 result = measurement.fit_odmr(model_name="ESR14N")
 
             _, kwargs = mock_fit_manager.call_args
@@ -328,14 +328,14 @@ class TestMeasurement:
             pixel_spacing=5e-6,
         )
 
-        with patch("qdmpy_core.fitting.manager.FitManager") as mock_fit_manager:
+        with patch("qdmpy.fitting.manager.FitManager") as mock_fit_manager:
             mock_fit_instance = mock_fit_manager.return_value
             expected_result = self._make_fit_result("ESRSINGLE")
             # Override pixel_spacing to verify it was passed
             object.__setattr__(expected_result, "pixel_spacing", 5e-6)
             mock_fit_instance.fit.return_value = expected_result
 
-            with patch("qdmpy_core.is_pygpufit_available", return_value=True):
+            with patch("qdmpy.is_pygpufit_available", return_value=True):
                 measurement.fit_odmr()
 
             _, fit_kwargs = mock_fit_instance.fit.call_args
@@ -353,12 +353,12 @@ class TestMeasurement:
             output_directory=temp_output_dir,
         )
 
-        with patch("qdmpy_core.fitting.manager.FitManager") as mock_fit_manager:
+        with patch("qdmpy.fitting.manager.FitManager") as mock_fit_manager:
             mock_fit_instance = mock_fit_manager.return_value
             expected_result = self._make_fit_result("ESRSINGLE")
             mock_fit_instance.fit.return_value = expected_result
 
-            with patch("qdmpy_core.is_pygpufit_available", return_value=True):
+            with patch("qdmpy.is_pygpufit_available", return_value=True):
                 result = measurement.fit_odmr()
 
             assert "fit_timestamp" in result.fit_result.metadata
@@ -388,6 +388,6 @@ class TestValidateFitPrerequisites:
             laser_image=laser_image,
             output_directory=temp_output_dir,
         )
-        with patch("qdmpy_core.settings.is_pygpufit_available", return_value=False):
+        with patch("qdmpy.settings.is_pygpufit_available", return_value=False):
             with pytest.raises(DependencyError, match="pyGpufit is required"):
                 m._validate_fit_prerequisites()

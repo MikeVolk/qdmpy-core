@@ -9,8 +9,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from qdmpy_core.exceptions import DataLoadError
-from qdmpy_core.odmr.io import BaseLoader, MatlabLoader
+from qdmpy.exceptions import DataLoadError
+from qdmpy.odmr.io import BaseLoader, MatlabLoader
 
 
 @pytest.fixture

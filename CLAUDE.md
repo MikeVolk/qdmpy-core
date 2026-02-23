@@ -69,12 +69,12 @@ dimension: `[:, 0]` = negatively-signed dB, `[:, 1]` = positively-signed dB. Ext
 ## Testing
 - Run all tests: `uv run pytest`
 - Run single test: `uv run pytest tests/test_file.py::test_function -v`
-- Run with coverage: `uv run pytest --cov=qdmpy_core --cov-report=term-missing`
+- Run with coverage: `uv run pytest --cov=qdmpy --cov-report=term-missing`
 
 ## Linting
 - Run all checks: `pre-commit run --all-files`
 - Run ruff: `uv run ruff check .`
-- Run ty: `uv run ty src/qdmpy_core`
+- Run ty: `uv run ty src/qdmpy`
 
 ## Code Style
 - Python >=3.12
@@ -88,6 +88,36 @@ dimension: `[:, 0]` = negatively-signed dB, `[:, 1]` = positively-signed dB. Ext
 - Max complexity: 10 (cyclomatic), 8 (cognitive)
 - use logging extensively (logruru not stdlib logging)
 - do not include a "authored by claude *" in commits
+
+## Directory Structure
+
+Each top-level directory has a single, unambiguous purpose.
+
+- `src/qdmpy/` — Package source code only.
+- `tests/` — Pytest tests only. Mirrors the `src/` module structure.
+- `docs/` — MkDocs source: markdown files, API reference stubs, Mermaid diagrams,
+  and tutorial notebooks rendered into the docs site. If it appears in `mkdocs.yml`
+  nav, it lives here. `docs/tutorials/` holds both `.md` and `.ipynb` tutorial files.
+- `notebooks/` — Jupyter notebooks for interactive user workflows and demos.
+  Research/exploratory notebooks go in `notebooks/experiments/`.
+- `examples/` — Runnable `.py` scripts that demonstrate library usage to a user.
+  Think "copy-paste starting point". No notebooks here.
+- `scripts/` — Developer-only tooling: benchmarks, profilers, reference data
+  generators. Not for library users.
+- `reference_data/` — NPZ regression fixtures used by the test suite.
+- `proposals/` — QEP design documents. One file per feature/change.
+- `memory/` — Claude AI session memory files. See Memory Files section.
+- `site/` — Build artifact from `mkdocs build`. Never commit. Delete with
+  `rm -rf site/` if it appears on disk.
+
+**Decision rule when unsure:**
+
+| Content type | Goes in |
+|---|---|
+| Narrative how-to (MD or notebook) | `docs/tutorials/` |
+| Interactive demo notebook | `notebooks/` |
+| User-facing copy-paste script | `examples/` |
+| Developer/maintenance script | `scripts/` |
 
 ## Session Workflow
 - **No summary files** — do not create session summaries or recap documents after work

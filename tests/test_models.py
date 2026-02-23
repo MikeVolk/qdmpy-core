@@ -12,8 +12,8 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_array_equal
 
-from qdmpy_core.constants import AHYP_14N, AHYP_15N
-from qdmpy_core.fitting.models import (
+from qdmpy.constants import AHYP_14N, AHYP_15N
+from qdmpy.fitting.models import (
     ESR14N,
     ESR15N,
     ESRSINGLE,
@@ -576,7 +576,7 @@ def test_main_demo_function() -> None:
     import io
     from unittest.mock import patch
 
-    from qdmpy_core.fitting.models import _main_demo
+    from qdmpy.fitting.models import _main_demo
 
     # Capture stdout to verify the output
     captured_output = io.StringIO()
@@ -606,8 +606,8 @@ class TestGpufitConsistency:
     FREQ = np.linspace(2.82, 2.92, N_FREQ, dtype=np.float32)
 
     def _run(self, model_name: str, true_params: np.ndarray) -> None:
-        from qdmpy_core.fitting.manager import FitManager
-        from qdmpy_core.fitting.models import ModelRegistry
+        from qdmpy.fitting.manager import FitManager
+        from qdmpy.fitting.models import ModelRegistry
 
         model = ModelRegistry.get(model_name)
         spectra = model.func(self.FREQ, true_params).astype(np.float32)  # (N, n_freq)

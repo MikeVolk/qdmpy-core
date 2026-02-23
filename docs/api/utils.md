@@ -1,8 +1,8 @@
 # Utilities Module
 
-The utilities module provides general-purpose functions and tools for qdmpy_core.
+The utilities module provides general-purpose functions and tools for qdmpy.
 
-::: qdmpy_core.utils
+::: qdmpy.utils
     options:
       show_root_heading: true
       show_source: true

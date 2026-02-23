@@ -4,7 +4,7 @@ Tests the abstract base class and pipeline orchestrator defined in QEP-034 Phase
 Follows TDD RED phase — all tests should fail until the module is implemented.
 
 Import path under test:
-    from qdmpy_core.field_processing import BaseFieldProcessor, FieldProcessingPipeline
+    from qdmpy.field_processing import BaseFieldProcessor, FieldProcessingPipeline
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ def field_map_no_pixel_spacing() -> xr.DataArray:
 
 def _make_identity_processor_class() -> type:
     """Return a concrete BaseFieldProcessor subclass that returns a copy of input."""
-    from qdmpy_core.field_processing import BaseFieldProcessor
+    from qdmpy.field_processing import BaseFieldProcessor
 
     class IdentityProcessor(BaseFieldProcessor):
         """Concrete processor that returns an unchanged copy of the field map."""
@@ -84,7 +84,7 @@ def _make_identity_processor_class() -> type:
 
 def _make_scaling_processor_class(factor: float = 2.0) -> type:
     """Return a concrete BaseFieldProcessor subclass that scales values by factor."""
-    from qdmpy_core.field_processing import BaseFieldProcessor
+    from qdmpy.field_processing import BaseFieldProcessor
 
     class ScalingProcessor(BaseFieldProcessor):
         """Concrete processor that multiplies field values by a fixed factor."""
@@ -106,7 +106,7 @@ def _make_additive_processor_class(offset: float = 1.0) -> type:
     """Return a concrete BaseFieldProcessor subclass that adds a constant offset."""
     from pydantic import Field
 
-    from qdmpy_core.field_processing import BaseFieldProcessor
+    from qdmpy.field_processing import BaseFieldProcessor
 
     offset_field = Field(default=offset)
 
@@ -136,14 +136,14 @@ class TestBaseFieldProcessorIsAbstract:
 
     def test_direct_instantiation_raises_type_error(self) -> None:
         """Instantiating BaseFieldProcessor without implementing process() raises TypeError."""
-        from qdmpy_core.field_processing import BaseFieldProcessor
+        from qdmpy.field_processing import BaseFieldProcessor
 
         with pytest.raises(TypeError):
             BaseFieldProcessor()
 
     def test_subclass_without_process_raises_type_error(self) -> None:
         """A subclass that does not implement process() cannot be instantiated."""
-        from qdmpy_core.field_processing import BaseFieldProcessor
+        from qdmpy.field_processing import BaseFieldProcessor
 
         class IncompleteProcessor(BaseFieldProcessor):
             pass  # no process() override
@@ -211,7 +211,7 @@ class TestBaseFieldProcessorPixelSpacing:
 
     def test_pixel_spacing_is_static_method(self) -> None:
         """_pixel_spacing is callable on the class without an instance."""
-        from qdmpy_core.field_processing import BaseFieldProcessor
+        from qdmpy.field_processing import BaseFieldProcessor
 
         field_map = _make_field_map(pixel_spacing=5e-7)
         ps = BaseFieldProcessor._pixel_spacing(field_map)
@@ -219,7 +219,7 @@ class TestBaseFieldProcessorPixelSpacing:
 
     def test_pixel_spacing_custom_value(self) -> None:
         """_pixel_spacing() correctly reads various pixel_spacing values."""
-        from qdmpy_core.field_processing import BaseFieldProcessor
+        from qdmpy.field_processing import BaseFieldProcessor
 
         for expected_ps in [1e-9, 1e-6, 1e-3, 1.0]:
             field_map = _make_field_map(pixel_spacing=expected_ps)
@@ -305,14 +305,14 @@ class TestFieldProcessingPipelineConstruction:
 
     def test_pipeline_instantiates_empty(self) -> None:
         """FieldProcessingPipeline() creates an empty pipeline without error."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         pipeline = FieldProcessingPipeline()
         assert pipeline is not None
 
     def test_add_returns_self_for_method_chaining(self) -> None:
         """add() returns the pipeline instance to allow fluent chaining."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline()
@@ -321,7 +321,7 @@ class TestFieldProcessingPipelineConstruction:
 
     def test_method_chaining_multiple_add_calls(self) -> None:
         """Multiple add() calls can be chained without raising."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         ScalingProcessor = _make_scaling_processor_class(factor=2.0)
@@ -336,7 +336,7 @@ class TestFieldProcessingPipelineConstruction:
 
     def test_add_accepts_base_field_processor_subclass(self) -> None:
         """add() accepts any BaseFieldProcessor subclass without error."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline()
@@ -349,7 +349,7 @@ class TestFieldProcessingPipelineProcess:
 
     def test_empty_pipeline_returns_copy_of_input(self, simple_field_map: xr.DataArray) -> None:
         """An empty pipeline returns a DataArray with same values as input."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         pipeline = FieldProcessingPipeline()
         result = pipeline.process(simple_field_map)
@@ -357,7 +357,7 @@ class TestFieldProcessingPipelineProcess:
 
     def test_empty_pipeline_returns_new_object(self, simple_field_map: xr.DataArray) -> None:
         """An empty pipeline returns a new DataArray (not the same reference)."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         pipeline = FieldProcessingPipeline()
         result = pipeline.process(simple_field_map)
@@ -367,7 +367,7 @@ class TestFieldProcessingPipelineProcess:
         self, simple_field_map: xr.DataArray
     ) -> None:
         """Single IdentityProcessor pipeline returns identical values."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
@@ -376,7 +376,7 @@ class TestFieldProcessingPipelineProcess:
 
     def test_single_scaling_processor_doubles_values(self, simple_field_map: xr.DataArray) -> None:
         """Single ScalingProcessor(scale=2.0) produces 2× the original values."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         ScalingProcessor = _make_scaling_processor_class(factor=2.0)
         pipeline = FieldProcessingPipeline().add(ScalingProcessor(scale=2.0))
@@ -385,7 +385,7 @@ class TestFieldProcessingPipelineProcess:
 
     def test_two_scaling_processors_quadruple_values(self, simple_field_map: xr.DataArray) -> None:
         """Two scale=2 processors applied sequentially multiply values by 4."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         ScalingProcessor = _make_scaling_processor_class(factor=2.0)
         pipeline = (
@@ -398,7 +398,7 @@ class TestFieldProcessingPipelineProcess:
 
     def test_processors_applied_in_order(self, simple_field_map: xr.DataArray) -> None:
         """Processors execute left-to-right; scale-then-offset != offset-then-scale."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         ScalingProcessor = _make_scaling_processor_class(factor=2.0)
         AdditiveProcessor = _make_additive_processor_class(offset=10.0)
@@ -424,7 +424,7 @@ class TestFieldProcessingPipelineProcess:
 
     def test_process_does_not_mutate_input(self, simple_field_map: xr.DataArray) -> None:
         """pipeline.process() does not alter the original input DataArray."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         ScalingProcessor = _make_scaling_processor_class(factor=99.0)
         pipeline = FieldProcessingPipeline().add(ScalingProcessor(scale=99.0))
@@ -434,7 +434,7 @@ class TestFieldProcessingPipelineProcess:
 
     def test_process_preserves_coords(self, simple_field_map: xr.DataArray) -> None:
         """pipeline.process() output retains the input's coordinates."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
@@ -448,7 +448,7 @@ class TestFieldProcessingPipelineProcess:
 
     def test_process_preserves_attrs(self, simple_field_map: xr.DataArray) -> None:
         """pipeline.process() output retains pixel_spacing in attrs."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
@@ -457,7 +457,7 @@ class TestFieldProcessingPipelineProcess:
 
     def test_process_returns_xr_dataarray(self, simple_field_map: xr.DataArray) -> None:
         """pipeline.process() always returns an xr.DataArray."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
@@ -470,7 +470,7 @@ class TestFieldProcessingPipelineLogging:
 
     def test_pipeline_logs_each_processor_name(self, simple_field_map: xr.DataArray) -> None:
         """A debug log entry naming the processor appears for each pipeline step."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         ScalingProcessor = _make_scaling_processor_class(factor=2.0)
@@ -481,7 +481,7 @@ class TestFieldProcessingPipelineLogging:
 
         log_calls: list[tuple[Any, ...]] = []
 
-        with patch("qdmpy_core.field_processing.logger") as mock_logger:
+        with patch("qdmpy.field_processing.logger") as mock_logger:
             mock_logger.debug = MagicMock(side_effect=lambda *a, **kw: log_calls.append((a, kw)))
             pipeline.process(simple_field_map)
 
@@ -490,14 +490,14 @@ class TestFieldProcessingPipelineLogging:
 
     def test_pipeline_logs_processor_class_name(self, simple_field_map: xr.DataArray) -> None:
         """The processor class name appears somewhere in the debug log call."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
 
         log_calls: list[tuple[Any, ...]] = []
 
-        with patch("qdmpy_core.field_processing.logger") as mock_logger:
+        with patch("qdmpy.field_processing.logger") as mock_logger:
             mock_logger.debug = MagicMock(side_effect=lambda *a, **kw: log_calls.append((a, kw)))
             pipeline.process(simple_field_map)
 
@@ -512,14 +512,14 @@ class TestFieldProcessingPipelineLogging:
 
     def test_pipeline_logs_shape_after_each_step(self, simple_field_map: xr.DataArray) -> None:
         """Shape information appears in the debug log after each processor step."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
 
         log_calls: list[tuple[Any, ...]] = []
 
-        with patch("qdmpy_core.field_processing.logger") as mock_logger:
+        with patch("qdmpy.field_processing.logger") as mock_logger:
             mock_logger.debug = MagicMock(side_effect=lambda *a, **kw: log_calls.append((a, kw)))
             pipeline.process(simple_field_map)
 
@@ -539,7 +539,7 @@ class TestFieldProcessingPipelineImmutability:
 
     def test_process_does_not_modify_input_values(self, simple_field_map: xr.DataArray) -> None:
         """Values in the input remain unchanged after pipeline.process()."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         ScalingProcessor = _make_scaling_processor_class(factor=3.0)
         pipeline = FieldProcessingPipeline().add(ScalingProcessor(scale=3.0))
@@ -550,7 +550,7 @@ class TestFieldProcessingPipelineImmutability:
 
     def test_process_does_not_modify_input_attrs(self, simple_field_map: xr.DataArray) -> None:
         """Attributes dict of the input DataArray is not modified by pipeline.process()."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
@@ -563,7 +563,7 @@ class TestFieldProcessingPipelineImmutability:
         self, simple_field_map: xr.DataArray
     ) -> None:
         """Modifying the result after process() does not change the original input."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
@@ -627,7 +627,7 @@ class TestFieldProcessingPropertyBased:
         self, n_steps: int, scale: float
     ) -> None:
         """Regardless of how many scaling processors are chained, shape is preserved."""
-        from qdmpy_core.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         ScalingProcessor = _make_scaling_processor_class(factor=scale)
         pipeline = FieldProcessingPipeline()

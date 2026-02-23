@@ -62,7 +62,7 @@ dev = [
 
 [tool.pytest.ini_options]
 addopts = """\
-    --cov qdmpy_core \
+    --cov qdmpy \
     --cov tests \
     --cov-report term-missing \
     --no-cov-on-fail \
@@ -85,7 +85,7 @@ show_error_codes = true
 ignore_missing_imports = true
 
 [project.scripts]
-qdmpy = "qdmpy_core.cli:main"
+qdmpy = "qdmpy.cli:main"
 
 [tool.uv]
 package = true

@@ -97,7 +97,7 @@ def guess_numba_old(
 
 # ---------------------------------------------------------------------------
 # Implementation 2: new production Numba (QEP-024) — calls the real
-#   production functions from qdmpy_core.fitting.guess. Same 3 separate functions
+#   production functions from qdmpy.fitting.guess. Same 3 separate functions
 #   but each uses flat prange over n_pol*n_frange*n_pixel.
 #   normalize_pixel still called twice per pixel (in center + width).
 # ---------------------------------------------------------------------------
@@ -106,7 +106,7 @@ def guess_numba_old(
 def guess_numba_new(
     data: NDArray, freq: NDArray, vmin: float, vmax: float
 ) -> tuple[NDArray, NDArray, NDArray]:
-    from qdmpy_core.fitting.guess import cumsum_center, cumsum_contrast, cumsum_width
+    from qdmpy.fitting.guess import cumsum_center, cumsum_contrast, cumsum_width
 
     contrast = cumsum_contrast(data)
     center = cumsum_center(data, freq)
@@ -259,7 +259,7 @@ def _build_template(freq_range: NDArray, n_peaks: int, width: float = 0.004) -> 
     Returns:
         Normalised template array, same length as freq_range.
     """
-    from qdmpy_core.constants import AHYP_14N, AHYP_15N
+    from qdmpy.constants import AHYP_14N, AHYP_15N
 
     f0 = (freq_range[0] + freq_range[-1]) / 2.0
     if n_peaks == 3:
@@ -397,11 +397,11 @@ def main() -> None:
 
     logger.disable("QDMpy")
 
-    from qdmpy_core.constants import DEFAULT_VMAX, DEFAULT_VMIN
-    from qdmpy_core.odmr.data import ODMRData
-    from qdmpy_core.odmr.io import MatlabLoader
-    from qdmpy_core.odmr.manager import ODMR
-    from qdmpy_core.odmr.processors import BinningProcessor, NormalizationProcessor
+    from qdmpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
+    from qdmpy.odmr.data import ODMRData
+    from qdmpy.odmr.io import MatlabLoader
+    from qdmpy.odmr.manager import ODMR
+    from qdmpy.odmr.processors import BinningProcessor, NormalizationProcessor
 
     loader = MatlabLoader(data_folder=args.data_folder)
     odmr_data = ODMRData.from_loader(loader=loader)
@@ -420,7 +420,7 @@ def main() -> None:
     vmin, vmax = DEFAULT_VMIN, DEFAULT_VMAX
 
     # detect n_peaks from the data for FFT template
-    from qdmpy_core.fitting.guess import guess_model
+    from qdmpy.fitting.guess import guess_model
 
     detected_model = guess_model(data)
     n_peaks = detected_model.n_peaks
@@ -444,7 +444,7 @@ def main() -> None:
     implementations = cumsum_impls + fft_impls
 
     # --- warm up ---
-    for name, fn in implementations:
+    for _name, fn in implementations:
         warmup(fn, data, freq, vmin, vmax)
 
     # --- numerical correctness: numba_new must match numba_old exactly ---

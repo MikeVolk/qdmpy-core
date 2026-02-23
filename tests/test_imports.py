@@ -1,4 +1,4 @@
-"""Smoke tests verifying every name in qdmpy_core.__all__ is importable and is the right type.
+"""Smoke tests verifying every name in qdmpy.__all__ is importable and is the right type.
 
 These tests catch regressions where a refactor moves or renames something that was
 previously exported. They run fast (no data, no GPU) and serve as the first line of
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-import qdmpy_core
+import qdmpy
 
 ALL_NAMES = [
     # Entry points
@@ -54,20 +54,20 @@ ALL_NAMES = [
 
 
 @pytest.mark.parametrize("name,kind", ALL_NAMES)
-def test_name_importable_from_qdmpy_core(name: str, kind: str) -> None:
-    """Each name in __all__ must be importable directly from qdmpy_core."""
-    assert hasattr(qdmpy_core, name), f"qdmpy_core.{name} not found"
-    obj = getattr(qdmpy_core, name)
+def test_name_importable_from_qdmpy(name: str, kind: str) -> None:
+    """Each name in __all__ must be importable directly from qdmpy."""
+    assert hasattr(qdmpy, name), f"qdmpy.{name} not found"
+    obj = getattr(qdmpy, name)
     if kind == "class":
-        assert isinstance(obj, type), f"qdmpy_core.{name} should be a class, got {type(obj)}"
+        assert isinstance(obj, type), f"qdmpy.{name} should be a class, got {type(obj)}"
     elif kind == "callable":
-        assert callable(obj), f"qdmpy_core.{name} should be callable"
+        assert callable(obj), f"qdmpy.{name} should be callable"
 
 
 def test_all_is_complete() -> None:
     """__all__ must contain exactly the names listed in ALL_NAMES (no surprises)."""
     expected = {name for name, _ in ALL_NAMES}
-    actual = set(qdmpy_core.__all__)
+    actual = set(qdmpy.__all__)
     missing = expected - actual
     extra = actual - expected
     assert not missing, f"Names missing from __all__: {missing}"

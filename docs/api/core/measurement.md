@@ -4,9 +4,9 @@ The measurement module provides base classes for scientific measurements and dat
 
 ## Measurement (Base Class)
 
-The `Measurement` class is the base class for all measurement types in qdmpy_core.
+The `Measurement` class is the base class for all measurement types in qdmpy.
 
-::: qdmpy_core.measurement.Measurement
+::: qdmpy.measurement.Measurement
     options:
       show_root_heading: true
       show_source: true

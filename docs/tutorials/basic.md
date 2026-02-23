@@ -1,12 +1,12 @@
-# Basic qdmpy_core Tutorial
+# Basic qdmpy Tutorial
 
-This tutorial introduces the fundamental concepts of qdmpy_core for analyzing ODMR data from NV centers in diamond.
+This tutorial introduces the fundamental concepts of qdmpy for analyzing ODMR data from NV centers in diamond.
 
-[View the full tutorial notebook](../tutorial.ipynb)
+[View the full tutorial notebook](tutorial.ipynb)
 
 ## Quick Start
 
-qdmpy_core provides a complete workflow for ODMR analysis:
+qdmpy provides a complete workflow for ODMR analysis:
 
 1. **Load** data from various formats (.mat, .csv)
 2. **Process** data with built-in processors
@@ -17,8 +17,8 @@ qdmpy_core provides a complete workflow for ODMR analysis:
 ## Loading Data
 
 ```python
-from qdmpy_core.odmr.io import MatlabLoader
-from qdmpy_core.odmr import ODMRData
+from qdmpy.odmr.io import MatlabLoader
+from qdmpy.odmr import ODMRData
 
 # Load data from MATLAB files
 loader = MatlabLoader(data_folder="./data")
@@ -30,11 +30,11 @@ odmr_data = ODMRData(raw_data, scan_dimensions, frequencies)
 
 ## Processing Data
 
-qdmpy_core uses a modular processing pipeline:
+qdmpy uses a modular processing pipeline:
 
 ```python
-from qdmpy_core.odmr import ODMR
-from qdmpy_core.odmr.processors import BinningProcessor, NormalizationProcessor
+from qdmpy.odmr import ODMR
+from qdmpy.odmr.processors import BinningProcessor, NormalizationProcessor
 
 # Create ODMR manager
 odmr = ODMR(odmr_data)
@@ -50,8 +50,8 @@ odmr.process_data()
 ## Automatic Model Selection & Fitting
 
 ```python
-from qdmpy_core.guess import guess_n_peaks, guess_model
-from qdmpy_core.fit import Fit
+from qdmpy.guess import guess_n_peaks, guess_model
+from qdmpy.fit import Fit
 
 # Detect peaks and select model
 n_peaks, doubt, _ = guess_n_peaks(odmr.processed_data.data)
@@ -65,7 +65,7 @@ fit_obj.fit_odmr()
 ## Creating Measurements
 
 ```python
-from qdmpy_core.measurement import Measurement
+from qdmpy.measurement import Measurement
 
 # Combine ODMR data with optical images
 measurement = Measurement(
@@ -76,4 +76,4 @@ measurement = Measurement(
 )
 ```
 
-For the complete tutorial with detailed explanations and examples, see [the full Jupyter notebook](../tutorial.ipynb).
+For the complete tutorial with detailed explanations and examples, see [the full Jupyter notebook](tutorial.ipynb).

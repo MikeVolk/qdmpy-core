@@ -12,9 +12,9 @@ import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
 
-from qdmpy_core.exceptions import DataNotLoadedError
-from qdmpy_core.odmr.data import ODMRData
-from qdmpy_core.odmr.processors import ODMRProcessorManager
+from qdmpy.exceptions import DataNotLoadedError
+from qdmpy.odmr.data import ODMRData
+from qdmpy.odmr.processors import ODMRProcessorManager
 
 
 class ODMR:

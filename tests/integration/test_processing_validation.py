@@ -23,7 +23,7 @@ class TestProcessingValidation:
         """Test that normalization produces identical results to reference."""
         # Import new codebase modules
         _QDMpy_new, _Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
-        from qdmpy_core.odmr.processors import NormalizationProcessor
+        from qdmpy.odmr.processors import NormalizationProcessor
 
         # Load data with new codebase
         loader = MatlabLoader(data_folder=str(test_data_folder))
@@ -59,7 +59,7 @@ class TestProcessingValidation:
 
         # Import new codebase modules
         _QDMpy_new, _Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
-        from qdmpy_core.odmr.processors import BinningProcessor, NormalizationProcessor
+        from qdmpy.odmr.processors import BinningProcessor, NormalizationProcessor
 
         # Load data with new codebase
         loader = MatlabLoader(data_folder=str(test_data_folder))
@@ -103,7 +103,7 @@ class TestProcessingValidation:
         """Test that fluorescence correction produces identical results to reference."""
         # Import new codebase modules
         _QDMpy_new, _Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
-        from qdmpy_core.odmr.processors import (
+        from qdmpy.odmr.processors import (
             BinningProcessor,
             FluorescenceCorrectionProcessor,
             NormalizationProcessor,
@@ -151,7 +151,7 @@ class TestProcessingPerformance:
         """Benchmark processing performance against reference times."""
         # Import new codebase modules
         _QDMpy_new, _Measurement_new, ODMR_new, ODMRData, MatlabLoader = new_qdmpy_modules
-        from qdmpy_core.odmr.processors import (
+        from qdmpy.odmr.processors import (
             BinningProcessor,
             FluorescenceCorrectionProcessor,
             NormalizationProcessor,
