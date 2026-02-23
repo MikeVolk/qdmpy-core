@@ -134,7 +134,11 @@ class ReferenceDataGenerator:
         return success
 
     def _generate_for_binning(
-        self, QDMpy_old: Any, QDM_old: Any, ODMR_old: Any, bin_factor: int
+        self,
+        QDMpy_old: Any,  # noqa: N803, ANN401
+        QDM_old: Any,  # noqa: N803, ANN401
+        ODMR_old: Any,  # noqa: N803, ANN401
+        bin_factor: int,
     ) -> dict[str, Any] | None:
         """Generate reference data for a specific binning factor.
 
@@ -184,13 +188,13 @@ class ReferenceDataGenerator:
             }
 
             logger.debug(f"Reference data generated successfully for bin_factor={bin_factor}")
-            return reference_data
+            return reference_data  # noqa: TRY300
 
         except Exception as e:
             logger.exception(f"Failed to generate reference data for bin_factor={bin_factor}: {e}")
             return None
 
-    def _load_raw_data(self, ODMR_old: Any) -> dict[str, Any] | None:
+    def _load_raw_data(self, ODMR_old: Any) -> dict[str, Any] | None:  # noqa: N803, ANN401
         """Load raw ODMR data using old codebase.
 
         Args:
@@ -221,7 +225,7 @@ class ReferenceDataGenerator:
             }
 
             logger.debug(f"Raw data loaded: shape={raw_data['odmr_raw_data'].shape}")
-            return raw_data
+            return raw_data  # noqa: TRY300
 
         except Exception as e:
             logger.exception(f"Failed to load raw data: {e}")
@@ -273,13 +277,17 @@ class ReferenceDataGenerator:
             }
 
             logger.debug(f"Data processed: shape={processed_data['processed_odmr_data'].shape}")
-            return processed_data
+            return processed_data  # noqa: TRY300
 
         except Exception as e:
             logger.exception(f"Failed to process data: {e}")
             return None
 
-    def _fit_data(self, QDM_old: Any, processed_data: dict[str, Any]) -> dict[str, Any] | None:
+    def _fit_data(
+        self,
+        QDM_old: Any,  # noqa: N803, ANN401
+        processed_data: dict[str, Any],
+    ) -> dict[str, Any] | None:
         """Fit processed data using old codebase.
 
         Args:
@@ -342,7 +350,7 @@ class ReferenceDataGenerator:
             }
 
             logger.debug(f"Fitting completed: fit_shape={fit_results['metadata']['fit_shape']}")
-            return fit_results
+            return fit_results  # noqa: TRY300
 
         except Exception as e:
             logger.exception(f"Failed to fit data: {e}")
@@ -404,7 +412,7 @@ class ReferenceDataGenerator:
             logger.debug(
                 f"Magnetic fields calculated: shape={magnetic_fields['metadata']['field_shape']}"
             )
-            return magnetic_fields
+            return magnetic_fields  # noqa: TRY300
 
         except Exception as e:
             logger.exception(f"Failed to calculate magnetic fields: {e}")
@@ -473,7 +481,8 @@ def main() -> int | None:
     args = parser.parse_args()
 
     if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
+        logger.remove()
+        logger.add(sys.stderr, level="DEBUG")
 
     # Validate arguments
     if not Path(args.data_folder).exists():
@@ -489,7 +498,7 @@ def main() -> int | None:
 
         if success:
             return 0
-        return 1
+        return 1  # noqa: TRY300
 
     except Exception as e:
         logger.exception(f"Reference data generation failed: {e}")
