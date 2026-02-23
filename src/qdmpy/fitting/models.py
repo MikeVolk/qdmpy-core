@@ -452,7 +452,7 @@ class ESR14N(Model):
             ["center", "width", "contrast_0", "contrast_1", "contrast_2", "offset"],
         )
         self.ahyp = AHYP_14N
-        self.model_id = 13
+        self.model_id = 15
 
     @property
     def parameter_types(self: ESR14N) -> dict[str, str]:
@@ -494,7 +494,7 @@ class ESR15N(Model):
             ["center", "width", "contrast_0", "contrast_1", "offset"],
         )
         self.ahyp = AHYP_15N
-        self.model_id = 14
+        self.model_id = 16
 
     @property
     def parameter_types(self: ESR15N) -> dict[str, str]:
@@ -530,7 +530,7 @@ class ESRSINGLE(Model):
     def __init__(self: ESRSINGLE) -> None:
         """Initialize ESRSINGLE model with single-dip parameters."""
         super().__init__("ESRSINGLE", 1, ["center", "width", "contrast", "offset"])
-        self.model_id = 15
+        self.model_id = 17
 
     @property
     def parameter_types(self: ESRSINGLE) -> dict[str, str]:

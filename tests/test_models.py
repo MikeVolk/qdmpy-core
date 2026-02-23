@@ -637,7 +637,7 @@ class TestGpufitConsistency:
         )
 
     def test_esr14n_matches_gpufit(self) -> None:
-        """Python esr14n must match the ESR14N gpufit kernel (model_id=13)."""
+        """Python esr14n must match the ESR14N gpufit kernel (model_id=15)."""
         rng = np.random.default_rng(0)
         params = np.empty((self.N, 6), dtype=np.float32)
         params[:, 0] = rng.uniform(2.85, 2.89, self.N)  # center (GHz)
@@ -649,7 +649,7 @@ class TestGpufitConsistency:
         self._run("ESR14N", params)
 
     def test_esr15n_matches_gpufit(self) -> None:
-        """Python esr15n must match the ESR15N gpufit kernel (model_id=14)."""
+        """Python esr15n must match the ESR15N gpufit kernel (model_id=16)."""
         rng = np.random.default_rng(1)
         params = np.empty((self.N, 5), dtype=np.float32)
         params[:, 0] = rng.uniform(2.85, 2.89, self.N)
@@ -660,7 +660,7 @@ class TestGpufitConsistency:
         self._run("ESR15N", params)
 
     def test_esrsingle_matches_gpufit(self) -> None:
-        """Python esrsingle must match the ESRSINGLE gpufit kernel (model_id=15)."""
+        """Python esrsingle must match the ESRSINGLE gpufit kernel (model_id=17)."""
         rng = np.random.default_rng(2)
         params = np.empty((self.N, 4), dtype=np.float32)
         params[:, 0] = rng.uniform(2.85, 2.89, self.N)
