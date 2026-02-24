@@ -7,7 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **QEP-048 (root-cause H1)** — `normalize_pixel` in `fitting/guess.py` previously
+  subtracted the hardcoded value `1.0` before computing the cumulative sum used for
+  center and width initial guesses. This implicitly assumed max-normalization (which
+  guarantees off-resonance = 1.0) and produced systematically drifted cumsum profiles
+  for mean-normalized data (off-resonance ≈ 1.03–1.10), degrading fit quality. The
+  function now estimates the actual baseline from the mean of the first and last 10%
+  of frequency points, making the initial guesses correct and normalization-independent.
+
 ### Changed
+
+- **QEP-048 (investigation)** — `NormalizationProcessor` reinstates `method='max'` as a
+  **deprecated** option (raises `DeprecationWarning` at construction, not `ValueError`)
+  to allow direct A/B comparison between max-norm and mean-norm pipelines. Max-norm
+  remains physically incorrect for fluorescence correction and will be removed in a
+  future release. Use `method='mean'`.
 
 - **QEP-048 (partial)** — `NormalizationProcessor` now uses mean-normalization exclusively:
   - Default `method` changed from `'max'` to `'mean'`

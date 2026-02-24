@@ -94,41 +94,54 @@ class BaseProcessor(BaseModel):
 
 
 class NormalizationProcessor(BaseProcessor):
-    """Normalizes ODMR data by dividing each pixel's spectrum by its mean intensity.
+    """Normalizes ODMR data by dividing each pixel's spectrum by a scalar factor.
 
-    Mean-normalization preserves per-pixel off-resonance baseline variation, which
-    is required for downstream fluorescence correction. Max-normalization forces
-    every pixel's off-resonance level to exactly 1.0, destroying this information,
-    and is therefore not supported.
+    ``method='mean'`` is the physically correct choice: mean-normalization
+    preserves per-pixel off-resonance baseline variation, which is required for
+    downstream fluorescence correction.
+
+    ``method='max'`` is **deprecated** and will be removed in a future release.
+    It forces every pixel's off-resonance level to exactly 1.0, destroying the
+    baseline information needed for fluorescence correction. It is retained only
+    to allow direct comparison with older pipelines during investigation.
 
     Attributes:
-        method: The normalization method. Only ``'mean'`` is supported.
+        method: The normalization method. ``'mean'`` (default) or ``'max'`` (deprecated).
     """
 
     type: Literal["NormalizationProcessor"] = "NormalizationProcessor"
-    method: str = "mean"
+    method: Literal["max", "mean"] = "mean"
 
     @field_validator("method")
     @classmethod
     def validate_method(cls, v: str) -> str:
-        """Reject max-normalization and unknown methods at construction time."""
+        """Warn for max-normalization; reject unknown methods at construction time."""
+        import warnings
+
         if v == "max":
-            raise ValueError(
-                "method='max' is not physically valid: max-normalization forces every "
-                "pixel's off-resonance level to exactly 1.0, destroying the per-pixel "
-                "baseline variation required for fluorescence correction. "
-                "Replace with method='mean'."
+            warnings.warn(
+                "method='max' is deprecated and will be removed in a future release. "
+                "Max-normalization forces every pixel's off-resonance level to exactly 1.0, "
+                "destroying the per-pixel baseline variation required for fluorescence "
+                "correction. Use method='mean' for physically correct results.",
+                DeprecationWarning,
+                stacklevel=2,
             )
-        if v != "mean":
-            raise ValueError(f"Unsupported normalization method '{v}'. Only 'mean' is supported.")
+        elif v != "mean":
+            raise ValueError(
+                f"Unsupported normalization method '{v}'. Use 'mean' or 'max' (deprecated)."
+            )
         return v
 
     def process(self, data: ODMRData) -> ODMRData:
-        """Normalize the data by the per-pixel mean across the frequency dimension."""
+        """Normalize the data per pixel across the frequency dimension."""
         from qdmpy.odmr.data import ODMRData
 
         logger.debug(f"Normalizing data using method: {self.method}")
-        factors = data.data.mean(dim="freq_idx")
+        if self.method == "max":
+            factors = data.data.max(dim="freq_idx")
+        else:
+            factors = data.data.mean(dim="freq_idx")
         normalized = data.data / factors
         return ODMRData(data=normalized, metadata=data.metadata.copy())
 

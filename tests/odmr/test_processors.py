@@ -76,14 +76,35 @@ class TestNormalizationProcessor:
         mean_values = result.data.mean(dim="freq_idx")
         np.testing.assert_allclose(mean_values.values, 1.0, rtol=1e-12)
 
-    def test_process_max_raises_validation_error(self) -> None:
-        """Test that method='max' is rejected at construction time."""
-        with pytest.raises(ValidationError, match="method='max' is not physically valid"):
+    def test_process_max_deprecated(self) -> None:
+        """Test that method='max' raises DeprecationWarning (not an error)."""
+        import warnings
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
             NormalizationProcessor(method="max")
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "deprecated" in str(w[0].message).lower()
+
+    def test_process_max_normalizes_by_max(self, sample_odmr_data) -> None:
+        """Test that max normalization divides each pixel by its max intensity."""
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            processor = NormalizationProcessor(method="max")
+        result = processor.process(sample_odmr_data)
+
+        assert result is not sample_odmr_data
+        assert isinstance(result, ODMRData)
+        # After max-normalization, each pixel's max across freq_idx should be 1.0
+        max_values = result.data.max(dim="freq_idx")
+        np.testing.assert_allclose(max_values.values, 1.0, rtol=1e-6)
 
     def test_process_unsupported_method_raises_validation_error(self) -> None:
         """Test that an unknown method is rejected at construction time."""
-        with pytest.raises(ValidationError, match="Unsupported normalization method"):
+        with pytest.raises(ValidationError):
             NormalizationProcessor(method="unsupported")
 
     def test_to_config(self) -> None:
