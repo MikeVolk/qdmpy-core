@@ -2,19 +2,22 @@
 
 | Field | Value |
 |-------|-------|
-| **Status** | Implemented |
+| **Status** | Draft |
 | **Priority** | P2 |
 | **Complexity** | L |
 | **Depends on** | QEP-005 |
 | **Blocks** | None |
 | **Author** | QDMpy Team |
 | **Created** | 2026-02-15 |
+| **Revised** | 2026-02-27 |
+
+---
 
 ## Motivation
 
-### The technique: spectral folding in Mossbauer spectroscopy
+### The technique: spectral folding in Mössbauer spectroscopy
 
-In Mossbauer spectroscopy, a triangular velocity drive produces two mirror-image
+In Mössbauer spectroscopy, a triangular velocity drive produces two mirror-image
 halves of the absorption spectrum per oscillation cycle: one from the ascending
 velocity ramp and one from the descending ramp. **Spectral folding** is the
 standard technique of combining these two halves by:
@@ -52,10 +55,17 @@ where:
 - `B * cos(theta)` = projected magnetic field along the NV axis
 - `delta_strain` = common-mode shift from crystal strain
 
-The two frequency ranges measured in a QDM experiment (low ~2.82-2.87 GHz and
-high ~2.87-2.92 GHz) capture `f-` and `f+` respectively. These are **mirror
-images about D**, exactly analogous to the two halves of a Mossbauer spectrum
+The two frequency ranges measured in a QDM experiment (low ~2.82–2.87 GHz and
+high ~2.87–2.92 GHz) capture `f-` and `f+` respectively. These are **mirror
+images about D**, exactly analogous to the two halves of a Mössbauer spectrum
 about the velocity zero.
+
+**Critical clarification (from prototype, 2026-02-27):** the correct fold axis
+is `D` — the zero-field splitting, which lies at the boundary between the two
+frequency ranges. Folding must combine the *low and high frequency ranges* about
+`D`. Folding within a single frequency range around that range's own dip center
+does NOT work for per-pixel field mapping: it merely symmetrises the noise and
+destroys all spatial field variation (see Empirical Findings below).
 
 ### What QDMpy currently does (and doesn't do)
 
@@ -77,6 +87,79 @@ This approach:
 
 Spectral folding addresses all of these limitations.
 
+---
+
+## Empirical Findings from Prototype (2026-02-27)
+
+A research prototype was implemented in `research/spectral_folding.py` and
+`research/fold_fit.py` and validated against `tests/data/MIL2_FOV1` (4×4
+binned, 300×480 pixels).
+
+### Finding 1 — Mean-spectrum fold gives sub-grid D_ZFS precision
+
+Folding the spatially-averaged mean spectrum per (polarity, freq_range):
+
+```
+pol=neg  frange=low:   fold=2.844448 GHz   argmin=2.844555 GHz   Δ=−0.11 MHz
+pol=neg  frange=high:  fold=2.895665 GHz   argmin=2.895632 GHz   Δ=+0.03 MHz
+```
+
+The fold centre is within 0.03–0.12 MHz of argmin, with sub-grid-point
+resolution. Note that what was found here is the centre of the dip within
+each range, not D itself. D = (f_high + f_low) / 2 ≈ 2.870 GHz — confirming
+the data are correctly centred.
+
+### Finding 2 — Fold of mean spectrum gives a good global B111 estimate
+
+```
+mean B111_ind (fold):   −913.96 µT
+mean B111_ind (argmin): −911.31 µT
+per-pixel argmin median: −911.31 µT
+```
+
+The ~2.65 µT discrepancy between fold and argmin comes from the fold finding
+the symmetry centre of the dip envelope (more robust against asymmetry) while
+argmin finds the grid minimum. Both are within 0.3% of each other.
+
+### Finding 3 — Within-range symmetrisation destroys per-pixel field variation
+
+When pixels were symmetrised within each frequency range around the global
+(mean-spectrum) fold centre and then GPU-fitted:
+
+```
+                  normal fit    fold-sym fit
+  remanent std:   4.03 µT       0.08 µT
+  induced  std:   8.89 µT       0.11 µT
+  RMS diff:       —             4.04 µT (remanent), 8.86 µT (induced)
+```
+
+The fold-symmetrised fit produced a nearly constant B111 map (std ≈ 0.1 µT)
+because symmetrising each pixel around the GLOBAL fold centre forces all
+spectra to look the same — spatial field variation is entirely washed out.
+
+**This is the key negative result**: per-pixel symmetrisation around a global
+centre is not the right approach.
+
+### Finding 4 — The correct approach is cross-range folding about D
+
+The fold must be applied **across** the two frequency ranges about D_ZFS, not
+within each range. Specifically, for the folded spectrum:
+
+```
+S_folded(delta_f) = S_low(D - delta_f) + S_high(D + delta_f)
+```
+
+where `delta_f = gamma * B * cos(theta)`. This:
+- Preserves per-pixel field variation (each pixel's `delta_f` remains intact)
+- Achieves sqrt(2) SNR improvement (two measurements per Zeeman shift)
+- Makes D_ZFS the fold parameter (per-pixel temperature/strain map)
+
+This is exactly what the original QEP-011 design specifies. The prototype
+empirically confirmed the failure mode of the alternative (within-range fold),
+providing experimental justification for the cross-range design.
+
+---
+
 ## Specification
 
 ### 1. Core folding algorithm
@@ -88,8 +171,14 @@ combine the two frequency ranges.
 class SpectralFolder:
     """Fold ODMR spectra by exploiting f+/f- mirror symmetry about D_ZFS.
 
-    Analogous to Mossbauer spectral folding, where two halves of the
+    Analogous to Mössbauer spectral folding, where two halves of the
     absorption spectrum are combined about the velocity zero-point.
+
+    The fold axis is D_ZFS (zero-field splitting), which lies at the
+    boundary between the low and high frequency ranges. After folding:
+    - A single spectrum is produced per (polarity, pixel)
+    - The frequency axis is delta_f = gamma * B (in GHz or µT)
+    - D_ZFS per pixel is the fold parameter (temperature/strain map)
     """
 
     def __init__(
@@ -168,13 +257,12 @@ chi2(D) = sum_f [ S_low(f) - S_high_reflected(f; D) ]^2
 ```
 
 Since the two frequency ranges may have different frequency grids, reflection
-requires interpolation. We use `scipy.interpolate.interp1d` (linear) to
-map `S_high` onto the reflected grid.
+requires interpolation. Use vectorized fractional-index interpolation (same
+approach as `research/fold_fit.py:_symmetrize_band`) to map `S_high` onto
+the reflected grid efficiently for all pixels at once.
 
-For a 2000x2000 image, the brute-force approach (201 candidate D values per
-pixel) is tractable because the inner loop is a simple dot product. Estimated
-cost: ~4M pixels x 201 candidates x 50 freq points = ~40 GFLOP, feasible in
-<10 seconds with numba parallelization.
+For a 2000×2000 image with 201 candidate D values and 50 freq points:
+~40 GFLOP — feasible in < 10 s with numpy vectorisation over the spatial axes.
 
 #### 2.2 DFT-based fold-point refinement (optional)
 
@@ -200,10 +288,16 @@ S_folded(delta_f) = S_low(D - delta_f) + S_high(D + delta_f)
 
 where `delta_f = gamma * B * cos(theta)` is the frequency offset from D_ZFS.
 The folded spectrum has:
-- **Double the effective measurement time** at each frequency offset (sqrt(2) SNR improvement)
+- **Double the effective measurement time** at each frequency offset (sqrt(2) SNR)
 - **Common-mode rejection** of baseline variations that are symmetric about D
-  (analogous to cosine-effect cancellation in Mossbauer)
-- A natural frequency axis in **magnetic field units** rather than absolute GHz
+- A natural frequency axis in **field units** (delta_f in GHz, or µT after
+  dividing by GAMMA_NV)
+
+Note on linewidth/contrast: the folded dip shape is the sum of the two
+individual dip shapes (low and high range). If microwave power or contrast
+differs between the two ranges, the folded shape is an average. This is
+acceptable for field estimation; linewidth/contrast should be interpreted
+as range-averaged values.
 
 #### 2.4 Symmetry decomposition
 
@@ -211,36 +305,28 @@ The fold naturally decomposes the spectrum into symmetric and antisymmetric
 components:
 
 ```
-S_symmetric(delta_f) = [S_low(D - delta_f) + S_high(D + delta_f)] / 2
+S_symmetric(delta_f)     = [S_low(D - delta_f) + S_high(D + delta_f)] / 2
 S_antisymmetric(delta_f) = [S_low(D - delta_f) - S_high(D + delta_f)] / 2
 ```
 
 - **S_symmetric**: Contains the magnetic field information (resonance dips).
-  This is the "folded spectrum" used for fitting.
+  Used for fitting.
 - **S_antisymmetric**: Contains residual asymmetry from transverse strain,
   off-axis fields, or systematic errors. Should be ~zero for ideal data.
-  Its magnitude is the fold residual.
+  Its magnitude is the fold residual quality metric.
 
 ### 3. Polarity folding (second-level fold)
 
-The two polarities (positive/negative applied field) provide another folding
-axis. Currently, the code computes B111 components post-fit:
-
-```python
-b111_remanent = (neg_difference + pos_difference) / 2
-b111_induced = (neg_difference - pos_difference) / 2
-```
-
-This can be extended to the raw spectral level. Before fitting, the two
-polarity spectra can be decomposed:
+The two polarities provide a second folding axis. The polarity decomposition:
 
 ```
 S_remanent(f) = [S_pol0(f) + S_pol1(f)] / 2   # field-independent signal
-S_induced(f) = [S_pol0(f) - S_pol1(f)] / 2    # field-dependent signal
+S_induced(f)  = [S_pol0(f) - S_pol1(f)] / 2   # field-dependent signal
 ```
 
 Fitting `S_remanent` and `S_induced` separately can improve sensitivity to
-weak induced fields that would otherwise be masked by a strong remanent signal.
+weak induced fields masked by a strong remanent signal. This is a Phase 2
+feature.
 
 ### 4. Integration with existing pipeline
 
@@ -250,12 +336,17 @@ The folder slots into the processing pipeline between `Processor` and
 ```
 Raw Data  ->  Processors  ->  SpectralFolder  ->  FitManager  ->  FitResult
                                    |
-                                   +-> D_ZFS map (model-free)
-                                   +-> fold residual map (quality metric)
+                                   +-> D_ZFS map (model-free, GHz)
+                                   +-> fold residual map (quality metric, [0,1])
                                    +-> folded spectrum (for improved fitting)
+                                   +-> antisymmetric spectrum (strain diagnostic)
 ```
 
-#### 4.1 New processor: FoldingProcessor
+#### 4.1 New module: `src/qdmpy_core/odmr/folding.py`
+
+Contains `SpectralFolder` and helper functions.
+
+#### 4.2 New processor: `FoldingProcessor`
 
 ```python
 class FoldingProcessor(BaseProcessor):
@@ -270,22 +361,21 @@ class FoldingProcessor(BaseProcessor):
 
         The returned ODMRData has:
         - freq_range dimension eliminated (folded into single range)
-        - frequency coordinate relative to D_ZFS
+        - frequency coordinate relative to D_ZFS (delta_f in GHz)
         - metadata containing d_zfs_map and fold_residual
         """
 ```
 
-#### 4.2 Folded-spectrum fitting
+#### 4.3 Folded-spectrum fitting
 
-After folding, the spectrum has a single frequency range centered on D_ZFS.
-The existing models work unchanged: the center parameter now represents the
-Zeeman shift `gamma * B * cos(theta)` directly, rather than an absolute
-frequency. This simplifies constraint specification and interpretation.
+After folding, the spectrum has a single frequency range centred on D_ZFS.
+The existing models work unchanged — the center parameter now represents
+`gamma * B * cos(theta)` directly rather than an absolute GHz frequency.
 
-The constraint for center shifts from `(2.0, 3.1) GHz` to `(0.0, 0.15) GHz`
+Constraint update: center shifts from `(2.0, 3.1) GHz` to `(0.0, 0.15) GHz`
 (typical magnetic field range in QDM experiments).
 
-#### 4.3 Settings extension
+#### 4.4 Settings extension
 
 ```python
 class FoldingSettings(BaseSettings):
@@ -294,7 +384,7 @@ class FoldingSettings(BaseSettings):
     search_range: float = 0.01          # GHz (+/- around d_zfs_initial)
     search_steps: int = 201
     use_dft_refinement: bool = True
-    fold_polarities: bool = False       # Also fold polarity dimension
+    fold_polarities: bool = False       # Phase 2: also fold polarity dimension
     min_fold_quality: float = 0.8       # Minimum quality to accept fold
 ```
 
@@ -303,143 +393,180 @@ class FoldingSettings(BaseSettings):
 | Output | Shape | Description |
 |--------|-------|-------------|
 | `d_zfs_map` | `(n_pol, y, x)` | Per-pixel zero-field splitting (GHz). Encodes temperature and strain variations across the diamond. |
-| `fold_residual` | `(n_pol, y, x)` | Normalized residual in [0,1]. Model-free data quality metric. |
+| `fold_residual` | `(n_pol, y, x)` | Normalised residual in [0,1]. Model-free data quality metric. |
 | `folded_spectrum` | `(n_pol, y, x, freq_idx)` | SNR-improved spectrum for fitting. |
 | `antisymmetric_spectrum` | `(n_pol, y, x, freq_idx)` | Residual asymmetry. Diagnostic for strain, off-axis fields. |
 
-The `d_zfs_map` is a genuinely new output that is not available from the
-current pipeline. Spatial variations in D_ZFS are scientifically valuable:
-- Temperature mapping (dD/dT ~ -74 kHz/K near room temperature)
-- Strain mapping (sensitivity depends on crystal orientation)
+The `d_zfs_map` is a genuinely new output not available from the current
+pipeline. Spatial variations in D_ZFS are scientifically valuable:
+- Temperature mapping (dD/dT ~ −74 kHz/K near room temperature)
+- Strain mapping
 - Diamond quality assessment
+
+---
 
 ## Impact Assessment
 
 ### Performance
 
-- **Fold-point search**: ~10s for 2000x2000 image (numba-parallelized). One-time
-  cost, amortized over subsequent fitting.
-- **Spectrum folding**: Negligible (<1s). Simple array operations on xarray.
-- **Fitting improvement**: Fitting a single folded range vs. two separate ranges
-  reduces the number of fits by 2x. Net speedup depends on whether the
-  fold-point search time is offset by the fitting speedup.
-- **Memory**: The folded spectrum is half the size of the original (one freq_range
-  instead of two). D_ZFS map and residual add ~32 MB for 2000x2000.
+- **Fold-point search**: ~10 s for 2000×2000 image (numpy-vectorised over
+  spatial axes). One-time cost, amortised over subsequent fitting.
+- **Spectrum folding**: < 1 s. Simple array operations.
+- **Fitting improvement**: Fitting a single folded range vs two separate ranges
+  halves the number of GPU fit calls. Net speedup depends on whether the
+  fold-point search is offset by the fitting speedup.
+- **Memory**: Folded spectrum is half the size (one freq_range vs two).
+  D_ZFS map and residual add ~32 MB for 2000×2000.
 
 ### Signal-to-noise
 
 - **Direct improvement**: sqrt(2) ~ 41% SNR improvement in the folded spectrum,
   translating to better-constrained fit parameters.
 - **Indirect improvement**: Model-free D_ZFS determination removes one degree
-  of freedom from the fit (the absolute frequency), further improving
-  convergence and reducing parameter correlations.
-- **Weak-field sensitivity**: For small B-fields where the two resonances
-  barely separate, folding concentrates the signal and makes the splitting
-  easier to detect.
+  of freedom from the fit, improving convergence and reducing parameter
+  correlations.
+- **Weak-field sensitivity**: For small B-fields the two resonances barely
+  separate; folding concentrates the signal.
 
 ### Scientific capability
 
 - **D_ZFS mapping**: Entirely new capability. Enables temperature and strain
-  imaging from the same dataset, without additional measurements.
+  imaging from the same dataset.
 - **Data quality assessment**: The fold residual provides a per-pixel quality
-  metric before any fitting is attempted, enabling early rejection of bad
-  regions.
-- **Strain detection**: Strong antisymmetric components in the fold residual
-  indicate transverse strain, which breaks the f+/f- symmetry. This is a
-  model-free strain indicator.
+  metric before any fitting, enabling early rejection of bad regions.
+- **Strain detection**: Strong antisymmetric components indicate transverse
+  strain breaking f+/f- symmetry.
 
 ### Risks
 
-- **Asymmetric frequency ranges**: If the two measured frequency ranges have
-  very different widths or are not centered on D_ZFS, folding requires
-  extrapolation or produces a reduced frequency range. The implementation
-  must handle partial overlap gracefully.
-- **Different contrasts**: The f+ and f- dips may have different contrasts
-  (e.g., due to microwave power variation across frequency). Folding averages
-  these, which may not be desirable for all analyses.
-- **Non-Lorentzian lineshapes**: If the two dips have different shapes
-  (e.g., due to inhomogeneous broadening or multiple NV orientations),
-  folding may smear features. The fold residual serves as a diagnostic
-  for this case.
-- **Complexity**: Adds a new processing step with several tunable parameters.
-  Keeping it optional (disabled by default) mitigates adoption risk.
+- **Asymmetric frequency ranges**: If the two ranges have very different widths
+  or are not centred on D_ZFS, folding requires extrapolation or produces a
+  reduced overlap window. Handle gracefully by computing the frequency overlap
+  and restricting the folded range accordingly.
+- **Different contrasts per range**: The two dips may have different contrasts
+  due to microwave power variation across frequency. The folded dip shape is
+  their average — acceptable for field estimation.
+- **Non-Lorentzian lineshapes**: Inhomogeneous broadening or multiple NV
+  orientations may produce asymmetric dips; the fold residual serves as a
+  diagnostic.
+- **Complexity**: Adds a new processing step with tunable parameters. Keep
+  disabled by default (`FoldingSettings.enabled = False`).
+
+---
+
+## Implementation Plan
+
+### Phase 1 — Core fold algorithm (no fitting integration yet)
+
+1. Create `src/qdmpy_core/odmr/folding.py`:
+   - `SpectralFolder` class with `find_fold_point()`, `fold()`, `fold_residual()`
+   - Vectorized fold-point search over all pixels simultaneously (numpy)
+   - Linear interpolation for reflecting `S_high` onto the `S_low` grid
+2. Add `D_ZFS_TEMP_COEFFICIENT = -74e-6` to `constants.py`
+3. Tests in `tests/odmr/test_folding.py`:
+   - Synthetic symmetric spectrum → fold residual ≈ 0
+   - Synthetic D shift → `find_fold_point()` recovers known D
+   - Real data smoke test: `d_zfs_map` values in plausible range [2.86, 2.88] GHz
+4. Expose `d_zfs_map` and `fold_residual` as outputs (no fitting changes yet)
+
+### Phase 2 — Pipeline integration
+
+5. Add `FoldingProcessor` to `src/qdmpy_core/odmr/processors.py`
+6. Add `FoldingSettings` to `src/qdmpy_core/settings.py`
+7. Update `FitManager` to accept single-range folded data with relative
+   frequency axis (the fold removes the `freq_range` dimension)
+8. Update constraint defaults for folded fitting
+9. Expose `folded_spectrum` and `antisymmetric_spectrum` from `QDMResult`
+
+### Phase 3 — Polarity fold (optional)
+
+10. Add `fold_polarities` option to decompose into remanent/induced spectra
+    before fitting
+
+---
 
 ## Files Affected
 
-- `src/QDMpy/odmr/processors.py` (add `FoldingProcessor`)
-- `src/QDMpy/odmr/folding.py` (new: `SpectralFolder` class)
-- `src/QDMpy/settings.py` (add `FoldingSettings`)
-- `src/QDMpy/result.py` (expose `d_zfs_map`, `fold_residual` from metadata)
-- `src/QDMpy/constants.py` (add `D_ZFS_TEMP_COEFFICIENT = -74e-6` GHz/K)
-- `tests/test_folding.py` (new: comprehensive tests)
-- `tests/odmr/test_processors.py` (test `FoldingProcessor` integration)
+- `src/qdmpy_core/odmr/folding.py` (new)
+- `src/qdmpy_core/odmr/processors.py` (add `FoldingProcessor`)
+- `src/qdmpy_core/settings.py` (add `FoldingSettings`)
+- `src/qdmpy_core/result.py` (expose `d_zfs_map`, `fold_residual` from metadata)
+- `src/qdmpy_core/constants.py` (add `D_ZFS_TEMP_COEFFICIENT`)
+- `tests/odmr/test_folding.py` (new)
+- `tests/odmr/test_processors.py` (add `FoldingProcessor` integration tests)
+
+---
 
 ## Backwards Compatibility
 
 Folding is **disabled by default** (`FoldingSettings.enabled = False`). The
 existing pipeline is completely unchanged unless the user opts in. No existing
-APIs are modified.
+APIs are modified in Phase 1.
 
-When folding is enabled, the `ODMRData` returned by the processor pipeline
-has a different shape (no `freq_range` dimension). Downstream code that
-explicitly indexes `freq_range` will need to handle this. The `FitManager`
-already iterates over `freq_range` in a loop, so a single-range folded
-spectrum works without modification.
+In Phase 2, when folding is enabled, the `ODMRData` returned by the processor
+pipeline has a different shape (no `freq_range` dimension). The `FitManager`
+already iterates over `freq_range` in a loop, so single-range folded data
+works without structural changes to the fitting infrastructure.
+
+---
 
 ## Verification
 
 ```bash
-uv run pytest tests/test_folding.py -v
+uv run pytest tests/odmr/test_folding.py -v
 uv run pytest tests/odmr/test_processors.py -v -k "folding"
-uv run ruff check src/QDMpy/odmr/folding.py
-uv run mypy src/QDMpy/odmr/folding.py
+uv run ruff check src/qdmpy_core/odmr/folding.py
+uv run ty check src/qdmpy_core/odmr/folding.py
 
-# Integration test with synthetic data:
-uv run pytest tests/test_folding.py -v -k "synthetic_symmetric"
-# Verify fold residual is ~0 for symmetric synthetic spectra
-
-# Verify D_ZFS recovery from synthetic data with known D shift:
-uv run pytest tests/test_folding.py -v -k "d_zfs_recovery"
+# Verify fold residual ≈ 0 for synthetic symmetric spectra
+uv run pytest tests/odmr/test_folding.py -v -k "symmetric"
+# Verify D_ZFS recovery from synthetic data with known D shift
+uv run pytest tests/odmr/test_folding.py -v -k "d_zfs_recovery"
 ```
 
-## Rejection Alternatives
+---
 
-**Alternative: Post-fit parameter averaging only.** This is what the current
-code does (compute `(f+ - f-)` after independent fits). Rejected because it
-does not improve fit quality, cannot extract D_ZFS per pixel, and provides
-no model-free quality metric.
+## Alternatives Rejected
 
-**Alternative: Joint fitting of both frequency ranges with shared D_ZFS.**
-This would add D_ZFS as a shared parameter in a coupled fit. Rejected because
-it requires major changes to the fitting infrastructure (pygpufit does not
-natively support shared parameters across separate spectra), and the
-model-free folding approach is simpler, faster, and more robust.
+**Fold within each frequency range separately.** Prototype (2026-02-27) showed
+that symmetrising each pixel around the global within-range fold centre
+destroys all spatial field variation — the resulting B111 map has std ≈ 0.1 µT
+instead of the expected 4–9 µT. The cause: symmetrisation around a fixed
+global centre forces all pixels to look the same. Only cross-range folding
+about D preserves per-pixel field information.
 
-**Alternative: Full Bayesian inference with marginalization over D.**
-Rejected as disproportionately complex for the benefit. The folding approach
-achieves the key goals (D_ZFS mapping, SNR improvement) with much simpler
-implementation.
+**Post-fit parameter averaging only.** Current approach. Rejected because it
+does not improve fit quality, cannot extract D_ZFS per pixel, and provides no
+model-free quality metric.
+
+**Joint fitting of both ranges with shared D_ZFS.** Would add D_ZFS as a shared
+parameter in a coupled fit. Rejected because pygpufit does not natively support
+shared parameters across separate spectra, and the model-free folding approach
+is simpler and faster.
+
+**Full Bayesian inference with marginalization over D.** Disproportionately
+complex. Rejected.
+
+---
 
 ## References
 
 1. Lin, T.M. and Preston, R.S. (1974). "Comparison of Techniques for Folding
-   and Unfolding Mossbauer Spectra for Data Analysis." Mossbauer Effect
-   Methodology, Vol. 9, pp. 205-224. Plenum Press.
+   and Unfolding Mossbauer Spectra for Data Analysis." Mössbauer Effect
+   Methodology, Vol. 9, pp. 205–224. Plenum Press.
 
 2. Saccone, F.D. (2024). "PyMossFit: A Google Colab Option for Mossbauer
-   Spectra Fitting." Spectroscopy Journal, 3(4), 29.
-   DFT-based folding implementation.
+   Spectra Fitting." Spectroscopy Journal, 3(4), 29. DFT-based folding.
 
 3. Spiering, H. et al. (2020). "Non-linearity correction of the velocity
    scale of a Mossbauer spectrum." NIMB, 480, 98.
 
 4. Acosta, V.M. et al. (2010). "Temperature Dependence of the Nitrogen-Vacancy
    Magnetic Resonance in Diamond." Physical Review Letters, 104, 070801.
-   Temperature coefficient of D_ZFS: dD/dT ~ -74 kHz/K.
+   Temperature coefficient of D_ZFS: dD/dT ~ −74 kHz/K.
 
 5. Kehayias, P. et al. (2019). "Imaging crystal stress in diamond using
    ensemble nitrogen-vacancy centers." Physical Review B, 100, 174103.
-   Strain effects on NV center resonance frequencies.
 
 6. Levine, E.V. et al. (2019). "Principles and techniques of the quantum
-   diamond microscope." Nanophotonics, 8(11), 1945-1973.
+   diamond microscope." Nanophotonics, 8(11), 1945–1973.
