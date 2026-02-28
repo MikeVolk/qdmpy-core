@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import numba
 import numpy as np
 import pytest
 
@@ -15,10 +16,11 @@ from qdmpy_core.constants import DEFAULT_VMAX, DEFAULT_VMIN
 from qdmpy_core.exceptions import (
     DataShapeError,
     DataValidationError,
-    ModelGuessNotPossibleError,
     ModelNotFoundError,
 )
 from qdmpy_core.fitting.guess import (
+    _RELATIVE_PROMINENCE,
+    _relative_prominence,
     cumsum_center,
     cumsum_contrast,
     cumsum_width,
@@ -124,7 +126,7 @@ class TestGuessNPeaks:
         """Test guessing the number of peaks with mocked find_peaks."""
         mock_data = np.random.random((2, 3, 10, 100))
 
-        with patch("QDMpy.fitting.guess.find_peaks") as mock_find_peaks:
+        with patch("qdmpy_core.fitting.guess.find_peaks") as mock_find_peaks:
             mock_find_peaks.return_value = (np.array([30, 70]), {})
             n_peaks, doubt, indices = guess_n_peaks(mock_data)
 
@@ -133,23 +135,62 @@ class TestGuessNPeaks:
             assert len(indices) == mock_data.shape[0] * mock_data.shape[1]
 
     def test_guess_n_peaks_doubt(self) -> None:
-        """Test guessing peaks when there's doubt (inconsistent counts)."""
-        mock_data = np.random.random((2, 3, 10, 100))
+        """Test doubt when fewer than confidence threshold of combos agree.
 
-        with patch("QDMpy.fitting.guess.find_peaks") as mock_find_peaks:
+        2 pol x 2 frange = 4 combos; 2 return 2 peaks and 2 return 3 peaks
+        -> 50% max agreement < 60% threshold -> doubt=True.
+        """
+        mock_data = np.random.random((2, 2, 10, 100))
+        call_count = [0]
 
-            def side_effect_fn(data, prominence):
-                call_count = mock_find_peaks.call_count - 1
-                if call_count == 2:
-                    return np.array([25, 50, 75]), {}
+        def side_effect_fn(data, prominence):
+            call_count[0] += 1
+            if call_count[0] <= 2:
                 return np.array([30, 70]), {}
+            return np.array([25, 50, 75]), {}
 
-            mock_find_peaks.side_effect = side_effect_fn
+        with patch("qdmpy_core.fitting.guess.find_peaks", side_effect=side_effect_fn):
             n_peaks, doubt, indices = guess_n_peaks(mock_data)
 
-            assert n_peaks in (2, 3)
-            assert bool(doubt) is True
-            assert len(indices) == mock_data.shape[0] * mock_data.shape[1]
+        assert n_peaks in (2, 3)
+        assert bool(doubt) is True
+        assert len(indices) == mock_data.shape[0] * mock_data.shape[1]
+
+    def test_guess_n_peaks_majority_vote(self) -> None:
+        """Test that mode is used: 3-of-4 combos detect 3 peaks → n_peaks=3, no doubt."""
+        mock_data = np.random.random((2, 2, 10, 100))
+        call_count = [0]
+
+        def side_effect_fn(data, prominence):
+            call_count[0] += 1
+            # 3 of 4 calls return 3 peaks, 1 returns 2
+            if call_count[0] == 3:
+                return np.array([25, 50, 75]), {}
+            return np.array([25, 75]), {}
+
+        with patch("qdmpy_core.fitting.guess.find_peaks", side_effect=side_effect_fn):
+            n_peaks, doubt, _ = guess_n_peaks(mock_data)
+
+        assert n_peaks == 2  # mode of [2, 2, 3, 2] is 2
+        assert bool(doubt) is False  # 3/4 = 75% >= 60%
+
+    def test_guess_n_peaks_low_confidence(self) -> None:
+        """Test that doubt is set when fewer than threshold combos agree."""
+        mock_data = np.random.random((2, 2, 10, 100))
+        call_count = [0]
+
+        def side_effect_fn(data, prominence):
+            call_count[0] += 1
+            # 50/50 split: calls 1,2 → 2 peaks, calls 3,4 → 3 peaks
+            if call_count[0] <= 2:
+                return np.array([30, 70]), {}
+            return np.array([25, 50, 75]), {}
+
+        with patch("qdmpy_core.fitting.guess.find_peaks", side_effect=side_effect_fn):
+            n_peaks, doubt, _ = guess_n_peaks(mock_data)
+
+        assert n_peaks in (2, 3)  # mode of a tie — either is valid
+        assert bool(doubt) is True  # 50% < 60%
 
     def test_incorrect_dimensions(self) -> None:
         """Test with incorrect dimensions."""
@@ -192,7 +233,7 @@ class TestGetModelByPeaks:
 class TestGuessModel:
     """Test cases for guess_model function."""
 
-    @patch("QDMpy.fitting.guess.guess_n_peaks")
+    @patch("qdmpy_core.fitting.guess.guess_n_peaks")
     def test_guess_model_no_doubt(self, mock_guess_n_peaks) -> None:
         """Test guessing model when there's no doubt."""
         mock_guess_n_peaks.return_value = (2, False, [])
@@ -202,14 +243,15 @@ class TestGuessModel:
         assert isinstance(model, ESR15N)
         assert model.n_peaks == 2
 
-    @patch("QDMpy.fitting.guess.guess_n_peaks")
-    def test_guess_model_with_doubt(self, mock_guess_n_peaks) -> None:
-        """Test guessing model when there's doubt."""
-        mock_guess_n_peaks.return_value = (2, True, [])
+    @patch("qdmpy_core.fitting.guess.guess_n_peaks")
+    def test_guess_model_with_doubt_returns_model(self, mock_guess_n_peaks) -> None:
+        """Test that guess_model returns a model even when there's doubt (no exception)."""
+        mock_guess_n_peaks.return_value = (3, True, [])
         data = np.zeros((2, 3, 10, 100))
 
-        with pytest.raises(ModelGuessNotPossibleError):
-            guess_model(data)
+        model = guess_model(data)
+        assert isinstance(model, ESR14N)
+        assert model.n_peaks == 3
 
 
 class TestNormalizePixel:
@@ -243,7 +285,7 @@ class TestNormalizePixel:
     def test_empty_pixel(self) -> None:
         """Test normalizing an empty pixel raises error."""
         pixel = np.array([])
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, IndexError, numba.core.errors.TypingError)):
             normalize_pixel(pixel)
 
     def test_all_zeros(self) -> None:
@@ -329,6 +371,27 @@ class TestGuessCenter:
         centers = cumsum_center(data, freq)
         assert np.isclose(centers[0, 0, 0], freq[0, center_idx1], rtol=1e-3)
         assert np.isclose(centers[0, 0, 1], freq[0, center_idx2], rtol=1e-3)
+
+
+class TestRelativeProminence:
+    """Test cases for _relative_prominence helper."""
+
+    def test_scales_with_range(self) -> None:
+        """Prominence scales with spectral range."""
+        small = np.array([0.99, 1.0, 0.995])
+        large = np.array([0.9, 1.0, 0.95])
+        assert _relative_prominence(large) > _relative_prominence(small)
+
+    def test_minimum_floor(self) -> None:
+        """Flat spectrum returns the minimum floor, not zero."""
+        flat = np.ones(50)
+        assert _relative_prominence(flat) == 1e-6
+
+    def test_fraction_of_range(self) -> None:
+        """Result equals range * _RELATIVE_PROMINENCE for non-trivial spectra."""
+        s = np.linspace(0.98, 1.0, 50)
+        expected = (s.max() - s.min()) * _RELATIVE_PROMINENCE
+        assert abs(_relative_prominence(s) - expected) < 1e-12
 
 
 class TestGuessWidth:

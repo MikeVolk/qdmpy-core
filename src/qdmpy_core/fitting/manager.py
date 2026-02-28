@@ -11,18 +11,16 @@ guesses are managed by dedicated modules (constraints.py and guesser.py).
 from __future__ import annotations
 
 import datetime
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 import numpy as np
 import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
 
-from qdmpy_core.odmr._validators import validate_frequencies
 from qdmpy_core.exceptions import (
     DataValidationError,
     DependencyError,
-    ModelGuessNotPossibleError,
     ModelNotFoundError,
     ParameterError,
 )
@@ -30,14 +28,25 @@ from qdmpy_core.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
 from qdmpy_core.fitting.guess import guess_model
 from qdmpy_core.fitting.guesser import ParameterGuesser
 from qdmpy_core.fitting.models import Model, ModelRegistry
-from qdmpy_core.fitting.result import FitResult
+from qdmpy_core.fitting.result import FitResult, FoldedFitResult
+from qdmpy_core.odmr._validators import validate_frequencies
 from qdmpy_core.settings import (
     QDMpySettings,
     get_settings,
     is_pygpufit_available,
 )
 
+if TYPE_CHECKING:
+    from qdmpy_core.odmr.folding import FoldedODMR
+
 ESTIMATOR_ID = {"LSE": 0, "MLE": 1}
+
+# Folded-spectrum fitting domain constraints
+_FOLDED_CENTER_MIN = 0.001   # GHz (1 MHz minimum Zeeman shift)
+_FOLDED_CENTER_MAX = 0.080   # GHz (80 MHz ~ 2.8 mT)
+_FOLDED_WIDTH_MIN = 0.001    # GHz
+_FOLDED_WIDTH_MAX = 0.020    # GHz
+_FOLDED_CONTRAST_MAX = 1.0   # spectrum is normalised by 2 before fitting
 
 
 class FitManager:
@@ -134,12 +143,7 @@ class FitManager:
         Args:
             flat_data: 4D array (n_pol, n_frange, n_pixel, n_freq) used for model detection.
         """
-        try:
-            self._model = guess_model(flat_data)
-        except ModelGuessNotPossibleError as e:
-            logger.warning(f"Could not auto-detect model: {e}")
-            self._model = ModelRegistry.get("ESRSINGLE")
-            logger.info(f"Defaulting to {self._model.name} model")
+        self._model = guess_model(flat_data)
         logger.info(f"Auto-resolved model: {self._model.name}")
         self._constraint_manager = ConstraintManager(self._model, self._settings.model.constraints)
         for param, constraint in self._pending_constraints.items():
@@ -487,3 +491,97 @@ class FitManager:
             else:
                 reshaped.append(np.squeeze(result.reshape((n_pol, n_pix, -1))))
         return reshaped
+
+    def fit_folded(
+        self: Self,
+        folded: FoldedODMR,
+        *,
+        pixel_spacing: float = 1.0,
+    ) -> FoldedFitResult:
+        """Fit a folded ODMR spectrum and return a FoldedFitResult.
+
+        The folded spectrum has its frequency axis in Zeeman-offset (delta_f) GHz,
+        so fitting uses ESRSINGLE with folded-domain constraints and the resulting
+        centre IS the Zeeman shift — no D_ZFS subtraction needed.
+
+        Args:
+            folded: FoldedODMR result from SpectralFolder.fold().
+            pixel_spacing: Physical pixel spacing in meters.
+
+        Returns:
+            FoldedFitResult with correct B111 maps for folded data.
+
+        Raises:
+            DependencyError: If pyGpufit is not installed.
+        """
+        if not self._gpu_available:
+            msg = "pyGpufit is required for fitting but not installed"
+            raise DependencyError(msg)
+
+        # Extract delta_f axis from the folded spectrum coordinate
+        delta_f_ghz: NDArray = folded.folded_spectrum.coords["delta_f_ghz"].values  # (n_df,)
+        n_df = len(delta_f_ghz)
+
+        # folded_spectrum dims: (polarity, y, x, freq_idx)
+        # The folded spectrum is S_low + S_high (sum of two ~1.0-normalised spectra),
+        # so its baseline is ~2.0.  ESRSINGLE expects baseline ≈ 1 + offset, and the
+        # ParameterGuesser defaults offset=0.  Dividing by 2 brings the data back into
+        # the [0, 1] domain the guesser and model assume, without changing the fitted
+        # centre, width, or the B111 physics.
+        spec_vals = folded.folded_spectrum.values / 2.0  # (n_pol, ny, nx, n_df)
+        pol_labels = list(folded.folded_spectrum.coords["polarity"].values)
+
+        # Build xr.DataArray: (n_pol, 1, ny, nx, n_df) matching fit() expected dims
+        data_5d = np.expand_dims(spec_vals, axis=1)  # (n_pol, 1, ny, nx, n_df)
+        data_xr = xr.DataArray(
+            data_5d,
+            dims=("polarity", "freq_range", "y", "x", "freq_idx"),
+            coords={
+                "polarity": pol_labels,
+                "freq_range": ["folded"],
+            },
+        )
+
+        # Frequency array: shape (1, n_df) for a single freq_range
+        freq_2d = delta_f_ghz.reshape(1, n_df)
+
+        # Build a dedicated ESRSINGLE FitManager with folded-domain constraints
+        folded_mgr = FitManager(
+            "ESRSINGLE",
+            constraints={
+                "center": {
+                    "vmin": _FOLDED_CENTER_MIN,
+                    "vmax": _FOLDED_CENTER_MAX,
+                    "constraint_type": "LOWER_UPPER",
+                },
+                "width": {
+                    "vmin": _FOLDED_WIDTH_MIN,
+                    "vmax": _FOLDED_WIDTH_MAX,
+                    "constraint_type": "LOWER_UPPER",
+                },
+                "contrast": {
+                    "vmin": 0.001,
+                    "vmax": _FOLDED_CONTRAST_MAX,
+                    "constraint_type": "LOWER_UPPER",
+                },
+                "offset": {
+                    "vmin": -0.5,
+                    "vmax": 3.0,
+                    "constraint_type": "LOWER_UPPER",
+                },
+            },
+            settings=self._settings,
+            gpu_available=self._gpu_available,
+        )
+
+        raw = folded_mgr.fit(data_xr, freq_2d, pixel_spacing=pixel_spacing)
+
+        # Copy parameters (need fresh writable arrays before new object locks them)
+        params = {k: np.array(v) for k, v in raw.parameters.items()}
+        return FoldedFitResult(
+            parameters=params,
+            scan_dimensions=raw.scan_dimensions,
+            pixel_spacing=pixel_spacing,
+            model_name="ESRSINGLE+FOLDED",
+            metadata={**raw.metadata, "folded_fit": True},
+        )
