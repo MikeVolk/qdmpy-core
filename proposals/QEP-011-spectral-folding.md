@@ -330,16 +330,24 @@ feature.
 
 ### 4. Integration with existing pipeline
 
-The folder slots into the processing pipeline between `Processor` and
-`FitManager`:
+The folder uses a **two-scale architecture**: D_ZFS is estimated at coarse
+spatial resolution (high SNR) then interpolated to full resolution, before
+the per-pixel fold is applied.
 
 ```
-Raw Data  ->  Processors  ->  SpectralFolder  ->  FitManager  ->  FitResult
-                                   |
-                                   +-> D_ZFS map (model-free, GHz)
-                                   +-> fold residual map (quality metric, [0,1])
-                                   +-> folded spectrum (for improved fitting)
-                                   +-> antisymmetric spectrum (strain diagnostic)
+processed_data
+      │
+      ├─ spatially binned (coarse) ──► fold-point search ──► coarse D_ZFS map
+      │   (d_zfs_bin_factor² pixels                                   │
+      │    averaged per super-pixel)                      bicubic interpolation
+      │                                                               │
+      └─ full resolution ──────────────► per-pixel fold ◄── D_ZFS(y,x)
+                                               │
+                                          FoldedODMR ──► FitManager ──► QDMResult
+                                          + d_zfs_map (GHz)
+                                          + fold_residual ([0,1])
+                                          + folded_spectrum
+                                          + antisymmetric_spectrum
 ```
 
 #### 4.1 New module: `src/qdmpy_core/odmr/folding.py`
@@ -386,13 +394,21 @@ class FoldingSettings(BaseSettings):
     use_dft_refinement: bool = True
     fold_polarities: bool = False       # Phase 2: also fold polarity dimension
     min_fold_quality: float = 0.8       # Minimum quality to accept fold
+    d_zfs_bin_factor: int = 16          # extra spatial binning for D_ZFS estimation
+    d_zfs_interpolation: str = 'bicubic'  # method for upsampling D_ZFS map
 ```
+
+The `d_zfs_bin_factor` controls the two-scale resolution trade-off: larger
+values give better SNR (and thus more precise D_ZFS) at coarser spatial
+resolution. Since temperature and strain vary on millimetre scales and the
+pixel spacing is typically 4 µm, a factor of 16 (64 µm super-pixels) is
+physically appropriate for most QDM experiments.
 
 ### 5. New outputs
 
 | Output | Shape | Description |
 |--------|-------|-------------|
-| `d_zfs_map` | `(n_pol, y, x)` | Per-pixel zero-field splitting (GHz). Encodes temperature and strain variations across the diamond. |
+| `d_zfs_map` | `(n_pol, y, x)` | Per-pixel zero-field splitting (GHz). Estimated at coarse resolution (`d_zfs_bin_factor²` pixels averaged per super-pixel) then bicubic-interpolated to full resolution. Converts to temperature via dD/dT = −74 kHz/K. |
 | `fold_residual` | `(n_pol, y, x)` | Normalised residual in [0,1]. Model-free data quality metric. |
 | `folded_spectrum` | `(n_pol, y, x, freq_idx)` | SNR-improved spectrum for fitting. |
 | `antisymmetric_spectrum` | `(n_pol, y, x, freq_idx)` | Residual asymmetry. Diagnostic for strain, off-axis fields. |
@@ -409,8 +425,10 @@ pipeline. Spatial variations in D_ZFS are scientifically valuable:
 
 ### Performance
 
-- **Fold-point search**: ~10 s for 2000×2000 image (numpy-vectorised over
-  spatial axes). One-time cost, amortised over subsequent fitting.
+- **Coarse fold-point search**: runs on a (ny/16 × nx/16) array — for
+  2000×2000 this is 125×120 = 15,000 super-pixels. Negligible cost (< 1 s).
+- **Full-resolution fold**: ~10 s for 2000×2000 (numpy-vectorised). One-time
+  cost, amortised over subsequent fitting.
 - **Spectrum folding**: < 1 s. Simple array operations.
 - **Fitting improvement**: Fitting a single folded range vs two separate ranges
   halves the number of GPU fit calls. Net speedup depends on whether the
@@ -427,11 +445,21 @@ pipeline. Spatial variations in D_ZFS are scientifically valuable:
   correlations.
 - **Weak-field sensitivity**: For small B-fields the two resonances barely
   separate; folding concentrates the signal.
+- **Two-scale D_ZFS precision**: per-pixel fold-point search gives ~150 K
+  temperature precision (limited by single-pixel SNR). The two-scale approach
+  bins by `d_zfs_bin_factor = 16`, gaining sqrt(256) = 16× SNR and improving
+  precision to ~9 K — physically useful for detecting laser heating or strain
+  gradients. Temperature and strain vary on millimetre scales so the coarse
+  D_ZFS map captures all meaningful variation.
 
 ### Scientific capability
 
 - **D_ZFS mapping**: Entirely new capability. Enables temperature and strain
-  imaging from the same dataset.
+  imaging from the same dataset. Also corrects a systematic error in the
+  B111 pipeline: assuming D = 2.870 GHz everywhere makes any real D variation
+  (from temperature or strain) appear as a spurious B111 offset of
+  ΔB = ΔD / GAMMA_NV ≈ 13 µT/MHz. The interpolated D_ZFS map removes this
+  confound without additional measurements.
 - **Data quality assessment**: The fold residual provides a per-pixel quality
   metric before any fitting, enabling early rejection of bad regions.
 - **Strain detection**: Strong antisymmetric components indicate transverse
@@ -460,12 +488,16 @@ pipeline. Spatial variations in D_ZFS are scientifically valuable:
 
 1. Create `src/qdmpy_core/odmr/folding.py`:
    - `SpectralFolder` class with `find_fold_point()`, `fold()`, `fold_residual()`
+   - Two-scale D_ZFS estimation: `_estimate_d_zfs_coarse()` + bicubic interpolation
    - Vectorized fold-point search over all pixels simultaneously (numpy)
    - Linear interpolation for reflecting `S_high` onto the `S_low` grid
 2. Add `D_ZFS_TEMP_COEFFICIENT = -74e-6` to `constants.py`
 3. Tests in `tests/odmr/test_folding.py`:
    - Synthetic symmetric spectrum → fold residual ≈ 0
    - Synthetic D shift → `find_fold_point()` recovers known D
+   - **Two-scale interpolation**: inject a known smooth D_ZFS field (e.g. Gaussian
+     hotspot), run coarse estimation + bicubic interpolation, verify recovered
+     map matches injected field to within grid precision
    - Real data smoke test: `d_zfs_map` values in plausible range [2.86, 2.88] GHz
 4. Expose `d_zfs_map` and `fold_residual` as outputs (no fitting changes yet)
 
