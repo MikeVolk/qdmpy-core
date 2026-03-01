@@ -18,10 +18,11 @@ Public API:
 from __future__ import annotations
 
 from qdmpy.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
+from qdmpy.fitting.guess import plot_model_detection
 from qdmpy.fitting.guesser import ParameterGuesser
 from qdmpy.fitting.manager import FitManager
 from qdmpy.fitting.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
-from qdmpy.fitting.result import FitResult
+from qdmpy.fitting.result import FitResult, FoldedFitResult
 
 __all__ = [
     "CONSTRAINT_TYPES",
@@ -31,7 +32,9 @@ __all__ = [
     "ConstraintManager",
     "FitManager",
     "FitResult",
+    "FoldedFitResult",
     "Model",
     "ModelRegistry",
     "ParameterGuesser",
+    "plot_model_detection",
 ]

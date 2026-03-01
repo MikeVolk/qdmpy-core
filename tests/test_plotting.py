@@ -262,3 +262,107 @@ class TestFitResultPlotting(unittest.TestCase):
         # Should propagate the KeyError
         with pytest.raises(KeyError):
             plot_fit_result_parameter_map(self.mock_result, "invalid_param")
+
+
+# ---------------------------------------------------------------------------
+# Folding diagnostic plot smoke tests
+# ---------------------------------------------------------------------------
+
+
+def _make_synthetic_folded_odmr():
+    """Build a minimal FoldedODMR for plot smoke tests."""
+    import xarray as xr
+
+    from qdmpy.odmr.folding import FoldedODMR, FoldingSettings
+
+    n_pol, ny, nx, n_df = 2, 4, 4, 20
+    n_steps = 51
+    pol_labels = ["neg", "pos"]
+    delta_f = np.linspace(0.002, 0.015, n_df)
+
+    folded = xr.DataArray(
+        np.random.default_rng(0).random((n_pol, ny, nx, n_df)),
+        dims=("polarity", "y", "x", "freq_idx"),
+        coords={"polarity": pol_labels, "delta_f_ghz": ("freq_idx", delta_f)},
+    )
+    anti = xr.DataArray(
+        np.random.default_rng(1).random((n_pol, ny, nx, n_df)) * 0.01,
+        dims=("polarity", "y", "x", "freq_idx"),
+        coords={"polarity": pol_labels, "delta_f_ghz": ("freq_idx", delta_f)},
+    )
+    d_zfs_map = xr.DataArray(
+        np.full((n_pol, ny, nx), 2.870) + np.random.default_rng(2).random((n_pol, ny, nx)) * 0.001,
+        dims=("polarity", "y", "x"),
+        coords={"polarity": pol_labels},
+    )
+    fold_residual = xr.DataArray(
+        np.random.default_rng(3).random((n_pol, ny, nx)) * 0.1,
+        dims=("polarity", "y", "x"),
+        coords={"polarity": pol_labels},
+    )
+    d_candidates = np.linspace(2.865, 2.875, n_steps)
+    search_residual = np.random.default_rng(4).random((n_pol, n_steps)) * 0.01
+    # Create a clear minimum
+    search_residual[:, n_steps // 2] = 0.0001
+
+    return FoldedODMR(
+        folded_spectrum=folded,
+        antisymmetric_spectrum=anti,
+        d_zfs_map=d_zfs_map,
+        fold_residual=fold_residual,
+        settings=FoldingSettings(),
+        d_candidates=d_candidates,
+        search_residual=search_residual,
+    )
+
+
+class TestFoldingPlots:
+    """Smoke tests for folding diagnostic plot functions."""
+
+    def setup_method(self) -> None:
+        self._original_show = plt.show
+        plt.show = lambda: None  # suppress display
+
+    def teardown_method(self) -> None:
+        plt.close("all")
+        plt.show = self._original_show
+
+    def test_plot_folding_search_landscape(self) -> None:
+        from qdmpy.plotting import plot_folding_search_landscape
+
+        folded = _make_synthetic_folded_odmr()
+        plot_folding_search_landscape(folded)
+
+    def test_plot_folding_mean_spectrum(self) -> None:
+        from qdmpy.plotting import plot_folding_mean_spectrum
+
+        folded = _make_synthetic_folded_odmr()
+        plot_folding_mean_spectrum(folded)
+
+    def test_plot_folding_overview(self) -> None:
+        from qdmpy.plotting import plot_folding_overview
+
+        folded = _make_synthetic_folded_odmr()
+        plot_folding_overview(folded)
+
+    def test_folded_odmr_plot_method(self) -> None:
+        """FoldedODMR.plot() calls plot_folding_overview without error."""
+        folded = _make_synthetic_folded_odmr()
+        folded.plot()
+
+    def test_search_landscape_no_data(self) -> None:
+        """plot_folding_search_landscape with None diagnostics returns early."""
+        from qdmpy.plotting import plot_folding_search_landscape
+
+        folded = _make_synthetic_folded_odmr()
+        # Create a new instance without diagnostics
+        from qdmpy.odmr.folding import FoldedODMR
+
+        no_diag = FoldedODMR(
+            folded_spectrum=folded.folded_spectrum,
+            antisymmetric_spectrum=folded.antisymmetric_spectrum,
+            d_zfs_map=folded.d_zfs_map,
+            fold_residual=folded.fold_residual,
+            settings=folded.settings,
+        )
+        plot_folding_search_landscape(no_diag)  # should not crash

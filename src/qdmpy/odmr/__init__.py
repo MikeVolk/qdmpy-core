@@ -50,4 +50,5 @@ from __future__ import annotations
 
 from qdmpy.odmr.analysis import b111_from_dip_positions
 from qdmpy.odmr.data import ODMRData
+from qdmpy.odmr.folding import FoldedODMR, FoldingSettings, SpectralFolder
 from qdmpy.odmr.manager import ODMR

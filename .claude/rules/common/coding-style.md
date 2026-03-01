@@ -6,8 +6,8 @@ ALWAYS create new objects, NEVER mutate existing ones:
 
 ```
 // Pseudocode
-WRONG:  modify(original, field, value) → changes original in-place
-CORRECT: update(original, field, value) → returns new copy with change
+WRONG:  modify(original, field, value) -> changes original in-place
+CORRECT: update(original, field, value) -> returns new copy with change
 ```
 
 Rationale: Immutable data prevents hidden side effects, makes debugging easier, and enables safe concurrency.
@@ -35,6 +35,20 @@ ALWAYS validate at system boundaries:
 - Use schema-based validation where available
 - Fail fast with clear error messages
 - Never trust external data (API responses, user input, file content)
+
+## ASCII-only Comments and Docstrings
+
+NEVER use Unicode symbols in Python comments or docstrings — ruff flags them
+(RUF002/RUF003) and they break linting:
+
+- Use `->` not `→`
+- Use `x` or `*` not `×`
+- Use `-` not `−` (minus sign U+2212)
+- Use `>=` not `≥`, `<=` not `≤`, `!=` not `≠`
+- Use `+-` not `±`
+
+Exception: scientific unit symbols (e.g. `µT`, `°`, `Å`) in docstrings are
+acceptable with `# noqa: RUF002` when the ASCII alternative would be ambiguous.
 
 ## Code Quality Checklist
 

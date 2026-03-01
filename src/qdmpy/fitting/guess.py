@@ -9,6 +9,7 @@ arrays at the boundary before calling into numba.
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -17,17 +18,25 @@ from numba import njit, prange
 from numpy.typing import NDArray
 from scipy.signal import find_peaks
 
-from qdmpy.constants import PROMINENCE
 from qdmpy.exceptions import (
     DataShapeError,
     DataValidationError,
-    ModelGuessNotPossibleError,
     ModelNotFoundError,
 )
 from qdmpy.fitting.models import ModelRegistry
 
 if TYPE_CHECKING:
     from qdmpy.fitting.models import Model
+
+# Prominence threshold as a fraction of the spectral range (max - min).
+# The outer hyperfine peaks of ESR14N sit at ~7-10% of the spectral range,
+# so 3% gives comfortable headroom while rejecting noise.
+_RELATIVE_PROMINENCE = 0.03
+
+# Fraction of (pol, frange) combinations that must agree on peak count
+# before doubt is cleared. 0.6 tolerates one outlier in a 2-pol x 2-frange
+# dataset (3/4 = 75% >= 60%).
+_DETECTION_CONFIDENCE_THRESHOLD = 0.6
 
 
 @njit(fastmath=True)
@@ -59,31 +68,54 @@ def validate_array(data: NDArray, expected_dim: int, name: str) -> None:
         raise DataShapeError(msg)
 
 
+def _relative_prominence(spectrum: NDArray) -> float:
+    """Compute a per-spectrum prominence threshold as a fraction of its range.
+
+    Args:
+        spectrum: 1D array of intensity values.
+
+    Returns:
+        Prominence threshold in the same units as the spectrum.
+    """
+    spectral_range = float(np.max(spectrum) - np.min(spectrum))
+    return max(spectral_range * _RELATIVE_PROMINENCE, 1e-6)
+
+
 def guess_model(data: NDArray) -> Model:
     """Automatically determine the best fitting model for ODMR data.
+
+    Uses majority-vote detection: the most common peak count across all
+    (polarity, freq_range) combinations is returned. A warning is logged when
+    agreement is below the confidence threshold, but a model is always returned
+    so that auto-fitting can proceed.
 
     Args:
         data: 4D numpy array (n_pol, n_frange, n_pixel, n_freq).
 
     Returns:
         An instance of the appropriate model.
-
-    Raises:
-        ModelGuessNotPossibleError: If the model cannot be reliably determined.
     """
     logger.info("Trying to detect best fitting model for ODMR data.")
     n_peaks, doubt, _ = guess_n_peaks(data)
-
-    if not doubt:
-        model = get_model_by_peaks(n_peaks)
+    model = get_model_by_peaks(n_peaks)
+    if doubt:
+        logger.warning(
+            f"Low-confidence model detection: using {model.name} ({n_peaks} peaks) "
+            f"as best guess. Verify with plot_model_detection() and set model_name "
+            f"manually if incorrect."
+        )
+    else:
         logger.info(f"Detected model: {model.name}")
-        return model
-    msg = "Guessing the model is not possible. Please select model manually."
-    raise ModelGuessNotPossibleError(msg)
+    return model
 
 
 def guess_n_peaks(data: NDArray) -> tuple[int, bool, list[NDArray]]:
-    """Estimate the number of peaks in ODMR data.
+    """Estimate the number of peaks in ODMR data via majority vote.
+
+    Takes the median spectrum across pixels for each (polarity, freq_range)
+    combination, detects dips using a per-spectrum relative prominence
+    threshold, then picks the most common count (mode). Doubt is set when
+    fewer than _DETECTION_CONFIDENCE_THRESHOLD of combinations agree.
 
     Args:
         data: 4D numpy array (n_pol, n_frange, n_pixel, n_freq).
@@ -92,15 +124,80 @@ def guess_n_peaks(data: NDArray) -> tuple[int, bool, list[NDArray]]:
         Tuple of (n_peaks, doubt, peak_indices_list).
     """
     validate_array(data, 4, "data")
-    # Median across pixels (axis 2) gives (n_pol, n_frange, n_freq)
-    median_data = np.median(data, axis=2)
-    indices = [
-        find_peaks(-median_data[p, f], prominence=PROMINENCE)[0]
-        for p, f in np.ndindex(*data.shape[:2])
-    ]
-    n_peaks = int(np.round(np.mean([len(idx) for idx in indices])))
-    doubt = np.std([len(idx) for idx in indices]) != 0
-    return n_peaks, doubt, indices
+    median_data = np.median(data, axis=2)  # (n_pol, n_frange, n_freq)
+    indices = []
+    for p, f in np.ndindex(*data.shape[:2]):
+        spectrum = median_data[p, f]
+        prominence = _relative_prominence(spectrum)
+        peaks = find_peaks(-spectrum, prominence=prominence)[0]
+        indices.append(peaks)
+
+    counts = [len(idx) for idx in indices]
+    mode_count, mode_freq = Counter(counts).most_common(1)[0]
+    confidence = mode_freq / len(counts)
+    doubt = confidence < _DETECTION_CONFIDENCE_THRESHOLD
+    return mode_count, doubt, indices
+
+
+def plot_model_detection(
+    data: NDArray,
+    freq: NDArray | None = None,
+) -> None:
+    """Plot the median spectra used for model detection with detected peaks marked.
+
+    Useful for visually verifying the auto-detection result, especially when
+    doubt is flagged.
+
+    Args:
+        data: 4D numpy array (n_pol, n_frange, n_pixel, n_freq).
+        freq: Optional 2D frequency array (n_frange, n_freq) in GHz. If None,
+              frequency index is used on the x-axis.
+    """
+    try:
+        from matplotlib import pyplot as plt
+    except ImportError:
+        logger.error("matplotlib is required for plot_model_detection()")
+        return
+
+    validate_array(data, 4, "data")
+    n_pol, n_frange = data.shape[0], data.shape[1]
+    median_data = np.median(data, axis=2)  # (n_pol, n_frange, n_freq)
+
+    fig, axes = plt.subplots(
+        n_pol,
+        n_frange,
+        figsize=(4 * n_frange, 3 * n_pol),
+        squeeze=False,
+        sharex="col",
+    )
+    fig.suptitle("Model detection: median spectra with detected peaks", fontsize=12)
+
+    for p, f in np.ndindex(n_pol, n_frange):
+        ax = axes[p, f]
+        spectrum = median_data[p, f]
+        prominence = _relative_prominence(spectrum)
+        peaks, _ = find_peaks(-spectrum, prominence=prominence)
+
+        x = freq[f] if freq is not None else np.arange(len(spectrum))
+        x_label = "Frequency (GHz)" if freq is not None else "Frequency index"
+
+        ax.plot(x, spectrum, color="steelblue", linewidth=1.2)
+        if len(peaks):
+            ax.plot(x[peaks], spectrum[peaks], "rv", markersize=8, label=f"{len(peaks)} peaks")
+        ax.axhline(
+            spectrum.max() - prominence,
+            color="gray",
+            linestyle="--",
+            linewidth=0.8,
+            label=f"threshold ({prominence:.5f})",
+        )
+        ax.set_title(f"pol={p}, frange={f}")
+        ax.set_xlabel(x_label)
+        ax.set_ylabel("Intensity")
+        ax.legend(fontsize=8)
+
+    fig.tight_layout()
+    plt.show()
 
 
 def get_model_by_peaks(n_peaks: int) -> Model:

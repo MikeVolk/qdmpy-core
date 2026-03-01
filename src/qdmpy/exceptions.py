@@ -13,6 +13,9 @@ Hierarchy:
     |   +-- ModelNotFoundError
     |   +-- ModelGuessNotPossibleError
     |   +-- ParameterError
+    +-- FoldingError
+    |   +-- FoldingOverlapError
+    |   +-- FoldingSearchError
     +-- ConfigurationError
     +-- DependencyError
 """
@@ -72,6 +75,21 @@ class ModelGuessNotPossibleError(FittingError):
 
 class ParameterError(FittingError):
     """Invalid or unknown fitting parameter."""
+
+
+# --- Folding Errors ---
+
+
+class FoldingError(QDMpyError):
+    """Raised when spectral folding cannot be performed."""
+
+
+class FoldingOverlapError(FoldingError):
+    """Valid δf overlap window is too narrow to fold reliably."""
+
+
+class FoldingSearchError(FoldingError):
+    """D_ZFS brute-force search produced no valid candidates."""
 
 
 # --- Configuration Errors ---
