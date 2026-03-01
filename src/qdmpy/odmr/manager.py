@@ -147,7 +147,7 @@ class ODMR:
         *,
         processed: bool = True,
     ) -> None:
-        """Plot all ODMR spectra for pixel (y, x) in a polarity × freq_range grid.
+        """Plot all ODMR spectra for pixel (y, x) in a polarity x freq_range grid.
 
         Each subplot shows one (polarity, freq_range) combination. Only the
         combinations present in the data are plotted.
@@ -157,24 +157,7 @@ class ODMR:
             x: Column index in the scan grid.
             processed: If True use processed_data, else raw_data.
         """
-        import matplotlib.pyplot as plt
+        from qdmpy.plotting import plot_odmr_spectra
 
-        data = self.processed_data if processed else self.raw_data
-        polarities = data.data.coords["polarity"].values.tolist()
-        freq_ranges = data.data.coords["freq_range"].values.tolist()
-
-        n_pol = len(polarities)
-        n_frange = len(freq_ranges)
-        fig, axes = plt.subplots(n_pol, n_frange, figsize=(5 * n_frange, 3 * n_pol), squeeze=False)
-
-        for i, pol in enumerate(polarities):
-            for j, fr in enumerate(freq_ranges):
-                freq, spec = self.spectrum(y, x, polarity=pol, freq_range=fr, processed=processed)
-                axes[i, j].plot(freq, spec)
-                axes[i, j].set_title(f"polarity={pol}, freq_range={fr}")
-                axes[i, j].set_xlabel("Frequency (GHz)")
-                axes[i, j].set_ylabel("Intensity")
-
-        fig.suptitle(f"ODMR spectra at pixel ({y}, {x})")
-        plt.tight_layout()
-        plt.show()
+        odmr_data = self.processed_data if processed else self.raw_data
+        plot_odmr_spectra(odmr_data, y, x)

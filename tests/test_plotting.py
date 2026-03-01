@@ -366,3 +366,216 @@ class TestFoldingPlots:
             settings=folded.settings,
         )
         plot_folding_search_landscape(no_diag)  # should not crash
+
+
+# ---------------------------------------------------------------------------
+# ODMR spectra / fluorescence / model-detection / magnetic-map plot tests
+# ---------------------------------------------------------------------------
+
+
+def _make_odmr_data():
+    """Build a minimal ODMRData for plot smoke tests."""
+    from qdmpy.odmr.data import ODMRData
+
+    rng = np.random.default_rng(42)
+    n_pol, n_frange, ny, nx, n_freq = 2, 2, 4, 4, 50
+    n_pixels = ny * nx
+
+    raw_4d = rng.random((n_pol, n_frange, n_pixels, n_freq)).astype(np.float64)
+    # Give it a dip-like shape so peak detection works
+    for p in range(n_pol):
+        for f in range(n_frange):
+            raw_4d[p, f] = 1.0 - 0.05 * np.exp(-(((np.arange(n_freq) - n_freq // 2) / 5.0) ** 2))
+
+    freq_low = np.linspace(2.72e9, 2.87e9, n_freq)
+    freq_high = np.linspace(2.87e9, 3.02e9, n_freq)
+    frequencies = np.stack([freq_low, freq_high])  # (2, n_freq) in Hz
+
+    return ODMRData.from_numpy(raw_4d, (ny, nx), frequencies)
+
+
+class TestODMRSpectraPlot:
+    """Smoke tests for plot_odmr_spectra."""
+
+    def setup_method(self) -> None:
+        self._original_show = plt.show
+        plt.show = lambda: None
+
+    def teardown_method(self) -> None:
+        plt.close("all")
+        plt.show = self._original_show
+
+    def test_plot_odmr_spectra(self) -> None:
+        from qdmpy.plotting import plot_odmr_spectra
+
+        odmr_data = _make_odmr_data()
+        plot_odmr_spectra(odmr_data, 0, 0)
+
+    def test_odmr_manager_delegates(self) -> None:
+        """ODMR.plot_spectra delegates to plotting.plot_odmr_spectra."""
+        from qdmpy.odmr.manager import ODMR
+
+        odmr_data = _make_odmr_data()
+        odmr = ODMR(odmr_data)
+        odmr.process_data()
+        odmr.plot_spectra(0, 0)
+
+
+class TestFluorescenceCorrectionPlot:
+    """Smoke tests for plot_fluorescence_correction."""
+
+    def setup_method(self) -> None:
+        self._original_show = plt.show
+        plt.show = lambda: None
+
+    def teardown_method(self) -> None:
+        plt.close("all")
+        plt.show = self._original_show
+
+    def test_plot_fluorescence_correction(self) -> None:
+        from qdmpy.plotting import plot_fluorescence_correction
+
+        odmr_data = _make_odmr_data()
+        plot_fluorescence_correction(odmr_data, 0.2)
+
+    def test_preview_delegates(self) -> None:
+        """preview_fluorescence_correction delegates to plotting module."""
+        from qdmpy.odmr.processors import preview_fluorescence_correction
+
+        odmr_data = _make_odmr_data()
+        preview_fluorescence_correction(odmr_data, 0.2)
+
+
+class TestModelDetectionPlot:
+    """Smoke tests for plot_model_detection."""
+
+    def setup_method(self) -> None:
+        self._original_show = plt.show
+        plt.show = lambda: None
+
+    def teardown_method(self) -> None:
+        plt.close("all")
+        plt.show = self._original_show
+
+    def test_plot_model_detection_no_freq(self) -> None:
+        from qdmpy.plotting import plot_model_detection
+
+        rng = np.random.default_rng(7)
+        spectra = 1.0 - 0.05 * rng.random((2, 2, 16, 50))
+        plot_model_detection(spectra)
+
+    def test_plot_model_detection_with_freq(self) -> None:
+        from qdmpy.plotting import plot_model_detection
+
+        rng = np.random.default_rng(7)
+        spectra = 1.0 - 0.05 * rng.random((2, 2, 16, 50))
+        freq = np.stack([np.linspace(2.72, 2.87, 50), np.linspace(2.87, 3.02, 50)])
+        plot_model_detection(spectra, freq)
+
+    def test_guess_module_delegates(self) -> None:
+        """guess.plot_model_detection delegates to plotting module."""
+        from qdmpy.fitting.guess import plot_model_detection
+
+        rng = np.random.default_rng(7)
+        spectra = 1.0 - 0.05 * rng.random((2, 2, 16, 50))
+        plot_model_detection(spectra)
+
+
+class TestMagneticComponentPlot:
+    """Smoke tests for plot_magnetic_component."""
+
+    def setup_method(self) -> None:
+        self._original_show = plt.show
+        plt.show = lambda: None
+
+    def teardown_method(self) -> None:
+        plt.close("all")
+        plt.show = self._original_show
+
+    def test_plot_magnetic_component(self) -> None:
+        import xarray as xr
+
+        from qdmpy.magnetic_map import MagneticMap
+        from qdmpy.plotting import plot_magnetic_component
+
+        rng = np.random.default_rng(99)
+        ny, nx = 8, 8
+        coords = {"y": np.arange(ny), "x": np.arange(nx)}
+        attrs = {"pixel_spacing": 4e-6}
+
+        def _da(name):
+            return xr.DataArray(
+                rng.random((ny, nx)),
+                dims=("y", "x"),
+                coords=coords,
+                attrs={**attrs, "component": name},
+            )
+
+        mag = MagneticMap(
+            b111=_da("b111"),
+            bx=_da("Bx"),
+            by=_da("By"),
+            bz=_da("Bz"),
+            btotal=_da("Btotal"),
+            nv_axis=(0.0, 0.0, 1.0),
+        )
+        plot_magnetic_component(mag, "Bz")
+
+    def test_display_delegates(self) -> None:
+        """MagneticMap.display delegates to plotting module."""
+        import xarray as xr
+
+        from qdmpy.magnetic_map import MagneticMap
+
+        rng = np.random.default_rng(99)
+        ny, nx = 8, 8
+        coords = {"y": np.arange(ny), "x": np.arange(nx)}
+        attrs = {"pixel_spacing": 4e-6}
+
+        def _da(name):
+            return xr.DataArray(
+                rng.random((ny, nx)),
+                dims=("y", "x"),
+                coords=coords,
+                attrs={**attrs, "component": name},
+            )
+
+        mag = MagneticMap(
+            b111=_da("b111"),
+            bx=_da("Bx"),
+            by=_da("By"),
+            bz=_da("Bz"),
+            btotal=_da("Btotal"),
+            nv_axis=(0.0, 0.0, 1.0),
+        )
+        mag.display("Bz")
+
+    def test_invalid_component_raises(self) -> None:
+        import xarray as xr
+
+        from qdmpy.magnetic_map import MagneticMap
+        from qdmpy.plotting import plot_magnetic_component
+
+        rng = np.random.default_rng(99)
+        ny, nx = 4, 4
+        coords = {"y": np.arange(ny), "x": np.arange(nx)}
+        attrs = {"pixel_spacing": 4e-6}
+
+        def _da(name):
+            return xr.DataArray(
+                rng.random((ny, nx)),
+                dims=("y", "x"),
+                coords=coords,
+                attrs={**attrs, "component": name},
+            )
+
+        mag = MagneticMap(
+            b111=_da("b111"),
+            bx=_da("Bx"),
+            by=_da("By"),
+            bz=_da("Bz"),
+            btotal=_da("Btotal"),
+            nv_axis=(0.0, 0.0, 1.0),
+        )
+        with pytest.raises(ValueError, match="not in"):
+            plot_magnetic_component(mag, "invalid")

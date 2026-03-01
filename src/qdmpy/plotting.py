@@ -11,12 +11,15 @@ from typing import TYPE_CHECKING
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray
 
 from qdmpy.constants import D_ZFS
 from qdmpy.utils import double_norm
 
 if TYPE_CHECKING:
     from qdmpy.fitting.result import FitResult
+    from qdmpy.magnetic_map import MagneticMap
+    from qdmpy.odmr.data import ODMRData
     from qdmpy.odmr.folding import FoldedODMR
 
 # Set white background for all QDMpy figures
@@ -378,12 +381,215 @@ def plot_folding_overview(folded: FoldedODMR) -> None:
     plt.show()
 
 
+# ---------------------------------------------------------------------------
+# ODMR spectrum plots
+# ---------------------------------------------------------------------------
+
+
+def plot_odmr_spectra(odmr_data: ODMRData, y: int, x: int) -> None:
+    """Plot all ODMR spectra for pixel (y, x) in a polarity x freq_range grid.
+
+    Each subplot shows one (polarity, freq_range) combination.
+
+    Args:
+        odmr_data: ODMRData instance to plot from.
+        y: Row index in the scan grid.
+        x: Column index in the scan grid.
+    """
+    da = odmr_data.data
+    polarities = da.coords["polarity"].values.tolist()
+    freq_ranges = da.coords["freq_range"].values.tolist()
+
+    n_pol = len(polarities)
+    n_frange = len(freq_ranges)
+    fig, axes = plt.subplots(n_pol, n_frange, figsize=(5 * n_frange, 3 * n_pol), squeeze=False)
+
+    for i, pol in enumerate(polarities):
+        for j, fr in enumerate(freq_ranges):
+            freq = da.coords["freq_ghz"].sel(freq_range=fr).values
+            intensity = da.sel(polarity=pol, freq_range=fr).values[y, x, :]
+            axes[i, j].plot(freq, intensity)
+            axes[i, j].set_title(f"polarity={pol}, freq_range={fr}")
+            axes[i, j].set_xlabel("Frequency (GHz)")
+            axes[i, j].set_ylabel("Intensity")
+
+    fig.suptitle(f"ODMR spectra at pixel ({y}, {x})")
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_fluorescence_correction(
+    odmr_data: ODMRData,
+    correction_factor: float = 0.2,
+    pixel_idx: int | None = None,
+) -> None:
+    """Preview the effect of fluorescence correction on ODMR data.
+
+    Args:
+        odmr_data: ODMRData instance.
+        correction_factor: The fluorescence correction factor.
+        pixel_idx: Optional pixel index (flat y*x space) to highlight.
+    """
+    from qdmpy.odmr.processors import analyze_fluorescence_effects
+
+    idx_flat, baseline_corrected = analyze_fluorescence_effects(odmr_data, pixel_idx)
+    correction = correction_factor * baseline_corrected
+
+    n_pol = odmr_data.data.sizes["polarity"]
+    n_frange = odmr_data.data.sizes["freq_range"]
+    n_y = odmr_data.data.sizes["y"]
+    n_x = odmr_data.data.sizes["x"]
+
+    flat_values = odmr_data.data.values.reshape(n_pol, n_frange, n_y * n_x, -1)
+
+    _f, ax = plt.subplots(
+        n_pol,
+        n_frange,
+        sharex=False,
+        sharey=True,
+        figsize=(4 * n_frange, 3 * n_pol),
+    )
+
+    if n_pol == 1 and n_frange == 1:
+        ax = np.array([[ax]])
+    elif n_pol == 1:
+        ax = np.array([ax])
+    elif n_frange == 1:
+        ax = np.array([ax]).T
+
+    freq_ghz = odmr_data.data.coords["freq_ghz"].values
+
+    for p in range(n_pol):
+        for fr in range(n_frange):
+            current_data = flat_values[p, fr, idx_flat].copy()
+            freqs = freq_ghz[fr]
+            corr_vals = correction.isel(polarity=p, freq_range=fr).values
+
+            ax[p, fr].plot(freqs, current_data, "k.-", label="Original")
+            ax[p, fr].plot(
+                freqs,
+                current_data - corr_vals,
+                "r.-",
+                label=f"Corrected (Factor={correction_factor})",
+            )
+            ax[p, fr].plot(freqs, 1 + corr_vals, "r--", alpha=0.5, label="Correction")
+
+            polarity_label = {0: "+", 1: "-"}.get(p, f"P{p}")
+            frange_label = {0: "Low", 1: "High"}.get(fr, f"F{fr}")
+            ax[p, fr].set_title(f"Polarity: {polarity_label}, Frequency Range: {frange_label}")
+            ax[p, fr].set_xlabel("Frequency [GHz]")
+            ax[p, fr].set_ylabel("ODMR Contrast")
+            ax[p, fr].legend()
+            ax[p, fr].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.suptitle(f"Fluorescence Correction Preview (Pixel {idx_flat})", y=1.02)
+    plt.show()
+
+
+# ---------------------------------------------------------------------------
+# Model detection plots
+# ---------------------------------------------------------------------------
+
+
+def plot_model_detection(spectra_4d: NDArray, freq: NDArray | None = None) -> None:
+    """Plot the median spectra used for model detection with detected peaks marked.
+
+    Useful for visually verifying the auto-detection result, especially when
+    doubt is flagged.
+
+    Args:
+        spectra_4d: 4D numpy array (n_pol, n_frange, n_pixel, n_freq).
+        freq: Optional 2D frequency array (n_frange, n_freq) in GHz. If None,
+              frequency index is used on the x-axis.
+    """
+    from qdmpy.fitting.guess import _relative_prominence, validate_array
+
+    validate_array(spectra_4d, 4, "spectra_4d")
+    n_pol, n_frange = spectra_4d.shape[0], spectra_4d.shape[1]
+    median_data = np.median(spectra_4d, axis=2)  # (n_pol, n_frange, n_freq)
+
+    fig, axes = plt.subplots(
+        n_pol,
+        n_frange,
+        figsize=(4 * n_frange, 3 * n_pol),
+        squeeze=False,
+        sharex="col",
+    )
+    fig.suptitle("Model detection: median spectra with detected peaks", fontsize=12)
+
+    for p, f in np.ndindex(n_pol, n_frange):
+        ax = axes[p, f]
+        spectrum = median_data[p, f]
+        prominence = _relative_prominence(spectrum)
+        from scipy.signal import find_peaks
+
+        peaks, _ = find_peaks(-spectrum, prominence=prominence)
+
+        x = freq[f] if freq is not None else np.arange(len(spectrum))
+        x_label = "Frequency (GHz)" if freq is not None else "Frequency index"
+
+        ax.plot(x, spectrum, color="steelblue", linewidth=1.2)
+        if len(peaks):
+            ax.plot(x[peaks], spectrum[peaks], "rv", markersize=8, label=f"{len(peaks)} peaks")
+        ax.axhline(
+            spectrum.max() - prominence,
+            color="gray",
+            linestyle="--",
+            linewidth=0.8,
+            label=f"threshold ({prominence:.5f})",
+        )
+        ax.set_title(f"pol={p}, frange={f}")
+        ax.set_xlabel(x_label)
+        ax.set_ylabel("Intensity")
+        ax.legend(fontsize=8)
+
+    fig.tight_layout()
+    plt.show()
+
+
+# ---------------------------------------------------------------------------
+# Magnetic map plots
+# ---------------------------------------------------------------------------
+
+
+def plot_magnetic_component(
+    mag_map: MagneticMap,
+    component: str = "Bz",
+    **imshow_kwargs: object,
+) -> None:
+    """Quick matplotlib display of one MagneticMap component.
+
+    Args:
+        mag_map: MagneticMap instance.
+        component: Which component to display (case-insensitive for Bx/By/Bz).
+        **imshow_kwargs: Passed to xarray ``.plot(**imshow_kwargs)``.
+
+    Raises:
+        ValueError: If component is not recognized.
+    """
+    component_lower = component.lower()
+    valid_components = {"b111", "bx", "by", "bz", "btotal"}
+
+    if component_lower not in valid_components:
+        raise ValueError(f"Component {component!r} not in {valid_components}")
+
+    da = getattr(mag_map, component_lower)
+    da.plot(**imshow_kwargs)
+    plt.title(component)
+    plt.show()
+
+
 __all__ = [
     "double_norm",
     "plot_fit_result_field_map",
     "plot_fit_result_overview",
     "plot_fit_result_parameter_map",
+    "plot_fluorescence_correction",
     "plot_folding_mean_spectrum",
     "plot_folding_overview",
     "plot_folding_search_landscape",
+    "plot_magnetic_component",
+    "plot_model_detection",
+    "plot_odmr_spectra",
 ]

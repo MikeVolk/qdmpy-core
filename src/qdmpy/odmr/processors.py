@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol, runtime_che
 import numpy as np
 import xarray as xr
 from loguru import logger
-from matplotlib import pyplot as plt
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
 from qdmpy.constants import FLUORESCENCE_DELTA_THRESHOLD
@@ -272,60 +271,9 @@ def preview_fluorescence_correction(
     data: ODMRData, correction_factor: float = 0.2, pixel_idx: int | None = None
 ) -> None:
     """Preview the effect of fluorescence correction on ODMR data."""
-    idx_flat, baseline_corrected = analyze_fluorescence_effects(data, pixel_idx)
-    correction = correction_factor * baseline_corrected
+    from qdmpy.plotting import plot_fluorescence_correction
 
-    n_pol = data.data.sizes["polarity"]
-    n_frange = data.data.sizes["freq_range"]
-    n_y = data.data.sizes["y"]
-    n_x = data.data.sizes["x"]
-
-    # Get pixel data in flat space
-    flat_values = data.data.values.reshape(n_pol, n_frange, n_y * n_x, -1)
-
-    _f, ax = plt.subplots(
-        n_pol,
-        n_frange,
-        sharex=False,
-        sharey=True,
-        figsize=(4 * n_frange, 3 * n_pol),
-    )
-
-    if n_pol == 1 and n_frange == 1:
-        ax = np.array([[ax]])
-    elif n_pol == 1:
-        ax = np.array([ax])
-    elif n_frange == 1:
-        ax = np.array([ax]).T
-
-    freq_ghz = data.data.coords["freq_ghz"].values
-
-    for p in range(n_pol):
-        for fr in range(n_frange):
-            current_data = flat_values[p, fr, idx_flat].copy()
-            freqs = freq_ghz[fr]
-            corr_vals = correction.isel(polarity=p, freq_range=fr).values
-
-            ax[p, fr].plot(freqs, current_data, "k.-", label="Original")
-            ax[p, fr].plot(
-                freqs,
-                current_data - corr_vals,
-                "r.-",
-                label=f"Corrected (Factor={correction_factor})",
-            )
-            ax[p, fr].plot(freqs, 1 + corr_vals, "r--", alpha=0.5, label="Correction")
-
-            polarity_label = {0: "+", 1: "-"}.get(p, f"P{p}")
-            frange_label = {0: "Low", 1: "High"}.get(fr, f"F{fr}")
-            ax[p, fr].set_title(f"Polarity: {polarity_label}, Frequency Range: {frange_label}")
-            ax[p, fr].set_xlabel("Frequency [GHz]")
-            ax[p, fr].set_ylabel("ODMR Contrast")
-            ax[p, fr].legend()
-            ax[p, fr].grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    plt.suptitle(f"Fluorescence Correction Preview (Pixel {idx_flat})", y=1.02)
-    plt.show()
+    plot_fluorescence_correction(data, correction_factor, pixel_idx)
 
 
 class ODMRProcessorManager:
