@@ -16,6 +16,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Updated all examples, scripts, and integration tests to use `method='mean'`
 
 ### Added
+
+- **Metadata TOML support** in `Measurement.from_folder()`:
+  - New `load_metadata_toml()` function in `io.py` for loading TOML configuration files
+  - `Measurement.__init__` now accepts optional `metadata` parameter for initialization
+  - `from_folder()` automatically loads `metadata.toml` from measurement folder if present
+  - Graceful error handling: missing files return empty dict, malformed TOML is skipped with warning
+  - Enables users to annotate experiments (sample name, temperature, operator, notes, etc.) without programmatic configuration
+
 - Consolidated all plotting into `plotting.py`:
   - `plot_odmr_spectra()` -- plot all ODMR spectra for a pixel (moved from `odmr/manager.py`)
   - `plot_fluorescence_correction()` -- preview fluorescence correction (moved from `odmr/processors.py`)
