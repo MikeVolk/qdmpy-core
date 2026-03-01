@@ -46,7 +46,7 @@ _FOLDED_CENTER_MIN = 0.001   # GHz (1 MHz minimum Zeeman shift)
 _FOLDED_CENTER_MAX = 0.080   # GHz (80 MHz ~ 2.8 mT)
 _FOLDED_WIDTH_MIN = 0.001    # GHz
 _FOLDED_WIDTH_MAX = 0.020    # GHz
-_FOLDED_CONTRAST_MAX = 1.0   # spectrum is normalised by 2 before fitting
+_FOLDED_CONTRAST_MAX = 1.0   # spectrum baseline is ~1.0 (mean of two normalised ranges)
 
 
 class FitManager:
@@ -500,9 +500,10 @@ class FitManager:
     ) -> FoldedFitResult:
         """Fit a folded ODMR spectrum and return a FoldedFitResult.
 
-        The folded spectrum has its frequency axis in Zeeman-offset (delta_f) GHz,
-        so fitting uses ESRSINGLE with folded-domain constraints and the resulting
-        centre IS the Zeeman shift — no D_ZFS subtraction needed.
+        The folded spectrum has its frequency axis in Zeeman-offset (delta_f) GHz.
+        Fitting uses self._model (e.g. ESR14N, ESR15N, ESRSINGLE) with
+        folded-domain constraints. The resulting centre IS the Zeeman shift
+        -- no D_ZFS subtraction needed.
 
         Args:
             folded: FoldedODMR result from SpectralFolder.fold().
@@ -523,12 +524,9 @@ class FitManager:
         n_df = len(delta_f_ghz)
 
         # folded_spectrum dims: (polarity, y, x, freq_idx)
-        # The folded spectrum is S_low + S_high (sum of two ~1.0-normalised spectra),
-        # so its baseline is ~2.0.  ESRSINGLE expects baseline ≈ 1 + offset, and the
-        # ParameterGuesser defaults offset=0.  Dividing by 2 brings the data back into
-        # the [0, 1] domain the guesser and model assume, without changing the fitted
-        # centre, width, or the B111 physics.
-        spec_vals = folded.folded_spectrum.values / 2.0  # (n_pol, ny, nx, n_df)
+        # The folded spectrum is the mean of S_low and S_high, so its baseline is
+        # already ~1.0 (same as a single normalised ODMR spectrum).
+        spec_vals = folded.folded_spectrum.values  # (n_pol, ny, nx, n_df)
         pol_labels = list(folded.folded_spectrum.coords["polarity"].values)
 
         # Build xr.DataArray: (n_pol, 1, ny, nx, n_df) matching fit() expected dims
@@ -545,31 +543,50 @@ class FitManager:
         # Frequency array: shape (1, n_df) for a single freq_range
         freq_2d = delta_f_ghz.reshape(1, n_df)
 
-        # Build a dedicated ESRSINGLE FitManager with folded-domain constraints
-        folded_mgr = FitManager(
-            "ESRSINGLE",
-            constraints={
-                "center": {
-                    "vmin": _FOLDED_CENTER_MIN,
-                    "vmax": _FOLDED_CENTER_MAX,
-                    "constraint_type": "LOWER_UPPER",
-                },
-                "width": {
-                    "vmin": _FOLDED_WIDTH_MIN,
-                    "vmax": _FOLDED_WIDTH_MAX,
-                    "constraint_type": "LOWER_UPPER",
-                },
-                "contrast": {
-                    "vmin": 0.001,
-                    "vmax": _FOLDED_CONTRAST_MAX,
-                    "constraint_type": "LOWER_UPPER",
-                },
-                "offset": {
-                    "vmin": -0.5,
-                    "vmax": 3.0,
-                    "constraint_type": "LOWER_UPPER",
-                },
+        # Resolve auto model if needed — use the folded 5D data for detection
+        if self._model is None:
+            n_freq = data_5d.shape[-1]
+            flat_data = data_5d.reshape(data_5d.shape[0], data_5d.shape[1], -1, n_freq)
+            self._resolve_auto_model(flat_data)
+
+        model: Model = self._model  # type: ignore[assignment]
+
+        # Build folded-domain constraints dynamically from the model's parameter
+        # types so that ESR14N (contrast_0/1/2), ESR15N (contrast_0/1), and
+        # ESRSINGLE (contrast) all get correct bounds.
+        _type_bounds: dict[str, dict[str, float | str]] = {
+            "center": {
+                "vmin": _FOLDED_CENTER_MIN,
+                "vmax": _FOLDED_CENTER_MAX,
+                "constraint_type": "LOWER_UPPER",
             },
+            "width": {
+                "vmin": _FOLDED_WIDTH_MIN,
+                "vmax": _FOLDED_WIDTH_MAX,
+                "constraint_type": "LOWER_UPPER",
+            },
+            "contrast": {
+                "vmin": 0.001,
+                "vmax": _FOLDED_CONTRAST_MAX,
+                "constraint_type": "LOWER_UPPER",
+            },
+            "offset": {
+                "vmin": -0.5,
+                "vmax": 3.0,
+                "constraint_type": "LOWER_UPPER",
+            },
+        }
+        folded_constraints: dict[str, dict[str, float | str]] = {}
+        for param_name, param_type in model.parameter_types.items():
+            if param_type in _type_bounds:
+                folded_constraints[param_name] = _type_bounds[param_type]
+
+        # Build a dedicated FitManager with folded-domain constraints.
+        # Use the same model as the outer FitManager (e.g. ESR14N for 14N diamond)
+        # so that the correct number of dips is fitted on the folded spectrum.
+        folded_mgr = FitManager(
+            model.name,
+            constraints=folded_constraints,
             settings=self._settings,
             gpu_available=self._gpu_available,
         )
@@ -582,6 +599,6 @@ class FitManager:
             parameters=params,
             scan_dimensions=raw.scan_dimensions,
             pixel_spacing=pixel_spacing,
-            model_name="ESRSINGLE+FOLDED",
+            model_name=f"{model.name}+FOLDED",
             metadata={**raw.metadata, "folded_fit": True},
         )

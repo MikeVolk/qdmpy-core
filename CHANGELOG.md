@@ -8,6 +8,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **QEP-011** -- Spectral folding diagnostic plots:
+  - `FoldedODMR.d_candidates` and `search_residual` fields store brute-force D_ZFS search landscape
+  - `FoldedODMR.plot()` convenience method for quick diagnostic overview
+  - `plot_folding_search_landscape()` -- D candidate vs mean residual per polarity
+  - `plot_folding_mean_spectrum()` -- spatially-averaged folded and antisymmetric spectra
+  - `plot_folding_overview()` -- 2x2 panel combining search landscape, D_ZFS map, and fold residual map
+  - 5 new tests for search diagnostics, 5 smoke tests for plot functions
+
+- **QEP-011** -- Spectral folding orchestration in Measurement:
+  - `Measurement.fold_odmr(settings=None)` -- creates `SpectralFolder`, runs fold, caches result
+  - `Measurement.folded_odmr` property -- returns cached `FoldedODMR` or raises `DataNotLoadedError`
+  - `Measurement.fit_folded_odmr()` now uses cached folded data when called without arguments; explicit `folded=` arg still works for backward compat
+  - `fit_folded_odmr()` now calls `_validate_fit_prerequisites()` (GPU check was missing)
+  - Both `fit_odmr()` and `fit_folded_odmr()` now use `_fit_model` as the default model name
+  - `FoldedODMR`, `FoldingSettings`, `SpectralFolder` imported at module level in `measurement.py`
+  - Updated `notebooks/04-spectral-folding.ipynb` to use `m.fold_odmr()` / `m.fit_folded_odmr()` API
+  - Fixed broken mock paths in `tests/test_measurement.py` (`QDMpy.*` -> `qdmpy_core.*`)
+  - Added 12 new tests covering fold_odmr, folded_odmr property, fit_folded_odmr cached/explicit, GPU validation, and _fit_model wiring
+
 - **QEP-046** — Notebook tutorials for three user types:
   - `src/QDMpy/testing.py` — three public helpers for tutorials and tests: `make_synthetic_odmr_data()`, `make_synthetic_fit_result()`, `make_synthetic_qdm_result()`; all exported from top-level `QDMpy`
   - `notebooks/01-quickstart.ipynb` — User 1 ("fit and be done"): `QDMpy.load()` → `fit_odmr()` → B111 maps → `magnetic_map` → save/load

@@ -1,4 +1,3 @@
-# noqa: N999
 """Framework for handling and processing ODMR data.
 
 The `QDMpy.odmr` module provides a comprehensive framework for handling, processing,
@@ -51,4 +50,5 @@ from __future__ import annotations
 
 from qdmpy_core.odmr.analysis import b111_from_dip_positions
 from qdmpy_core.odmr.data import ODMRData
+from qdmpy_core.odmr.folding import FoldedODMR, FoldingSettings, SpectralFolder
 from qdmpy_core.odmr.manager import ODMR

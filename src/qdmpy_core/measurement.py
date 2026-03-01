@@ -26,12 +26,14 @@ from numpy.typing import NDArray
 
 from qdmpy_core.exceptions import DataLoadError, DataNotLoadedError, DependencyError
 from qdmpy_core.io import get_image
+from qdmpy_core.odmr.folding import FoldedODMR, FoldingSettings, SpectralFolder
 from qdmpy_core.odmr.manager import ODMR
 
 if TYPE_CHECKING:
     from os import PathLike
 
     from qdmpy_core.odmr.data import ODMRData
+    from qdmpy_core.result import QDMResult
 
 
 class Measurement:
@@ -125,6 +127,9 @@ class Measurement:
         # Store default fit model preference
         self._fit_model = fit_model
 
+        # Cached folded ODMR result (populated by fold_odmr())
+        self._folded_odmr: FoldedODMR | None = None
+
     @classmethod
     def from_folder(  # noqa: PLR0913
         cls: type[Measurement],
@@ -145,7 +150,7 @@ class Measurement:
 
         Args:
             path: Folder containing MATLAB .mat files from the QDM microscope.
-            bin_factor: Spatial binning factor (1 = no binning, 2 = 2×2 bins).
+            bin_factor: Spatial binning factor (1 = no binning, 2 = 2x2 bins).
             model: ESR model name ('auto', 'ESR14N', 'ESR15N', 'ESRSINGLE').
             pixel_spacing: Physical pixel size in metres (default 4 µm).
             normalize: Apply max-normalisation to ODMR spectra.
@@ -284,7 +289,7 @@ class Measurement:
         model_name: str | None = None,
         *,
         constraints: dict[str, Any] | None = None,
-    ) -> 'QDMResult':
+    ) -> QDMResult:
         """Fit ODMR spectra and return unified result container.
 
         Args:
@@ -301,7 +306,7 @@ class Measurement:
         from qdmpy_core.fitting.manager import FitManager
         from qdmpy_core.result import QDMResult
 
-        model_name = model_name or 'auto'
+        model_name = model_name or self._fit_model
         logger.info(f"Starting ODMR fitting with model: {model_name}")
         processed_data = self._validate_fit_prerequisites()
 
@@ -313,4 +318,100 @@ class Measurement:
         )
 
         logger.info("ODMR fitting completed successfully")
+        return QDMResult(fit_result=fit_result)
+
+    @property
+    def folded_odmr(self: Self) -> FoldedODMR:
+        """Return the cached FoldedODMR, or raise if fold_odmr() hasn't been called.
+
+        Returns:
+            The cached FoldedODMR result.
+
+        Raises:
+            DataNotLoadedError: If fold_odmr() has not been called yet.
+        """
+        if self._folded_odmr is None:
+            msg = "No folded ODMR data available. Call fold_odmr() first."
+            raise DataNotLoadedError(msg)
+        return self._folded_odmr
+
+    def fold_odmr(
+        self: Self,
+        settings: FoldingSettings | None = None,
+    ) -> FoldedODMR:
+        """Fold ODMR spectra about the per-pixel D_ZFS and cache the result.
+
+        Creates a SpectralFolder from the processed ODMR data, runs the
+        two-scale folding pipeline, and caches the result for use by
+        fit_folded_odmr().
+
+        Args:
+            settings: Optional FoldingSettings. Defaults to FoldingSettings().
+
+        Returns:
+            The FoldedODMR result (also cached as self.folded_odmr).
+
+        Raises:
+            DataNotLoadedError: If ODMR data hasn't been processed yet.
+            DataValidationError: If data doesn't have both frequency ranges.
+            FoldingOverlapError: If frequency overlap is too narrow.
+        """
+        try:
+            processed_data = self.odmr.processed_data
+        except (AttributeError, ValueError, DataNotLoadedError) as e:
+            msg = "ODMR data must be processed before folding. Call odmr.process_data() first."
+            raise DataNotLoadedError(msg) from e
+
+        resolved_settings = settings if settings is not None else FoldingSettings()
+        logger.info(
+            "Folding ODMR spectra (bin_factor={}, search_steps={})",
+            resolved_settings.bin_factor,
+            resolved_settings.search_steps,
+        )
+
+        folder = SpectralFolder(processed_data, resolved_settings)
+        self._folded_odmr = folder.fold()
+
+        logger.info("Spectral folding complete")
+        return self._folded_odmr
+
+    def fit_folded_odmr(
+        self: Self,
+        folded: FoldedODMR | None = None,
+        model_name: str | None = None,
+        *,
+        constraints: dict[str, Any] | None = None,
+    ) -> QDMResult:
+        """Fit a folded ODMR spectrum and return a unified result container.
+
+        Uses the specified model (or the instance default from ``_fit_model``)
+        with folded-domain constraints. The fitted centre is the Zeeman offset
+        (delta_f) directly, so no D_ZFS subtraction is applied when computing
+        B111 maps.
+
+        Args:
+            folded: FoldedODMR result. If None, uses the cached result from
+                fold_odmr() (accessed via self.folded_odmr).
+            model_name: Model name or None to use the instance default.
+            constraints: Optional additional parameter constraints for fitting.
+
+        Returns:
+            QDMResult containing FoldedFitResult and lazy MagneticMap access.
+
+        Raises:
+            DataNotLoadedError: If no folded data is available and fold_odmr()
+                hasn't been called.
+            DependencyError: If pyGpufit is not available.
+        """
+        from qdmpy_core.fitting.manager import FitManager
+        from qdmpy_core.result import QDMResult
+
+        resolved_folded = folded if folded is not None else self.folded_odmr
+        model_name = model_name or self._fit_model
+        self._validate_fit_prerequisites()
+
+        logger.info("Starting folded ODMR fitting")
+        fit_manager = FitManager(model_name=model_name, constraints=constraints)
+        fit_result = fit_manager.fit_folded(resolved_folded, pixel_spacing=self.pixel_spacing)
+        logger.info("Folded ODMR fitting completed successfully")
         return QDMResult(fit_result=fit_result)

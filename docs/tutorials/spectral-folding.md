@@ -11,13 +11,12 @@ just like the two halves of a Mössbauer spectrum about the velocity zero.
 
 1. **The fold concept** — why ODMR spectra are symmetric about D_ZFS and what
    combining the two halves gives you
-2. **Mean-spectrum fold** — finding the global fold centre at high SNR as a
-   sanity check and initial D estimate
-3. **Two-scale D_ZFS map** — estimating D per pixel at coarse spatial
+2. **Two-scale D_ZFS map** — estimating D per pixel at coarse spatial
    resolution then interpolating, to produce a temperature/strain map
-4. **Per-pixel fold** — using the D_ZFS map to fold each pixel's spectrum,
-   combining the two frequency ranges into a single higher-SNR spectrum for
-   fitting
+3. **Per-pixel fold** — using the D_ZFS map to fold each pixel's spectrum,
+   combining the two frequency ranges into a single higher-SNR spectrum
+4. **Fitting** — passing the `FoldedODMR` to `fit_folded_odmr()` to obtain
+   B111 maps with correct physics (centre IS the Zeeman offset δf)
 
 ## Background
 

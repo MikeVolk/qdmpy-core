@@ -449,7 +449,7 @@ class FitResult(BaseModel):
         """
         # Check if this is a multi-range model (n_frange > 1)
         center = self.parameters["center"]
-        if center.ndim >= 3 and center.shape[1] > 1:  # shape is (n_pol, n_frange, n_pixel)
+        if center.ndim >= 3 and center.shape[1] > 1:  # noqa: PLR2004
             msg = (
                 f"calculate_b_field() does not support multi-range models "
                 f"(center shape: {center.shape} has n_frange={center.shape[1]} > 1). "
@@ -577,7 +577,7 @@ class FitResult(BaseModel):
         plot_fit_result_overview(self, **kwargs)
 
     @classmethod
-    def _from_npz(cls: type[FitResult], data: Any, *, source: str = '<unknown>') -> FitResult:
+    def _from_npz(cls: type[FitResult], data: Any, *, source: str = '<unknown>') -> FitResult:  # noqa: ANN401
         """Reconstruct a FitResult from an open NpzFile handle.
 
         Used by both ``load_results`` and ``QDMResult.load`` so the file is
@@ -664,3 +664,39 @@ class FitResult(BaseModel):
         result = cls._from_npz(data, source=str(filepath))
         logger.info(f'Fit results loaded from: {filepath}')
         return result
+
+
+class FoldedFitResult(FitResult):
+    """FitResult for folded-spectrum fits.
+
+    The folded spectrum has its frequency axis in Zeeman-offset (delta_f) GHz,
+    so the fitted centre IS the Zeeman shift directly.  No D_ZFS subtraction.
+    """
+
+    def _calc_delta_from_single_center(
+        self: Self,
+        resonance: NDArray,
+        n_pol: int,
+        n_frange: int,  # noqa: ARG002
+        height: int,
+        width: int,
+    ) -> NDArray:
+        """Calculate delta resonance from folded-domain centre.
+
+        The centre parameter is already delta_f in GHz (Zeeman offset), so we
+        divide by GAMMA_NV directly without subtracting D_ZFS.
+
+        Args:
+            resonance: 3D array (n_pol, n_frange, n_pixels).
+            n_pol: Number of polarities.
+            n_frange: Ignored — folded spectra always have a single frequency range.
+            height: Spatial height dimension.
+            width: Spatial width dimension.
+
+        Returns:
+            Array with shape (n_pol, height, width). Sign per polarity:
+            pol_0 (neg) gets sign=-1, pol_1 (pos) gets sign=+1.
+        """
+        d = np.array([-1, 1])[:n_pol].reshape(n_pol, 1, 1)
+        freq_shift = resonance[:, 0].reshape(n_pol, height, width)
+        return freq_shift / GAMMA_NV * 1e6 * d
