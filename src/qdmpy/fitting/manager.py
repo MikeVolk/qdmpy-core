@@ -497,6 +497,7 @@ class FitManager:
         folded: FoldedODMR,
         *,
         pixel_spacing: float = 1.0,
+        raw_data: NDArray | None = None,
     ) -> FoldedFitResult:
         """Fit a folded ODMR spectrum and return a FoldedFitResult.
 
@@ -508,6 +509,10 @@ class FitManager:
         Args:
             folded: FoldedODMR result from SpectralFolder.fold().
             pixel_spacing: Physical pixel spacing in meters.
+            raw_data: Optional raw (unfolded) ODMR array with shape
+                (n_pol, n_frange, y, x, freq_idx). When provided and model
+                is 'auto', peak detection runs on the raw spectrum instead
+                of the folded one to avoid spurious peak doubling.
 
         Returns:
             FoldedFitResult with correct B111 maps for folded data.
@@ -543,11 +548,18 @@ class FitManager:
         # Frequency array: shape (1, n_df) for a single freq_range
         freq_2d = delta_f_ghz.reshape(1, n_df)
 
-        # Resolve auto model if needed — use the folded 5D data for detection
+        # Resolve auto model if needed — use raw (unfolded) data for reliable peak detection.
+        # The folded spectrum is in delta_f space and has ~2x as many peaks, which confuses
+        # the detector. Fall back to folded data only if raw data was not provided.
         if self._model is None:
-            n_freq = data_5d.shape[-1]
-            flat_data = data_5d.reshape(data_5d.shape[0], data_5d.shape[1], -1, n_freq)
-            self._resolve_auto_model(flat_data)
+            if raw_data is not None:
+                detection_flat = raw_data.reshape(
+                    raw_data.shape[0], raw_data.shape[1], -1, raw_data.shape[-1]
+                )
+            else:
+                n_freq = data_5d.shape[-1]
+                detection_flat = data_5d.reshape(data_5d.shape[0], data_5d.shape[1], -1, n_freq)
+            self._resolve_auto_model(detection_flat)
 
         model: Model = self._model  # type: ignore[assignment]
 
