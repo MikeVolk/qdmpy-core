@@ -16,6 +16,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Updated all examples, scripts, and integration tests to use `method='mean'`
 
 ### Added
+- Consolidated all plotting into `plotting.py`:
+  - `plot_odmr_spectra()` -- plot all ODMR spectra for a pixel (moved from `odmr/manager.py`)
+  - `plot_fluorescence_correction()` -- preview fluorescence correction (moved from `odmr/processors.py`)
+  - `plot_model_detection()` -- visualize auto-model detection (moved from `fitting/guess.py`)
+  - `plot_magnetic_component()` -- display MagneticMap component (moved from `magnetic_map.py`)
+  - Original call sites now delegate to `plotting.py`; no API changes
+  - Removed all direct matplotlib imports from non-plotting modules (except `io.py` for `mpimg.imread`)
+
 - **QEP-011** -- Spectral folding diagnostic plots:
   - `FoldedODMR.d_candidates` and `search_residual` fields store brute-force D_ZFS search landscape
   - `FoldedODMR.plot()` convenience method for quick diagnostic overview

@@ -234,23 +234,14 @@ class MagneticMap:
 
         Args:
             component: Which component to display (case-insensitive for Bx/By/Bz).
-            **imshow_kwargs: Passed to xarray `.plot(**imshow_kwargs)`.
+            **imshow_kwargs: Passed to xarray ``.plot(**imshow_kwargs)``.
 
         Raises:
             ValueError: If component is not recognized.
         """
-        import matplotlib.pyplot as plt
+        from qdmpy.plotting import plot_magnetic_component
 
-        component_lower = component.lower()
-        valid_components = {"b111", "bx", "by", "bz", "btotal"}
-
-        if component_lower not in valid_components:
-            raise ValueError(f"Component {component!r} not in {valid_components}")
-
-        da = getattr(self, component_lower)
-        da.plot(**imshow_kwargs)
-        plt.title(component)
-        plt.show()
+        plot_magnetic_component(self, component, **imshow_kwargs)
 
     def save(self, path: str | Path) -> None:
         """Save all components to NetCDF.
