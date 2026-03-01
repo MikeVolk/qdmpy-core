@@ -146,6 +146,11 @@ class BinningProcessor(BaseProcessor):
         """Bin the data spatially by the specified factor."""
         from qdmpy.odmr.data import ODMRData
 
+        # Skip binning if factor is 1 (no binning)
+        if self.bin_factor == 1:
+            logger.debug("Bin factor is 1, skipping binning")
+            return data
+
         logger.debug(f"Binning data with factor: {self.bin_factor}")
         binned = data.data.coarsen(y=self.bin_factor, x=self.bin_factor, boundary="trim").mean()  # type: ignore[attr-defined]
         return ODMRData(data=binned, metadata=data.metadata.copy())

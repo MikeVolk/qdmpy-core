@@ -211,22 +211,17 @@ class TestFromLoader:
         """Test from_loader with MatlabLoader against real test data."""
         from qdmpy.odmr.io import MatlabLoader
 
-        test_data_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+        # Use FOV18x test data which has MATLAB files
+        test_data_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "FOV18x")
         if not os.path.isdir(test_data_path):
             pytest.skip("Test data directory not found")
 
-        try:
-            loader = MatlabLoader(data_folder=test_data_path)
-        except Exception:
-            pytest.skip("MatlabLoader could not be initialized with test data")
-
-        try:
-            result = ODMRData.from_loader(loader)
-        except (RuntimeError, DataLoadError):
-            pytest.skip("Loader failed to load test data")
+        loader = MatlabLoader(data_folder=test_data_path)
+        result = ODMRData.from_loader(loader)
 
         assert isinstance(result, ODMRData)
         assert isinstance(result.data, xr.DataArray)
+        assert result.data.shape == (2, 2, 150, 240, 51)  # FOV18x dimensions
 
 
 @pytest.fixture
