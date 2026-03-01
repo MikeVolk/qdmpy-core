@@ -16,7 +16,8 @@ from qdmpy.odmr.io import BaseLoader, MatlabLoader
 @pytest.fixture
 def test_data_path() -> str:
     """Return the path to the test data directory."""
-    return os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+    # Use FOV18x which has MATLAB files
+    return os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "FOV18x")
 
 
 class TestBaseLoader:
