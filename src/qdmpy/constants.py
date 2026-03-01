@@ -10,13 +10,17 @@ from ``QDMpy.fitting.guess`` where they are primarily used.
 from __future__ import annotations
 
 # Physical constants for NV centers
-GAMMA_NV = 28.024  # GHz/T, NV center gyromagnetic ratio
-D_ZFS = 2.870  # GHz, zero-field splitting for NV centers
-D_ZFS_TEMP_COEFFICIENT = -74e-6  # GHz/K, dD/dT for NV center zero-field splitting
+# Ref: Loubser & van Wyk, Rep. Prog. Phys. 41, 1201 (1978)
+GAMMA_NV = 28.024  # GHz/T — from g = 2.0028(3), gamma = g * mu_B / h
+D_ZFS = 2.870  # GHz, zero-field splitting (room temperature)
+
+# Ref: Acosta et al., Phys. Rev. Lett. 104, 070801 (2010)
+D_ZFS_TEMP_COEFFICIENT = -74e-6  # GHz/K, dD/dT = -74.2(7) kHz/K
 
 # Hyperfine splitting constants for nitrogen isotopes (in GHz)
-AHYP_14N = 0.002158  # Hyperfine splitting constant for 14N (in GHz)
-AHYP_15N = 0.0015  # Hyperfine splitting constant for 15N (in GHz)
+# Ref: Felton et al., Phys. Rev. B 79, 075203 (2009)
+AHYP_14N = 0.002158  # GHz — A_parallel for 14N (I=1, triplet splitting)
+AHYP_15N = 0.0015  # GHz — half of A_parallel=3.03 MHz for 15N (I=1/2, doublet)
 
 # Magnetic field conversion factors
 TESLA_TO_GAUSS = 1e4  # Convert Tesla to Gauss
