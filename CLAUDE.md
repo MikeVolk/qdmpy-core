@@ -112,12 +112,18 @@ Each top-level directory has a single, unambiguous purpose.
 
 **Decision rule when unsure:**
 
-| Content type | Goes in |
-|---|---|
-| Narrative how-to (MD or notebook) | `docs/tutorials/` |
-| Interactive demo notebook | `notebooks/` |
-| User-facing copy-paste script | `examples/` |
-| Developer/maintenance script | `scripts/` |
+| Content type | Goes in | Example |
+|---|---|---|
+| **Narrative how-to** (MD) | `docs/` root or `docs/tutorials/` | `docs/quickstart.md`, `docs/extending.md` |
+| **Interactive hands-on notebook** (published) | `docs/tutorials/` | `docs/tutorials/01-quickstart.ipynb`, `docs/tutorials/02-exploration.ipynb` |
+| **Experimental/scratch notebook** | `notebooks/experiments/` | `notebooks/experiments/fluorescence-correction-auto-alpha.ipynb` |
+| **User-facing copy-paste script** | `examples/` | `examples/fit_15n_sample.py` |
+| **Developer/maintenance script** | `scripts/` | `scripts/generate_reference_data.py` |
+
+**Notebook naming convention** (for published tutorials):
+- Numbered sequentially: `01-quickstart.ipynb`, `02-exploration.ipynb`, etc.
+- Short, descriptive slugs that match mkdocs.yml nav entry
+- List in `mkdocs.yml` `nav:` section to publish
 
 ## Session Workflow
 - **No summary files** — do not create session summaries or recap documents after work
