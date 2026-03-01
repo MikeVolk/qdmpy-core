@@ -546,3 +546,114 @@ class TestFitFoldedODMR:
 
             _, kwargs = mock_fm_cls.call_args
             assert kwargs["model_name"] == "ESRSINGLE"
+
+
+class TestMetadataTOML:
+    """Tests for metadata.toml loading in from_folder()."""
+
+    def test_metadata_toml_loaded_when_present(self, tmp_path) -> None:
+        """Test that metadata.toml is loaded and populates measurement.metadata."""
+        # Create a temporary folder with metadata.toml
+        metadata_file = tmp_path / "metadata.toml"
+        metadata_content = """
+[experiment]
+sample = "MIL2_FOV1"
+operator = "Mike"
+temperature_k = 295.0
+
+[notes]
+comment = "Test measurement"
+"""
+        metadata_file.write_text(metadata_content)
+
+        # Mock the loader infrastructure
+        with patch("qdmpy.odmr.io.MatlabLoader"):
+            with patch("qdmpy.odmr.data.ODMRData.from_loader") as mock_from_loader:
+                mock_odmr_data = ODMRData.from_numpy(
+                    np.random.random((2, 2, 10, 10, 50)), (10, 10), np.linspace(2.87e9, 2.89e9, 50)
+                )
+                mock_from_loader.return_value = mock_odmr_data
+
+                measurement = Measurement.from_folder(
+                    tmp_path,
+                    output_directory=tmp_path / "results",
+                )
+
+                assert "experiment" in measurement.metadata
+                assert measurement.metadata["experiment"]["sample"] == "MIL2_FOV1"
+                assert measurement.metadata["experiment"]["operator"] == "Mike"
+                assert measurement.metadata["experiment"]["temperature_k"] == 295.0
+                assert measurement.metadata["notes"]["comment"] == "Test measurement"
+
+    def test_metadata_toml_missing_returns_empty_dict(self, tmp_path) -> None:
+        """Test that missing metadata.toml returns empty metadata dict."""
+        # Create a temporary folder WITHOUT metadata.toml
+        with patch("qdmpy.odmr.io.MatlabLoader"):
+            with patch("qdmpy.odmr.data.ODMRData.from_loader") as mock_from_loader:
+                mock_odmr_data = ODMRData.from_numpy(
+                    np.random.random((2, 2, 10, 10, 50)), (10, 10), np.linspace(2.87e9, 2.89e9, 50)
+                )
+                mock_from_loader.return_value = mock_odmr_data
+
+                measurement = Measurement.from_folder(
+                    tmp_path,
+                    output_directory=tmp_path / "results",
+                )
+
+                assert measurement.metadata == {}
+
+    def test_metadata_toml_with_nested_sections(self, tmp_path) -> None:
+        """Test that nested TOML sections are preserved correctly."""
+        metadata_file = tmp_path / "metadata.toml"
+        metadata_content = """
+[instrument]
+microscope = "QDM-1"
+laser_power = 250.5
+
+[instrument.optics]
+objective_na = 0.95
+wavelength_nm = 532
+
+[calibration]
+date = "2026-01-15"
+"""
+        metadata_file.write_text(metadata_content)
+
+        with patch("qdmpy.odmr.io.MatlabLoader"):
+            with patch("qdmpy.odmr.data.ODMRData.from_loader") as mock_from_loader:
+                mock_odmr_data = ODMRData.from_numpy(
+                    np.random.random((2, 2, 10, 10, 50)), (10, 10), np.linspace(2.87e9, 2.89e9, 50)
+                )
+                mock_from_loader.return_value = mock_odmr_data
+
+                measurement = Measurement.from_folder(
+                    tmp_path,
+                    output_directory=tmp_path / "results",
+                )
+
+                assert measurement.metadata["instrument"]["microscope"] == "QDM-1"
+                assert measurement.metadata["instrument"]["laser_power"] == 250.5
+                assert measurement.metadata["instrument"]["optics"]["objective_na"] == 0.95
+                assert measurement.metadata["instrument"]["optics"]["wavelength_nm"] == 532
+                assert measurement.metadata["calibration"]["date"] == "2026-01-15"
+
+    def test_metadata_toml_malformed_returns_empty_dict(self, tmp_path) -> None:
+        """Test that malformed TOML returns empty metadata dict without raising."""
+        metadata_file = tmp_path / "metadata.toml"
+        # Write invalid TOML (unclosed bracket)
+        metadata_file.write_text("[experiment\nname = 'test'")
+
+        with patch("qdmpy.odmr.io.MatlabLoader"):
+            with patch("qdmpy.odmr.data.ODMRData.from_loader") as mock_from_loader:
+                mock_odmr_data = ODMRData.from_numpy(
+                    np.random.random((2, 2, 10, 10, 50)), (10, 10), np.linspace(2.87e9, 2.89e9, 50)
+                )
+                mock_from_loader.return_value = mock_odmr_data
+
+                # Should not raise; should silently return empty metadata
+                measurement = Measurement.from_folder(
+                    tmp_path,
+                    output_directory=tmp_path / "results",
+                )
+
+                assert measurement.metadata == {}

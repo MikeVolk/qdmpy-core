@@ -7,7 +7,9 @@ used across the package.
 from __future__ import annotations
 
 import os
+import tomllib
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import matplotlib.image as mpimg
@@ -100,3 +102,29 @@ def get_image(
         result = np.array(img)
         logger.info(f"Loaded image {file_path} with shape {result.shape}")
         return result
+
+
+def load_metadata_toml(folder: str | bytes | os.PathLike[Any]) -> dict[str, Any]:
+    """Load metadata.toml from folder if present, return empty dict otherwise.
+
+    Args:
+        folder: Path to the folder containing metadata.toml.
+
+    Returns:
+        Dictionary parsed from metadata.toml, or empty dict if file not found or invalid.
+    """
+    path = Path(str(folder)) / "metadata.toml"
+    if not path.exists():
+        return {}
+    try:
+        with path.open("rb") as f:
+            data = tomllib.load(f)
+    except tomllib.TOMLDecodeError as e:
+        logger.warning("metadata.toml at {} is invalid TOML and was skipped: {}", path, e)
+        return {}
+    except OSError as e:
+        logger.warning("Could not read metadata.toml at {}: {}", path, e)
+        return {}
+    else:
+        logger.debug("Loaded metadata from {}", path)
+        return data

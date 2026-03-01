@@ -25,7 +25,7 @@ from loguru import logger
 from numpy.typing import NDArray
 
 from qdmpy.exceptions import DataLoadError, DataNotLoadedError, DependencyError
-from qdmpy.io import get_image
+from qdmpy.io import get_image, load_metadata_toml
 from qdmpy.odmr.folding import FoldedODMR, FoldingSettings, SpectralFolder
 from qdmpy.odmr.manager import ODMR
 
@@ -66,6 +66,7 @@ class Measurement:
         output_directory: str | Path | PathLike,
         pixel_spacing: float = 4e-6,
         fit_model: str = "auto",
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the Measurement object.
 
@@ -78,6 +79,7 @@ class Measurement:
                 Default is 4 µm (4e-6).
             fit_model (str): Name of the model used for fitting ODMR spectra. Default is "auto".
                             If "auto", the model is chosen based on the mean ODMR data.
+            metadata (dict[str, Any], optional): Metadata dictionary. Defaults to empty dict.
 
         Raises:
             ValueError: If the ODMR instance is not properly initialized or if image shapes
@@ -88,7 +90,7 @@ class Measurement:
 
         self.output_directory = Path(output_directory)
         self.pixel_spacing = pixel_spacing
-        self.metadata: dict[str, Any] = {}
+        self.metadata: dict[str, Any] = metadata if metadata is not None else {}
 
         # Store the ODMR instance
         logger.debug("Setting ODMR data.")
@@ -148,6 +150,8 @@ class Measurement:
         one call. Missing light/laser images fall back to zero arrays so that
         fitting still works even without reference images.
 
+        Metadata is automatically loaded from metadata.toml if present in the folder.
+
         Args:
             path: Folder containing MATLAB .mat files from the QDM microscope.
             bin_factor: Spatial binning factor (1 = no binning, 2 = 2x2 bins).
@@ -160,12 +164,21 @@ class Measurement:
                 ``path/results``.
 
         Returns:
-            Measurement configured and ready for fit_odmr().
+            Measurement configured and ready for fit_odmr(). If metadata.toml exists
+            in the folder, its contents are loaded into measurement.metadata.
 
         Example:
             >>> import qdmpy
             >>> result = QDMpy.load('/data/FOV18x').fit_odmr()
             >>> result.b111_remanent
+
+            Drop metadata.toml next to the data files:
+            >>> # metadata.toml
+            >>> # [experiment]
+            >>> # sample = "Sample_Name"
+            >>> # temperature_k = 295.0
+            >>> m = Measurement.from_folder('/data/FOV18x')
+            >>> assert m.metadata["experiment"]["sample"] == "Sample_Name"
         """
         from qdmpy.odmr.data import ODMRData
         from qdmpy.odmr.io import MatlabLoader
@@ -203,6 +216,7 @@ class Measurement:
             pixel_spacing=pixel_spacing,
             fit_model=model,
             output_directory=output_directory or path / "results",
+            metadata=load_metadata_toml(path),
         )
 
     @staticmethod
