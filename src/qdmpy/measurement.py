@@ -426,9 +426,6 @@ class Measurement:
 
         logger.info("Starting folded ODMR fitting")
         fit_manager = FitManager(model_name=model_name, constraints=constraints)
-        raw_data = self.odmr.raw_data.data.values if model_name is None else None
-        fit_result = fit_manager.fit_folded(
-            resolved_folded, pixel_spacing=self.pixel_spacing, raw_data=raw_data
-        )
+        fit_result = fit_manager.fit_folded(resolved_folded, pixel_spacing=self.pixel_spacing)
         logger.info("Folded ODMR fitting completed successfully")
         return QDMResult(fit_result=fit_result)

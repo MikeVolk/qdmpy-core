@@ -246,6 +246,152 @@ def plot_folding_search_landscape(folded: FoldedODMR) -> None:
     plt.show()
 
 
+def resolve_pixel_indices(
+    n_y: int,
+    n_x: int,
+    x: list[int] | int | None = None,
+    y: list[int] | int | None = None,
+) -> list[tuple[int, int]]:
+    """Resolve pixel coordinate arguments into a list of (y, x) index pairs.
+
+    Expansion rules:
+    - Both None: one random pixel is chosen.
+    - Both scalar: single pixel ``[(y, x)]``.
+    - x is list, y is scalar: ``[(y, x0), (y, x1), ...]``.
+    - x is scalar, y is list: ``[(y0, x), (y1, x), ...]``.
+    - Both lists (same length): ``zip(y, x)``.
+
+    Args:
+        n_y: Height of the scan grid (number of rows).
+        n_x: Width of the scan grid (number of columns).
+        x: Column index or indices. None means random.
+        y: Row index or indices. None means random.
+
+    Returns:
+        List of (row, col) index pairs.
+
+    Raises:
+        ValueError: If both x and y are lists with mismatched lengths.
+    """
+    if x is None and y is None:
+        rand_y = int(np.random.randint(0, n_y))
+        rand_x = int(np.random.randint(0, n_x))
+        return [(rand_y, rand_x)]
+
+    x_list: list[int] = [x] if isinstance(x, int) else (list(x) if x is not None else [])
+    y_list: list[int] = [y] if isinstance(y, int) else (list(y) if y is not None else [])
+
+    # Scalar x with list y, or vice versa
+    if isinstance(y, list) and isinstance(x, int):
+        return [(yi, x) for yi in y]
+    if isinstance(x, list) and isinstance(y, int):
+        return [(y, xi) for xi in x]
+    if isinstance(x, list) and isinstance(y, list):
+        if len(x_list) != len(y_list):
+            msg = f"x and y lists must have the same length, got {len(x_list)} vs {len(y_list)}"
+            raise ValueError(msg)
+        return list(zip(y_list, x_list, strict=True))
+
+    # Both scalars or one-element case
+    yi = y_list[0] if y_list else int(np.random.randint(0, n_y))
+    xi = x_list[0] if x_list else int(np.random.randint(0, n_x))
+    return [(yi, xi)]
+
+
+def plot_folding_pixel_spectra(
+    folded: FoldedODMR,
+    x: list[int] | int | None = None,
+    y: list[int] | int | None = None,
+) -> None:
+    """Plot folded, unfolded, and antisymmetric spectra for one or more pixels.
+
+    Works like ``plot_folding_mean_spectrum`` but shows individual pixel traces
+    instead of the spatial mean. One subplot per polarity; each selected pixel
+    gets its own colour. A random pixel is used when neither x nor y is given.
+
+    Expansion rules for x / y arguments:
+    - Both None -> one random pixel.
+    - Both scalar -> single pixel.
+    - x list + y scalar -> ``[(y, x0), (y, x1), ...]``.
+    - x scalar + y list -> ``[(y0, x), (y1, x), ...]``.
+    - Both lists (same length) -> ``zip(y, x)``.
+
+    Args:
+        folded: FoldedODMR result.
+        x: Column index or list of column indices. None for random.
+        y: Row index or list of row indices. None for random.
+    """
+    n_y = folded.folded_spectrum.sizes["y"]
+    n_x = folded.folded_spectrum.sizes["x"]
+    pixels = resolve_pixel_indices(n_y, n_x, x=x, y=y)
+
+    delta_f = folded.folded_spectrum.coords["delta_f_ghz"].values  # (n_df,)
+    delta_f_mhz = delta_f * 1000
+
+    pol_labels = list(folded.folded_spectrum.coords["polarity"].values)
+    n_pol = len(pol_labels)
+
+    _fig, axes = plt.subplots(1, n_pol, figsize=(6 * n_pol, 4), squeeze=False)
+    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+
+    for i_pol in range(n_pol):
+        ax = axes[0, i_pol]
+        ax2 = ax.twinx()
+
+        for idx, (yi, xi) in enumerate(pixels):
+            color = colors[idx % len(colors)]
+            label_suffix = f"({yi},{xi})"
+
+            spec_folded = folded.folded_spectrum.isel(polarity=i_pol, y=yi, x=xi).values
+            spec_anti = folded.antisymmetric_spectrum.isel(polarity=i_pol, y=yi, x=xi).values
+
+            spec_low = spec_folded + spec_anti / 2.0
+            spec_high = spec_folded - spec_anti / 2.0
+
+            ax.plot(
+                delta_f_mhz, spec_low, color=color, lw=0.8, alpha=0.5, label=f"S_low {label_suffix}"
+            )
+            ax.plot(
+                delta_f_mhz,
+                spec_high,
+                color=color,
+                lw=0.8,
+                alpha=0.5,
+                ls="--",
+                label=f"S_high {label_suffix}",
+            )
+            ax.plot(delta_f_mhz, spec_folded, color=color, lw=1.5, label=f"folded {label_suffix}")
+            ax2.plot(
+                delta_f_mhz,
+                spec_anti,
+                color=color,
+                lw=1.0,
+                alpha=0.7,
+                ls=":",
+                label=f"anti {label_suffix}",
+            )
+
+        ax2.axhline(0, color="0.5", ls=":", lw=0.8)
+        ax.set_xlabel("delta_f (MHz)")
+        ax.set_ylabel("Intensity")
+        ax2.set_ylabel("Antisymmetric", color="0.4")
+        ax2.tick_params(axis="y", labelcolor="0.4")
+
+        lines = ax.get_lines() + ax2.get_lines()
+        labels = [line.get_label() for line in lines]
+        ax.legend(lines, labels, fontsize=7, loc="lower right")
+        ax.set_title(f"Pixel spectra -- pol={pol_labels[i_pol]}")
+
+    n_pixels = len(pixels)
+    pixel_str = ", ".join(f"({yi},{xi})" for yi, xi in pixels)
+    plt.suptitle(
+        f"Folded ODMR spectra -- {n_pixels} pixel{'s' if n_pixels != 1 else ''}: {pixel_str}",
+        fontsize=12,
+    )
+    plt.tight_layout()
+    plt.show()
+
+
 def plot_folding_mean_spectrum(folded: FoldedODMR) -> None:
     """Plot the spatially-averaged folded, unfolded, and antisymmetric spectra.
 
@@ -588,8 +734,10 @@ __all__ = [
     "plot_fluorescence_correction",
     "plot_folding_mean_spectrum",
     "plot_folding_overview",
+    "plot_folding_pixel_spectra",
     "plot_folding_search_landscape",
     "plot_magnetic_component",
     "plot_model_detection",
     "plot_odmr_spectra",
+    "resolve_pixel_indices",
 ]

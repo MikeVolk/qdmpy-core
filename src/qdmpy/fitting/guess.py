@@ -43,13 +43,23 @@ _DETECTION_CONFIDENCE_THRESHOLD = 0.6
 def normalize_pixel(pixel: NDArray) -> NDArray:  # pragma: no cover
     """Normalize a pixel's cumulative sum.
 
+    Estimates the off-resonance baseline from the mean of the first and last
+    10% of frequency points, then subtracts it before computing the cumulative
+    sum. This is correct for both max-normalized data (where the baseline is
+    exactly 1.0) and mean-normalized data (where the off-resonance level is
+    slightly above 1.0, causing the old hardcoded subtraction of 1.0 to
+    introduce a drift that distorts center and width estimates).
+
     Args:
         pixel: 1D array of intensity values for a single pixel.
 
     Returns:
         The normalized cumulative sum of the pixel data.
     """
-    pixel = np.cumsum(pixel - 1)
+    n = len(pixel)
+    n_edge = max(1, n // 10)
+    baseline = (np.mean(pixel[:n_edge]) + np.mean(pixel[n - n_edge :])) / 2
+    pixel = np.cumsum(pixel - baseline)
     pixel -= np.min(pixel)
     max_val = np.max(pixel)
     return pixel / max_val if max_val > 0 else pixel

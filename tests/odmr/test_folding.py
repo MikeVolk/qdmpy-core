@@ -13,8 +13,9 @@ from numpy.typing import NDArray
 from pydantic import ValidationError
 from scipy.ndimage import zoom
 
-from qdmpy.constants import D_ZFS
+from qdmpy.constants import AHYP_14N, D_ZFS
 from qdmpy.exceptions import DataValidationError, FoldingOverlapError
+from qdmpy.fitting.guess import guess_model, guess_n_peaks
 from qdmpy.odmr.data import ODMRData
 from qdmpy.odmr.folding import (
     FoldedODMR,
@@ -483,3 +484,134 @@ class TestSearchDiagnostics:
     def test_plot_method_exists(self) -> None:
         """FoldedODMR has a plot() method."""
         assert hasattr(FoldedODMR, "plot")
+
+
+# ---------------------------------------------------------------------------
+# ESR14N helpers for regression tests
+# ---------------------------------------------------------------------------
+
+AHYP = AHYP_14N  # 0.002158 GHz (14N hyperfine spacing)
+ZEEMAN_14N = 0.030  # GHz — representative Zeeman shift for 14N tests
+HALF_WIDTH_14N = 0.018  # GHz — wide enough to capture all 3 hyperfine dips
+N_FREQ_14N = 101  # higher resolution to resolve the triplet
+
+
+def _make_esr14n_odmr_data(
+    shape: tuple[int, int] = (8, 8),
+    zeeman: float = ZEEMAN_14N,
+    n_freq: int = N_FREQ_14N,
+) -> ODMRData:
+    """Build synthetic ODMRData with ESR14N (3-dip triplet) structure.
+
+    Each ODMR spectrum has 3 hyperfine dips centred at:
+        low branch:  D - zeeman + {-AHYP, 0, +AHYP}
+        high branch: D + zeeman + {-AHYP, 0, +AHYP}
+    """
+    ny, nx = shape
+    n_pol, n_frange = 2, 2
+    d_ref = D_ZFS
+
+    f_low = np.linspace(d_ref - zeeman - HALF_WIDTH_14N, d_ref - zeeman + HALF_WIDTH_14N, n_freq)
+    f_high = np.linspace(d_ref + zeeman - HALF_WIDTH_14N, d_ref + zeeman + HALF_WIDTH_14N, n_freq)
+    freqs = np.stack([f_low, f_high])
+
+    spectra = np.ones((n_pol, n_frange, ny, nx, n_freq))
+    for i_pol in range(n_pol):
+        for iy in range(ny):
+            for ix in range(nx):
+                # low range: 3 hyperfine dips around D - zeeman
+                c_low = d_ref - zeeman
+                for hf_offset in (-AHYP, 0.0, AHYP):
+                    spectra[i_pol, 0, iy, ix] *= _lorentzian_dip(
+                        f_low, c_low + hf_offset, DIP_WIDTH, DIP_CONTRAST / 3
+                    )
+                # high range: 3 hyperfine dips around D + zeeman
+                c_high = d_ref + zeeman
+                for hf_offset in (-AHYP, 0.0, AHYP):
+                    spectra[i_pol, 1, iy, ix] *= _lorentzian_dip(
+                        f_high, c_high + hf_offset, DIP_WIDTH, DIP_CONTRAST / 3
+                    )
+
+    da = xr.DataArray(
+        spectra,
+        dims=("polarity", "freq_range", "y", "x", "freq_idx"),
+        coords={
+            "polarity": ["neg", "pos"],
+            "freq_range": ["low", "high"],
+            "freq_ghz": (("freq_range", "freq_idx"), freqs),
+        },
+    )
+    return ODMRData(data=da)
+
+
+# ---------------------------------------------------------------------------
+# Regression tests: model detection on folded spectra
+# ---------------------------------------------------------------------------
+
+
+class TestFoldedModelDetection:
+    """Regression tests ensuring auto model detection works correctly on folded spectra.
+
+    The folded spectrum has a positive-only delta_f axis (Zeeman offset space).
+    For ESR14N data the folded spectrum shows exactly 3 dips (the hyperfine
+    triplet) -- NOT 6 -- because both branches contribute dips at the same
+    positive delta_f values by symmetry. The detector must therefore identify
+    ESR14N (3 peaks) without doubt.
+    """
+
+    def test_folded_spectrum_has_positive_delta_f(self) -> None:
+        """delta_f_ghz coord of the folded spectrum must be strictly positive."""
+        odmr = _make_esr14n_odmr_data()
+        folder = SpectralFolder(odmr, FoldingSettings(bin_factor=2, search_steps=51))
+        result = folder.fold()
+        delta_f = result.folded_spectrum.coords["delta_f_ghz"].values
+        assert float(delta_f.min()) > 0.0, "delta_f axis should be positive-only"
+
+    def test_guess_n_peaks_detects_3_on_folded_esr14n(self) -> None:
+        """Peak detection on the folded spectrum of ESR14N data returns 3 peaks."""
+        odmr = _make_esr14n_odmr_data()
+        folder = SpectralFolder(odmr, FoldingSettings(bin_factor=2, search_steps=51))
+        result = folder.fold()
+
+        # Build flat_data as FitManager.fit_folded() does: (n_pol, 1, n_pixel, n_df)
+        spec_vals = result.folded_spectrum.values  # (n_pol, ny, nx, n_df)
+        data_5d = np.expand_dims(spec_vals, axis=1)  # (n_pol, 1, ny, nx, n_df)
+        n_freq = data_5d.shape[-1]
+        flat_data = data_5d.reshape(data_5d.shape[0], data_5d.shape[1], -1, n_freq)
+
+        n_peaks, doubt, _ = guess_n_peaks(flat_data)
+        assert n_peaks == 3, f"Expected 3 peaks for ESR14N, got {n_peaks}"
+        assert not doubt, "Model detection should have high confidence for clean ESR14N data"
+
+    def test_guess_model_returns_esr14n_on_folded_data(self) -> None:
+        """Auto model detection selects ESR14N when applied to folded ESR14N spectrum."""
+        odmr = _make_esr14n_odmr_data()
+        folder = SpectralFolder(odmr, FoldingSettings(bin_factor=2, search_steps=51))
+        result = folder.fold()
+
+        spec_vals = result.folded_spectrum.values
+        data_5d = np.expand_dims(spec_vals, axis=1)
+        flat_data = data_5d.reshape(data_5d.shape[0], data_5d.shape[1], -1, data_5d.shape[-1])
+
+        model = guess_model(flat_data)
+        assert model.name == "ESR14N", f"Expected ESR14N, got {model.name}"
+
+    def test_folded_spectrum_dip_positions_near_zeeman_shift(self) -> None:
+        """Median of the folded spectrum has its deepest dip near the known Zeeman shift."""
+        odmr = _make_esr14n_odmr_data(zeeman=ZEEMAN_14N)
+        folder = SpectralFolder(odmr, FoldingSettings(bin_factor=2, search_steps=51))
+        result = folder.fold()
+
+        delta_f = result.folded_spectrum.coords["delta_f_ghz"].values
+        median_spec = float(
+            result.folded_spectrum.isel(polarity=0)
+            .values.reshape(-1, len(delta_f))
+            .mean(axis=0)
+            .min()
+        )
+        # The minimum of the folded spectrum should be below 0.97 (visible dip)
+        assert median_spec < 0.97, f"Folded spectrum minimum {median_spec:.4f} should show a dip"
+
+        # The delta_f axis should span the Zeeman region
+        assert delta_f.min() < ZEEMAN_14N, "delta_f axis should start below the Zeeman shift"
+        assert delta_f.max() > ZEEMAN_14N, "delta_f axis should extend beyond the Zeeman shift"
