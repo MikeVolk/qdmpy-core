@@ -289,12 +289,39 @@ class TestNormalizePixel:
             normalize_pixel(pixel)
 
     def test_all_zeros(self) -> None:
-        """Test normalizing a pixel with all zeros."""
+        """Test normalizing a constant-zero pixel."""
         pixel = np.zeros(10)
         normalized = normalize_pixel(pixel)
-        # cumsum of (zeros - 1) produces a descending ramp, normalized to [1, ..., 0]
-        assert np.isclose(normalized[0], 1.0)
-        assert np.isclose(normalized[-1], 0.0)
+        # baseline = 0, cumsum of zeros = zeros, max_val = 0 → returns zeros
+        assert np.all(normalized == 0.0)
+
+    def test_normalize_pixel_mean_norm_baseline(self) -> None:
+        """Test that normalize_pixel works correctly when off-resonance baseline != 1.0.
+
+        Mean-normalized data has off-resonance slightly > 1.0 (because the mean
+        includes the resonance dips). The old code subtracted 1.0 hardcoded,
+        causing cumsum drift that shifted center and width estimates. The fixed
+        code estimates the baseline from edge frequencies.
+        """
+        n = 100
+        # Simulate mean-norm data: flat baseline ~1.05, Lorentzian dip at idx 50
+        pixel = np.ones(n) * 1.05
+        center_idx = 50
+        for i in range(-15, 16):
+            idx = center_idx + i
+            if 0 <= idx < n:
+                pixel[idx] = 1.05 - 0.20 / (1 + (i / 5.0) ** 2)
+
+        normalized = normalize_pixel(pixel)
+
+        assert normalized.min() == pytest.approx(0.0, abs=1e-6)
+        assert normalized.max() == pytest.approx(1.0, abs=1e-6)
+
+        # The 0.5 crossing should be near the true dip center (index 50).
+        # This verifies that edge-based baseline estimation eliminates the
+        # cumsum drift that would otherwise shift the center estimate.
+        half_crossing = int(np.argmin(np.abs(normalized - 0.5)))
+        assert abs(half_crossing - center_idx) <= 5
 
     def test_negative_values(self) -> None:
         """Test normalizing a pixel with negative values."""
