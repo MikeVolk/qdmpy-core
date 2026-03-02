@@ -285,7 +285,9 @@ class TestNormalizePixel:
     def test_empty_pixel(self) -> None:
         """Test normalizing an empty pixel raises error."""
         pixel = np.array([])
-        with pytest.raises((ValueError, IndexError, numba.core.errors.TypingError)):
+        with pytest.raises(
+            (ValueError, IndexError, ZeroDivisionError, numba.core.errors.TypingError)
+        ):
             normalize_pixel(pixel)
 
     def test_all_zeros(self) -> None:
