@@ -228,6 +228,31 @@ def cumsum_center(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
 
 
 @njit(parallel=True, fastmath=True)
+def argmin_center(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
+    """Guess center frequency as the frequency of the deepest dip per pixel.
+
+    Unlike cumsum_center, this works correctly even when the resonance is
+    shifted to the edge of the frequency range (strong B111 fields).
+
+    Args:
+        data: 4D array (n_pol, n_frange, n_pixel, n_freq).
+        freq: 2D frequency array (n_frange, n_freq).
+
+    Returns:
+        3D array (n_pol, n_frange, n_pixel).
+    """
+    n_pol, n_frange, n_pixel, _ = data.shape
+    total = n_pol * n_frange * n_pixel
+    centers = np.zeros((n_pol, n_frange, n_pixel))
+    for idx in prange(total):  # type: ignore[not-iterable]
+        px = idx % n_pixel
+        r = (idx // n_pixel) % n_frange
+        p = idx // (n_pixel * n_frange)
+        centers[p, r, px] = freq[r, np.argmin(data[p, r, px])]
+    return centers
+
+
+@njit(parallel=True, fastmath=True)
 def cumsum_width(
     data: NDArray, freq: NDArray, vmin: float, vmax: float
 ) -> NDArray:  # pragma: no cover
@@ -254,3 +279,81 @@ def cumsum_width(
         ridx = np.argmin(np.abs(norm - vmax))
         widths[p, r, px] = abs(freq[r, ridx] - freq[r, lidx])
     return widths
+
+
+@njit(parallel=True, fastmath=True)
+def halfpower_width(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
+    """Estimate envelope HWHM from half-power points of each pixel spectrum.
+
+    For each pixel, finds the deepest dip, computes the half-depth level,
+    then searches left and right from the minimum for the crossing points.
+    Returns FWHM / 2 (= HWHM of the absorption envelope).
+
+    When the dip is near one edge of the frequency range (strong B111
+    shift), the edge-mean baseline from that side is contaminated by the
+    dip itself. To handle this, the baseline is estimated from whichever
+    edge is farther from the dip minimum. If both sides fail (dip spans
+    the full range), falls back to the spectrum maximum.
+
+    Args:
+        data: 4D array (n_pol, n_frange, n_pixel, n_freq).
+        freq: 2D frequency array (n_frange, n_freq).
+
+    Returns:
+        3D array (n_pol, n_frange, n_pixel) of HWHM values in GHz.
+    """
+    n_pol, n_frange, n_pixel, n_freq = data.shape
+    total = n_pol * n_frange * n_pixel
+    hwhm = np.zeros((n_pol, n_frange, n_pixel))
+    for idx in prange(total):  # type: ignore[not-iterable]
+        px = idx % n_pixel
+        r = (idx // n_pixel) % n_frange
+        p = idx // (n_pixel * n_frange)
+        spectrum = data[p, r, px]
+
+        # Find minimum (deepest dip)
+        min_val = spectrum[0]
+        min_idx = 0
+        for i in range(1, n_freq):
+            if spectrum[i] < min_val:
+                min_val = spectrum[i]
+                min_idx = i
+
+        # Baseline: use the edge farther from the dip to avoid
+        # contamination when the dip is near one edge.
+        n_edge = max(1, n_freq // 10)
+        left_bl = 0.0
+        for i in range(n_edge):
+            left_bl += spectrum[i]
+        left_bl /= n_edge
+
+        right_bl = 0.0
+        for i in range(n_freq - n_edge, n_freq):
+            right_bl += spectrum[i]
+        right_bl /= n_edge
+
+        # Pick the edge farther from the dip
+        baseline = right_bl if min_idx < n_freq // 2 else left_bl
+
+        # Half-depth level
+        half_depth = (baseline + min_val) / 2.0
+
+        # Search left from minimum for crossing
+        left_idx = min_idx
+        for i in range(min_idx - 1, -1, -1):
+            if spectrum[i] >= half_depth:
+                left_idx = i
+                break
+
+        # Search right from minimum for crossing
+        right_idx = min_idx
+        for i in range(min_idx + 1, n_freq):
+            if spectrum[i] >= half_depth:
+                right_idx = i
+                break
+
+        # FWHM / 2 = HWHM
+        fwhm = abs(freq[r, right_idx] - freq[r, left_idx])
+        hwhm[p, r, px] = fwhm / 2.0
+
+    return hwhm

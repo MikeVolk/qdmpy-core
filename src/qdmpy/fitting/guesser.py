@@ -12,10 +12,14 @@ import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 
-from qdmpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
+from qdmpy.constants import AHYP_14N, AHYP_15N
 from qdmpy.exceptions import ParameterError
-from qdmpy.fitting.guess import cumsum_center, cumsum_contrast, cumsum_width
+from qdmpy.fitting.guess import argmin_center, cumsum_contrast, halfpower_width
 from qdmpy.fitting.models import Model
+
+# Floor for individual Lorentzian HWHM after subtracting hyperfine splitting.
+# 0.3 MHz in GHz prevents negative or near-zero widths.
+_MIN_WIDTH_GHZ = 0.0003
 
 
 class ParameterGuesser:
@@ -38,15 +42,15 @@ class ParameterGuesser:
         │     prange(n_pol × n_frange × n_pixel)
         │     normalize_pixel → freq[argmin|norm−0.5|]
         │
-        ├── cumsum_width(data, freq, vmin, vmax) → (n_pol, n_frange, n_pixel)
+        ├── halfpower_width(data, freq)          → (n_pol, n_frange, n_pixel)
         │     prange(n_pol × n_frange × n_pixel)
-        │     normalize_pixel → |freq[ridx] − freq[lidx]|
-        │     vmin/vmax are model-specific:
-        │       ESR14N  0.35 / 0.65
-        │       ESR15N  0.40 / 0.60
-        │       ESRSINGLE (default_vmin) / (default_vmax)
+        │     half-power point search → envelope HWHM
+        │     then subtract AHYP for multi-peak models:
+        │       ESR14N  envelope_hwhm - AHYP_14N
+        │       ESR15N  envelope_hwhm - AHYP_15N
+        │       ESRSINGLE  envelope_hwhm (no correction)
         │
-        └── np.zeros(...)                      → offset (n_pol, n_frange, n_pixel)
+        └── edge-mean baseline - 1.0           → offset (n_pol, n_frange, n_pixel)
 
         assembled via model.parameter_types
         → (n_pol, n_frange, n_pixel, n_params) float32  [cached]
@@ -99,21 +103,37 @@ class ParameterGuesser:
             logger.debug(f"Guessing {param_type} parameters")
 
             if param_type == "center":
-                param_values = cumsum_center(flat_data, self._f_ghz)
+                param_values = argmin_center(flat_data, self._f_ghz)
             elif param_type == "contrast":
+                # cumsum_contrast returns total observed dip depth (max-min)/max.
+                # For multi-peak models the hyperfine peaks overlap significantly
+                # (AHYP ~ linewidth), so the observed dip is dominated by the
+                # central peak with partial contributions from neighbours.
+                # Dividing by n_peaks would overcorrect; the total dip is a
+                # reasonable starting point for each contrast_i parameter.
                 param_values = cumsum_contrast(flat_data)
             elif param_type == "width":
-                # Use model-specific cumsum thresholds; tighter window for multi-peak models.
-                # Matches QDMpy_old._core.fit.Fit._cumsum_width() n_peaks-based selection.
-                if self._model.n_peaks == 2:  # ESR15N: two close hyperfine lines
-                    vmin, vmax = 0.4, 0.6
-                elif self._model.n_peaks == 3:  # ESR14N: three hyperfine lines
-                    vmin, vmax = 0.35, 0.65
-                else:  # ESRSINGLE: single dip
-                    vmin, vmax = DEFAULT_VMIN, DEFAULT_VMAX
-                param_values = cumsum_width(flat_data, self._f_ghz, vmin, vmax)
+                # halfpower_width measures the envelope HWHM directly from half-
+                # power points (no cumsum artifacts). For multi-peak models the
+                # envelope includes hyperfine splitting, so subtract AHYP to
+                # recover the individual Lorentzian HWHM.
+                envelope_hwhm = halfpower_width(flat_data, self._f_ghz)
+                if self._model.n_peaks == 3:  # ESR14N
+                    param_values = np.maximum(envelope_hwhm - AHYP_14N, _MIN_WIDTH_GHZ)
+                elif self._model.n_peaks == 2:  # ESR15N
+                    param_values = np.maximum(envelope_hwhm - AHYP_15N, _MIN_WIDTH_GHZ)
+                else:  # ESRSINGLE — envelope = individual
+                    param_values = envelope_hwhm
             elif param_type == "offset":
-                param_values = np.zeros((n_pol, n_frange, n_pixel))
+                # Estimate baseline from edge frequencies (mean of first + last 10%).
+                # Model formula: f = 1 + offset - dips  =>  offset = baseline - 1.0
+                n_freq = flat_data.shape[-1]
+                n_edge = max(1, n_freq // 10)
+                baseline = (
+                    np.mean(flat_data[..., :n_edge], axis=-1)
+                    + np.mean(flat_data[..., -n_edge:], axis=-1)
+                ) / 2.0
+                param_values = (baseline - 1.0).astype(np.float32)
             else:
                 msg = f"Unknown parameter type: {param_type}"
                 raise ParameterError(msg)
