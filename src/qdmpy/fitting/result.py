@@ -564,14 +564,25 @@ class FitResult(BaseModel):
     ) -> None:
         """Quick-plot a parameter map.
 
+        The special values ``'b111_remanent'`` and ``'b111_induced'`` are
+        accepted in addition to raw parameter names; they delegate to
+        ``plot_b111_map`` with the appropriate component.
+
         Args:
-            param: Parameter name to visualise ('center', 'chi2', 'contrast', …).
+            param: Parameter name to visualise (``'center'``, ``'chi2'``,
+                ``'contrast'``, ``'b111_remanent'``, ``'b111_induced'``, ...).
             save: If True, save the figure to disk.
             filename: Output filename (uses a default name if None).
         """
-        from qdmpy.plotting import plot_fit_result_parameter_map
+        if param in ("b111_remanent", "b111_induced"):
+            from qdmpy.plotting import plot_b111_map
 
-        plot_fit_result_parameter_map(self, param, save=save, filename=filename)
+            component = "remanent" if param == "b111_remanent" else "induced"
+            plot_b111_map(self, component=component, save=save, filename=filename)
+        else:
+            from qdmpy.plotting import plot_fit_result_parameter_map
+
+            plot_fit_result_parameter_map(self, param, save=save, filename=filename)
 
     def show(self: Self, *, save: bool = False, filename: str | None = None) -> None:
         """Quick-plot overview of all fitted parameters and B111 maps.

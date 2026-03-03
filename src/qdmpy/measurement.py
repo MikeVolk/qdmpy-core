@@ -389,6 +389,26 @@ class Measurement:
         logger.info("Spectral folding complete")
         return self._folded_odmr
 
+    def plot(self: Self) -> None:
+        """Plot the light and laser optical images for this measurement."""
+        from qdmpy.plotting import plot_measurement_images
+
+        plot_measurement_images(self)
+
+    def display(self: Self, result: QDMResult) -> None:
+        """Comprehensive overview combining parameter maps, images, and pixel spectra.
+
+        Shows B111 remanent/induced maps, chi-squared, mean centre/contrast/
+        linewidth maps, the light and laser optical images, and a selection of
+        representative pixel ODMR spectra with the fitted model curves overlaid.
+
+        Args:
+            result: QDMResult returned by ``fit_odmr()`` or ``fit_folded_odmr()``.
+        """
+        from qdmpy.plotting import plot_qdm_display
+
+        plot_qdm_display(result, measurement=self)
+
     def fit_folded_odmr(
         self: Self,
         folded: FoldedODMR | None = None,
