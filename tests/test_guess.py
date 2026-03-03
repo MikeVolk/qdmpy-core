@@ -12,7 +12,7 @@ import numba
 import numpy as np
 import pytest
 
-from qdmpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
+from qdmpy.constants import AHYP_14N, AHYP_15N, DEFAULT_VMAX, DEFAULT_VMIN
 from qdmpy.exceptions import (
     DataShapeError,
     DataValidationError,
@@ -27,9 +27,11 @@ from qdmpy.fitting.guess import (
     get_model_by_peaks,
     guess_model,
     guess_n_peaks,
+    halfpower_width,
     normalize_pixel,
     validate_array,
 )
+from qdmpy.fitting.guesser import ParameterGuesser
 from qdmpy.fitting.models import ESR14N, ESR15N, ESRSINGLE
 
 
@@ -423,6 +425,59 @@ class TestRelativeProminence:
         assert abs(_relative_prominence(s) - expected) < 1e-12
 
 
+class TestParameterGuesser:
+    """Test cases for ParameterGuesser."""
+
+    def test_offset_estimated_from_edge_baseline(self) -> None:
+        """Offset should equal baseline - 1.0, not zero.
+
+        Mean-normalised ODMR data has a baseline slightly above 1.0 because
+        the mean includes the resonance dips. The guesser must estimate the
+        baseline from the edge frequencies so the initial-guess overlay lines
+        up with the fitted curve.
+        """
+        n_pol, n_frange, n_pixel, n_freq = 1, 1, 2, 100
+        baseline = 1.04
+
+        # Flat data at the known baseline (no dips — we only care about offset)
+        data = np.full((n_pol, n_frange, n_pixel, n_freq), baseline, dtype=np.float32)
+
+        model = ESRSINGLE()
+        f_ghz = np.tile(np.linspace(2.82, 2.92, n_freq), (n_frange, 1))
+
+        guesser = ParameterGuesser(model, f_ghz)
+        params = guesser.guess(data)  # (n_pol, n_frange, n_pixel, n_params)
+
+        # Find the offset parameter index
+        offset_idx = next(
+            i
+            for i, name in enumerate(model.parameter_names)
+            if model.parameter_types[name] == "offset"
+        )
+        offsets = params[:, :, :, offset_idx]
+
+        expected = baseline - 1.0
+        assert offsets == pytest.approx(expected, abs=1e-4)
+
+    def test_offset_zero_when_baseline_unity(self) -> None:
+        """When the baseline is exactly 1.0, offset should be ~0."""
+        n_pol, n_frange, n_pixel, n_freq = 1, 1, 1, 50
+        data = np.ones((n_pol, n_frange, n_pixel, n_freq), dtype=np.float32)
+
+        model = ESRSINGLE()
+        f_ghz = np.tile(np.linspace(2.82, 2.92, n_freq), (n_frange, 1))
+
+        guesser = ParameterGuesser(model, f_ghz)
+        params = guesser.guess(data)
+
+        offset_idx = next(
+            i
+            for i, name in enumerate(model.parameter_names)
+            if model.parameter_types[name] == "offset"
+        )
+        assert params[:, :, :, offset_idx] == pytest.approx(0.0, abs=1e-5)
+
+
 class TestGuessWidth:
     """Test cases for cumsum_width function."""
 
@@ -441,3 +496,185 @@ class TestGuessWidth:
         """Test that all widths are positive."""
         widths = cumsum_width(sample_odmr_data, frequency_range, DEFAULT_VMIN, DEFAULT_VMAX)
         assert np.all(widths > 0)
+
+
+class TestHalfpowerWidth:
+    """Test cases for halfpower_width function."""
+
+    def test_shape(self, sample_odmr_data, frequency_range) -> None:
+        """Output shape matches (n_pol, n_frange, n_pixel)."""
+        hwhm = halfpower_width(sample_odmr_data, frequency_range)
+        expected = sample_odmr_data.shape[:3]
+        assert hwhm.shape == expected
+
+    def test_synthetic_lorentzian_hwhm(self) -> None:
+        """For a single Lorentzian dip, HWHM should match the known width.
+
+        Model: f(x) = 1 - contrast * w^2 / ((x - x0)^2 + w^2)
+        The FWHM of this Lorentzian is 2*w, so HWHM = w.
+        """
+        n_freq = 200
+        true_width = 0.002  # 2 MHz HWHM
+        center = 2.87
+        contrast = 0.05
+        freq_1d = np.linspace(2.85, 2.89, n_freq)
+        freq = freq_1d[np.newaxis, :]  # (1, n_freq)
+
+        spectrum = 1.0 - contrast * true_width**2 / ((freq_1d - center) ** 2 + true_width**2)
+        # Shape: (1 pol, 1 frange, 1 pixel, n_freq)
+        data = spectrum[np.newaxis, np.newaxis, np.newaxis, :]
+
+        hwhm = halfpower_width(data, freq)
+        # Allow 1 frequency bin tolerance
+        df = freq_1d[1] - freq_1d[0]
+        assert hwhm[0, 0, 0] == pytest.approx(true_width, abs=df)
+
+    def test_wider_dip_gives_larger_hwhm(self) -> None:
+        """A wider Lorentzian should produce a larger HWHM estimate."""
+        n_freq = 200
+        center = 2.87
+        contrast = 0.05
+        freq_1d = np.linspace(2.85, 2.89, n_freq)
+        freq = freq_1d[np.newaxis, :]
+
+        narrow = 1.0 - contrast * 0.001**2 / ((freq_1d - center) ** 2 + 0.001**2)
+        wide = 1.0 - contrast * 0.004**2 / ((freq_1d - center) ** 2 + 0.004**2)
+
+        data = np.stack([narrow, wide])[np.newaxis, np.newaxis, :, :]  # (1,1,2,n_freq)
+        hwhm = halfpower_width(data, freq)
+        assert hwhm[0, 0, 1] > hwhm[0, 0, 0]
+
+
+class TestContrastPassthrough:
+    """Test that ParameterGuesser passes total contrast to each contrast_i.
+
+    For multi-peak models the hyperfine peaks overlap significantly
+    (AHYP ~ linewidth), so the observed dip depth is dominated by the
+    central peak. The total contrast is a reasonable starting guess for
+    each individual contrast parameter.
+    """
+
+    def _make_dip_data(self, n_freq: int = 100) -> tuple:
+        """Create synthetic data with a known total contrast."""
+        freq_1d = np.linspace(2.82, 2.92, n_freq)
+        freq = np.tile(freq_1d, (2, 1))  # (2 frange, n_freq)
+
+        # Single Lorentzian dip with ~5% contrast
+        spectrum = 1.0 - 0.05 * 0.002**2 / ((freq_1d - 2.87) ** 2 + 0.002**2)
+        data = np.tile(spectrum, (2, 2, 3, 1))  # (2 pol, 2 frange, 3 pixels, n_freq)
+        return data.astype(np.float32), freq
+
+    def test_esr14n_contrast_equals_total(self) -> None:
+        """For ESR14N, each contrast_i = total_contrast (no division)."""
+        data, freq = self._make_dip_data()
+        total_contrast = cumsum_contrast(data)  # (2, 2, 3)
+
+        model = ESR14N()
+        guesser = ParameterGuesser(model, freq)
+        params = guesser.guess(data)
+
+        for name in ("contrast_0", "contrast_1", "contrast_2"):
+            idx = model.parameter_names.index(name)
+            np.testing.assert_allclose(params[:, :, :, idx], total_contrast, rtol=1e-5)
+
+    def test_esr15n_contrast_equals_total(self) -> None:
+        """For ESR15N, each contrast_i = total_contrast (no division)."""
+        data, freq = self._make_dip_data()
+        total_contrast = cumsum_contrast(data)
+
+        model = ESR15N()
+        guesser = ParameterGuesser(model, freq)
+        params = guesser.guess(data)
+
+        for name in ("contrast_0", "contrast_1"):
+            idx = model.parameter_names.index(name)
+            np.testing.assert_allclose(params[:, :, :, idx], total_contrast, rtol=1e-5)
+
+    def test_esrsingle_contrast_equals_total(self) -> None:
+        """For ESRSINGLE, contrast = total."""
+        data, freq = self._make_dip_data()
+        total_contrast = cumsum_contrast(data)
+
+        model = ESRSINGLE()
+        guesser = ParameterGuesser(model, freq)
+        params = guesser.guess(data)
+
+        idx = model.parameter_names.index("contrast")
+        np.testing.assert_allclose(params[:, :, :, idx], total_contrast, rtol=1e-5)
+
+
+class TestWidthCorrection:
+    """Test that ParameterGuesser applies AHYP correction for multi-peak models."""
+
+    def _make_data_with_known_width(self, true_hwhm: float = 0.003) -> tuple:
+        """Create data with a single Lorentzian of known HWHM."""
+        n_freq = 200
+        center = 2.87
+        contrast = 0.05
+        freq_1d = np.linspace(2.85, 2.89, n_freq)
+        freq = freq_1d[np.newaxis, :]  # (1 frange, n_freq)
+
+        spectrum = 1.0 - contrast * true_hwhm**2 / ((freq_1d - center) ** 2 + true_hwhm**2)
+        data = spectrum[np.newaxis, np.newaxis, np.newaxis, :]  # (1,1,1,n_freq)
+        return data.astype(np.float32), freq
+
+    def test_esr14n_subtracts_ahyp(self) -> None:
+        """ESR14N width = envelope_hwhm - AHYP_14N."""
+        true_hwhm = 0.004  # 4 MHz, well above AHYP_14N
+        data, freq = self._make_data_with_known_width(true_hwhm)
+
+        envelope_hwhm = halfpower_width(data, freq)
+
+        model = ESR14N()
+        guesser = ParameterGuesser(model, freq)
+        params = guesser.guess(data)
+
+        width_idx = model.parameter_names.index("width")
+        guessed_width = params[0, 0, 0, width_idx]
+        expected = max(float(envelope_hwhm[0, 0, 0]) - AHYP_14N, 0.0003)
+        assert guessed_width == pytest.approx(expected, rel=1e-4)
+
+    def test_esr15n_subtracts_ahyp(self) -> None:
+        """ESR15N width = envelope_hwhm - AHYP_15N."""
+        true_hwhm = 0.004
+        data, freq = self._make_data_with_known_width(true_hwhm)
+
+        envelope_hwhm = halfpower_width(data, freq)
+
+        model = ESR15N()
+        guesser = ParameterGuesser(model, freq)
+        params = guesser.guess(data)
+
+        width_idx = model.parameter_names.index("width")
+        guessed_width = params[0, 0, 0, width_idx]
+        expected = max(float(envelope_hwhm[0, 0, 0]) - AHYP_15N, 0.0003)
+        assert guessed_width == pytest.approx(expected, rel=1e-4)
+
+    def test_esrsingle_no_correction(self) -> None:
+        """ESRSINGLE uses envelope HWHM directly, no subtraction."""
+        true_hwhm = 0.003
+        data, freq = self._make_data_with_known_width(true_hwhm)
+
+        envelope_hwhm = halfpower_width(data, freq)
+
+        model = ESRSINGLE()
+        guesser = ParameterGuesser(model, freq)
+        params = guesser.guess(data)
+
+        width_idx = model.parameter_names.index("width")
+        guessed_width = params[0, 0, 0, width_idx]
+        assert guessed_width == pytest.approx(float(envelope_hwhm[0, 0, 0]), rel=1e-4)
+
+    def test_width_floor_prevents_negative(self) -> None:
+        """When envelope HWHM < AHYP, width is floored at 0.3 MHz."""
+        # Very narrow dip where HWHM < AHYP_14N
+        true_hwhm = 0.001  # 1 MHz, less than AHYP_14N = 2.158 MHz
+        data, freq = self._make_data_with_known_width(true_hwhm)
+
+        model = ESR14N()
+        guesser = ParameterGuesser(model, freq)
+        params = guesser.guess(data)
+
+        width_idx = model.parameter_names.index("width")
+        guessed_width = params[0, 0, 0, width_idx]
+        assert guessed_width == pytest.approx(0.0003, rel=1e-4)

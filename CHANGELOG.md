@@ -9,6 +9,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- `argmin_center(data, freq)` in `fitting/guess.py` — new `@njit(parallel=True)`
+  center estimator that uses the frequency of the deepest dip per pixel. Replaces
+  `cumsum_center` which produced catastrophically wrong guesses (~10 MHz error)
+  for pixels with strong B111 shifts where the resonance sits near the frequency
+  range edge.
+- `halfpower_width(data, freq)` in `fitting/guess.py` — new `@njit(parallel=True)`
+  estimator that measures envelope HWHM directly from half-power points of each
+  pixel spectrum, with one-sided baseline selection to handle edge-shifted dips.
+  Replaces `cumsum_width` for initial width guesses.
+- `scripts/benchmark_guesses.py` — benchmark script that evaluates guess quality
+  via model residuals on real ODMR data, with baseline save/compare workflow.
+- `scripts/plot_guess_comparison.py` — visual comparison of old vs new parameter
+  guesses overlaid on raw ODMR spectra for sample pixels.
+
 - `plot_b111_map(result, component)` in `plotting.py` — dedicated B111 component
   map with symmetric `RdBu_r` colormap and 99th-percentile color limits.
 - `plot_measurement_images(measurement)` in `plotting.py` — side-by-side display
@@ -30,6 +44,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   for those models. Single-range fits fall back to the legacy T-unit display.
 
 ### Fixed
+
+- **Center guess catastrophically wrong for shifted pixels** — `cumsum_center`
+  produced ~10 MHz errors for pixels with strong B111 fields where the resonance
+  shifts to the edge of the frequency range. The cumsum normalization S-curve
+  saturates and the 0.5 crossing lands on the wrong side. Replaced with
+  `argmin_center` (simple `freq[argmin(spectrum)]`) which is robust to shifts
+  and 4x faster.
+- **Width measured envelope span, not Lorentzian HWHM** — replaced `cumsum_width`
+  with `halfpower_width` (direct half-power point measurement) and added model-aware
+  AHYP correction: `individual_HWHM = envelope_HWHM - AHYP`, floored at 0.3 MHz.
+  This produces width guesses ~2-5x closer to true values for multi-peak models.
 
 - **QEP-048 (root-cause H1)** — `normalize_pixel` in `fitting/guess.py` previously
   subtracted the hardcoded value `1.0` before computing the cumulative sum used for
