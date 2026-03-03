@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from os import PathLike
 
     from qdmpy.magnetic_map import MagneticMap
+    from qdmpy.measurement import Measurement
 
 
 class QDMResult(BaseModel):
@@ -158,6 +159,21 @@ class QDMResult(BaseModel):
     def show(self: Self, *, save: bool = False, filename: str | None = None) -> None:
         """Quick-plot overview of all fitted parameters. Delegates to FitResult.show()."""
         self.fit_result.show(save=save, filename=filename)
+
+    def display(self: Self, measurement: Measurement | None = None) -> None:
+        """Comprehensive overview display for this result.
+
+        Shows B111 remanent/induced maps, chi-squared, mean centre/contrast/
+        linewidth maps. When *measurement* is given also shows the light/laser
+        optical images and representative pixel ODMR spectra with fit curves.
+
+        Args:
+            measurement: Optional Measurement instance for optical images and
+                ODMR spectra.
+        """
+        from qdmpy.plotting import plot_qdm_display
+
+        plot_qdm_display(self, measurement=measurement)
 
     # ------------------------------------------------------------------
     # Magnetic map (lazy)

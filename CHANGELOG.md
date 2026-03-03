@@ -7,6 +7,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `plot_b111_map(result, component)` in `plotting.py` — dedicated B111 component
+  map with symmetric `RdBu_r` colormap and 99th-percentile color limits.
+- `plot_measurement_images(measurement)` in `plotting.py` — side-by-side display
+  of light and laser optical images.
+- `plot_qdm_display(result, measurement=None, n_sample_pixels=3)` in `plotting.py`
+  — comprehensive overview: B111 remanent/induced, chi-squared, centre/contrast/
+  linewidth maps; optionally optical images and representative pixel ODMR spectra
+  with fitted model curves overlaid.
+- `Measurement.plot()` — shorthand for `plot_measurement_images(self)`.
+- `Measurement.display(result)` — shorthand for `plot_qdm_display(result, self)`.
+- `QDMResult.display(measurement=None)` — shorthand for
+  `plot_qdm_display(self, measurement)`.
+- `FitResult.plot('b111_remanent')` and `FitResult.plot('b111_induced')` now
+  delegate to `plot_b111_map` rather than raising `ParameterError`.
+
+- `plot_fit_result_field_map` and `plot_fit_result_overview` in `plotting.py` now
+  use `result.b111_remanent` (µT, diverging colormap) for multi-range models
+  (ESR14N, ESR15N) instead of `calculate_b_field()`, which raised `ParameterError`
+  for those models. Single-range fits fall back to the legacy T-unit display.
+
 ### Fixed
 
 - **QEP-048 (root-cause H1)** — `normalize_pixel` in `fitting/guess.py` previously
