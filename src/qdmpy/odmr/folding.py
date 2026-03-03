@@ -318,6 +318,12 @@ class SpectralFolder:
             settings.d_zfs_initial + settings.search_range,
             settings.search_steps,
         )
+        logger.info(
+            "Brute-force D_ZFS search: {} candidates in [{:.6f}, {:.6f}] GHz",
+            settings.search_steps,
+            d_candidates[0],
+            d_candidates[-1],
+        )
 
         n_pol = coarse_data.sizes["polarity"]
         ny_c = coarse_data.sizes["y"]

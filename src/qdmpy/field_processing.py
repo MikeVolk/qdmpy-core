@@ -91,14 +91,11 @@ class FieldProcessingPipeline:
             Processed DataArray with same dims, coords, attrs.
             If pipeline is empty, returns a deep copy of input.
         """
+        logger.info("Running field processing pipeline ({} steps)", len(self._processors))
         result = field_map.copy(deep=True)
         for proc in self._processors:
             result = proc.process(result)
-            logger.debug(
-                "Field processor applied",
-                processor=proc.__class__.__name__,
-                shape=result.shape,
-            )
+            logger.debug("Applied {}: output shape {}", proc.__class__.__name__, result.shape)
         return result
 
 
@@ -130,6 +127,11 @@ class HotPixelFilter(BaseFieldProcessor):
             New DataArray with outliers replaced.
         """
         _ = self._pixel_spacing(field_map)  # Validate
+        logger.info(
+            "Detecting hot pixels (threshold_sigma={}, replacement={})",
+            self.threshold_sigma,
+            self.replacement,
+        )
         data = field_map.values.copy()
 
         # Compute median and std
@@ -195,6 +197,7 @@ class QuadraticBackgroundSubtractor(BaseFieldProcessor):
             New DataArray with background subtracted.
         """
         _ = self._pixel_spacing(field_map)  # Validate
+        logger.info("Removing polynomial background (degree={})", self.degree)
         data = field_map.values
         h, w = data.shape
 
@@ -280,6 +283,7 @@ class UpwardContinuation(BaseFieldProcessor):
             New DataArray with continuation applied.
         """
         ps = self._pixel_spacing(field_map)
+        logger.info("Applying upward/downward continuation (dz={} m)", self.dz)
         data = field_map.values
         h, w = data.shape
 
@@ -288,8 +292,8 @@ class UpwardContinuation(BaseFieldProcessor):
 
         if self.dz < 0:
             logger.warning(
-                "Downward continuation (dz < 0) amplifies high frequencies and noise",
-                dz=self.dz,
+                "Downward continuation (dz={} m < 0) amplifies high frequencies and noise",
+                self.dz,
             )
 
         # Pad
@@ -352,6 +356,7 @@ class BlankSubtractor(BaseFieldProcessor):
             DataShapeError: If blank shape != field shape.
         """
         _ = self._pixel_spacing(field_map)  # Validate
+        logger.info("Subtracting blank map")
         blank_array = np.array(self.blank)
 
         if blank_array.shape != field_map.shape:

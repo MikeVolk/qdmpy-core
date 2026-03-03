@@ -100,7 +100,7 @@ class ParameterGuesser:
 
         for idx, param_name in enumerate(self._model.parameter_names):
             param_type = self._model.parameter_types[param_name]
-            logger.debug(f"Guessing {param_type} parameters")
+            logger.debug("Guessing {} parameters", param_type)
 
             if param_type == "center":
                 param_values = argmin_center(flat_data, self._f_ghz)

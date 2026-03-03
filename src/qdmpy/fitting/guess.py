@@ -110,12 +110,14 @@ def guess_model(data: NDArray) -> Model:
     model = get_model_by_peaks(n_peaks)
     if doubt:
         logger.warning(
-            f"Low-confidence model detection: using {model.name} ({n_peaks} peaks) "
-            f"as best guess. Verify with plot_model_detection() and set model_name "
-            f"manually if incorrect."
+            "Low-confidence model detection: using {} ({} peaks) "
+            "as best guess. Verify with plot_model_detection() and set model_name "
+            "manually if incorrect.",
+            model.name,
+            n_peaks,
         )
     else:
-        logger.info(f"Detected model: {model.name}")
+        logger.info("Detected model: {}", model.name)
     return model
 
 

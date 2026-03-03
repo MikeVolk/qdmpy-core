@@ -85,8 +85,8 @@ class FitResult(BaseModel):
 
     def model_post_init(self: Self, __context: object) -> None:
         """Log initialization after Pydantic validation and protect parameter arrays."""
-        logger.info(f"FitResult initialized with model: {self.model_name}")
-        logger.debug(f"Available parameters: {list(self.parameters.keys())}")
+        logger.info("FitResult initialized with model: {}", self.model_name)
+        logger.debug("Available parameters: {}", list(self.parameters.keys()))
 
         # Protect parameter arrays from external mutation to prevent cache invalidation
         for param_array in self.parameters.values():
@@ -257,8 +257,11 @@ class FitResult(BaseModel):
                 best_height, best_width = n_pixels, 1
 
         logger.debug(
-            f"Pixel count mismatch: data has {n_pixels} pixels, "
-            f"scan_dims suggest {height * width}. Using ({best_height}, {best_width})"
+            "Pixel count mismatch: data has {} pixels, scan_dims suggest {}. Using ({}, {})",
+            n_pixels,
+            height * width,
+            best_height,
+            best_width,
         )
         return best_height, best_width
 
@@ -279,7 +282,7 @@ class FitResult(BaseModel):
         if resonance.ndim == 4:
             n_pol, n_frange, n_pixels, _ = resonance.shape
             resonance = np.squeeze(resonance, axis=-1)
-            logger.debug(f"Squeezed 4D resonance to shape {resonance.shape}")
+            logger.debug("Squeezed 4D resonance to shape {}", resonance.shape)
         elif resonance.ndim == 3:
             n_pol, n_frange, n_pixels = resonance.shape
         elif resonance.ndim == 2:
@@ -287,7 +290,7 @@ class FitResult(BaseModel):
             n_frange = resonance.shape[0] // n_pol
             n_pixels = resonance.shape[1]
             resonance = resonance.reshape((n_pol, n_frange, n_pixels))
-            logger.debug(f"Reshaped 2D resonance to shape {resonance.shape}")
+            logger.debug("Reshaped 2D resonance to shape {}", resonance.shape)
         else:
             msg = f"Unexpected center parameter shape: {resonance.shape}"
             raise DataShapeError(msg)
@@ -337,13 +340,13 @@ class FitResult(BaseModel):
         logger.debug("Computing delta resonance for B111 calculations")
 
         resonance = self.parameters["center"]
-        logger.debug(f"Center parameter shape: {resonance.shape}")
+        logger.debug("Center parameter shape: {}", resonance.shape)
         resonance, n_pol, n_frange, n_pixels = self._normalize_resonance_shape(resonance)
         height, width = self._resolve_spatial_dims(n_pixels)
         delta = self._calc_delta_from_single_center(resonance, n_pol, n_frange, height, width)
 
         polarity_coords = POLARITY_LABELS[:n_pol]
-        logger.debug(f"Delta resonance computed with shape: {delta.shape}")
+        logger.debug("Delta resonance computed with shape: {}", delta.shape)
         return xr.DataArray(
             delta,
             dims=("polarity", "y", "x"),
@@ -392,10 +395,14 @@ class FitResult(BaseModel):
         b111_induced = (neg_diff - pos_diff) / 2
 
         logger.debug(
-            f"B111 remanent: mean={b111_remanent.mean():.2e} µT, std={b111_remanent.std():.2e} µT"
+            "B111 remanent: mean={:.2e} uT, std={:.2e} uT",
+            b111_remanent.mean(),
+            b111_remanent.std(),
         )
         logger.debug(
-            f"B111 induced: mean={b111_induced.mean():.2e} µT, std={b111_induced.std():.2e} µT"
+            "B111 induced: mean={:.2e} uT, std={:.2e} uT",
+            b111_induced.mean(),
+            b111_induced.std(),
         )
 
         return xr.Dataset(
@@ -432,7 +439,7 @@ class FitResult(BaseModel):
             and appropriate model-specific conversion factors.
         """
         if self._b_field_cache is None or force_recalculate:
-            logger.info(f"Calculating magnetic field from {self.model_name} fit results")
+            logger.info("Calculating magnetic field from {} fit results", self.model_name)
             self._b_field_cache = self._compute_b_field()
 
         return self._b_field_cache
@@ -464,7 +471,11 @@ class FitResult(BaseModel):
         # Centers are in GHz, GAMMA_NV is GHz/T, D_ZFS is GHz -> result in T
         b_field = np.abs(centers_map - D_ZFS) / GAMMA_NV
 
-        logger.debug(f"B-field calculation: mean={b_field.mean():.2e} T, std={b_field.std():.2e} T")
+        logger.debug(
+            "B-field calculation: mean={:.2e} T, std={:.2e} T",
+            b_field.mean(),
+            b_field.std(),
+        )
 
         return b_field
 
@@ -499,8 +510,9 @@ class FitResult(BaseModel):
             metrics.update(self.metadata["quality_metrics"])
 
         logger.info(
-            f"Fit quality metrics: mean_chi2={metrics['mean_chi2']:.3f}, "
-            f"n_pixels={metrics['n_pixels']}"
+            "Fit quality metrics: mean_chi2={:.3f}, n_pixels={}",
+            metrics["mean_chi2"],
+            metrics["n_pixels"],
         )
 
         return metrics
@@ -553,7 +565,7 @@ class FitResult(BaseModel):
         save_dict = self._build_save_dict()
         arrays = {k: np.asarray(v) for k, v in save_dict.items()}
         np.savez_compressed(filepath, allow_pickle=False, **arrays)
-        logger.info(f"Fit results saved to: {filepath}")
+        logger.info("Fit results saved to: {}", filepath)
 
     def plot(
         self: Self,
@@ -681,7 +693,7 @@ class FitResult(BaseModel):
             raise DataLoadError(msg) from exc
 
         result = cls._from_npz(data, source=str(filepath))
-        logger.info(f"Fit results loaded from: {filepath}")
+        logger.info("Fit results loaded from: {}", filepath)
         return result
 
 

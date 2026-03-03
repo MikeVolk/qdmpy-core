@@ -243,7 +243,7 @@ def make_configfile(reset: bool = False) -> None:
     CONFIG_PATH.mkdir(parents=True, exist_ok=True)
     if reset and CONFIG_FILE.exists():
         CONFIG_FILE.unlink()
-        logger.info(f"Deleted user config file {CONFIG_FILE}")
+        logger.info("Deleted user config file {}", CONFIG_FILE)
 
 
 def reset_config() -> None:

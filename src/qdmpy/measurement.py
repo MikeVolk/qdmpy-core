@@ -86,7 +86,7 @@ class Measurement:
                        don't match the ODMR data.
         """
         logger.info("Initializing Measurement object.")
-        logger.info(f'Output directory: "{output_directory}"')
+        logger.info('Output directory: "{}"', output_directory)
 
         self.output_directory = Path(output_directory)
         self.pixel_spacing = pixel_spacing
@@ -105,17 +105,17 @@ class Measurement:
             raise DataNotLoadedError(msg) from e
 
         # Validate ODMR instance data
-        logger.debug(f"ODMR raw data shape: {self.odmr.raw_data.shape}")
+        logger.debug("ODMR raw data shape: {}", self.odmr.raw_data.shape)
 
         # Check if data has been processed
         try:
-            logger.debug(f"ODMR processed data shape: {self.odmr.processed_data.shape}")
+            logger.debug("ODMR processed data shape: {}", self.odmr.processed_data.shape)
         except (ValueError, DataNotLoadedError):
             logger.warning(
                 "ODMR data has not been processed yet. Some functionality may be limited."
             )
 
-        logger.debug(f"ODMR frequencies shape: {self.odmr.raw_data.frequencies.shape}")
+        logger.debug("ODMR frequencies shape: {}", self.odmr.raw_data.frequencies.shape)
 
         # Initialize outlier mask
         logger.debug("Initializing outlier mask.")
@@ -189,7 +189,7 @@ class Measurement:
         )
 
         path = Path(path)
-        logger.info(f"Loading measurement from {path}")
+        logger.info("Loading measurement from {}", path)
 
         odmr = ODMR(ODMRData.from_loader(MatlabLoader(str(path))))
 
@@ -242,7 +242,10 @@ class Measurement:
             return get_image(folder, matching)
         except DataLoadError:
             logger.warning(
-                f"No {kind} image found in {folder}; using zeros array of shape {scan_dimensions}"
+                "No {} image found in {}; using zeros array of shape {}",
+                kind,
+                folder,
+                scan_dimensions,
             )
             return np.zeros(scan_dimensions)
 
@@ -321,7 +324,7 @@ class Measurement:
         from qdmpy.result import QDMResult
 
         model_name = model_name or self._fit_model
-        logger.info(f"Starting ODMR fitting with model: {model_name}")
+        logger.info("Starting ODMR fitting with model: {}", model_name)
         processed_data = self._validate_fit_prerequisites()
 
         fit_manager = FitManager(model_name=model_name, constraints=constraints)

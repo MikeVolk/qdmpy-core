@@ -101,7 +101,7 @@ class FitManager:
             if constraints:
                 for param, constraint in constraints.items():
                     self.set_constraints(param, **constraint)
-            logger.info(f"FitManager initialized with model: {self._model.name}")
+            logger.info("FitManager initialized with model: {}", self._model.name)
 
     @staticmethod
     def _validate_inputs(data: xr.DataArray, frequencies: NDArray) -> None:
@@ -144,7 +144,7 @@ class FitManager:
             flat_data: 4D array (n_pol, n_frange, n_pixel, n_freq) used for model detection.
         """
         self._model = guess_model(flat_data)
-        logger.info(f"Auto-resolved model: {self._model.name}")
+        logger.info("Auto-resolved model: {}", self._model.name)
         self._constraint_manager = ConstraintManager(self._model, self._settings.model.constraints)
         for param, constraint in self._pending_constraints.items():
             self.set_constraints(param, **constraint)
@@ -200,7 +200,12 @@ class FitManager:
         for irange in range(n_frange):
             freq_min = f_ghz[irange].min()
             freq_max = f_ghz[irange].max()
-            logger.info(f"Fitting frequency range {irange} from {freq_min:.3f}-{freq_max:.3f} GHz")
+            logger.info(
+                "Fitting frequency range {} from {:.3f}-{:.3f} GHz",
+                irange,
+                freq_min,
+                freq_max,
+            )
             raw = self.fit_frange(flat_data[:, irange], f_ghz[irange], initial_params[:, irange])
             shaped = self._reshape_frange_results(raw, data_shape=flat_data[:, irange].shape)
             all_params[irange] = shaped[0]
@@ -208,7 +213,7 @@ class FitManager:
             all_chi2[irange] = shaped[2]
             all_iters[irange] = shaped[3]
             exec_times.append(shaped[4])
-            logger.info(f"Fit finished in {shaped[4]:.2f} seconds")
+            logger.info("Fit finished in {:.2f} seconds", shaped[4])
 
         # Transpose from (n_frange, n_pol, ...) to (n_pol, n_frange, ...)
         params_pf = np.swapaxes(all_params, 0, 1)  # (n_pol, n_frange, n_pixel, n_params)
@@ -333,7 +338,7 @@ class FitManager:
             contrast_params = [p for p in self.parameter_names if p.startswith("contrast_")]
             for contrast_param in contrast_params:
                 logger.debug(
-                    "Setting constraints for %s: vmin=%s, vmax=%s, type=%s",
+                    "Setting constraints for {}: vmin={}, vmax={}, type={}",
                     contrast_param,
                     vmin,
                     vmax,
