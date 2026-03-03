@@ -58,7 +58,7 @@ def get_image_file(lst: Sequence[str | bytes | os.PathLike[Any]]) -> str:
         raise DataLoadError(msg)
 
     selected = str(filtered_lst[0])
-    logger.debug(f"Selected image file: {selected}")
+    logger.debug("Selected image file: {}", selected)
     return selected
 
 
@@ -85,7 +85,7 @@ def get_image(
     try:
         image_file = get_image_file(lst)
         file_path = os.path.join(folder_str, image_file)
-        logger.debug(f"Loading image from: {file_path}")
+        logger.debug("Loading image from: {}", file_path)
 
         if image_file.lower().endswith(".csv"):
             try:
@@ -100,7 +100,7 @@ def get_image(
         raise DataLoadError(msg) from e
     else:
         result = np.array(img)
-        logger.info(f"Loaded image {file_path} with shape {result.shape}")
+        logger.info("Loaded image {} with shape {}", file_path, result.shape)
         return result
 
 

@@ -84,12 +84,16 @@ class ODMRData(BaseModel):
         Raises:
             DataLoadError: If the loader fails to fetch data.
         """
-        logger.info(f"Loading ODMR data using loader: {loader.__class__.__name__}")
+        logger.info("Loading ODMR data using loader: {}", loader.__class__.__name__)
         try:
             data = loader.load(**(loader_args or {}))
             return cls(data=data)
         except Exception as e:
-            logger.exception(f"Failed to load data using loader {loader.__class__.__name__}: {e}")
+            logger.exception(
+                "Failed to load data using loader {}: {}",
+                loader.__class__.__name__,
+                e,
+            )
             from qdmpy.exceptions import DataLoadError
 
             msg = f"Data loading failed: {e}"

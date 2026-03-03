@@ -48,7 +48,7 @@ def main() -> int:
         logger.warning("Operation cancelled by user")
         return 130
     except Exception as e:
-        logger.error(f"Error: {e!s}")
+        logger.error("Error: {}", e)
         if args.debug:
             # Print full traceback in debug mode
             import traceback

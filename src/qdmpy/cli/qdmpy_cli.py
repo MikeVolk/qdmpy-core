@@ -106,8 +106,8 @@ def models_command_handler(args: argparse.Namespace) -> int:
 
     if args.model_name:
         if args.model_name not in models:
-            logger.error(f"Model '{args.model_name}' not found")
-            logger.info(f"Available models: {', '.join(models.keys())}")
+            logger.error("Model '{}' not found", args.model_name)
+            logger.info("Available models: {}", ", ".join(models.keys()))
             return 1
 
         model_instance = ModelRegistry.get(args.model_name)

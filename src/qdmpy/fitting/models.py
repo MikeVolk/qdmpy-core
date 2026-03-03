@@ -394,7 +394,7 @@ class ModelRegistry:
         """
         model_name: str = model_cls.name  # type: ignore[attr-defined]
         cls._registry[model_name] = model_cls
-        logger.info(f"Registered model: {model_name}")
+        logger.info("Registered model: {}", model_name)
         return model_cls
 
     @classmethod
@@ -413,7 +413,7 @@ class ModelRegistry:
         if name not in cls._registry:
             error_msg = f"Model '{name}' not found in registry"
             raise KeyError(error_msg)
-        logger.debug(f"Instantiating model: {name}")
+        logger.debug("Instantiating model: {}", name)
         return cls._registry[name]()  # type: ignore[call-arg]
 
     @classmethod

@@ -54,8 +54,9 @@ class QDMResult(BaseModel):
     def model_post_init(self: Self, __context: object) -> None:
         """Log initialization."""
         logger.info(
-            f"QDMResult initialized: model={self.fit_result.model_name}, "
-            f"scan={self.fit_result.scan_dimensions}"
+            "QDMResult initialized: model={}, scan={}",
+            self.fit_result.model_name,
+            self.fit_result.scan_dimensions,
         )
 
     def __repr__(self: Self) -> str:
@@ -223,7 +224,7 @@ class QDMResult(BaseModel):
             path: Destination file path (.npz extension added if absent).
         """
         path = Path(path)
-        logger.info(f"Saving QDMResult to {path}")
+        logger.info("Saving QDMResult to {}", path)
 
         save_dict = self.fit_result._build_save_dict()
         if self.nv_axis is not None:
@@ -231,7 +232,7 @@ class QDMResult(BaseModel):
 
         arrays = {k: np.asarray(v) for k, v in save_dict.items()}
         np.savez_compressed(path, allow_pickle=False, **arrays)
-        logger.info(f"QDMResult saved to {path}")
+        logger.info("QDMResult saved to {}", path)
 
     @classmethod
     def load(cls: type[QDMResult], path: str | PathLike) -> QDMResult:
@@ -270,5 +271,5 @@ class QDMResult(BaseModel):
         if "nv_axis" in data:
             nv_axis = tuple(float(v) for v in data["nv_axis"])  # type: ignore[assignment]
 
-        logger.info(f"QDMResult loaded from {path}")
+        logger.info("QDMResult loaded from {}", path)
         return cls(fit_result=fit_result, nv_axis=nv_axis)

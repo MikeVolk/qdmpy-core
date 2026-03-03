@@ -136,7 +136,7 @@ class NormalizationProcessor(BaseProcessor):
         """Normalize the data per pixel across the frequency dimension."""
         from qdmpy.odmr.data import ODMRData
 
-        logger.debug(f"Normalizing data using method: {self.method}")
+        logger.debug("Normalizing data using method: {}", self.method)
         if self.method == "max":
             factors = data.data.max(dim="freq_idx")
         else:
@@ -164,7 +164,7 @@ class BinningProcessor(BaseProcessor):
             logger.debug("Bin factor is 1, skipping binning")
             return data
 
-        logger.debug(f"Binning data with factor: {self.bin_factor}")
+        logger.debug("Binning data with factor: {}", self.bin_factor)
         binned = data.data.coarsen(y=self.bin_factor, x=self.bin_factor, boundary="trim").mean()  # type: ignore[attr-defined]
         return ODMRData(data=binned, metadata=data.metadata.copy())
 
@@ -183,7 +183,7 @@ class OutlierProcessor(BaseProcessor):
         """Apply an outlier mask based on the z-score threshold."""
         from qdmpy.odmr.data import ODMRData
 
-        logger.debug(f"Masking outliers with z_score_threshold: {self.z_score_threshold}")
+        logger.debug("Masking outliers with z_score_threshold: {}", self.z_score_threshold)
         data_mean = data.data.mean(dim="freq_idx")
         data_std = data.data.std(dim="freq_idx")
         z_scores = np.abs((data.data - data_mean) / (data_std + 1e-10))
@@ -206,7 +206,7 @@ class FluorescenceCorrectionProcessor(BaseProcessor):
         """Apply fluorescence correction to the ODMR data."""
         from qdmpy.odmr.data import ODMRData
 
-        logger.info(f"Applying fluorescence correction with factor: {self.correction_factor}")
+        logger.info("Applying fluorescence correction with factor: {}", self.correction_factor)
         _, baseline_corrected = analyze_fluorescence_effects(data)
         correction = self.correction_factor * baseline_corrected
         processed = data.data - correction
@@ -263,7 +263,7 @@ def analyze_fluorescence_effects(
                 flat_idx = n_pixels // 2
             else:
                 flat_idx = int(np.unravel_index(np.nanargmax(delta_copy), delta_copy.shape)[2])
-            logger.info(f"Automatically selected pixel index: {flat_idx}")
+            logger.info("Automatically selected pixel index: {}", flat_idx)
         except ValueError:
             logger.warning("Error finding representative pixel. Using middle pixel.")
             flat_idx = n_pixels // 2
@@ -307,7 +307,7 @@ class ODMRProcessorManager:
 
     def add_processor(self, processor: BaseProcessor) -> None:
         """Add a processor to the processing pipeline."""
-        logger.debug(f"Adding processor: {processor.__class__.__name__}")
+        logger.debug("Adding processor: {}", processor.__class__.__name__)
         self.processors.append(processor)
 
     def process(self, data: ODMRData) -> ODMRData:
@@ -320,7 +320,7 @@ class ODMRProcessorManager:
             for p in self.processors
         ]
         for processor in self.processors:
-            logger.debug(f"Applying processor: {processor.__class__.__name__}")
+            logger.debug("Applying processor: {}", processor.__class__.__name__)
             data = processor.process(data)
         logger.info("Processing pipeline completed.")
         metadata = data.metadata.copy()

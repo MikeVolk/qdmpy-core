@@ -47,6 +47,7 @@ def plot_fit_result_field_map(
         save: Whether to save the plot to file.
         filename: Custom filename for saving (optional).
     """
+    logger.debug("Plotting field map (model={})", result.model_name)
     try:
         b_field = result.b111_remanent  # (H, W), µT
         colorbar_label = "B111 remanent (µT)"
@@ -54,6 +55,7 @@ def plot_fit_result_field_map(
         vmax: float | None = float(np.nanpercentile(np.abs(b_field), 99))
         vmin: float | None = -vmax
     except Exception:
+        logger.warning("B111 remanent not available, falling back to legacy B-field calculation")
         b_field = result.calculate_b_field()  # (H, W), T
         colorbar_label = "Magnetic Field (T)"
         cmap = "viridis"
@@ -108,6 +110,7 @@ def plot_fit_result_parameter_map(
         save: Whether to save the plot to file
         filename: Custom filename for saving (optional)
     """
+    logger.debug("Plotting parameter map: {} (model={})", param_name, result.model_name)
     param_map = result.get_parameter_map(param_name)
 
     param_labels = {
@@ -169,6 +172,7 @@ def plot_fit_result_overview(
         save: Whether to save the plot to file.
         filename: Custom filename for saving (optional).
     """
+    logger.debug("Plotting fit result overview (model={})", result.model_name)
     plot_params = ["center", "width_0", "contrast", "chi2"]
     available_params = [p for p in plot_params if p in result.parameters]
 
@@ -179,6 +183,7 @@ def plot_fit_result_overview(
         b_vmax: float | None = float(np.nanpercentile(np.abs(b_field), 99))
         b_vmin: float | None = -b_vmax
     except Exception:
+        logger.warning("B111 remanent not available for overview, using legacy B-field calculation")
         b_field = result.calculate_b_field()  # (H, W), T
         b_title = "Magnetic Field (T)"
         b_cmap = "viridis"
@@ -257,6 +262,7 @@ def plot_folding_search_landscape(folded: FoldedODMR) -> None:
     if folded.d_candidates is None or folded.search_residual is None:
         return
 
+    logger.debug("Plotting folding search landscape")
     d_cand = folded.d_candidates
     residual = folded.search_residual  # (n_pol, n_steps)
     n_pol = residual.shape[0]
@@ -366,6 +372,7 @@ def plot_folding_pixel_spectra(
     n_y = folded.folded_spectrum.sizes["y"]
     n_x = folded.folded_spectrum.sizes["x"]
     pixels = resolve_pixel_indices(n_y, n_x, x=x, y=y)
+    logger.debug("Plotting folding pixel spectra ({} pixels)", len(pixels))
 
     delta_f = folded.folded_spectrum.coords["delta_f_ghz"].values  # (n_df,)
     delta_f_mhz = delta_f * 1000
@@ -445,6 +452,7 @@ def plot_folding_mean_spectrum(folded: FoldedODMR) -> None:
     Args:
         folded: FoldedODMR result.
     """
+    logger.debug("Plotting folding mean spectrum")
     delta_f = folded.folded_spectrum.coords["delta_f_ghz"].values  # (n_df,)
     delta_f_mhz = delta_f * 1000
 
@@ -499,6 +507,7 @@ def plot_folding_overview(folded: FoldedODMR) -> None:
     Args:
         folded: FoldedODMR result.
     """
+    logger.debug("Plotting folding overview")
     fig, axes = plt.subplots(2, 2, figsize=(10, 8))
 
     pol_labels = list(folded.d_zfs_map.coords["polarity"].values)
@@ -584,6 +593,7 @@ def plot_odmr_spectra(odmr_data: ODMRData, y: int, x: int) -> None:
         y: Row index in the scan grid.
         x: Column index in the scan grid.
     """
+    logger.debug("Plotting ODMR spectra at pixel ({}, {})", y, x)
     da = odmr_data.data
     polarities = da.coords["polarity"].values.tolist()
     freq_ranges = da.coords["freq_range"].values.tolist()
@@ -618,6 +628,7 @@ def plot_fluorescence_correction(
         correction_factor: The fluorescence correction factor.
         pixel_idx: Optional pixel index (flat y*x space) to highlight.
     """
+    logger.debug("Plotting fluorescence correction preview")
     from qdmpy.odmr.processors import analyze_fluorescence_effects
 
     idx_flat, baseline_corrected = analyze_fluorescence_effects(odmr_data, pixel_idx)
@@ -691,6 +702,7 @@ def plot_model_detection(spectra_4d: NDArray, freq: NDArray | None = None) -> No
         freq: Optional 2D frequency array (n_frange, n_freq) in GHz. If None,
               frequency index is used on the x-axis.
     """
+    logger.debug("Plotting model detection diagnostics")
     from qdmpy.fitting.guess import _relative_prominence, validate_array
 
     validate_array(spectra_4d, 4, "spectra_4d")
@@ -756,6 +768,7 @@ def plot_magnetic_component(
     Raises:
         ValueError: If component is not recognized.
     """
+    logger.debug("Plotting magnetic component: {}", component)
     component_lower = component.lower()
     valid_components = {"b111", "bx", "by", "bz", "btotal"}
 
@@ -818,6 +831,7 @@ def plot_b111_map(
     Raises:
         ValueError: If component is not ``'remanent'`` or ``'induced'``.
     """
+    logger.debug("Plotting B111 {} map", component)
     valid = {"remanent", "induced"}
     if component not in valid:
         msg = f"component must be one of {valid!r}, got {component!r}"
@@ -863,6 +877,7 @@ def plot_measurement_images(measurement: Measurement) -> None:
         measurement: Measurement instance containing ``light_image`` and
             ``laser_image`` arrays.
     """
+    logger.debug("Plotting measurement optical images")
     _fig, axes = plt.subplots(1, 2, figsize=(10, 5))
 
     axes[0].imshow(measurement.light_image, cmap="gray", origin="upper", aspect="equal")
@@ -993,6 +1008,7 @@ def _plot_display_pixel_spectra(
     try:
         odmr_data = measurement.odmr.processed_data
     except (AttributeError, DataNotLoadedError):
+        logger.warning("Processed ODMR data not available, skipping pixel spectra overlay")
         return
 
     _, width = fit_result.scan_dimensions
@@ -1087,6 +1103,7 @@ def _draw_b111_row(
         _label_spatial_axes(axes[0, 1])
         fig.colorbar(im, ax=axes[0, 1])
     except Exception:  # pylint: disable=broad-except
+        logger.warning("B111 not available (single polarity?), showing mean centre map instead")
         # Single-polarity data: show mean centre map as fallback
         center_fb = _avg_param_map(fit_result.centers, height, width)
         im = axes[0, 0].imshow(
@@ -1133,6 +1150,7 @@ def _draw_param_row(
     try:
         contrast_map = _avg_param_map(fit_result.contrasts, height, width)
     except Exception:  # pylint: disable=broad-except
+        logger.warning("Contrast parameter not available, using zeros")
         contrast_map = np.zeros((height, width))
     im = axes[1, 1].imshow(
         contrast_map, extent=extent, origin="lower", cmap="viridis", aspect="equal"
@@ -1144,6 +1162,7 @@ def _draw_param_row(
     try:
         lw_map = _avg_param_map(fit_result.linewidths, height, width)
     except Exception:  # pylint: disable=broad-except
+        logger.warning("Linewidth parameter not available, using zeros")
         lw_map = np.zeros((height, width))
     im = axes[1, 2].imshow(lw_map, extent=extent, origin="lower", cmap="viridis", aspect="equal")
     axes[1, 2].set_title("Linewidth (GHz, mean)")
@@ -1178,6 +1197,7 @@ def plot_qdm_display(
     fit_result: FitResult = (  # type: ignore[assignment]
         result.fit_result if hasattr(result, "fit_result") else result  # type: ignore[union-attr]
     )
+    logger.info("Plotting QDM display overview (model={})", fit_result.model_name)
 
     height, width = fit_result.scan_dimensions
     pixel_spacing_um = fit_result.pixel_spacing * 1e6

@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Converted all `logger` calls from eager f-string formatting to loguru's lazy
+  `{}` placeholder syntax across 14 source files (~55 call sites). Lazy
+  formatting avoids string interpolation when the log level is suppressed,
+  improving performance in production (INFO+) log levels.
+- Added ~25 missing log calls per the logging rule: INFO logs for
+  field-processing pipeline steps, magnetic-map reconstruction, and
+  `plot_qdm_display`; WARNING logs for 6 silent exception handlers in
+  `plotting.py`; DEBUG logs for 13 plotting entry points; INFO for the
+  brute-force D_ZFS search in `odmr/folding.py`.
+
 ### Added
 
 - `argmin_center(data, freq)` in `fitting/guess.py` — new `@njit(parallel=True)`

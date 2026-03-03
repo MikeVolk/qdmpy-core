@@ -170,6 +170,7 @@ class MagneticMap:
         if "pixel_spacing" not in b111.attrs:
             raise ValueError("b111.attrs must contain 'pixel_spacing' (metres)")
 
+        logger.info("Reconstructing 3D magnetic field from B111 map")
         settings = get_settings()
         nv = nv_axis or settings.nv.axis
 
@@ -251,4 +252,4 @@ class MagneticMap:
         """
         path_obj = Path(path) if isinstance(path, str) else path
         self.to_dataset().to_netcdf(path_obj)
-        logger.info("MagneticMap saved", path=str(path_obj))
+        logger.info("MagneticMap saved to {}", path_obj)
