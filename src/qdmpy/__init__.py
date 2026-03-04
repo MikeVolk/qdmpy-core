@@ -72,7 +72,7 @@ from qdmpy.field_processing import (
     QuadraticBackgroundSubtractor,
     UpwardContinuation,
 )
-from qdmpy.field_source import FieldSource
+from qdmpy.field_source import FieldSource, MagneticModel, MagneticSource, UpwardContinuedSource
 
 # --- Fitting ---
 from qdmpy.fitting import FitManager, FitResult, Model, ModelRegistry
@@ -124,6 +124,9 @@ __all__ = [
     "QDMResult",
     # Field sources
     "FieldSource",
+    "MagneticModel",
+    "MagneticSource",
+    "UpwardContinuedSource",
     # I/O
     "load_npz",
     "load_qdm",

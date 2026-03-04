@@ -7,6 +7,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (QEP-050)
+
+- **`MagneticModel`** — Pydantic model for a three-parameter magnetic dipole
+  source (inclination, declination, magnetic_moment) with range validators.
+- **`MagneticSource`** — concrete `FieldSource` subclass for spatially
+  localised grains/inclusions. Carries `center`, `half_extent`,
+  `pixel_spacing`, and a `MagneticModel`. Convenience properties:
+  `center_um`, `half_extent_um`, `roi_pixels`.
+- **`UpwardContinuedSource`** — `FieldSource` subclass representing the same
+  source as seen at a different sensor height. Holds its own `MagneticModel`
+  (effective parameters at the continued height) and delegates all spatial
+  properties to `parent: MagneticSource`.
+- **`FieldSourceType`** discriminated union — `Annotated[MagneticSource |
+  UpwardContinuedSource | FieldSource, Field(discriminator="kind")]`.
+  `QDMResult.field_sources` now uses this type for automatic Pydantic
+  subclass selection on deserialisation.
+- `MagneticSource`, `UpwardContinuedSource`, `MagneticModel` exported from
+  `qdmpy` top-level `__init__.py`.
+- `tests/test_field_source.py` — 21 tests covering construction, unit
+  conversions, ROI slices, validation errors, JSON round-trips, and
+  discriminated-union dispatch.
+
 ### Added (QEP-008)
 
 - **`FieldSource`** base class (`src/qdmpy/field_source.py`) — Pydantic model
