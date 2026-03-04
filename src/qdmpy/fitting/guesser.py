@@ -14,12 +14,17 @@ from numpy.typing import NDArray
 
 from qdmpy.constants import AHYP_14N, AHYP_15N
 from qdmpy.exceptions import ParameterError
-from qdmpy.fitting.guess import argmin_center, halfpower_width, top3_contrast
+from qdmpy.fitting.guess import absorption_centroid, halfpower_width, top3_contrast
 from qdmpy.fitting.models import Model
 
 # Floor for individual Lorentzian HWHM after subtracting hyperfine splitting.
 # 0.3 MHz in GHz prevents negative or near-zero widths.
 _MIN_WIDTH_GHZ = 0.0003
+
+# Mean-squared residual threshold for the initial-guess quality check on the
+# median spectrum. Spectra are normalized, so MSR > 0.01 suggests the guess
+# is substantially off and warrants investigation.
+_RESIDUAL_WARN_THRESHOLD = 0.01
 
 
 class ParameterGuesser:
@@ -38,9 +43,9 @@ class ParameterGuesser:
         │     prange(n_pol × n_frange × n_pixel)
         │     nanmax, nanmin → abs((mx−mn)/mx)
         │
-        ├── cumsum_center(data, freq)          → (n_pol, n_frange, n_pixel)
+        ├── absorption_centroid(data, freq)    → (n_pol, n_frange, n_pixel)
         │     prange(n_pol × n_frange × n_pixel)
-        │     normalize_pixel → freq[argmin|norm−0.5|]
+        │     edge baseline → absorption-weighted centroid
         │
         ├── halfpower_width(data, freq)          → (n_pol, n_frange, n_pixel)
         │     prange(n_pol × n_frange × n_pixel)
@@ -103,7 +108,7 @@ class ParameterGuesser:
             logger.debug("Guessing {} parameters", param_type)
 
             if param_type == "center":
-                param_values = argmin_center(flat_data, self._f_ghz)
+                param_values = absorption_centroid(flat_data, self._f_ghz)
             elif param_type == "contrast":
                 # cumsum_contrast returns total observed dip depth (max-min)/max.
                 # For multi-peak models the hyperfine peaks overlap significantly
@@ -140,8 +145,40 @@ class ParameterGuesser:
 
             result[:, :, :, idx] = param_values
 
+        self._log_median_residual(flat_data, result)
         self._cache = np.ascontiguousarray(result, dtype=np.float32)
         return self._cache
+
+    def _log_median_residual(self: Self, flat_data: NDArray, params: NDArray) -> None:
+        """Log the model residual on the median spectrum for each (pol, frange).
+
+        Evaluates the model at the guessed parameters on the per-(pol, frange)
+        median spectrum. A large residual indicates a poor initial guess and
+        may degrade fit convergence.
+
+        Args:
+            flat_data: 4D numpy array (n_pol, n_frange, n_pixel, n_freq).
+            params: 4D numpy array (n_pol, n_frange, n_pixel, n_params).
+        """
+        median_data = np.median(flat_data, axis=2)  # (n_pol, n_frange, n_freq)
+        median_params = np.median(params, axis=2)  # (n_pol, n_frange, n_params)
+        n_pol, n_frange = flat_data.shape[:2]
+        for p in range(n_pol):
+            for r in range(n_frange):
+                freq = self._f_ghz[r]
+                predicted = self._model.func(freq, median_params[p, r])
+                msr = float(np.mean((median_data[p, r] - predicted) ** 2))
+                if msr > _RESIDUAL_WARN_THRESHOLD:
+                    logger.warning(
+                        "Poor initial guess (pol={}, frange={}): median MSR={:.4f} "
+                        "exceeds threshold {:.4f}. Verify model and frequency range.",
+                        p,
+                        r,
+                        msr,
+                        _RESIDUAL_WARN_THRESHOLD,
+                    )
+                else:
+                    logger.debug("Median guess residual (pol={}, frange={}): MSR={:.4f}", p, r, msr)
 
     def reset(self: Self) -> None:
         """Clear the cached initial parameters."""

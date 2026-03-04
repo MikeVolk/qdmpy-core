@@ -317,6 +317,68 @@ def argmin_center(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
 
 
 @njit(parallel=True, fastmath=True)
+def absorption_centroid(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
+    """Guess center frequency using the absorption-weighted centroid per pixel.
+
+    For each pixel the centroid is:
+
+        absorption[i] = max(baseline - spectrum[i], 0)
+        center = sum(freq[i] * absorption[i]) / sum(absorption[i])
+
+    This is correct for all three supported models:
+    - ESRSINGLE: single dip -> centroid == dip frequency (same as argmin).
+    - ESR15N: two symmetric dips -> centroid lands at the midpoint = true center.
+    - ESR14N: three dips -> centroid lands at the central dip = true center,
+      even when outer-dip contrasts are unequal (centroid stays inside the
+      absorption envelope, never +-AHYP away like argmin can be).
+
+    Fallback: when sum(absorption) == 0 (flat or all-below-baseline spectrum),
+    returns the midpoint of the frequency range for that (pol, frange).
+
+    Args:
+        data: 4D array (n_pol, n_frange, n_pixel, n_freq).
+        freq: 2D frequency array (n_frange, n_freq).
+
+    Returns:
+        3D array (n_pol, n_frange, n_pixel).
+    """
+    n_pol, n_frange, n_pixel, n_freq = data.shape
+    total = n_pol * n_frange * n_pixel
+    centers = np.zeros((n_pol, n_frange, n_pixel))
+    for idx in prange(total):  # type: ignore[not-iterable]
+        px = idx % n_pixel
+        r = (idx // n_pixel) % n_frange
+        p = idx // (n_pixel * n_frange)
+
+        spectrum = data[p, r, px]
+        n_edge = max(1, n_freq // 10)
+
+        # Estimate off-resonance baseline from first and last 10% of points
+        left_sum = 0.0
+        for i in range(n_edge):
+            left_sum += spectrum[i]
+        right_sum = 0.0
+        for i in range(n_freq - n_edge, n_freq):
+            right_sum += spectrum[i]
+        baseline = (left_sum + right_sum) / (2.0 * n_edge)
+
+        # Absorption-weighted centroid
+        weight_sum = 0.0
+        freq_sum = 0.0
+        for i in range(n_freq):
+            a = baseline - spectrum[i]
+            if a > 0.0:
+                weight_sum += a
+                freq_sum += freq[r, i] * a
+
+        if weight_sum > 0.0:
+            centers[p, r, px] = freq_sum / weight_sum
+        else:
+            centers[p, r, px] = (freq[r, 0] + freq[r, n_freq - 1]) / 2.0
+    return centers
+
+
+@njit(parallel=True, fastmath=True)
 def cumsum_width(
     data: NDArray, freq: NDArray, vmin: float, vmax: float
 ) -> NDArray:  # pragma: no cover

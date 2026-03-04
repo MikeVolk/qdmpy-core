@@ -21,6 +21,7 @@ from qdmpy.exceptions import (
 from qdmpy.fitting.guess import (
     _RELATIVE_PROMINENCE,
     _relative_prominence,
+    absorption_centroid,
     cumsum_center,
     cumsum_contrast,
     cumsum_width,
@@ -678,3 +679,118 @@ class TestWidthCorrection:
         width_idx = model.parameter_names.index("width")
         guessed_width = params[0, 0, 0, width_idx]
         assert guessed_width == pytest.approx(0.0003, rel=1e-4)
+
+
+def _lorentzian(freq: np.ndarray, center: float, hwhm: float, contrast: float) -> np.ndarray:
+    """Single Lorentzian dip: 1 - contrast * hwhm^2 / ((f - center)^2 + hwhm^2)."""
+    return 1.0 - contrast * hwhm**2 / ((freq - center) ** 2 + hwhm**2)
+
+
+class TestAbsorptionCentroid:
+    """Tests for the absorption_centroid guesser."""
+
+    @staticmethod
+    def _make_4d(spectrum: np.ndarray, freq_1d: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Wrap a 1D spectrum into (1,1,1,n_freq) data and (1,n_freq) freq array."""
+        data = spectrum[np.newaxis, np.newaxis, np.newaxis, :]
+        freq = freq_1d[np.newaxis, :]
+        return data.astype(np.float64), freq
+
+    def test_shape(self) -> None:
+        """Output shape is (n_pol, n_frange, n_pixel)."""
+        n_pol, n_frange, n_pixel, n_freq = 2, 2, 5, 100
+        data = np.ones((n_pol, n_frange, n_pixel, n_freq))
+        freq = np.tile(np.linspace(2.82, 2.92, n_freq), (n_frange, 1))
+        centers = absorption_centroid(data, freq)
+        assert centers.shape == (n_pol, n_frange, n_pixel)
+
+    def test_esrsingle_center(self) -> None:
+        """Single Lorentzian: centroid should be within 1 freq bin of true center."""
+        n_freq = 200
+        true_center = 2.87
+        freq_1d = np.linspace(2.82, 2.92, n_freq)
+        spectrum = _lorentzian(freq_1d, true_center, 0.003, 0.05)
+        data, freq = self._make_4d(spectrum, freq_1d)
+
+        centers = absorption_centroid(data, freq)
+        df = freq_1d[1] - freq_1d[0]
+        assert abs(centers[0, 0, 0] - true_center) < df
+
+    def test_n14_equal_contrasts(self) -> None:
+        """N14 triplet with equal contrasts: centroid within 0.1 * AHYP_14N of center."""
+        n_freq = 300
+        true_center = 2.87
+        hwhm = 0.002
+        freq_1d = np.linspace(2.855, 2.885, n_freq)
+        spectrum = (
+            _lorentzian(freq_1d, true_center - AHYP_14N, hwhm, 0.04)
+            + _lorentzian(freq_1d, true_center, hwhm, 0.04)
+            + _lorentzian(freq_1d, true_center + AHYP_14N, hwhm, 0.04)
+            - 2.0  # remove the double-counted baseline (three dips, three +1 offsets)
+        )
+        data, freq = self._make_4d(spectrum, freq_1d)
+
+        centers = absorption_centroid(data, freq)
+        assert abs(centers[0, 0, 0] - true_center) < 0.1 * AHYP_14N
+
+    def test_n14_unequal_contrasts(self) -> None:
+        """N14 triplet with 3:1 contrast ratio: centroid within AHYP_14N of center.
+
+        Uses HWHM << AHYP so the three dips are spectrally distinct.
+        The centroid is then the contrast-weighted average of dip positions,
+        landing between the true center and the dominant outer dip.
+        argmin would return the dominant dip position, off by exactly AHYP_14N.
+        """
+        n_freq = 400
+        true_center = 2.87
+        # Use HWHM << AHYP_14N (0.5 MHz vs 2.158 MHz) so dips don't overlap
+        hwhm = 0.0005
+        freq_1d = np.linspace(2.860, 2.880, n_freq)
+        # Left dip 3x stronger than the others
+        spectrum = (
+            _lorentzian(freq_1d, true_center - AHYP_14N, hwhm, 0.12)
+            + _lorentzian(freq_1d, true_center, hwhm, 0.04)
+            + _lorentzian(freq_1d, true_center + AHYP_14N, hwhm, 0.04)
+            - 2.0
+        )
+        data, freq = self._make_4d(spectrum, freq_1d)
+
+        centers = absorption_centroid(data, freq)
+        assert abs(centers[0, 0, 0] - true_center) < AHYP_14N
+
+    def test_n15_equal_contrasts(self) -> None:
+        """N15 doublet with equal contrasts: centroid within 0.1 * AHYP_15N of center."""
+        n_freq = 200
+        true_center = 2.87
+        hwhm = 0.002
+        freq_1d = np.linspace(2.862, 2.878, n_freq)
+        spectrum = (
+            _lorentzian(freq_1d, true_center - AHYP_15N, hwhm, 0.05)
+            + _lorentzian(freq_1d, true_center + AHYP_15N, hwhm, 0.05)
+            - 1.0  # remove double-counted baseline
+        )
+        data, freq = self._make_4d(spectrum, freq_1d)
+
+        centers = absorption_centroid(data, freq)
+        assert abs(centers[0, 0, 0] - true_center) < 0.1 * AHYP_15N
+
+    def test_flat_spectrum_fallback(self) -> None:
+        """Flat spectrum (no absorption): falls back to freq range midpoint."""
+        freq_1d = np.linspace(2.82, 2.92, 100)
+        spectrum = np.ones(100)
+        data, freq = self._make_4d(spectrum, freq_1d)
+
+        centers = absorption_centroid(data, freq)
+        midpoint = (freq_1d[0] + freq_1d[-1]) / 2.0
+        assert abs(centers[0, 0, 0] - midpoint) < 1e-10
+
+    def test_all_below_baseline_fallback(self) -> None:
+        """All values above baseline (inverted): falls back to freq range midpoint."""
+        freq_1d = np.linspace(2.82, 2.92, 100)
+        # Emission peak (above baseline) rather than absorption dip
+        spectrum = 1.0 + 0.05 * np.exp(-((freq_1d - 2.87) ** 2) / 0.001**2)
+        data, freq = self._make_4d(spectrum, freq_1d)
+
+        centers = absorption_centroid(data, freq)
+        midpoint = (freq_1d[0] + freq_1d[-1]) / 2.0
+        assert abs(centers[0, 0, 0] - midpoint) < freq_1d[1] - freq_1d[0]
