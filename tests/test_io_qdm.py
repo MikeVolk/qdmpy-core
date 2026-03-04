@@ -276,14 +276,21 @@ class TestPublicApi:
         assert callable(io_mod.has_csv)
         assert callable(io_mod.load_metadata_toml)
 
-    def test_qdm_result_has_no_io_methods(self) -> None:
-        """QDMResult must not have save/load/plot/show/display methods."""
+    def test_qdm_result_has_no_plot_methods(self) -> None:
+        """QDMResult must not have plot/show/display methods."""
         from qdmpy.result import QDMResult
 
-        for method in ("save", "load", "plot", "show", "display"):
+        for method in ("plot", "show", "display"):
             assert not hasattr(QDMResult, method), (
                 f"QDMResult should not have method {method!r} (QEP-008)"
             )
+
+    def test_qdm_result_has_thin_io_wrappers(self) -> None:
+        """QDMResult.save and QDMResult.load are thin wrappers (no logic)."""
+        from qdmpy.result import QDMResult
+
+        assert callable(QDMResult.save)
+        assert callable(QDMResult.load)
 
     def test_qdm_result_has_image_fields(self) -> None:
         """QDMResult exposes light_image, laser_image, field_sources."""
@@ -292,6 +299,25 @@ class TestPublicApi:
         assert hasattr(result, "laser_image")
         assert hasattr(result, "field_sources")
         assert hasattr(result, "has_cached_magnetic_map")
+
+    def test_save_load_qdm_dispatch(self, tmp_path: Path) -> None:
+        """result.save/.load dispatch to .qdm format for .qdm extension."""
+        result = make_synthetic_qdm_result(shape=(4, 4))
+        path = tmp_path / "out.qdm"
+        result.save(path)
+        loaded = make_synthetic_qdm_result.__class__  # just check path exists
+        assert path.exists()
+        loaded = result.load(path)
+        assert loaded.model_name == result.model_name
+
+    def test_save_load_npz_dispatch(self, tmp_path: Path) -> None:
+        """result.save/.load dispatch to NPZ format for non-.qdm extension."""
+        result = make_synthetic_qdm_result(shape=(4, 4))
+        path = tmp_path / "out.npz"
+        result.save(path)
+        assert path.exists()
+        loaded = result.load(path)
+        assert loaded.model_name == result.model_name
 
     def test_has_cached_magnetic_map_false_initially(self) -> None:
         """has_cached_magnetic_map is False before magnetic_map is accessed."""

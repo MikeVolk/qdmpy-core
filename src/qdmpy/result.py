@@ -14,6 +14,7 @@ is the only module that imports from both layers.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
 import xarray as xr
@@ -192,6 +193,61 @@ class QDMResult(BaseModel):
         if self._magnetic_map_cache is None:
             self._magnetic_map_cache = self._build_magnetic_map()
         return self._magnetic_map_cache
+
+    # ------------------------------------------------------------------
+    # Convenience I/O wrappers (thin delegation to qdmpy.io)
+    # ------------------------------------------------------------------
+
+    def save(
+        self: Self,
+        path: str | Path,
+        *,
+        include_bxyz: bool = False,
+        overwrite: bool = False,
+        compress: bool = True,
+    ) -> None:
+        """Save this result to disk.
+
+        Dispatches to :func:`qdmpy.io.save_qdm` for ``.qdm`` files and
+        :func:`qdmpy.io.save_npz` for everything else.
+
+        Args:
+            path: Destination path. Use ``.qdm`` extension for the full HDF5
+                archive (images, B111, field sources). Use ``.npz`` for the
+                lightweight fit-data-only checkpoint.
+            include_bxyz: Include Bxyz reconstruction in the ``.qdm`` file.
+                Ignored for NPZ format. Default False.
+            overwrite: Overwrite existing ``.qdm`` file. Default False.
+            compress: Apply GZIP compression in ``.qdm`` file. Default True.
+        """
+        from qdmpy.io import save_npz, save_qdm
+
+        if Path(path).suffix.lower() == ".qdm":
+            save_qdm(self, path, include_bxyz=include_bxyz, overwrite=overwrite, compress=compress)
+        else:
+            save_npz(self, path)
+
+    @classmethod
+    def load(cls: type[QDMResult], path: str | Path) -> QDMResult:
+        """Load a QDMResult from disk.
+
+        Dispatches to :func:`qdmpy.io.load_qdm` for ``.qdm`` files and
+        :func:`qdmpy.io.load_npz` for everything else.
+
+        Args:
+            path: Path to a ``.qdm`` or ``.npz`` file.
+
+        Returns:
+            Reconstructed QDMResult.
+
+        Raises:
+            DataLoadError: If the file does not exist or cannot be parsed.
+        """
+        from qdmpy.io import load_npz, load_qdm
+
+        if Path(path).suffix.lower() == ".qdm":
+            return load_qdm(path)
+        return load_npz(path)
 
     def _build_magnetic_map(self: Self) -> MagneticMap:
         """Construct MagneticMap from b111_remanent and pixel_spacing."""
