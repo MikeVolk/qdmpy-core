@@ -93,7 +93,7 @@ class MatlabLoader(BaseLoader):
             try:
                 mat_data = mat73.loadmat(full_path)
                 logger.debug("Loaded {} with mat73", file)
-            except Exception:
+            except (TypeError, OSError):
                 mat_data = loadmat(full_path)
                 logger.debug("Loaded {} with scipy.io.loadmat (mat73 fallback)", file)
 

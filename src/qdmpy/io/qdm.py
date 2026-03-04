@@ -389,14 +389,14 @@ def load_qdm(path: str | PathLike) -> QDMResult:
 
             model_name: str = f.attrs["model_name"]
             pixel_spacing: float = float(f.attrs["pixel_spacing"])
-            scan_dimensions: tuple[int, int] = tuple(  # type: ignore[assignment]
-                int(x) for x in f.attrs["scan_dimensions"]
-            )
+            _sd = [int(x) for x in f.attrs["scan_dimensions"]]
+            scan_dimensions: tuple[int, int] = (_sd[0], _sd[1])
             metadata: dict[str, Any] = json.loads(f.attrs.get("metadata", "{}"))
 
             nv_axis: tuple[float, float, float] | None = None
             if "nv_axis" in f.attrs:
-                nv_axis = tuple(float(v) for v in f.attrs["nv_axis"])  # type: ignore[assignment]
+                _nv = [float(v) for v in f.attrs["nv_axis"]]
+                nv_axis = (_nv[0], _nv[1], _nv[2])
 
             parameters = _read_fit_parameters(f)
             b111_remanent, b111_induced = _read_b111_caches(f)
@@ -417,7 +417,7 @@ def load_qdm(path: str | PathLike) -> QDMResult:
 
     # Pre-populate B111 caches so no recomputation is needed
     if b111_remanent is not None and b111_induced is not None:
-        fit_result._b111_cache = xr.Dataset(  # type: ignore[assignment]
+        fit_result._b111_cache = xr.Dataset(
             {
                 "remanent": xr.DataArray(b111_remanent, dims=("y", "x")),
                 "induced": xr.DataArray(b111_induced, dims=("y", "x")),

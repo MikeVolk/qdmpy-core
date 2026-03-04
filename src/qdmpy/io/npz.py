@@ -76,7 +76,8 @@ def load_npz(path: str | PathLike) -> QDMResult:
 
     nv_axis: tuple[float, float, float] | None = None
     if "nv_axis" in data:
-        nv_axis = tuple(float(v) for v in data["nv_axis"])  # type: ignore[assignment]
+        _nv = [float(v) for v in data["nv_axis"]]
+        nv_axis = (_nv[0], _nv[1], _nv[2])
 
     logger.info("QDMResult (NPZ) loaded from {}", path)
     return QDMResult(fit_result=fit_result, nv_axis=nv_axis)
