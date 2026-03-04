@@ -417,7 +417,7 @@ def load_qdm(path: str | PathLike) -> QDMResult:
 
     # Pre-populate B111 caches so no recomputation is needed
     if b111_remanent is not None and b111_induced is not None:
-        fit_result._b111_cache = xr.Dataset(  # type: ignore[assignment]
+        fit_result._b111_cache = xr.Dataset(
             {
                 "remanent": xr.DataArray(b111_remanent, dims=("y", "x")),
                 "induced": xr.DataArray(b111_induced, dims=("y", "x")),
