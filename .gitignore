@@ -101,3 +101,7 @@ CLAUDE.md
 /memory/
 questions.md
 research/
+
+# Developer scripts (one-off tools, not library code)
+/scripts/
+scripts/output/
