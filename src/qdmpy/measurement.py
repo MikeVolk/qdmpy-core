@@ -335,7 +335,11 @@ class Measurement:
         )
 
         logger.info("ODMR fitting completed successfully")
-        return QDMResult(fit_result=fit_result)
+        return QDMResult(
+            fit_result=fit_result,
+            light_image=self.light_image,
+            laser_image=self.laser_image,
+        )
 
     @property
     def folded_odmr(self: Self) -> FoldedODMR:
@@ -451,4 +455,8 @@ class Measurement:
         fit_manager = FitManager(model_name=model_name, constraints=constraints)
         fit_result = fit_manager.fit_folded(resolved_folded, pixel_spacing=self.pixel_spacing)
         logger.info("Folded ODMR fitting completed successfully")
-        return QDMResult(fit_result=fit_result)
+        return QDMResult(
+            fit_result=fit_result,
+            light_image=self.light_image,
+            laser_image=self.laser_image,
+        )

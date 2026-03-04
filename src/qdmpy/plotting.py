@@ -1216,20 +1216,25 @@ def plot_qdm_display(
     """Comprehensive overview display for a QDM fit result.
 
     Always shown:
-      - B111 remanent and induced maps (µT, diverging colormap)
+      - B111 remanent and induced maps (uT, diverging colormap)
       - Chi-squared map
       - Mean resonance centre, contrast, and linewidth maps
 
-    Shown when *measurement* is provided:
+    Shown when optical images are available (from result or measurement):
       - Light and laser optical images
       - ``n_sample_pixels`` representative pixel spectra with fit curves
+        (only when measurement is provided for raw ODMR data access)
+
+    Optical images are sourced in priority order:
+      1. ``result.light_image`` / ``result.laser_image`` (QDMResult fields)
+      2. ``measurement.light_image`` / ``measurement.laser_image`` (fallback)
 
     Pixels for spectral display are chosen at equally-spaced percentile
     positions of B111 remanent so they sample the full dynamic range.
 
     Args:
         result: FitResult or QDMResult.
-        measurement: Optional Measurement for optical images and ODMR spectra.
+        measurement: Optional Measurement for ODMR spectra and image fallback.
         n_sample_pixels: Number of sample pixel spectra (default 3).
     """
     fit_result: FitResult = (  # type: ignore[assignment]
@@ -1237,12 +1242,25 @@ def plot_qdm_display(
     )
     logger.info("Plotting QDM display overview (model={})", fit_result.model_name)
 
+    # Resolve optical images: QDMResult fields take priority over measurement
+    light_image = None
+    laser_image = None
+    if hasattr(result, "light_image"):
+        light_image = result.light_image  # type: ignore[union-attr]
+        laser_image = result.laser_image  # type: ignore[union-attr]
+    if light_image is None and measurement is not None:
+        light_image = measurement.light_image
+    if laser_image is None and measurement is not None:
+        laser_image = measurement.laser_image
+
+    has_images = light_image is not None or laser_image is not None
+
     height, width = fit_result.scan_dimensions
     pixel_spacing_um = fit_result.pixel_spacing * 1e6
     extent = (0, width * pixel_spacing_um, height * pixel_spacing_um, 0)
 
     spec_rows = -(-n_sample_pixels // 3) if measurement is not None else 0  # ceil div
-    n_rows = 2 + (1 if measurement is not None else 0) + spec_rows
+    n_rows = 2 + (1 if has_images else 0) + spec_rows
     n_cols = 3
 
     _fig, axes_raw = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows))
@@ -1251,16 +1269,25 @@ def plot_qdm_display(
     _draw_b111_row(axes, fit_result, extent, height, width)
     _draw_param_row(axes, fit_result, extent, height, width)
 
-    if measurement is not None:
+    if has_images:
         row = 2
-        axes[row, 0].imshow(measurement.light_image, cmap="gray", origin="upper", aspect="equal")
-        axes[row, 0].set_title("Light image")
+        if light_image is not None:
+            axes[row, 0].imshow(light_image, cmap="gray", origin="upper", aspect="equal")
+            axes[row, 0].set_title("Light image")
+        else:
+            axes[row, 0].set_visible(False)
         axes[row, 0].axis("off")
-        axes[row, 1].imshow(measurement.laser_image, cmap="gray", origin="upper", aspect="equal")
-        axes[row, 1].set_title("Laser image")
+        if laser_image is not None:
+            axes[row, 1].imshow(laser_image, cmap="gray", origin="upper", aspect="equal")
+            axes[row, 1].set_title("Laser image")
+        else:
+            axes[row, 1].set_visible(False)
         axes[row, 1].axis("off")
         axes[row, 2].set_visible(False)
-        _plot_display_pixel_spectra(axes, row + 1, n_sample_pixels, fit_result, measurement, n_cols)
+        if measurement is not None:
+            _plot_display_pixel_spectra(
+                axes, row + 1, n_sample_pixels, fit_result, measurement, n_cols
+            )
 
     plt.suptitle(f"QDM Result Overview ({fit_result.model_name})", fontsize=14)
     plt.tight_layout()

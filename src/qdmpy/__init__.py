@@ -62,6 +62,7 @@ def load(
 
 
 # --- Entry points (User 1) ---
+# --- Field sources ---
 # --- Field processing ---
 from qdmpy.field_processing import (
     BaseFieldProcessor,
@@ -71,9 +72,13 @@ from qdmpy.field_processing import (
     QuadraticBackgroundSubtractor,
     UpwardContinuation,
 )
+from qdmpy.field_source import FieldSource
 
 # --- Fitting ---
 from qdmpy.fitting import FitManager, FitResult, Model, ModelRegistry
+
+# --- I/O ---
+from qdmpy.io import load_npz, load_qdm, save_npz, save_qdm
 
 # --- Magnetic reconstruction ---
 from qdmpy.magnetic_map import FieldReconstructor, MagneticMap
@@ -117,6 +122,13 @@ __all__ = [
     "load",
     "Measurement",
     "QDMResult",
+    # Field sources
+    "FieldSource",
+    # I/O
+    "load_npz",
+    "load_qdm",
+    "save_npz",
+    "save_qdm",
     # Data loading
     "MatlabLoader",
     "ODMRData",
