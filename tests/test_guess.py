@@ -30,6 +30,7 @@ from qdmpy.fitting.guess import (
     guess_n_peaks,
     halfpower_width,
     normalize_pixel,
+    top3_contrast,
     validate_array,
 )
 from qdmpy.fitting.guesser import ParameterGuesser
@@ -568,7 +569,7 @@ class TestContrastPassthrough:
     def test_esr14n_contrast_equals_total(self) -> None:
         """For ESR14N, each contrast_i = total_contrast (no division)."""
         data, freq = self._make_dip_data()
-        total_contrast = cumsum_contrast(data)  # (2, 2, 3)
+        total_contrast = top3_contrast(data)  # (2, 2, 3)
 
         model = ESR14N()
         guesser = ParameterGuesser(model, freq)
@@ -581,7 +582,7 @@ class TestContrastPassthrough:
     def test_esr15n_contrast_equals_total(self) -> None:
         """For ESR15N, each contrast_i = total_contrast (no division)."""
         data, freq = self._make_dip_data()
-        total_contrast = cumsum_contrast(data)
+        total_contrast = top3_contrast(data)
 
         model = ESR15N()
         guesser = ParameterGuesser(model, freq)
@@ -594,7 +595,7 @@ class TestContrastPassthrough:
     def test_esrsingle_contrast_equals_total(self) -> None:
         """For ESRSINGLE, contrast = total."""
         data, freq = self._make_dip_data()
-        total_contrast = cumsum_contrast(data)
+        total_contrast = top3_contrast(data)
 
         model = ESRSINGLE()
         guesser = ParameterGuesser(model, freq)

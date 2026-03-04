@@ -18,6 +18,9 @@ ALL_NAMES = [
     ("QDMResult", "class"),
     # Field sources
     ("FieldSource", "class"),
+    ("MagneticModel", "class"),
+    ("MagneticSource", "class"),
+    ("UpwardContinuedSource", "class"),
     # I/O
     ("load_npz", "callable"),
     ("load_qdm", "callable"),
