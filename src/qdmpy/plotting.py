@@ -93,12 +93,12 @@ def plot_fit_result_field_map(
 
     pixel_spacing_um = result.pixel_spacing * 1e6
     height, width = result.scan_dimensions
-    extent = (0, width * pixel_spacing_um, 0, height * pixel_spacing_um)
+    extent = (0, width * pixel_spacing_um, height * pixel_spacing_um, 0)
 
     im = ax.imshow(
         b_field,
         extent=extent,
-        origin="lower",
+        origin="upper",
         cmap=cmap,
         aspect="equal",
         vmin=vmin,
@@ -157,12 +157,12 @@ def plot_fit_result_parameter_map(
 
     pixel_spacing_um = result.pixel_spacing * 1e6
     height, width = result.scan_dimensions
-    extent = (0, width * pixel_spacing_um, 0, height * pixel_spacing_um)
+    extent = (0, width * pixel_spacing_um, height * pixel_spacing_um, 0)
 
     im = ax.imshow(
         param_map,
         extent=extent,
-        origin="lower",
+        origin="upper",
         cmap=cmap,
         aspect="equal",
     )
@@ -222,7 +222,7 @@ def plot_fit_result_overview(
 
     pixel_spacing_um = result.pixel_spacing * 1e6
     height, width = result.scan_dimensions
-    extent = (0, width * pixel_spacing_um, 0, height * pixel_spacing_um)
+    extent = (0, width * pixel_spacing_um, height * pixel_spacing_um, 0)
 
     plot_idx = 0
 
@@ -230,7 +230,7 @@ def plot_fit_result_overview(
     im = ax.imshow(
         b_field,
         extent=extent,
-        origin="lower",
+        origin="upper",
         cmap=b_cmap,
         aspect="equal",
         vmin=b_vmin,
@@ -249,7 +249,7 @@ def plot_fit_result_overview(
         ax = axes[plot_idx]
         param_map = result.get_parameter_map(param)
 
-        im = ax.imshow(param_map, extent=extent, origin="lower", cmap="viridis", aspect="equal")
+        im = ax.imshow(param_map, extent=extent, origin="upper", cmap="viridis", aspect="equal")
         ax.set_title(f"{param.replace('_', ' ').title()}")
         ax.set_xlabel("x [µm]")
         ax.set_ylabel("y [µm]")
@@ -780,14 +780,16 @@ def plot_model_detection(spectra_4d: NDArray, freq: NDArray | None = None) -> No
 def plot_magnetic_component(
     mag_map: MagneticMap,
     component: str = "Bz",
-    **imshow_kwargs: object,
 ) -> None:
-    """Quick matplotlib display of one MagneticMap component.
+    """Plot one MagneticMap component as a spatially-resolved map.
+
+    Uses a symmetric RdBu_r colormap clipped to the 99th percentile of |B|.
+    Aspect ratio is preserved (one pixel = one pixel).
 
     Args:
         mag_map: MagneticMap instance.
-        component: Which component to display (case-insensitive for Bx/By/Bz).
-        **imshow_kwargs: Passed to xarray ``.plot(**imshow_kwargs)``.
+        component: Which component to display: ``'b111'``, ``'Bx'``, ``'By'``,
+            ``'Bz'``, or ``'Btotal'``.
 
     Raises:
         ValueError: If component is not recognized.
@@ -797,11 +799,28 @@ def plot_magnetic_component(
     valid_components = {"b111", "bx", "by", "bz", "btotal"}
 
     if component_lower not in valid_components:
-        raise ValueError(f"Component {component!r} not in {valid_components}")
+        msg = f"Component {component!r} not in {valid_components}"
+        raise ValueError(msg)
 
     da = getattr(mag_map, component_lower)
-    da.plot(**imshow_kwargs)
-    plt.title(component)
+    arr = da.values  # (H, W), µT
+    ps_um = float(da.attrs.get("pixel_spacing", 1.0)) * 1e6
+    h, w = arr.shape
+    extent = (0, w * ps_um, h * ps_um, 0)  # origin="upper"
+
+    vmax = float(np.nanpercentile(np.abs(arr), 99))
+    cmap = "RdBu_r" if component_lower != "btotal" else "viridis"
+    vmin = -vmax if component_lower != "btotal" else 0.0
+
+    _fig, ax = plt.subplots(figsize=(8, 6))
+    im = ax.imshow(
+        arr, extent=extent, origin="upper", cmap=cmap, aspect="equal", vmin=vmin, vmax=vmax
+    )
+    _add_colorbar(im, ax, label=f"{component} (µT)")
+    ax.set_xlabel("x [µm]")
+    ax.set_ylabel("y [µm]")
+    ax.set_title(component)
+    plt.tight_layout()
     plt.show()
 
 
@@ -865,7 +884,7 @@ def plot_b111_map(
 
     pixel_spacing_um = result.pixel_spacing * 1e6
     height, width = result.scan_dimensions
-    extent = (0, width * pixel_spacing_um, 0, height * pixel_spacing_um)
+    extent = (0, width * pixel_spacing_um, height * pixel_spacing_um, 0)
 
     vmax = float(np.nanpercentile(np.abs(b_map), 99))
 
@@ -873,7 +892,7 @@ def plot_b111_map(
     im = ax.imshow(
         b_map,
         extent=extent,
-        origin="lower",
+        origin="upper",
         cmap="RdBu_r",
         aspect="equal",
         vmin=-vmax,
@@ -1090,7 +1109,7 @@ def _draw_b111_row(
     Args:
         axes: 2-D axes grid.
         fit_result: FitResult providing b111 and chi2.
-        extent: imshow extent tuple (x0, x1, y0, y1) in um.
+        extent: imshow extent tuple (left, right, bottom, top) in um with origin='upper'.
         height: Scan height in pixels.
         width: Scan width in pixels.
     """
@@ -1101,7 +1120,7 @@ def _draw_b111_row(
         im = axes[0, 0].imshow(
             b_rem,
             extent=extent,
-            origin="lower",
+            origin="upper",
             cmap="RdBu_r",
             aspect="equal",
             vmin=-vmax_rem,
@@ -1114,7 +1133,7 @@ def _draw_b111_row(
         im = axes[0, 1].imshow(
             b_ind,
             extent=extent,
-            origin="lower",
+            origin="upper",
             cmap="RdBu_r",
             aspect="equal",
             vmin=-vmax_ind,
@@ -1128,7 +1147,7 @@ def _draw_b111_row(
         # Single-polarity data: show mean centre map as fallback
         center_fb = _avg_param_map(fit_result.centers, height, width)
         im = axes[0, 0].imshow(
-            center_fb, extent=extent, origin="lower", cmap="viridis", aspect="equal"
+            center_fb, extent=extent, origin="upper", cmap="viridis", aspect="equal"
         )
         axes[0, 0].set_title("Centre (GHz)")
         _label_spatial_axes(axes[0, 0])
@@ -1136,7 +1155,7 @@ def _draw_b111_row(
         axes[0, 1].set_visible(False)
 
     chi2_map = _avg_param_map(fit_result.chi2, height, width)
-    im = axes[0, 2].imshow(chi2_map, extent=extent, origin="lower", cmap="magma", aspect="equal")
+    im = axes[0, 2].imshow(chi2_map, extent=extent, origin="upper", cmap="magma", aspect="equal")
     axes[0, 2].set_title("Chi-squared")
     _label_spatial_axes(axes[0, 2])
     _add_colorbar(im, axes[0, 2])
@@ -1160,7 +1179,7 @@ def _draw_param_row(
     """
     center_map = _avg_param_map(fit_result.centers, height, width)
     im = axes[1, 0].imshow(
-        center_map, extent=extent, origin="lower", cmap="viridis", aspect="equal"
+        center_map, extent=extent, origin="upper", cmap="viridis", aspect="equal"
     )
     axes[1, 0].set_title("Centre (GHz, mean)")
     _label_spatial_axes(axes[1, 0])
@@ -1172,7 +1191,7 @@ def _draw_param_row(
         logger.warning("Contrast parameter not available, using zeros")
         contrast_map = np.zeros((height, width))
     im = axes[1, 1].imshow(
-        contrast_map, extent=extent, origin="lower", cmap="viridis", aspect="equal"
+        contrast_map, extent=extent, origin="upper", cmap="viridis", aspect="equal"
     )
     axes[1, 1].set_title("Contrast (mean)")
     _label_spatial_axes(axes[1, 1])
@@ -1183,7 +1202,7 @@ def _draw_param_row(
     except Exception:  # pylint: disable=broad-except
         logger.warning("Linewidth parameter not available, using zeros")
         lw_map = np.zeros((height, width))
-    im = axes[1, 2].imshow(lw_map, extent=extent, origin="lower", cmap="viridis", aspect="equal")
+    im = axes[1, 2].imshow(lw_map, extent=extent, origin="upper", cmap="viridis", aspect="equal")
     axes[1, 2].set_title("Linewidth (GHz, mean)")
     _label_spatial_axes(axes[1, 2])
     _add_colorbar(im, axes[1, 2])
@@ -1220,7 +1239,7 @@ def plot_qdm_display(
 
     height, width = fit_result.scan_dimensions
     pixel_spacing_um = fit_result.pixel_spacing * 1e6
-    extent = (0, width * pixel_spacing_um, 0, height * pixel_spacing_um)
+    extent = (0, width * pixel_spacing_um, height * pixel_spacing_um, 0)
 
     spec_rows = -(-n_sample_pixels // 3) if measurement is not None else 0  # ceil div
     n_rows = 2 + (1 if measurement is not None else 0) + spec_rows
