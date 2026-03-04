@@ -209,10 +209,13 @@ class FitResult(BaseModel):
         """
         param_data = self.get_parameter(param_name)
         height, width = self.scan_dimensions
-        n_pixel = height * width
+        if param_data.ndim == 2:
+            return param_data
+        if param_data.ndim == 4:
+            return np.nanmean(param_data.reshape(-1, height, width), axis=0)
         if param_data.ndim == 1:
             return param_data.reshape(height, width)
-        return np.nanmean(param_data.reshape(-1, n_pixel), axis=0).reshape(height, width)
+        return np.nanmean(param_data.reshape(-1, height * width), axis=0).reshape(height, width)
 
     @property
     def delta_resonance(self: Self) -> xr.DataArray:
@@ -281,9 +284,10 @@ class FitResult(BaseModel):
             DataShapeError: If resonance has an unexpected number of dimensions.
         """
         if resonance.ndim == 4:
-            n_pol, n_frange, n_pixels, _ = resonance.shape
-            resonance = np.squeeze(resonance, axis=-1)
-            logger.debug("Squeezed 4D resonance to shape {}", resonance.shape)
+            n_pol, n_frange, h, w = resonance.shape
+            n_pixels = h * w
+            resonance = resonance.reshape(n_pol, n_frange, n_pixels)
+            logger.debug("Reshaped 4D resonance to shape {}", resonance.shape)
         elif resonance.ndim == 3:
             n_pol, n_frange, n_pixels = resonance.shape
         elif resonance.ndim == 2:

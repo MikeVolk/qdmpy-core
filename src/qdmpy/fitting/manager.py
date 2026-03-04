@@ -220,13 +220,17 @@ class FitManager:
         states_pf = np.swapaxes(all_states, 0, 1)  # (n_pol, n_frange, n_pixel)
         chi2_pf = np.swapaxes(all_chi2, 0, 1)  # (n_pol, n_frange, n_pixel)
 
+        scan_dimensions = (data.sizes["y"], data.sizes["x"])
+        h, w = scan_dimensions
+        n_pol, n_frange = params_pf.shape[:2]
+
+        # Reshape flat spatial dimension to 2D (H, W)
         parameters: dict[str, NDArray] = {}
         for idx, param_name in enumerate(model.parameter_names):
-            parameters[param_name] = params_pf[:, :, :, idx]
-        parameters["chi2"] = chi2_pf
-        parameters["states"] = states_pf
+            parameters[param_name] = params_pf[:, :, :, idx].reshape(n_pol, n_frange, h, w)
+        parameters["chi2"] = chi2_pf.reshape(n_pol, n_frange, h, w)
+        parameters["states"] = states_pf.reshape(n_pol, n_frange, h, w)
 
-        scan_dimensions = (data.sizes["y"], data.sizes["x"])
         quality_metrics = {
             "mean_chi2": float(np.mean(chi2_pf)),
             "median_chi2": float(np.median(chi2_pf)),

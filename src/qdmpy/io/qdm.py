@@ -115,7 +115,10 @@ def _write_fit(
         ds = fit_grp.create_dataset(
             param_name, data=param_array.astype(np.float32), compression=compression
         )
-        ds.attrs["dims"] = ",".join(f"dim{i}" for i in range(param_array.ndim - 1)) + ",pixel"
+        if param_array.ndim == 4:
+            ds.attrs["dims"] = "polarity,freq_range,y,x"
+        else:
+            ds.attrs["dims"] = ",".join(f"dim{i}" for i in range(param_array.ndim - 1)) + ",pixel"
 
     if "states" in fit_result.parameters:
         fit_grp.create_dataset(

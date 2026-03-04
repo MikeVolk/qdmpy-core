@@ -839,17 +839,21 @@ def _avg_param_map(arr: NDArray, h: int, w: int) -> NDArray:
     """Reshape a parameter array to (h, w) by averaging over leading dims.
 
     Args:
-        arr: Parameter array with shape (..., n_pixel) or (h, w).
+        arr: Parameter array with shape (n_pol, n_frange, H, W), (H, W),
+            (..., n_pixel), or (n_pixel,).
         h: Spatial height.
         w: Spatial width.
 
     Returns:
         2-D array with shape (h, w).
     """
-    n_pixel = h * w
+    if arr.ndim == 2:
+        return arr
+    if arr.ndim == 4:
+        return np.nanmean(arr.reshape(-1, h, w), axis=0)
     if arr.ndim == 1:
         return arr.reshape(h, w)
-    return np.nanmean(arr.reshape(-1, n_pixel), axis=0).reshape(h, w)
+    return np.nanmean(arr.reshape(-1, h * w), axis=0).reshape(h, w)
 
 
 def plot_b111_map(
