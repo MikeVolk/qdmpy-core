@@ -14,7 +14,7 @@ from numpy.typing import NDArray
 
 from qdmpy.constants import AHYP_14N, AHYP_15N
 from qdmpy.exceptions import ParameterError
-from qdmpy.fitting.guess import argmin_center, cumsum_contrast, halfpower_width
+from qdmpy.fitting.guess import argmin_center, halfpower_width, top3_contrast
 from qdmpy.fitting.models import Model
 
 # Floor for individual Lorentzian HWHM after subtracting hyperfine splitting.
@@ -111,7 +111,7 @@ class ParameterGuesser:
                 # central peak with partial contributions from neighbours.
                 # Dividing by n_peaks would overcorrect; the total dip is a
                 # reasonable starting point for each contrast_i parameter.
-                param_values = cumsum_contrast(flat_data)
+                param_values = top3_contrast(flat_data)
             elif param_type == "width":
                 # halfpower_width measures the envelope HWHM directly from half-
                 # power points (no cumsum artifacts). For multi-peak models the
