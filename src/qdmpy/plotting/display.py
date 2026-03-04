@@ -346,9 +346,9 @@ def plot_qdm_display(
         measurement: Optional Measurement for ODMR spectra and image fallback.
         n_sample_pixels: Number of sample pixel spectra (default 3).
     """
-    fit_result: FitResult = (  # type: ignore[assignment]
-        result.fit_result if hasattr(result, "fit_result") else result
-    )
+    from qdmpy.result import QDMResult as _QDMResult
+
+    fit_result = result.fit_result if isinstance(result, _QDMResult) else result
     logger.info("Plotting QDM display overview (model={})", fit_result.model_name)
 
     # Resolve optical images: QDMResult fields take priority over measurement

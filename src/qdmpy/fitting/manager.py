@@ -187,7 +187,10 @@ class FitManager:
         if self._model is None:
             self._resolve_auto_model(flat_data)
 
-        model: Model = self._model  # type: ignore[assignment]
+        if self._model is None:
+            msg = "Model must be set before fitting"
+            raise RuntimeError(msg)
+        model: Model = self._model
         guesser = ParameterGuesser(model, f_ghz)
         initial_params = guesser.guess(flat_data)
 
@@ -460,7 +463,10 @@ class FitManager:
         constraints = self.get_constraints_array(n_pixel)
         constraint_types = self.get_constraint_types()
 
-        model: Model = self._model  # type: ignore[assignment]
+        if self._model is None:
+            msg = "Model must be set before fitting"
+            raise RuntimeError(msg)
+        model: Model = self._model
         results = gf.fit_constrained(
             data=np.ascontiguousarray(data_reshaped, dtype=np.float32),
             user_info=np.ascontiguousarray(freq, dtype=np.float32),
@@ -570,7 +576,10 @@ class FitManager:
                 detection_flat = data_5d.reshape(data_5d.shape[0], data_5d.shape[1], -1, n_freq)
             self._resolve_auto_model(detection_flat)
 
-        model: Model = self._model  # type: ignore[assignment]
+        if self._model is None:
+            msg = "Model must be set before fitting"
+            raise RuntimeError(msg)
+        model: Model = self._model
 
         # Build folded-domain constraints dynamically from the model's parameter
         # types so that ESR14N (contrast_0/1/2), ESR15N (contrast_0/1), and
