@@ -57,6 +57,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `FitResult.get_parameter_map()` now correctly handles multi-dimensional
+  parameters (e.g. shape `(n_pol, n_frange, n_pixel)`) by averaging over
+  leading dimensions instead of flat-reshaping, which raised `ValueError`.
+- `QDMResult` now delegates `parameters` and `calculate_b_field()` so that
+  plotting functions accepting `FitResult | QDMResult` work with both types.
+
+### Added (docs)
+
+- `docs/tutorials/05-plotting.ipynb` — comprehensive plotting tutorial
+  demonstrating every public function in `qdmpy.plotting` with real data.
+
+### Fixed
+
 - **Center guess catastrophically wrong for shifted pixels** — `cumsum_center`
   produced ~10 MHz errors for pixels with strong B111 fields where the resonance
   shifts to the edge of the frequency range. The cumsum normalization S-curve

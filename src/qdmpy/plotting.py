@@ -12,13 +12,13 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numpy.typing import NDArray
 
 from qdmpy.constants import D_ZFS
 from qdmpy.utils import double_norm
 
 if TYPE_CHECKING:
-    import matplotlib.figure
     from matplotlib.axes import Axes as MplAxes
 
     from qdmpy.fitting.models import Model
@@ -31,6 +31,32 @@ if TYPE_CHECKING:
 
 # Set white background for all QDMpy figures
 mpl.rcParams["figure.facecolor"] = "white"
+
+
+def _add_colorbar(
+    im: mpl.image.AxesImage,
+    ax: MplAxes,
+    label: str | None = None,
+) -> mpl.colorbar.Colorbar:
+    """Add a colorbar whose height matches the axes it belongs to.
+
+    Uses ``make_axes_locatable`` so the colorbar is always the same height as
+    the plot, regardless of figure layout.
+
+    Args:
+        im: The mappable (return value of ``imshow``).
+        ax: The axes the image lives on.
+        label: Optional text label for the colorbar.
+
+    Returns:
+        The created ``Colorbar`` instance.
+    """
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    cbar = ax.figure.colorbar(im, cax=cax)
+    if label is not None:
+        cbar.set_label(label)
+    return cbar
 
 
 def plot_fit_result_field_map(
@@ -79,8 +105,7 @@ def plot_fit_result_field_map(
         vmax=vmax,
     )
 
-    cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label(colorbar_label)
+    _add_colorbar(im, ax, label=colorbar_label)
 
     ax.set_xlabel("x [µm]")
     ax.set_ylabel("y [µm]")
@@ -142,8 +167,7 @@ def plot_fit_result_parameter_map(
         aspect="equal",
     )
 
-    cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label(colorbar_label)
+    _add_colorbar(im, ax, label=colorbar_label)
 
     ax.set_xlabel("x [μm]")
     ax.set_ylabel("y [μm]")
@@ -215,7 +239,7 @@ def plot_fit_result_overview(
     ax.set_title(b_title)
     ax.set_xlabel("x [µm]")
     ax.set_ylabel("y [µm]")
-    plt.colorbar(im, ax=ax)
+    _add_colorbar(im, ax)
     plot_idx += 1
 
     for param in available_params:
@@ -229,7 +253,7 @@ def plot_fit_result_overview(
         ax.set_title(f"{param.replace('_', ' ').title()}")
         ax.set_xlabel("x [µm]")
         ax.set_ylabel("y [µm]")
-        plt.colorbar(im, ax=ax)
+        _add_colorbar(im, ax)
         plot_idx += 1
 
     for i in range(plot_idx, len(axes)):
@@ -508,7 +532,7 @@ def plot_folding_overview(folded: FoldedODMR) -> None:
         folded: FoldedODMR result.
     """
     logger.debug("Plotting folding overview")
-    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    _fig, axes = plt.subplots(2, 2, figsize=(10, 8))
 
     pol_labels = list(folded.d_zfs_map.coords["polarity"].values)
     n_pol = len(pol_labels)
@@ -557,7 +581,7 @@ def plot_folding_overview(folded: FoldedODMR) -> None:
         aspect="equal",
     )
     axes[1, 0].set_title("D_ZFS deviation (MHz)")
-    fig.colorbar(im0, ax=axes[1, 0], label="dD (MHz)")
+    _add_colorbar(im0, axes[1, 0], label="dD (MHz)")
 
     # Row 1, col 1: Fold residual map (mean over polarities)
     res_map = folded.fold_residual.values  # (n_pol, y, x)
@@ -571,7 +595,7 @@ def plot_folding_overview(folded: FoldedODMR) -> None:
         vmax=1,
     )
     axes[1, 1].set_title("Fold residual (0=good)")
-    fig.colorbar(im1, ax=axes[1, 1], label="residual")
+    _add_colorbar(im1, axes[1, 1], label="residual")
 
     plt.suptitle("Spectral folding diagnostics", fontsize=13)
     plt.tight_layout()
@@ -855,8 +879,7 @@ def plot_b111_map(
         vmin=-vmax,
         vmax=vmax,
     )
-    cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label(f"B111 {component} (µT)")
+    _add_colorbar(im, ax, label=f"B111 {component} (µT)")
     ax.set_title(f"B111 {component} ({result.model_name})")
     _label_spatial_axes(ax)
 
@@ -1053,7 +1076,6 @@ def _plot_display_pixel_spectra(
 
 
 def _draw_b111_row(
-    fig: matplotlib.figure.Figure,
     axes: NDArray,
     fit_result: FitResult,
     extent: tuple[float, float, float, float],
@@ -1066,10 +1088,9 @@ def _draw_b111_row(
     (e.g. single-polarity data).
 
     Args:
-        fig: Parent figure for colorbar attachment.
         axes: 2-D axes grid.
         fit_result: FitResult providing b111 and chi2.
-        extent: imshow extent tuple (x0, x1, y0, y1) in µm.
+        extent: imshow extent tuple (x0, x1, y0, y1) in um.
         height: Scan height in pixels.
         width: Scan width in pixels.
     """
@@ -1088,7 +1109,7 @@ def _draw_b111_row(
         )
         axes[0, 0].set_title("B111 remanent (µT)")
         _label_spatial_axes(axes[0, 0])
-        fig.colorbar(im, ax=axes[0, 0])
+        _add_colorbar(im, axes[0, 0])
         vmax_ind = float(np.nanpercentile(np.abs(b_ind), 99))
         im = axes[0, 1].imshow(
             b_ind,
@@ -1101,7 +1122,7 @@ def _draw_b111_row(
         )
         axes[0, 1].set_title("B111 induced (µT)")
         _label_spatial_axes(axes[0, 1])
-        fig.colorbar(im, ax=axes[0, 1])
+        _add_colorbar(im, axes[0, 1])
     except Exception:  # pylint: disable=broad-except
         logger.warning("B111 not available (single polarity?), showing mean centre map instead")
         # Single-polarity data: show mean centre map as fallback
@@ -1111,18 +1132,17 @@ def _draw_b111_row(
         )
         axes[0, 0].set_title("Centre (GHz)")
         _label_spatial_axes(axes[0, 0])
-        fig.colorbar(im, ax=axes[0, 0])
+        _add_colorbar(im, axes[0, 0])
         axes[0, 1].set_visible(False)
 
     chi2_map = _avg_param_map(fit_result.chi2, height, width)
     im = axes[0, 2].imshow(chi2_map, extent=extent, origin="lower", cmap="magma", aspect="equal")
     axes[0, 2].set_title("Chi-squared")
     _label_spatial_axes(axes[0, 2])
-    fig.colorbar(im, ax=axes[0, 2])
+    _add_colorbar(im, axes[0, 2])
 
 
 def _draw_param_row(
-    fig: matplotlib.figure.Figure,
     axes: NDArray,
     fit_result: FitResult,
     extent: tuple[float, float, float, float],
@@ -1132,10 +1152,9 @@ def _draw_param_row(
     """Draw mean centre, contrast, and linewidth maps into row 1.
 
     Args:
-        fig: Parent figure for colorbar attachment.
         axes: 2-D axes grid.
         fit_result: FitResult providing centres, contrasts, and linewidths.
-        extent: imshow extent tuple in µm.
+        extent: imshow extent tuple in um.
         height: Scan height in pixels.
         width: Scan width in pixels.
     """
@@ -1145,7 +1164,7 @@ def _draw_param_row(
     )
     axes[1, 0].set_title("Centre (GHz, mean)")
     _label_spatial_axes(axes[1, 0])
-    fig.colorbar(im, ax=axes[1, 0])
+    _add_colorbar(im, axes[1, 0])
 
     try:
         contrast_map = _avg_param_map(fit_result.contrasts, height, width)
@@ -1157,7 +1176,7 @@ def _draw_param_row(
     )
     axes[1, 1].set_title("Contrast (mean)")
     _label_spatial_axes(axes[1, 1])
-    fig.colorbar(im, ax=axes[1, 1])
+    _add_colorbar(im, axes[1, 1])
 
     try:
         lw_map = _avg_param_map(fit_result.linewidths, height, width)
@@ -1167,7 +1186,7 @@ def _draw_param_row(
     im = axes[1, 2].imshow(lw_map, extent=extent, origin="lower", cmap="viridis", aspect="equal")
     axes[1, 2].set_title("Linewidth (GHz, mean)")
     _label_spatial_axes(axes[1, 2])
-    fig.colorbar(im, ax=axes[1, 2])
+    _add_colorbar(im, axes[1, 2])
 
 
 def plot_qdm_display(
@@ -1195,7 +1214,7 @@ def plot_qdm_display(
         n_sample_pixels: Number of sample pixel spectra (default 3).
     """
     fit_result: FitResult = (  # type: ignore[assignment]
-        result.fit_result if hasattr(result, "fit_result") else result  # type: ignore[union-attr]
+        result.fit_result if hasattr(result, "fit_result") else result
     )
     logger.info("Plotting QDM display overview (model={})", fit_result.model_name)
 
@@ -1207,11 +1226,11 @@ def plot_qdm_display(
     n_rows = 2 + (1 if measurement is not None else 0) + spec_rows
     n_cols = 3
 
-    fig, axes_raw = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows))
-    axes: NDArray = np.atleast_2d(axes_raw)  # type: ignore[arg-type]
+    _fig, axes_raw = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows))
+    axes: NDArray = np.atleast_2d(axes_raw)
 
-    _draw_b111_row(fig, axes, fit_result, extent, height, width)
-    _draw_param_row(fig, axes, fit_result, extent, height, width)
+    _draw_b111_row(axes, fit_result, extent, height, width)
+    _draw_param_row(axes, fit_result, extent, height, width)
 
     if measurement is not None:
         row = 2

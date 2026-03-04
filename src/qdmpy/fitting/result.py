@@ -204,14 +204,15 @@ class FitResult(BaseModel):
 
         Note:
             For multi-range models (e.g. ESR14N with center shape (n_pol, n_frange, n_pixel)),
-            the parameter is flattened to 1D before reshaping to the spatial dimensions.
+            leading dimensions (polarity, freq_range) are averaged to produce a single
+            spatial map.
         """
         param_data = self.get_parameter(param_name)
-        # If parameter is multi-dimensional (e.g., 3D for multi-range models),
-        # flatten it first to get a 1D array of n_pixels
-        if param_data.ndim > 1:
-            param_data = param_data.reshape(-1)
-        return param_data.reshape(self.scan_dimensions)
+        height, width = self.scan_dimensions
+        n_pixel = height * width
+        if param_data.ndim == 1:
+            return param_data.reshape(height, width)
+        return np.nanmean(param_data.reshape(-1, n_pixel), axis=0).reshape(height, width)
 
     @property
     def delta_resonance(self: Self) -> xr.DataArray:

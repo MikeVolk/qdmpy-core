@@ -207,6 +207,68 @@ def cumsum_contrast(data: NDArray) -> NDArray:  # pragma: no cover
 
 
 @njit(parallel=True, fastmath=True)
+def top3_contrast(data: NDArray) -> NDArray:  # pragma: no cover
+    """Estimate contrast from the top-3 and bottom-3 intensity values per pixel.
+
+    max = mean of 3 largest values, min = mean of 3 smallest values.
+
+    Args:
+        data: 4D array (n_pol, n_frange, n_pixel, n_freq).
+
+    Returns:
+        3D array (n_pol, n_frange, n_pixel).
+    """
+    n_pol, n_frange, n_pixel, n_freq = data.shape
+    total = n_pol * n_frange * n_pixel
+
+    amp = np.zeros((n_pol, n_frange, n_pixel))
+
+    for idx in prange(total):  # type: ignore[not-iterable]
+        px = idx % n_pixel
+        r = (idx // n_pixel) % n_frange
+        p = idx // (n_pixel * n_frange)
+
+        # initialize top-3 and bottom-3 trackers
+        max1 = max2 = max3 = -np.inf
+        min1 = min2 = min3 = np.inf
+
+        for k in range(n_freq):
+            v = data[p, r, px, k]
+            if np.isnan(v):
+                continue
+
+            # update max trackers
+            if v > max1:
+                max3 = max2
+                max2 = max1
+                max1 = v
+            elif v > max2:
+                max3 = max2
+                max2 = v
+            elif v > max3:
+                max3 = v
+
+            # update min trackers
+            if v < min1:
+                min3 = min2
+                min2 = min1
+                min1 = v
+            elif v < min2:
+                min3 = min2
+                min2 = v
+            elif v < min3:
+                min3 = v
+
+        # mean of top 3 / bottom 3
+        mx = (max1 + max2 + max3) / 3.0
+        mn = (min1 + min2 + min3) / 3.0
+
+        amp[p, r, px] = 0.0 if mx == 0.0 else abs((mx - mn) / mx)
+
+    return amp
+
+
+@njit(parallel=True, fastmath=True)
 def cumsum_center(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
     """Guess the center frequency for each pixel using a single flat parallel loop.
 

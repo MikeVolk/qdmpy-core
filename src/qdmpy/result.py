@@ -86,6 +86,11 @@ class QDMResult(BaseModel):
         return self.fit_result.model_name
 
     @property
+    def parameters(self: Self) -> dict[str, NDArray]:
+        """Fitted parameter arrays keyed by name."""
+        return self.fit_result.parameters
+
+    @property
     def metadata(self: Self) -> dict[str, Any]:
         """Fitting metadata from FitResult."""
         return self.fit_result.metadata
@@ -146,6 +151,10 @@ class QDMResult(BaseModel):
     def get_fit_quality_metrics(self: Self) -> dict[str, float]:
         """Return fit quality statistics (chi2 stats, convergence rate)."""
         return self.fit_result.get_fit_quality_metrics()
+
+    def calculate_b_field(self: Self, force_recalculate: bool = False) -> NDArray:
+        """Calculate magnetic field map from fitted resonance frequencies."""
+        return self.fit_result.calculate_b_field(force_recalculate=force_recalculate)
 
     def plot(
         self: Self,

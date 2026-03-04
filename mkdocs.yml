@@ -38,6 +38,7 @@ nav:
     - Exploration: tutorials/02-exploration.ipynb
     - Extending: tutorials/03-extending.ipynb
     - Spectral Folding: tutorials/04-spectral-folding.ipynb
+    - Plotting: tutorials/05-plotting.ipynb
     - ODMR Processors: tutorials/processors.md
     - Model Fitting: tutorials/fitting.md
     - Custom Models: tutorials/models.md
