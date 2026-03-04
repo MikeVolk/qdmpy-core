@@ -2154,6 +2154,7 @@ name = "qdmpy-core"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [
+    { name = "h5py" },
     { name = "loguru" },
     { name = "mat73" },
     { name = "matplotlib" },
@@ -2196,6 +2197,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
+    { name = "h5py", specifier = ">=3.10" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mat73", specifier = ">=0.65" },
     { name = "matplotlib", specifier = ">=3.10.1" },

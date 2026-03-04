@@ -1,6 +1,6 @@
-"""File I/O utilities for QDMpy.
+"""File I/O utilities for image loading.
 
-This module provides general-purpose file loading and image handling utilities
+Provides general-purpose file loading and image handling utilities
 used across the package.
 """
 
@@ -78,7 +78,8 @@ def get_image(
         Image data as a numpy array.
 
     Raises:
-        DataLoadError: If no suitable image files are found or if the image cannot be loaded.
+        DataLoadError: If no suitable image files are found or if the image
+            cannot be loaded.
     """
     folder_str = str(folder)
 
@@ -111,7 +112,8 @@ def load_metadata_toml(folder: str | bytes | os.PathLike[Any]) -> dict[str, Any]
         folder: Path to the folder containing metadata.toml.
 
     Returns:
-        Dictionary parsed from metadata.toml, or empty dict if file not found or invalid.
+        Dictionary parsed from metadata.toml, or empty dict if file not found
+        or invalid.
     """
     path = Path(str(folder)) / "metadata.toml"
     if not path.exists():

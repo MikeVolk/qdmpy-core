@@ -5,6 +5,9 @@ object a user interacts with after fitting. It delegates all FitResult
 properties directly and provides lazy access to MagneticMap (3D field
 reconstruction) without requiring the user to bridge the two manually.
 
+QDMResult is a **pure data container**. All I/O is in ``qdmpy.io``.
+All plotting is in ``qdmpy.plotting``.
+
 Layering note: QDMResult lives above both fitting/ and magnetic_map.py and
 is the only module that imports from both layers.
 """
@@ -14,33 +17,41 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
-import numpy as np
 import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
+from qdmpy.field_source import FieldSourceType
 from qdmpy.fitting.result import FitResult
 
 if TYPE_CHECKING:
-    from os import PathLike
-
     from qdmpy.magnetic_map import MagneticMap
-    from qdmpy.measurement import Measurement
 
 
 class QDMResult(BaseModel):
     """Unified result container from a single QDM measurement.
 
+    Pure data container. All I/O is handled by ``qdmpy.io``.
+    All plotting is handled by ``qdmpy.plotting``.
+
     Wraps a FitResult and provides lazy access to MagneticMap (Fourier-domain
     3D field reconstruction). All FitResult properties are delegated directly
     so existing code that accesses b111_remanent, centers, chi2, etc. works
-    without modification once the return type of fit_odmr() is updated.
+    without modification.
 
     Attributes:
         fit_result: The underlying fitted parameters and B111 analysis.
         nv_axis: NV axis unit vector (ux, uy, uz). When None, the value is
             read from qdmpy settings at the time magnetic_map is first accessed.
+        reconstructor: Optional FieldReconstructor override. When None, the
+            default reconstructor is used.
+        light_image: Optional LED reflectance image (H, W). Attached by
+            Measurement.fit_odmr() and preserved through save/load.
+        laser_image: Optional NV fluorescence image (H, W). Also called the
+            "diamond image". Attached by Measurement.fit_odmr().
+        field_sources: Physical B-field sources contributing to the measured
+            field. Extended by QEP-050 with concrete subclass types.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -48,6 +59,9 @@ class QDMResult(BaseModel):
     fit_result: FitResult
     nv_axis: tuple[float, float, float] | None = None
     reconstructor: Any | None = None  # FieldReconstructor | None
+    light_image: NDArray | None = None
+    laser_image: NDArray | None = None
+    field_sources: list[FieldSourceType] = []
 
     _magnetic_map_cache: Any | None = PrivateAttr(default=None)  # MagneticMap | None
 
@@ -127,17 +141,17 @@ class QDMResult(BaseModel):
 
     @property
     def b111(self: Self) -> xr.Dataset:
-        """B111 magnetic field as xr.Dataset with 'remanent' and 'induced' (µT)."""
+        """B111 magnetic field as xr.Dataset with 'remanent' and 'induced' (uT)."""
         return self.fit_result.b111
 
     @property
     def b111_remanent(self: Self) -> NDArray:
-        """Remanent B111 field in µT, shape (height, width)."""
+        """Remanent B111 field in uT, shape (height, width)."""
         return self.fit_result.b111_remanent
 
     @property
     def b111_induced(self: Self) -> NDArray:
-        """Induced B111 field in µT, shape (height, width)."""
+        """Induced B111 field in uT, shape (height, width)."""
         return self.fit_result.b111_induced
 
     def get_parameter(self: Self, param_name: str) -> NDArray:
@@ -156,38 +170,14 @@ class QDMResult(BaseModel):
         """Calculate magnetic field map from fitted resonance frequencies."""
         return self.fit_result.calculate_b_field(force_recalculate=force_recalculate)
 
-    def plot(
-        self: Self,
-        param: str = "center",
-        *,
-        save: bool = False,
-        filename: str | None = None,
-    ) -> None:
-        """Quick-plot a fitted parameter map. Delegates to FitResult.plot()."""
-        self.fit_result.plot(param, save=save, filename=filename)
-
-    def show(self: Self, *, save: bool = False, filename: str | None = None) -> None:
-        """Quick-plot overview of all fitted parameters. Delegates to FitResult.show()."""
-        self.fit_result.show(save=save, filename=filename)
-
-    def display(self: Self, measurement: Measurement | None = None) -> None:
-        """Comprehensive overview display for this result.
-
-        Shows B111 remanent/induced maps, chi-squared, mean centre/contrast/
-        linewidth maps. When *measurement* is given also shows the light/laser
-        optical images and representative pixel ODMR spectra with fit curves.
-
-        Args:
-            measurement: Optional Measurement instance for optical images and
-                ODMR spectra.
-        """
-        from qdmpy.plotting import plot_qdm_display
-
-        plot_qdm_display(self, measurement=measurement)
-
     # ------------------------------------------------------------------
     # Magnetic map (lazy)
     # ------------------------------------------------------------------
+
+    @property
+    def has_cached_magnetic_map(self: Self) -> bool:
+        """Whether the MagneticMap has already been computed."""
+        return self._magnetic_map_cache is not None
 
     @property
     def magnetic_map(self: Self) -> MagneticMap:
@@ -198,11 +188,66 @@ class QDMResult(BaseModel):
         embedded in attrs, and nv_axis from settings when not provided.
 
         Returns:
-            MagneticMap with bx, by, bz, btotal DataArrays (µT).
+            MagneticMap with bx, by, bz, btotal DataArrays (uT).
         """
         if self._magnetic_map_cache is None:
             self._magnetic_map_cache = self._build_magnetic_map()
         return self._magnetic_map_cache
+
+    # ------------------------------------------------------------------
+    # Convenience I/O wrappers (thin delegation to qdmpy.io)
+    # ------------------------------------------------------------------
+
+    def save(
+        self: Self,
+        path: str | Path,
+        *,
+        include_bxyz: bool = False,
+        overwrite: bool = False,
+        compress: bool = True,
+    ) -> None:
+        """Save this result to disk.
+
+        Dispatches to :func:`qdmpy.io.save_qdm` for ``.qdm`` files and
+        :func:`qdmpy.io.save_npz` for everything else.
+
+        Args:
+            path: Destination path. Use ``.qdm`` extension for the full HDF5
+                archive (images, B111, field sources). Use ``.npz`` for the
+                lightweight fit-data-only checkpoint.
+            include_bxyz: Include Bxyz reconstruction in the ``.qdm`` file.
+                Ignored for NPZ format. Default False.
+            overwrite: Overwrite existing ``.qdm`` file. Default False.
+            compress: Apply GZIP compression in ``.qdm`` file. Default True.
+        """
+        from qdmpy.io import save_npz, save_qdm
+
+        if Path(path).suffix.lower() == ".qdm":
+            save_qdm(self, path, include_bxyz=include_bxyz, overwrite=overwrite, compress=compress)
+        else:
+            save_npz(self, path)
+
+    @classmethod
+    def load(cls: type[QDMResult], path: str | Path) -> QDMResult:
+        """Load a QDMResult from disk.
+
+        Dispatches to :func:`qdmpy.io.load_qdm` for ``.qdm`` files and
+        :func:`qdmpy.io.load_npz` for everything else.
+
+        Args:
+            path: Path to a ``.qdm`` or ``.npz`` file.
+
+        Returns:
+            Reconstructed QDMResult.
+
+        Raises:
+            DataLoadError: If the file does not exist or cannot be parsed.
+        """
+        from qdmpy.io import load_npz, load_qdm
+
+        if Path(path).suffix.lower() == ".qdm":
+            return load_qdm(path)
+        return load_npz(path)
 
     def _build_magnetic_map(self: Self) -> MagneticMap:
         """Construct MagneticMap from b111_remanent and pixel_spacing."""
@@ -217,68 +262,3 @@ class QDMResult(BaseModel):
         return MagneticMap.from_b111(
             b111_da, nv_axis=self.nv_axis, reconstructor=self.reconstructor
         )
-
-    # ------------------------------------------------------------------
-    # Persistence
-    # ------------------------------------------------------------------
-
-    def save(self: Self, path: str | PathLike) -> None:
-        """Save QDMResult to a pickle-free NPZ file.
-
-        Delegates to ``FitResult._build_save_dict()`` for the fitting data and
-        appends ``nv_axis`` if present. MagneticMap is not serialised — it is
-        recomputed lazily after loading.
-
-        Args:
-            path: Destination file path (.npz extension added if absent).
-        """
-        path = Path(path)
-        logger.info("Saving QDMResult to {}", path)
-
-        save_dict = self.fit_result._build_save_dict()
-        if self.nv_axis is not None:
-            save_dict["nv_axis"] = np.array(self.nv_axis)
-
-        arrays = {k: np.asarray(v) for k, v in save_dict.items()}
-        np.savez_compressed(path, allow_pickle=False, **arrays)
-        logger.info("QDMResult saved to {}", path)
-
-    @classmethod
-    def load(cls: type[QDMResult], path: str | PathLike) -> QDMResult:
-        """Load a QDMResult from a pickle-free NPZ file.
-
-        Opens the file exactly once and reconstructs both FitResult and
-        nv_axis from the same data handle.
-
-        Args:
-            path: Path to the .npz file created by QDMResult.save().
-
-        Returns:
-            Reconstructed QDMResult. MagneticMap will be recomputed on first
-            access to .magnetic_map.
-
-        Raises:
-            DataLoadError: If the file does not exist or is not in the safe format.
-        """
-        from qdmpy.exceptions import DataLoadError
-
-        path = Path(path)
-
-        if not path.exists():
-            msg = f"Results file not found: {path}"
-            raise DataLoadError(msg)
-
-        try:
-            data = np.load(path, allow_pickle=False)
-        except ValueError as exc:
-            msg = f"File {path} contains pickled objects and cannot be loaded safely."
-            raise DataLoadError(msg) from exc
-
-        fit_result = FitResult._from_npz(data, source=str(path))
-
-        nv_axis: tuple[float, float, float] | None = None
-        if "nv_axis" in data:
-            nv_axis = tuple(float(v) for v in data["nv_axis"])  # type: ignore[assignment]
-
-        logger.info("QDMResult loaded from {}", path)
-        return cls(fit_result=fit_result, nv_axis=nv_axis)

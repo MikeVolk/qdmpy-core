@@ -16,6 +16,13 @@ ALL_NAMES = [
     ("load", "callable"),
     ("Measurement", "class"),
     ("QDMResult", "class"),
+    # Field sources
+    ("FieldSource", "class"),
+    # I/O
+    ("load_npz", "callable"),
+    ("load_qdm", "callable"),
+    ("save_npz", "callable"),
+    ("save_qdm", "callable"),
     # Data loading
     ("MatlabLoader", "class"),
     ("ODMRData", "class"),

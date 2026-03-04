@@ -179,22 +179,6 @@ class TestFitResultPlot:
 
 
 # ---------------------------------------------------------------------------
-# QDMResult.plot() and QDMResult.show()
+# QDMResult.plot() and QDMResult.show() were removed in QEP-008.
+# See tests/test_io_qdm.py::TestPublicApi::test_qdm_result_has_no_io_methods
 # ---------------------------------------------------------------------------
-
-
-class TestQDMResultPlotDelegation:
-    def test_plot_delegates_to_fit_result(self, qdm_result: QDMResult) -> None:
-        with patch("qdmpy.plotting.plot_fit_result_parameter_map") as mock:
-            qdm_result.plot("chi2")
-            mock.assert_called_once_with(qdm_result.fit_result, "chi2", save=False, filename=None)
-
-    def test_show_delegates_to_fit_result(self, qdm_result: QDMResult) -> None:
-        with patch("qdmpy.plotting.plot_fit_result_overview") as mock:
-            qdm_result.show()
-            mock.assert_called_once_with(qdm_result.fit_result, save=False, filename=None)
-
-    def test_plot_default_param(self, qdm_result: QDMResult) -> None:
-        with patch("qdmpy.plotting.plot_fit_result_parameter_map") as mock:
-            qdm_result.plot()
-            mock.assert_called_once_with(qdm_result.fit_result, "center", save=False, filename=None)

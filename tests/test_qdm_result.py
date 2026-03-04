@@ -170,40 +170,51 @@ class TestMagneticMap:
 
 
 class TestPersistence:
+    """NPZ persistence via qdmpy.io.save_npz / load_npz (QEP-008)."""
+
     def test_save_creates_npz(self, qdm_result: QDMResult, tmp_path: Path) -> None:
-        out = tmp_path / "result"
-        qdm_result.save(out)
-        assert out.with_suffix(".npz").exists() or out.exists()
+        from qdmpy.io import save_npz
+
+        out = tmp_path / "result.npz"
+        save_npz(qdm_result, out)
+        assert out.exists()
 
     def test_roundtrip_no_nv_axis(self, qdm_result: QDMResult, tmp_path: Path) -> None:
-        out = tmp_path / "result"
-        qdm_result.save(out)
-        loaded = QDMResult.load(str(out) + ".npz")
+        from qdmpy.io import load_npz, save_npz
+
+        out = tmp_path / "result.npz"
+        save_npz(qdm_result, out)
+        loaded = load_npz(out)
         assert loaded.model_name == qdm_result.model_name
         assert loaded.pixel_spacing == qdm_result.pixel_spacing
         assert loaded.scan_dimensions == qdm_result.scan_dimensions
         assert loaded.nv_axis is None
 
     def test_roundtrip_with_nv_axis(self, two_pol_fit_result: FitResult, tmp_path: Path) -> None:
+        from qdmpy.io import load_npz, save_npz
+
         axis = (0.0, 0.8164966, 0.5773503)
         original = QDMResult(fit_result=two_pol_fit_result, nv_axis=axis)
-        out = tmp_path / "result"
-        original.save(out)
-        loaded = QDMResult.load(str(out) + ".npz")
+        out = tmp_path / "result.npz"
+        save_npz(original, out)
+        loaded = load_npz(out)
         assert loaded.nv_axis is not None
         assert len(loaded.nv_axis) == 3
         np.testing.assert_allclose(loaded.nv_axis, axis)
 
     def test_roundtrip_b111_remanent(self, qdm_result: QDMResult, tmp_path: Path) -> None:
-        out = tmp_path / "result"
-        qdm_result.save(out)
-        loaded = QDMResult.load(str(out) + ".npz")
+        from qdmpy.io import load_npz, save_npz
+
+        out = tmp_path / "result.npz"
+        save_npz(qdm_result, out)
+        loaded = load_npz(out)
         np.testing.assert_allclose(loaded.b111_remanent, qdm_result.b111_remanent)
 
     def test_save_is_pickle_free(self, qdm_result: QDMResult, tmp_path: Path) -> None:
-        """QDMResult.save() produces a file loadable without pickle."""
-        out = tmp_path / "result"
-        qdm_result.save(out)
-        # savez_compressed always appends .npz
-        data = np.load(out.with_suffix(".npz"), allow_pickle=False)
+        """save_npz() produces a file loadable without pickle."""
+        from qdmpy.io import save_npz
+
+        out = tmp_path / "result.npz"
+        save_npz(qdm_result, out)
+        data = np.load(out, allow_pickle=False)
         assert "__meta__" in data.files

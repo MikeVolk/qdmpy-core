@@ -7,6 +7,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (QEP-008)
+
+- **`FieldSource`** base class (`src/qdmpy/field_source.py`) — Pydantic model
+  with `kind`, `name`, and optional `field_map` NDArray. Extended by QEP-050.
+- **`io/` package** — `src/qdmpy/io.py` promoted to a package:
+  - `io/images.py` — moved image/metadata loading (unchanged logic).
+  - `io/npz.py` — `save_npz()` / `load_npz()` free functions (NPZ checkpoint,
+    fit data only; logic moved from `QDMResult.save()` / `.load()`).
+  - `io/qdm.py` — `save_qdm()` / `load_qdm()` for the new HDF5 `.qdm` archive
+    format (v1.0): images, fit parameters, B111, optional Bxyz, field sources,
+    scan metadata, version negotiation, overwrite protection.
+  - `io/__init__.py` — re-exports all public symbols so `from qdmpy.io import
+    get_image` and `from qdmpy.io import save_qdm` both work.
+- `h5py>=3.10` runtime dependency (required for `.qdm` I/O).
+- `tests/test_io_qdm.py` — 24 new tests covering round-trip, images, field
+  sources, version negotiation, overwrite protection, and public API contract.
+
+### Changed (QEP-008)
+
+- **`QDMResult`** is now a **pure data container**:
+  - Added `light_image`, `laser_image`, `field_sources`, `has_cached_magnetic_map`.
+  - Removed `plot()`, `show()`, `display()`, `save()`, `load()` methods.
+    Use `qdmpy.plotting.plot_qdm_display(result)` and `qdmpy.io.save_qdm(result, path)`.
+- **`Measurement.fit_odmr()`** and **`fit_folded_odmr()`** now pass
+  `light_image` and `laser_image` to `QDMResult` automatically.
+- **`plot_qdm_display()`** uses `result.light_image` / `result.laser_image`
+  first, falling back to `measurement.light_image` / `measurement.laser_image`.
+- `qdmpy.__init__` exports `FieldSource`, `save_qdm`, `load_qdm`, `save_npz`,
+  `load_npz` at the top-level package.
+
 ### Changed
 
 - Converted all `logger` calls from eager f-string formatting to loguru's lazy
