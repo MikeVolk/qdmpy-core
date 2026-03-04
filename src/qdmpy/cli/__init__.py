@@ -8,6 +8,7 @@ analyzing Quantum Diamond Microscopy data.
 from __future__ import annotations
 
 import sys
+from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as get_version
 
 from loguru import logger
@@ -27,7 +28,7 @@ def main() -> int:
     # Get QDMpy version
     try:
         qdmpy_version = get_version("QDMpy")
-    except Exception:
+    except PackageNotFoundError:
         qdmpy_version = "unknown"
 
     # Create the argument parser

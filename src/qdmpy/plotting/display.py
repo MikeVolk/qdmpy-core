@@ -9,6 +9,7 @@ import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 
+from qdmpy.exceptions import DataShapeError, ParameterError
 from qdmpy.plotting._common import _add_colorbar, _avg_param_map, _label_spatial_axes
 
 if TYPE_CHECKING:
@@ -77,7 +78,7 @@ def _draw_fit_curve(
         ).reshape(1, -1)
         fit_curve = model.func(freq, params_arr)[0]
         ax.plot(freq, fit_curve, color=color, ls=ls, lw=2.0)
-    except Exception as exc:  # pylint: disable=broad-except
+    except (IndexError, ValueError, KeyError) as exc:
         logger.debug("Fit curve evaluation failed for pixel {}: {}", flat_idx, exc)
 
 
@@ -172,7 +173,7 @@ def _plot_display_pixel_spectra(
         from qdmpy.fitting.models import ModelRegistry
 
         model = ModelRegistry.get(fit_result.model_name)
-    except Exception as exc:  # pylint: disable=broad-except
+    except KeyError as exc:
         logger.debug("Model {} not available for fit-curve overlay: {}", fit_result.model_name, exc)
 
     freq_ghz = odmr_data.data.coords["freq_ghz"].values  # (n_frange, n_freq)
@@ -250,7 +251,7 @@ def _draw_b111_row(
         axes[0, 1].set_title("B111 induced (µT)")
         _label_spatial_axes(axes[0, 1])
         _add_colorbar(im, axes[0, 1])
-    except Exception:  # pylint: disable=broad-except
+    except (DataShapeError, AttributeError, TypeError):
         logger.warning("B111 not available (single polarity?), showing mean centre map instead")
         # Single-polarity data: show mean centre map as fallback
         center_fb = _avg_param_map(fit_result.centers, height, width)
@@ -295,7 +296,7 @@ def _draw_param_row(
 
     try:
         contrast_map = _avg_param_map(fit_result.contrasts, height, width)
-    except Exception:  # pylint: disable=broad-except
+    except ParameterError:
         logger.warning("Contrast parameter not available, using zeros")
         contrast_map = np.zeros((height, width))
     im = axes[1, 1].imshow(
@@ -307,7 +308,7 @@ def _draw_param_row(
 
     try:
         lw_map = _avg_param_map(fit_result.linewidths, height, width)
-    except Exception:  # pylint: disable=broad-except
+    except ParameterError:
         logger.warning("Linewidth parameter not available, using zeros")
         lw_map = np.zeros((height, width))
     im = axes[1, 2].imshow(lw_map, extent=extent, origin="upper", cmap="viridis", aspect="equal")

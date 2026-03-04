@@ -96,7 +96,9 @@ def get_image(
                 img = np.loadtxt(file_path)
         else:
             img = mpimg.imread(file_path)
-    except Exception as e:
+    except DataLoadError:
+        raise
+    except (OSError, ValueError, UnicodeDecodeError) as e:
         msg = f"Failed to load image: {e!s}"
         raise DataLoadError(msg) from e
     else:

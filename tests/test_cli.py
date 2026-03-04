@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from importlib.metadata import PackageNotFoundError
 from unittest.mock import patch
 
 import pytest
@@ -129,7 +130,7 @@ class TestMain:
     def test_version_fallback(self) -> None:
         with (
             patch("sys.argv", ["qdmpy", "models"]),
-            patch("qdmpy.cli.get_version", side_effect=Exception("no pkg")),
+            patch("qdmpy.cli.get_version", side_effect=PackageNotFoundError("no pkg")),
         ):
             rc = main()
         assert rc == 0

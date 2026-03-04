@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
 
+from qdmpy.exceptions import DataShapeError
 from qdmpy.plotting._common import _add_colorbar, _label_spatial_axes
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ def plot_fit_result_field_map(
         cmap = "RdBu_r"
         vmax: float | None = float(np.nanpercentile(np.abs(b_field), 99))
         vmin: float | None = -vmax
-    except Exception:
+    except (DataShapeError, AttributeError, TypeError):
         logger.warning("B111 remanent not available, falling back to legacy B-field calculation")
         b_field = result.calculate_b_field()  # (H, W), T
         colorbar_label = "Magnetic Field (T)"
@@ -161,7 +162,7 @@ def plot_fit_result_overview(
         b_cmap = "RdBu_r"
         b_vmax: float | None = float(np.nanpercentile(np.abs(b_field), 99))
         b_vmin: float | None = -b_vmax
-    except Exception:
+    except (DataShapeError, AttributeError, TypeError):
         logger.warning("B111 remanent not available for overview, using legacy B-field calculation")
         b_field = result.calculate_b_field()  # (H, W), T
         b_title = "Magnetic Field (T)"
