@@ -64,6 +64,7 @@ def load(
 # --- Entry points (User 1) ---
 # --- Field sources ---
 # --- Field processing ---
+# --- Source fitting ---
 from qdmpy.field_processing import (
     BaseFieldProcessor,
     BlankSubtractor,
@@ -106,6 +107,7 @@ from qdmpy.settings import (
     is_pygpufit_available,
     reset_settings,
 )
+from qdmpy.source_fitting import FitSourceResult, fit_sources
 
 # --- Testing / tutorial utilities ---
 from qdmpy.testing import (
@@ -159,6 +161,9 @@ __all__ = [
     "make_synthetic_fit_result",
     "make_synthetic_odmr_data",
     "make_synthetic_qdm_result",
+    # Source fitting
+    "FitSourceResult",
+    "fit_sources",
     # Field processing
     "BaseFieldProcessor",
     "BlankSubtractor",

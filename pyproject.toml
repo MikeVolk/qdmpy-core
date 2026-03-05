@@ -21,6 +21,8 @@ dependencies = [
     "matplotlib>=3.10.1",
     # GPU fitting (local wheels via [tool.uv.sources])
     "pygpufit",
+    # magnetic dipole fitting (local editable via [tool.uv.sources])
+    "pypole",
     # settings & validation
     "pydantic-settings>=2.4.0",
     # logging
@@ -39,6 +41,7 @@ pygpufit = [
     { path = "src/pyGpufit/win/pyGpufit-1.2.0-py2.py3-none-any.whl", marker = "sys_platform == 'win32'" },
     { path = "src/pyGpufit/linux/pygpufit-1.3.0-py2.py3-none-any.whl", marker = "sys_platform != 'win32'" },
 ]
+pypole = { path = "../pypole", editable = true }
 
 [dependency-groups]
 test = [
