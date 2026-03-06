@@ -1,0 +1,27 @@
+# metadata.toml — per-folder measurement metadata for qdmpy-core.
+#
+# Drop this file next to the .mat data files. All fields are optional;
+# missing keys fall back to from_folder() keyword arguments or code defaults.
+#
+# Priority (highest first):
+#   1. Explicit keyword argument passed to from_folder() / Measurement.load()
+#   2. Value in [acquisition] below
+#   3. Built-in code default
+
+[measurement]
+# Descriptive information about this measurement run.
+date       = "2026-03-06"   # ISO 8601 date the measurement was taken
+sample     = "MIL2"         # sample identifier (material, batch, wafer, ...)
+subsample  = "chipA"        # sub-sample, chip, or region label (optional)
+fov        = "FOV1"         # field-of-view label within the sample
+operator   = "alice"        # person who ran the measurement
+notes      = ""             # free-form annotation; multi-line strings use '''...'''
+
+[acquisition]
+# Processing parameters consumed by from_folder().
+# Remove a key to fall back to the code default.
+pixel_spacing            = 4.0e-6   # physical pixel size in metres          (default: 4e-6)
+bin_factor               = 1        # spatial binning factor (1 = no binning) (default: 1)
+model                    = "ESR14N" # ESR model: ESR14N | ESR15N | ESRSINGLE | auto (default: "auto")
+normalize                = true     # apply ODMR normalisation                (default: true)
+fluorescence_correction  = 0.2      # global fluorescence correction factor   (default: 0.2)

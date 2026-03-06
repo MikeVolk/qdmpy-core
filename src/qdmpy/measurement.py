@@ -29,6 +29,10 @@ from qdmpy.io import get_image, load_metadata_toml
 from qdmpy.odmr.folding import FoldedODMR, FoldingSettings, SpectralFolder
 from qdmpy.odmr.manager import ODMR
 
+# Sentinel for parameters not explicitly set by the caller, used to distinguish
+# "user passed None (meaning: skip)" from "user passed nothing (meaning: use default)".
+_UNSET: object = object()
+
 if TYPE_CHECKING:
     from os import PathLike
 
@@ -137,11 +141,11 @@ class Measurement:
         cls: type[Measurement],
         path: str | PathLike,
         *,
-        bin_factor: int = 1,
-        model: str = "auto",
-        pixel_spacing: float = 4e-6,
-        normalize: bool = True,
-        fluorescence_correction: float | None = 0.2,
+        bin_factor: int | None = None,
+        model: str | None = None,
+        pixel_spacing: float | None = None,
+        normalize: bool | None = None,
+        fluorescence_correction: float | None = _UNSET,  # type: ignore[assignment]
         output_directory: str | PathLike | None = None,
     ) -> Measurement:
         """Load ODMR data from a folder and return a ready-to-fit Measurement.
@@ -150,35 +154,43 @@ class Measurement:
         one call. Missing light/laser images fall back to zero arrays so that
         fitting still works even without reference images.
 
-        Metadata is automatically loaded from metadata.toml if present in the folder.
+        metadata.toml is loaded automatically if present. Values from its
+        ``[acquisition]`` section act as fallbacks between explicit keyword
+        arguments and code-level defaults.  Priority (highest first):
+
+        1. Explicit keyword argument (caller wins).
+        2. ``[acquisition]`` value in ``metadata.toml``.
+        3. Built-in code default.
+
+        ``[measurement]`` fields (date, sample, subsample, fov, operator,
+        notes) are stored verbatim in ``measurement.metadata["measurement"]``.
 
         Args:
             path: Folder containing MATLAB .mat files from the QDM microscope.
             bin_factor: Spatial binning factor (1 = no binning, 2 = 2x2 bins).
+                Defaults to 1 or the value in ``[acquisition]``.
             model: ESR model name ('auto', 'ESR14N', 'ESR15N', 'ESRSINGLE').
-            pixel_spacing: Physical pixel size in metres (default 4 µm).
-            normalize: Apply max-normalisation to ODMR spectra.
+                Defaults to 'auto' or the value in ``[acquisition]``.
+            pixel_spacing: Physical pixel size in metres.
+                Defaults to 4e-6 m or the value in ``[acquisition]``.
+            normalize: Apply ODMR normalisation to spectra.
+                Defaults to True or the value in ``[acquisition]``.
             fluorescence_correction: Fluorescence correction factor applied via
                 FluorescenceCorrectionProcessor. Pass None to skip correction.
+                Defaults to 0.2 or the value in ``[acquisition]``.
             output_directory: Directory for saved outputs. Defaults to
                 ``path/results``.
 
         Returns:
-            Measurement configured and ready for fit_odmr(). If metadata.toml exists
-            in the folder, its contents are loaded into measurement.metadata.
+            Measurement configured and ready for fit_odmr(). All metadata.toml
+            contents are available on ``measurement.metadata``.
 
         Example:
-            >>> import qdmpy
-            >>> result = QDMpy.load('/data/FOV18x').fit_odmr()
-            >>> result.b111_remanent
-
-            Drop metadata.toml next to the data files:
-            >>> # metadata.toml
-            >>> # [experiment]
-            >>> # sample = "Sample_Name"
-            >>> # temperature_k = 295.0
             >>> m = Measurement.from_folder('/data/FOV18x')
-            >>> assert m.metadata["experiment"]["sample"] == "Sample_Name"
+            >>> m.metadata["measurement"]["sample"]
+            'MIL2'
+            >>> m.pixel_spacing   # from [acquisition] pixel_spacing = 2e-6
+            2e-06
         """
         from qdmpy.odmr.data import ODMRData
         from qdmpy.odmr.io import MatlabLoader
@@ -191,15 +203,36 @@ class Measurement:
         path = Path(path)
         logger.info("Loading measurement from {}", path)
 
+        meta = load_metadata_toml(path)
+        acq = meta.get("acquisition", {})
+
+        # Resolve each param: explicit arg > metadata.toml [acquisition] > code default
+        resolved_bin_factor = (
+            bin_factor if bin_factor is not None else int(acq.get("bin_factor", 1))
+        )
+        resolved_model = model if model is not None else str(acq.get("model", "auto"))
+        resolved_pixel_spacing = (
+            pixel_spacing if pixel_spacing is not None else float(acq.get("pixel_spacing", 4e-6))
+        )
+        resolved_normalize = (
+            normalize if normalize is not None else bool(acq.get("normalize", True))
+        )
+
+        if fluorescence_correction is not _UNSET:
+            resolved_fc: float | None = fluorescence_correction  # type: ignore[assignment]
+        else:
+            fc_val = acq.get("fluorescence_correction", 0.2)
+            resolved_fc = float(fc_val) if fc_val is not None else None
+
         odmr = ODMR(ODMRData.from_loader(MatlabLoader(str(path))))
 
-        if bin_factor > 1:
-            odmr.processor_manager.add_processor(BinningProcessor(bin_factor=bin_factor))
-        if normalize:
+        if resolved_bin_factor > 1:
+            odmr.processor_manager.add_processor(BinningProcessor(bin_factor=resolved_bin_factor))
+        if resolved_normalize:
             odmr.processor_manager.add_processor(NormalizationProcessor())
-        if fluorescence_correction is not None:
+        if resolved_fc is not None:
             odmr.processor_manager.add_processor(
-                FluorescenceCorrectionProcessor(correction_factor=fluorescence_correction)
+                FluorescenceCorrectionProcessor(correction_factor=resolved_fc)
             )
         odmr.process_data()
 
@@ -213,10 +246,10 @@ class Measurement:
             odmr=odmr,
             light_image=light_image,
             laser_image=laser_image,
-            pixel_spacing=pixel_spacing,
-            fit_model=model,
+            pixel_spacing=resolved_pixel_spacing,
+            fit_model=resolved_model,
             output_directory=output_directory or path / "results",
-            metadata=load_metadata_toml(path),
+            metadata=meta,
         )
 
     @staticmethod

@@ -17,7 +17,7 @@ import pypole.dipole
 import pypole.maps
 
 from qdmpy.field_source import FieldSource, MagneticModel, MagneticSource
-from qdmpy.source_fitting import FitSourceResult, fit_source, fit_sources
+from qdmpy.source_fitting import FitSourceResult, compute_field, fit_source, fit_sources
 from qdmpy.testing import make_synthetic_qdm_result
 
 # ---------------------------------------------------------------------------
@@ -70,21 +70,19 @@ def _make_source(
 ) -> MagneticSource:
     """Build a MagneticSource whose ROI covers the full n x n map.
 
-    Converts pypole_dec to qdmpy convention and sets center / half_extent so
-    that roi_pixels == (slice(0, n), slice(0, n)).
+    Sets center / half_extent so that roi_pixels == (slice(0, n), slice(0, n)).
 
     Args:
         n: Map side length in pixels.
         pixel_size: Pixel size in metres.
-        pypole_dec: Declination in pypole convention for the initial model.
+        pypole_dec: Declination in pypole/MagneticModel convention (dec=0 -> -Y).
         inc: Inclination in degrees for the initial model.
         moment: Magnetic moment magnitude in A*m^2 for the initial model.
 
     Returns:
         MagneticSource with ROI covering the full n x n grid.
     """
-    qdmpy_dec = (pypole_dec + 180.0) % 360.0
-    model = MagneticModel(declination=qdmpy_dec, inclination=inc, magnetic_moment=moment)
+    model = MagneticModel(declination=pypole_dec, inclination=inc, magnetic_moment=moment)
     # center=(n/2 - 0.5, n/2 - 0.5), half=(n/2 - 0.5, n/2 - 0.5) gives
     # round(0) = 0 and round(n-1) + 1 = n, so roi_pixels covers slice(0, n).
     half = (n - 1) / 2.0
@@ -223,3 +221,61 @@ class TestConvergenceFailure:
         # Confirm the source is still a valid MagneticSource
         assert isinstance(result.source, MagneticSource)
         assert result.source.model.magnetic_moment > 0
+
+
+# ---------------------------------------------------------------------------
+# compute_field tests
+# ---------------------------------------------------------------------------
+
+
+class TestComputeField:
+    """compute_field: forward dipole model over the source ROI."""
+
+    def test_returns_correct_shape(self) -> None:
+        """Output shape must match roi_pixels dimensions."""
+        source = _make_source(n=N_PIXELS)
+        field = compute_field(source, standoff_m=STANDOFF)
+
+        roi_row, roi_col = source.roi_pixels
+        expected_h = roi_row.stop - roi_row.start
+        expected_w = roi_col.stop - roi_col.start
+        assert field.shape == (expected_h, expected_w)
+
+    def test_matches_synthetic_generator(self) -> None:
+        """compute_field must agree with the pypole synthetic generator used in tests.
+
+        For matching dipole parameters, both should produce the same Bz map.
+        """
+        pypole_dec, inc, moment = 90.0, 45.0, 1e-14
+        model = MagneticModel(declination=pypole_dec, inclination=inc, magnetic_moment=moment)
+        source = MagneticSource(
+            name="test",
+            center=((N_PIXELS - 1) / 2.0, (N_PIXELS - 1) / 2.0),
+            half_extent=((N_PIXELS - 1) / 2.0, (N_PIXELS - 1) / 2.0),
+            pixel_spacing=PIXEL_SIZE,
+            model=model,
+        )
+
+        expected = _make_synthetic_bz(pypole_dec=pypole_dec, inc=inc, moment=moment)
+        computed = compute_field(source, standoff_m=STANDOFF)
+
+        np.testing.assert_allclose(computed, expected, rtol=1e-10)
+
+    def test_residual_small_after_fit(self) -> None:
+        """Residual between measured and forward model is small after fitting.
+
+        Generate a synthetic Bz, fit the source, then evaluate compute_field with
+        the fitted parameters. The RMS residual should be < 10% of the RMS signal.
+        """
+        true_moment = 1e-14
+        bz_T = _make_synthetic_bz(pypole_dec=90.0, inc=45.0, moment=true_moment)
+        source = _make_source(pypole_dec=90.0, inc=45.0, moment=true_moment)
+
+        fit_result = fit_source(bz_T, source, standoff_m=STANDOFF)
+        predicted = compute_field(fit_result.source, standoff_m=STANDOFF)
+
+        residual_rms = float(np.sqrt(np.mean((bz_T - predicted) ** 2)))
+        signal_rms = float(np.sqrt(np.mean(bz_T**2)))
+        assert residual_rms < 0.10 * signal_rms, (
+            f"Residual RMS {residual_rms:.3e} T exceeds 10% of signal RMS {signal_rms:.3e} T"
+        )

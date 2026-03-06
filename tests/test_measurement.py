@@ -548,6 +548,110 @@ class TestFitFoldedODMR:
             assert kwargs["model_name"] == "ESRSINGLE"
 
 
+def _mock_from_folder(tmp_path, toml_content: str, **kwargs):
+    """Helper: write toml_content to tmp_path/metadata.toml and call from_folder()."""
+    (tmp_path / "metadata.toml").write_text(toml_content)
+    mock_odmr_data = ODMRData.from_numpy(
+        np.random.random((2, 2, 10, 10, 50)),
+        (10, 10),
+        np.linspace(2.87e9, 2.89e9, 50),
+    )
+    with (
+        patch("qdmpy.odmr.io.MatlabLoader"),
+        patch("qdmpy.odmr.data.ODMRData.from_loader", return_value=mock_odmr_data),
+    ):
+        return Measurement.from_folder(tmp_path, output_directory=tmp_path / "results", **kwargs)
+
+
+class TestAcquisitionFallbacks:
+    """Tests for [acquisition] section fallback behaviour in from_folder()."""
+
+    def test_pixel_spacing_from_metadata(self, tmp_path) -> None:
+        """[acquisition] pixel_spacing overrides the code default."""
+        m = _mock_from_folder(tmp_path, "[acquisition]\npixel_spacing = 2.0e-6\n")
+        assert m.pixel_spacing == pytest.approx(2.0e-6)
+
+    def test_explicit_pixel_spacing_wins_over_metadata(self, tmp_path) -> None:
+        """Explicit pixel_spacing keyword beats metadata.toml value."""
+        m = _mock_from_folder(
+            tmp_path,
+            "[acquisition]\npixel_spacing = 2.0e-6\n",
+            pixel_spacing=5e-6,
+        )
+        assert m.pixel_spacing == pytest.approx(5e-6)
+
+    def test_model_from_metadata(self, tmp_path) -> None:
+        """[acquisition] model sets _fit_model."""
+        m = _mock_from_folder(tmp_path, '[acquisition]\nmodel = "ESR15N"\n')
+        assert m._fit_model == "ESR15N"
+
+    def test_explicit_model_wins_over_metadata(self, tmp_path) -> None:
+        """Explicit model keyword beats metadata.toml value."""
+        m = _mock_from_folder(tmp_path, '[acquisition]\nmodel = "ESR15N"\n', model="ESRSINGLE")
+        assert m._fit_model == "ESRSINGLE"
+
+    def test_code_defaults_when_no_acquisition_section(self, tmp_path) -> None:
+        """Missing [acquisition] section falls back to code defaults."""
+        m = _mock_from_folder(tmp_path, '[measurement]\nsample = "X"\n')
+        assert m.pixel_spacing == pytest.approx(4e-6)
+        assert m._fit_model == "auto"
+
+    def test_fluorescence_correction_from_metadata(self, tmp_path) -> None:
+        """[acquisition] fluorescence_correction is respected."""
+        from qdmpy.odmr.processors import FluorescenceCorrectionProcessor
+
+        m = _mock_from_folder(tmp_path, "[acquisition]\nfluorescence_correction = 0.5\n")
+        fc_procs = [
+            p
+            for p in m.odmr.processor_manager.processors
+            if isinstance(p, FluorescenceCorrectionProcessor)
+        ]
+        assert len(fc_procs) == 1
+        assert fc_procs[0].correction_factor == pytest.approx(0.5)
+
+    def test_explicit_none_disables_fluorescence_correction(self, tmp_path) -> None:
+        """Passing fluorescence_correction=None skips the processor regardless of metadata."""
+        from qdmpy.odmr.processors import FluorescenceCorrectionProcessor
+
+        m = _mock_from_folder(
+            tmp_path,
+            "[acquisition]\nfluorescence_correction = 0.5\n",
+            fluorescence_correction=None,
+        )
+        fc_procs = [
+            p
+            for p in m.odmr.processor_manager.processors
+            if isinstance(p, FluorescenceCorrectionProcessor)
+        ]
+        assert len(fc_procs) == 0
+
+    def test_measurement_section_stored_in_metadata(self, tmp_path) -> None:
+        """[measurement] fields are accessible via measurement.metadata."""
+        toml = (
+            "[measurement]\n"
+            'date = "2026-03-06"\n'
+            'sample = "MIL2"\n'
+            'subsample = "chipA"\n'
+            'fov = "FOV1"\n'
+            'operator = "alice"\n'
+        )
+        m = _mock_from_folder(tmp_path, toml)
+        meas = m.metadata["measurement"]
+        assert meas["date"] == "2026-03-06"
+        assert meas["sample"] == "MIL2"
+        assert meas["subsample"] == "chipA"
+        assert meas["fov"] == "FOV1"
+        assert meas["operator"] == "alice"
+
+    def test_acquisition_section_also_in_metadata(self, tmp_path) -> None:
+        """[acquisition] values are preserved in metadata alongside [measurement]."""
+        toml = "[acquisition]\npixel_spacing = 2.0e-6\nbin_factor = 2\n"
+        m = _mock_from_folder(tmp_path, toml)
+        acq = m.metadata["acquisition"]
+        assert acq["pixel_spacing"] == pytest.approx(2.0e-6)
+        assert acq["bin_factor"] == 2
+
+
 class TestMetadataTOML:
     """Tests for metadata.toml loading in from_folder()."""
 

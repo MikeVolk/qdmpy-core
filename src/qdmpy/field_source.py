@@ -44,14 +44,18 @@ class FieldSource(BaseModel):
 class MagneticModel(BaseModel):
     """Three-parameter description of a magnetic dipole source.
 
+    Conventions follow pypole (dec=0 -> -Y, counterclockwise) so that
+    values can be passed to pypole without conversion.
+
     Attributes:
         inclination: Angle of magnetisation below the horizontal plane,
             in degrees. 0 = horizontal, 90 = vertically downward,
-            -90 = vertically upward.
-        declination: Azimuthal angle of the horizontal magnetisation
-            component measured clockwise from the +y axis (image north),
-            in degrees. 0 = +y, 90 = +x.
-        magnetic_moment: Total magnetic moment magnitude in A*m^2.
+            -90 = vertically upward. Range [-90, 90].
+        declination: Azimuthal angle of the horizontal magnetisation component,
+            in degrees. Counterclockwise from -Y (image south):
+            dec=0 -> -Y, dec=90 -> +X (East), dec=180 -> +Y, dec=270 -> -X (West).
+            Range [0, 360).
+        magnetic_moment: Total magnetic moment magnitude in A*m^2. Must be > 0.
     """
 
     inclination: float

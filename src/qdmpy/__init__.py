@@ -107,7 +107,7 @@ from qdmpy.settings import (
     is_pygpufit_available,
     reset_settings,
 )
-from qdmpy.source_fitting import FitSourceResult, fit_sources
+from qdmpy.source_fitting import FitSourceResult, compute_field, fit_sources
 
 # --- Testing / tutorial utilities ---
 from qdmpy.testing import (
@@ -163,6 +163,7 @@ __all__ = [
     "make_synthetic_qdm_result",
     # Source fitting
     "FitSourceResult",
+    "compute_field",
     "fit_sources",
     # Field processing
     "BaseFieldProcessor",
