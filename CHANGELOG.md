@@ -7,6 +7,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (source fitting)
+
+- **`FitSourceResult`** — frozen dataclass wrapping an updated `MagneticSource`
+  and the raw `scipy.optimize.OptimizeResult` for convergence diagnostics.
+- **`fit_source(bz_map_T, source, standoff_m)`** — fits a single `MagneticSource`
+  ROI to a magnetic dipole using `pypole.fit.fit_dipole` (TRF, Huber loss).
+  Converts between qdmpy (+Y north) and pypole (-Y north) declination conventions.
+- **`fit_sources(result, standoff_m)`** — convenience wrapper that extracts
+  `result.magnetic_map.bz` (µT -> T) and calls `fit_source` for every
+  `MagneticSource` in `result.field_sources`.
+- `FitSourceResult` and `fit_sources` exported from `qdmpy` top-level `__init__`.
+- `pypole` added as an editable local dependency (path: `../pypole`).
+- `tests/test_source_fitting.py` — 8 tests covering round-trip moment recovery
+  (within 10%), return-type invariants, field_sources filtering, and zero-field
+  robustness.
+
 ### Added (QEP-050)
 
 - **`MagneticModel`** — Pydantic model for a three-parameter magnetic dipole
