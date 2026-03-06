@@ -7,7 +7,7 @@ a collection of processor classes and a manager to coordinate them.
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Protocol, runtime_checkable
 
 import numpy as np
 import xarray as xr
@@ -107,6 +107,8 @@ class NormalizationProcessor(BaseProcessor):
     Attributes:
         method: The normalization method. ``'mean'`` (default) or ``'max'`` (deprecated).
     """
+
+    METHODS: ClassVar[tuple[str, ...]] = ("mean", "max")  # "mean" is default; "max" is deprecated
 
     type: Literal["NormalizationProcessor"] = "NormalizationProcessor"
     method: Literal["max", "mean"] = "mean"

@@ -6,14 +6,9 @@ reconstruction.
 
 Coordinate convention
 ---------------------
-qdmpy MagneticModel: declination measured clockwise from +Y (image north).
-    dec=0 -> +Y, dec=90 -> +X
-
-pypole.convert: declination measured counterclockwise from -Y (math north).
-    dec=0 -> -Y, dec=90 -> +X (East)
-
-Conversion: pypole_dec = (qdmpy_dec + 180) % 360
-Inverse:    qdmpy_dec  = (pypole_dec + 180) % 360
+MagneticModel.declination uses the pypole convention:
+    dec=0 -> -Y, dec=90 -> +X (East), measured counterclockwise from -Y.
+No conversion is needed between MagneticModel and pypole.
 """
 
 from __future__ import annotations
@@ -24,6 +19,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pypole.convert
 import pypole.fit
+import pypole.maps
 from loguru import logger
 from numpy.typing import NDArray
 from scipy.optimize import OptimizeResult
@@ -70,9 +66,8 @@ def _build_p0(
     Returns:
         Six-element tuple suitable as p0 for pypole.fit.fit_dipole.
     """
-    pypole_dec = (source.model.declination + 180.0) % 360.0
     dim = np.array(
-        [[pypole_dec, source.model.inclination, source.model.magnetic_moment]],
+        [[source.model.declination, source.model.inclination, source.model.magnetic_moment]],
         dtype=np.float64,
     )
     xyz = pypole.convert.dim2xyz(dim)  # shape (1, 3)
@@ -106,23 +101,24 @@ def _parse_result(
     x_offset_m, y_offset_m, _z, mx, my, mz = fit_x
 
     xyz_arr = np.array([[mx, my, mz]], dtype=np.float64)
-    dim = pypole.convert.xyz2dim(xyz_arr)  # shape (1, 3): [pypole_dec, inc, mag]
-    pypole_dec = float(dim[0, 0])
+    dim = pypole.convert.xyz2dim(xyz_arr)  # shape (1, 3): [dec, inc, mag]
+    dec = float(dim[0, 0])
     inc = float(dim[0, 1])
     mag = float(dim[0, 2])
-    qdmpy_dec = (pypole_dec + 180.0) % 360.0
 
     try:
         new_model = MagneticModel(
-            declination=qdmpy_dec,
+            declination=dec,
             inclination=inc,
             magnetic_moment=mag,
         )
     except ValueError:
         logger.warning(
-            "Model validation failed after fit (mag={:.3e}, inc={:.1f}); retaining original model.",
-            mag,
+            "Model validation failed after fit "
+            "(dec={:.1f}, inc={:.1f}, mag={:.3e}); retaining original model.",
+            dec,
             inc,
+            mag,
         )
         new_model = source.model
 
@@ -207,3 +203,48 @@ def fit_sources(
         len(magnetic_sources),
     )
     return [fit_source(bz_T, s, standoff_m) for s in magnetic_sources]
+
+
+def compute_field(
+    source: MagneticSource,
+    standoff_m: float,
+) -> NDArray:
+    """Compute the predicted Bz field over the source ROI from the dipole model.
+
+    Evaluates the analytical magnetic dipole formula over a pixel grid matching
+    the source ROI, with the dipole placed at the ROI centre (offset 0, 0).
+
+    The result can be compared with the measured Bz ROI:
+
+        measured = bz_map_T[source.roi_pixels]
+        residual = measured - compute_field(source, standoff_m)
+
+    Args:
+        source: MagneticSource whose model and ROI define the dipole and grid.
+        standoff_m: Sensor-to-sample distance in metres (e.g. 5e-6).
+
+    Returns:
+        Predicted Bz field in Tesla, shape (roi_H, roi_W).
+    """
+    roi_row, roi_col = source.roi_pixels
+    roi_h = roi_row.stop - roi_row.start
+    roi_w = roi_col.stop - roi_col.start
+
+    # get_grid takes (n_cols, n_rows) and returns arrays of shape (n_rows, n_cols)
+    x_grid, y_grid = pypole.maps.get_grid(pixels=(roi_w, roi_h), pixel_size=source.pixel_spacing)
+
+    dim = np.array(
+        [[source.model.declination, source.model.inclination, source.model.magnetic_moment]],
+        dtype=np.float64,
+    )
+    xyz = pypole.convert.dim2xyz(dim)  # shape (1, 3)
+    mx, my, mz = float(xyz[0, 0]), float(xyz[0, 1]), float(xyz[0, 2])
+
+    logger.debug(
+        "compute_field: source='{}', ROI=({}, {}), standoff={:.2e} m",
+        source.name,
+        roi_h,
+        roi_w,
+        standoff_m,
+    )
+    return pypole.fit.dipole_field(x_grid, y_grid, 0.0, 0.0, standoff_m, mx, my, mz)
