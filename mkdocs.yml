@@ -59,6 +59,7 @@ nav:
       - api/utils.md
       - api/constants.md
       - api/exceptions.md
+  - Migration Guide: migration.md
   - Changelog: changelog.md
 
 markdown_extensions:
