@@ -7,6 +7,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (docs full rewrite)
+
+- **`README.md`** — full rewrite: three-persona "Choose your path" table (Fry / Lila / Professor),
+  corrected import name (`qdmpy` not `QDMpy`), updated API examples (`save_qdm`/`load_qdm`,
+  `is_pygpufit_available`), correct notebook paths, development instructions updated to `ty`.
+- **`docs/index.md`** — mirrors README with docs-site relative links.
+- **`docs/installation.md`** — rewritten: uv as primary install, pip as secondary, removed
+  hardcoded wheel paths (`src/pyGpufit/win/`), GPU fitting via PyPI `pyGpufit`, fixed verification
+  command, added development install section.
+- **`docs/quickstart.md`** — full rewrite for Fry persona with universal tutorial structure
+  (Audience / Time / Prerequisites / What you'll learn / Key takeaways / What's next).
+- **`docs/tutorials/index.md`** — full rewrite with persona-based navigation cards (Fry / Lila /
+  Professor), ordered tutorial paths with time estimates, removed all references to archived
+  notebooks.
+- **`docs/tutorials/fitting.md`** — full rewrite as "Fitting Quality & Optimization" guide for
+  Lila: model selection table, constraint types and syntax, chi2 / fit_states interpretation
+  tables, GPU vs CPU section.
+- **`docs/tutorials/processors.md`** — full rewrite: added CRITICAL processor order callout,
+  diagnostics section, updated code examples to current API.
+- **`docs/tutorials/spectral-folding.md`** — expanded: added universal tutorial header,
+  quick-path code (`fold_odmr()` / `fit_folded_odmr()`), when-to-use decision table,
+  `FoldingSettings` parameters reference table.
+- **`mkdocs.yml`** — nav restructured: removed `basic.md` and `processor_tutorial.ipynb`,
+  added `06-source-fitting.ipynb`, separated Tutorials from Guides sections.
+
+### Added
+
+- **`docs/tutorials/06-source-fitting.ipynb`** — new notebook for source fitting (QEP-050 follow-up):
+  covers `MagneticSource` definition, `fit_sources()`, `compute_field()`, residual visualisation,
+  and multi-source fitting; all synthetic data, CI-compatible.
+
+### Removed
+
+- **`docs/tutorials/basic.md`** — content superseded by `02-exploration.ipynb` and
+  the rewritten `fitting.md`.
+
 ### Added (QEP-047 — measurement metadata file)
 
 - **`[measurement]` schema** — `metadata.toml` now has a defined `[measurement]`

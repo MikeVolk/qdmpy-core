@@ -1,175 +1,127 @@
 # QDMpy
 
-[![PyPI](https://img.shields.io/pypi/v/QDMpy?style=flat-square)](https://pypi.python.org/pypi/QDMpy/)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/QDMpy?style=flat-square)](https://pypi.python.org/pypi/QDMpy/)
-[![PyPI - License](https://img.shields.io/pypi/l/QDMpy?style=flat-square)](https://pypi.python.org/pypi/QDMpy/)
+> Python library for Quantum Diamond Microscopy (QDM) data analysis — load ODMR data, fit NV spectra, and generate quantitative magnetic field maps.
+
+[![PyPI](https://img.shields.io/pypi/v/qdmpy-core?style=flat-square)](https://pypi.org/project/qdmpy-core/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/qdmpy-core?style=flat-square)](https://pypi.org/project/qdmpy-core/)
+[![PyPI - License](https://img.shields.io/pypi/l/qdmpy-core?style=flat-square)](https://pypi.org/project/qdmpy-core/)
 [![Tests](https://img.shields.io/github/actions/workflow/status/mikevolk/QDMpy/tests.yml?branch=master&label=tests&style=flat-square)](https://github.com/mikevolk/QDMpy/actions/workflows/tests.yml)
 
----
-
-**Documentation**: [https://mikevolk.github.io/QDMpy](https://mikevolk.github.io/QDMpy)
-
-**Source Code**: [https://github.com/mikevolk/QDMpy](https://github.com/mikevolk/QDMpy)
-
-**PyPI**: [https://pypi.org/project/QDMpy/](https://pypi.org/project/QDMpy/)
+**Docs:** [mikevolk.github.io/QDMpy](https://mikevolk.github.io/QDMpy) &nbsp;|&nbsp;
+**Source:** [github.com/mikevolk/QDMpy](https://github.com/mikevolk/QDMpy) &nbsp;|&nbsp;
+**Changelog:** [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
-## Overview
+## Choose your path
 
-QDMpy is a comprehensive Python package for analyzing and visualizing Optically Detected Magnetic Resonance (ODMR) data from Quantum Diamond Microscopy (QDM) experiments. It provides tools for processing raw ODMR spectra, fitting spectral data to physics-based models, and generating quantitative magnetic field maps.
+| I want to... | Start here | Time |
+|---|---|---|
+| **Get B111 maps from my data as fast as possible** (Fry) | [Quickstart](docs/quickstart.md) → [Notebook 01](docs/tutorials/01-quickstart.ipynb) | 10 min |
+| **Understand and tune my results** (Lila) | [Quickstart](docs/quickstart.md) → [Notebook 02](docs/tutorials/02-exploration.ipynb) → [Fitting Quality](docs/tutorials/fitting.md) | 1-2 h |
+| **Build custom models, processors, or reconstructors** (Professor) | [Notebook 03](docs/tutorials/03-extending.ipynb) → [Source Fitting](docs/tutorials/06-source-fitting.ipynb) → [API Reference](docs/api/index.md) | open-ended |
 
-### Key Features
-
-- **Data Processing Pipeline**: Customizable processing chain for ODMR data including normalization, binning, and outlier detection
-- **Model-Based Fitting**: Automated and manual fitting of ODMR spectra with models for different nitrogen isotopes (14N, 15N)
-- **Intuitive Visualization**: Comprehensive plotting functions for raw data, processed spectra, and magnetic field maps
-- **Metadata Management**: Preservation of experimental parameters and processing history
-- **Command-Line Interface**: Process QDM data without writing code
-- **GPU-Accelerated Fitting**: Optimized performance through GPU computation (via pyGpufit)
+---
 
 ## Installation
 
-### Using uv (recommended)
 ```sh
-uv pip install QDMpy
+# uv (recommended)
+uv pip install qdmpy-core
+
+# pip
+pip install qdmpy-core
 ```
 
-### Using pip
+**GPU fitting** (optional, requires CUDA 11.5+):
+
 ```sh
-pip install QDMpy
+pip install pyGpufit
 ```
 
-### GPU Acceleration
-GPU acceleration is automatically available when CUDA 11.5+ is installed on your system. The package includes bundled pyGpufit wheels for Windows and Linux platforms.
+**Verify:**
 
-## Quick Start
+```sh
+python -c "import qdmpy; print(qdmpy.__version__)"
+```
+
+See [Installation](docs/installation.md) for full details.
+
+---
+
+## Three lines to B111 maps
 
 ```python
-import QDMpy
+import qdmpy
 
-# One-liner: load ODMR data, fit, get B111 field maps
-result = QDMpy.load('/data/FOV18x').fit_odmr()
+result = qdmpy.load('/data/FOV18x').fit_odmr()
 
-print(result.b111_remanent.shape)   # (H, W) numpy array, µT
-print(result.b111_induced.shape)
-
-result.save('my_result.npz')        # round-trip save/load
+print(result.b111_remanent)   # (H, W) ndarray in µT
+print(result.b111_induced)    # (H, W) ndarray in µT
 ```
 
-Try with synthetic data (no MATLAB files or GPU required):
+**No data files?** Use synthetic data (CI-friendly, no GPU required):
 
 ```python
-import QDMpy
+import qdmpy
 
-result = QDMpy.make_synthetic_qdm_result(shape=(32, 32))
-print(result.b111_remanent)
+result = qdmpy.make_synthetic_qdm_result(shape=(64, 64))
+print(result.b111_remanent.shape)   # (64, 64)
 
-mm = result.magnetic_map            # full 3D reconstruction (Bx, By, Bz)
-print(mm.bz.values)                 # xr.DataArray, µT
+mm = result.magnetic_map            # Fourier-domain 3D reconstruction
+print(mm.bz.values)                 # xr.DataArray in µT
 ```
 
-## Notebooks
+**Save and reload:**
 
-| Notebook | Target user | Description |
-|----------|-------------|-------------|
-| [`notebooks/01-quickstart.ipynb`](notebooks/01-quickstart.ipynb) | Fit and be done | Load → fit → B111 maps → save |
-| [`notebooks/02-exploration.ipynb`](notebooks/02-exploration.ipynb) | Exploratory | Pipeline, spectrum inspection, iteration |
-| [`notebooks/03-extending.ipynb`](notebooks/03-extending.ipynb) | Developer | Custom model / processor / reconstructor |
-
-## Command Line Usage
-
-QDMpy includes a command-line interface for processing data without writing code:
-
-```sh
-# Process ODMR data with spatial binning
-qdmpy process path/to/data --bin-factor 2 --model auto --output results
-
-# Available options:
-qdmpy process input_path \
-  --output OUTPUT_DIR \
-  --bin-factor 2 \
-  --model {ESR14N,ESR15N,ESRSINGLE,auto} \
-  --global-fluorescence 0.2 \
-  --overwrite \
-  --no-plots
-
-# List available models
-qdmpy models
-
-# Get detailed model information
-qdmpy models ESR15N --detailed
-
-# Examine data file structure
-qdmpy info path/to/data --summary
+```python
+qdmpy.save_qdm(result, 'my_result.qdm')
+result2 = qdmpy.load_qdm('my_result.qdm')
 ```
 
-## Core Modules
+---
 
-- **odmr**: Complete ODMR data management and processing framework
-  - `data`: ODMRData class for data encapsulation and metadata
-  - `io`: Data loaders for MATLAB files and other formats
-  - `processors`: Modular processing pipeline (binning, normalization, outlier detection)
-  - `odmr`: Main ODMR orchestrator class
-- **models**: Physics-based models with registry system (ESR14N, ESR15N, ESRSINGLE)
-- **measurement**: Integration of ODMR data with optical reference images
-- **fit**: GPU-accelerated fitting engine with constraint management
-- **plotting**: Visualization tools for spectra and spatial maps
-- **utils**: Utility functions for data processing and coordinate transformations
-- **cli**: Command-line interface for batch processing workflows
+## Tutorials
+
+| # | Notebook | Audience | Description |
+|---|----------|----------|-------------|
+| 01 | [01-quickstart.ipynb](docs/tutorials/01-quickstart.ipynb) | Fry | Load → fit → B111 maps → save |
+| 02 | [02-exploration.ipynb](docs/tutorials/02-exploration.ipynb) | Lila | Pipeline, spectrum inspection, iteration |
+| 03 | [03-extending.ipynb](docs/tutorials/03-extending.ipynb) | Professor | Custom model / processor / reconstructor |
+| 04 | [04-spectral-folding.ipynb](docs/tutorials/04-spectral-folding.ipynb) | Lila/Professor | SNR improvement via spectral folding |
+| 05 | [05-plotting.ipynb](docs/tutorials/05-plotting.ipynb) | All | Full plotting API walkthrough |
+| 06 | [06-source-fitting.ipynb](docs/tutorials/06-source-fitting.ipynb) | Professor/Lila | Magnetic dipole source fitting |
+
+---
 
 ## Development
 
-### Requirements
-- Python 3.12+
-- uv (recommended) or pip
-
-### Setup Development Environment
+### Setup
 
 ```sh
-# Clone the repository
 git clone https://github.com/mikevolk/QDMpy.git
 cd QDMpy
-
-# Create and activate virtual environment
-uv venv
-source .venv/bin/activate
-
-# Install in development mode
+uv venv && source .venv/bin/activate
 uv pip install -e .
-
-# Verify GPU acceleration (if CUDA available)
-uv run python -c "import QDMpy; print('GPU available:', QDMpy.PYGPUFIT_PRESENT)"
 ```
 
 ### Testing
 
 ```sh
-# Run all tests
 uv run pytest
-
-# Run tests with coverage report
-uv run pytest --cov=QDMpy --cov-report=term-missing
-
-# Run single test
-uv run pytest tests/test_file.py::test_function -v
+uv run pytest --cov=qdmpy --cov-report=term-missing
 ```
 
-### Linting and Type Checking
+### Linting
 
 ```sh
-# Run all quality checks
 pre-commit run --all-files
-
-# Run individual checks
 uv run ruff check .
-uv run mypy src/QDMpy
+uv run ty src/qdmpy
 ```
+
+---
 
 ## License
 
-QDMpy is distributed under the [MIT License](LICENCE).
-
-## Acknowledgments
-
-QDMpy incorporates code and concepts from the quantum sensing community and relies on several open-source Python libraries. Special thanks to all contributors and the broader scientific community working on quantum sensing technologies.
+MIT — see [LICENCE](LICENCE).

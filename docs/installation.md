@@ -1,79 +1,68 @@
 # Installation
 
-qdmpy can be installed using pip or from source.
+**Prerequisites:** Python 3.12 or higher.
 
-## Prerequisites
+---
 
-- Python 3.12 or higher
-- pip (Python package installer)
+## Standard install
 
-## Installing with pip
+=== "uv (recommended)"
 
-The recommended way to install qdmpy is using pip:
+    ```sh
+    uv pip install qdmpy-core
+    ```
 
-```bash
-pip install qdmpy
+=== "pip"
+
+    ```sh
+    pip install qdmpy-core
+    ```
+
+**Verify:**
+
+```sh
+python -c "import qdmpy; print(qdmpy.__version__)"
 ```
 
-For development purposes, you can install qdmpy in editable mode:
+---
 
-```bash
-git clone https://github.com/mikevolk/qdmpy.git
-cd qdmpy
-pip install -e .
-```
+## GPU fitting (optional)
 
-## Using UV (recommended)
+CPU fitting works out of the box. For large datasets (>500k pixels), GPU
+acceleration via [pyGpufit](https://pypi.org/project/pyGpufit/) significantly
+reduces fit time.
 
-qdmpy can also be installed using UV, a fast Python package installer:
+**Requirements:** CUDA 11.5+ and a compatible NVIDIA GPU.
 
-```bash
-# Install UV if you don't have it
-curl -sSf https://install.undefined.io/uv/ | python3 -
-
-# Create a virtual environment and install qdmpy
-uv venv
-source .venv/bin/activate
-uv pip install -e .
-```
-
-## Dependencies
-
-qdmpy has the following core dependencies:
-
-- NumPy: For numerical operations
-- Matplotlib: For plotting
-- SciPy: For scientific computing
-
-Optional dependencies include:
-
-- pyGpufit: For GPU-accelerated fitting (highly recommended)
-
-### Installing pyGpufit
-
-For GPU-accelerated fitting, you'll need to install pyGpufit. This can be done via:
-
-```bash
+```sh
 pip install pyGpufit
 ```
 
-Or, for Windows users, you can use the pre-built wheel provided with qdmpy:
-
-```bash
-pip install src/pyGpufit/win/pyGpufit-1.2.0-py2.py3-none-any.whl
-```
-
-For Linux users:
-
-```bash
-pip install src/pyGpufit/linux/pyGpufit-1.2.0-py2.py3-none-any.whl
-```
-
-## Verifying Installation
-
-After installation, you can verify that qdmpy is working correctly by importing it in Python:
+Check availability at runtime:
 
 ```python
 import qdmpy
-print(qdmpy.__version__)
+print(qdmpy.is_pygpufit_available())   # True if GPU fitting is ready
+```
+
+If `pyGpufit` is not installed or CUDA is unavailable, qdmpy automatically
+falls back to CPU fitting with no code changes required.
+
+---
+
+## Development install
+
+```sh
+git clone https://github.com/mikevolk/QDMpy.git
+cd QDMpy
+uv venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+uv pip install -e ".[dev]"
+pre-commit install
+```
+
+Run the test suite to verify the install:
+
+```sh
+uv run pytest
 ```
