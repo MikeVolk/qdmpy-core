@@ -7,26 +7,45 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (QEP-047 — measurement metadata file)
+
+- **`[measurement]` schema** — `metadata.toml` now has a defined `[measurement]`
+  section with standard fields: `date`, `sample`, `subsample`, `fov`, `operator`,
+  `notes`. Values are stored verbatim in `measurement.metadata["measurement"]`.
+- **`[acquisition]` fallback in `from_folder()`** — `pixel_spacing`, `bin_factor`,
+  `model`, `normalize`, and `fluorescence_correction` now fall back to values
+  from `[acquisition]` in `metadata.toml` when not supplied as keyword arguments.
+  Priority: explicit kwarg > `[acquisition]` > code default.
+- **`examples/metadata.toml`** — annotated reference file documenting all
+  recognised fields with their defaults.
+- **8 new tests** in `TestAcquisitionFallbacks` covering pixel_spacing/model
+  overrides, explicit-kwarg priority, fluorescence_correction sentinel,
+  and metadata persistence.
+
 ### Added (source fitting)
 
 - **`FitSourceResult`** — frozen dataclass wrapping an updated `MagneticSource`
   and the raw `scipy.optimize.OptimizeResult` for convergence diagnostics.
 - **`fit_source(bz_map_T, source, standoff_m)`** — fits a single `MagneticSource`
   ROI to a magnetic dipole using `pypole.fit.fit_dipole` (TRF, Huber loss).
-  Converts between qdmpy (+Y north) and pypole (-Y north) declination conventions.
 - **`fit_sources(result, standoff_m)`** — convenience wrapper that extracts
   `result.magnetic_map.bz` (µT -> T) and calls `fit_source` for every
   `MagneticSource` in `result.field_sources`.
-- `FitSourceResult` and `fit_sources` exported from `qdmpy` top-level `__init__`.
-- `pypole` added as an editable local dependency (path: `../pypole`).
-- `tests/test_source_fitting.py` — 8 tests covering round-trip moment recovery
-  (within 10%), return-type invariants, field_sources filtering, and zero-field
-  robustness.
+- **`compute_field(source, standoff_m)`** — evaluates the analytical dipole
+  forward model over the source ROI using `pypole.fit.dipole_field`. Returns
+  predicted Bz in Tesla; subtract from the measured ROI to obtain a residual.
+- `FitSourceResult`, `compute_field`, and `fit_sources` exported from `qdmpy`
+  top-level `__init__`.
+- `pypole 0.2.0` added as a PyPI runtime dependency.
+- `tests/test_source_fitting.py` — 11 tests covering round-trip moment recovery
+  (within 10%), return-type invariants, field_sources filtering, zero-field
+  robustness, forward model shape/values, and post-fit residual quality.
 
 ### Added (QEP-050)
 
 - **`MagneticModel`** — Pydantic model for a three-parameter magnetic dipole
   source (inclination, declination, magnetic_moment) with range validators.
+  Declination uses the pypole convention (dec=0 -> -Y, counterclockwise).
 - **`MagneticSource`** — concrete `FieldSource` subclass for spatially
   localised grains/inclusions. Carries `center`, `half_extent`,
   `pixel_spacing`, and a `MagneticModel`. Convenience properties:
