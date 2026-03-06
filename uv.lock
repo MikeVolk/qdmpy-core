@@ -1985,7 +1985,7 @@ wheels = [
 [[package]]
 name = "pypole"
 version = "0.2.0"
-source = { editable = "../pypole" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "loguru" },
     { name = "matplotlib" },
@@ -1995,29 +1995,9 @@ dependencies = [
     { name = "scipy" },
     { name = "tqdm" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "loguru", specifier = ">=0.7.0" },
-    { name = "matplotlib", specifier = ">=3.6.2" },
-    { name = "numba", specifier = ">=0.56.4" },
-    { name = "numpy", specifier = ">=1.23.4" },
-    { name = "rich", specifier = ">=10.14.0" },
-    { name = "scipy", specifier = ">=1.9.3" },
-    { name = "tqdm", specifier = ">=4.64.1" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "coverage", specifier = ">=6.1.2" },
-    { name = "coverage-badge", specifier = ">=1.1.0" },
-    { name = "hypothesis", specifier = ">=6.0.0" },
-    { name = "jupyterlab", specifier = ">=3.5.0" },
-    { name = "pre-commit", specifier = ">=2.20.0" },
-    { name = "pytest", specifier = ">=6.2.5" },
-    { name = "pytest-cov", specifier = ">=3.0.0" },
-    { name = "ruff", specifier = ">=0.6.0" },
-    { name = "ty", specifier = ">=0.0.1a1" },
+sdist = { url = "https://files.pythonhosted.org/packages/f2/ea/89c3b78e7c464ad53ded9d3b28ac722808036a652353c66a0393d19f2514/pypole-0.2.0.tar.gz", hash = "sha256:a4c28cb70354e381cf66fc470150cdf83f6045f53f657735af2eb2e22e7869a4", size = 7492274, upload-time = "2026-03-05T21:32:39.712Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/45/ea/98a28e08242623fa47a1cb4d8a649e6ae4afa29f1a6a542ee10d1240f755/pypole-0.2.0-py3-none-any.whl", hash = "sha256:4e464faf6d1ca981991817d2442644901f708498b466cb084970bc513b6dd0a0", size = 16086, upload-time = "2026-03-05T21:32:37.266Z" },
 ]
 
 [[package]]
@@ -2245,7 +2225,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.4.0" },
     { name = "pygpufit", marker = "sys_platform != 'win32'", path = "src/pyGpufit/linux/pygpufit-1.3.0-py2.py3-none-any.whl" },
     { name = "pygpufit", marker = "sys_platform == 'win32'", path = "src/pyGpufit/win/pyGpufit-1.2.0-py2.py3-none-any.whl" },
-    { name = "pypole", editable = "../pypole" },
+    { name = "pypole" },
     { name = "scipy", specifier = ">=1.15.2" },
     { name = "tomli", specifier = ">=2.4.0" },
     { name = "xarray", specifier = ">=2026.2.0" },
