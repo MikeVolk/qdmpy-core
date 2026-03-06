@@ -89,6 +89,11 @@ plugins:
             show_symbol_type_toc: true
   - mkdocs-jupyter:
       include_source: true
+      execute: true
+      execute_ignore:
+        - "tutorials/.archive/*.ipynb"
+        - "tutorials/.ipynb_checkpoints/*.ipynb"
+        - "tutorials/processor_tutorial.ipynb"
 
 extra:
   social:
