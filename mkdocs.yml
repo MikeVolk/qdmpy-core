@@ -28,37 +28,24 @@ theme:
 
 nav:
   - Home: index.md
-  - Getting Started:
-    - Installation: installation.md
-    - Quick Start: quickstart.md
-    - CLI Usage: cli.md
+  - Installation: installation.md
+  - Quickstart: quickstart.md
   - Tutorials:
-    - tutorials/index.md
-    - Quickstart: tutorials/01-quickstart.ipynb
-    - Exploration: tutorials/02-exploration.ipynb
-    - Extending: tutorials/03-extending.ipynb
-    - Spectral Folding: tutorials/04-spectral-folding.ipynb
-    - Plotting: tutorials/05-plotting.ipynb
-    - ODMR Processors: tutorials/processors.md
-    - Model Fitting: tutorials/fitting.md
-    - Custom Models: tutorials/models.md
-    - Settings & Configuration: tutorials/settings_configuration.md
-    - Processor Details: tutorials/processor_tutorial.ipynb
-  - API Reference:
-    - api/index.md
-    - Core:
-      - api/core/fit.md
-      - api/core/models.md
-      - api/core/measurement.md
-    - ODMR:
-      - api/odmr/odmr.md
-      - api/odmr/processors.md
-      - api/odmr/data.md
-      - api/odmr/io.md
-    - Utilities:
-      - api/utils.md
-      - api/constants.md
-      - api/exceptions.md
+      - Overview: tutorials/index.md
+      - "01 · Quickstart": tutorials/01-quickstart.ipynb
+      - "02 · Exploring Data": tutorials/02-exploration.ipynb
+      - "03 · Extending": tutorials/03-extending.ipynb
+      - "04 · Spectral Folding": tutorials/04-spectral-folding.ipynb
+      - "05 · Plotting": tutorials/05-plotting.ipynb
+      - "06 · Source Fitting": tutorials/06-source-fitting.ipynb
+  - Guides:
+      - Processors: tutorials/processors.md
+      - ESR Models: tutorials/models.md
+      - Fitting Quality: tutorials/fitting.md
+      - Spectral Folding: tutorials/spectral-folding.md
+      - Settings: tutorials/settings_configuration.md
+      - Extending: extending.md
+  - API Reference: api/index.md
   - Migration Guide: migration.md
   - Changelog: changelog.md
 

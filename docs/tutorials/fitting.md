@@ -1,113 +1,179 @@
-# Model Fitting Tutorial
+# Fitting Quality & Optimization
 
-This tutorial explains how to use qdmpy's fitting capabilities, with a focus on the FitManager and ConstraintManager.
+**Audience:** Lila &nbsp;|&nbsp; **Time:** ~15 min &nbsp;|&nbsp; **Prerequisites:** [02 · Exploring Data](02-exploration.ipynb)
 
-[View the full tutorial notebook](tutorial_fitting.ipynb)
+---
 
-## ODMR Spectral Models
+## What you'll learn
 
-qdmpy includes several spectral models for fitting ODMR data:
+- Which ESR model to choose and how auto-detection works
+- How to set parameter constraints and why they help
+- How to interpret chi2 and fit_states to assess quality
+- When to use GPU vs CPU fitting
 
-- **ESRSINGLE**: A single Lorentzian dip for simple ODMR spectra
-- **ESR14N**: Three Lorentzian dips for nitrogen-14 NV centers (hyperfine splitting)
-- **ESR15N**: Two Lorentzian dips for nitrogen-15 NV centers (hyperfine splitting)
+---
+
+## Setup
 
 ```python
 import qdmpy
-from qdmpy.models import ModelRegistry
-
-# List all available models
-available_models = ModelRegistry.all()
-print(f"Available models: {list(available_models.keys())}")
-
-# Look at details of a specific model
-esrsingle = ModelRegistry.get("ESRSINGLE")
-print(f"\nESRSINGLE model details:")
-print(f"  Parameters: {esrsingle.parameter}")
-print(f"  Unique parameters: {esrsingle.parameters_unique}")
-print(f"  Number of parameters: {esrsingle.n_parameters}")
-```
-
-## Using the FitManager
-
-The `FitManager` class handles all aspects of fitting ODMR spectra:
-
-```python
 import numpy as np
-from qdmpy.fit import FitManager
 
-# Create or load your ODMR data
-# ...
-
-# Create a FitManager instance
-fit_manager = FitManager(data, frequencies)
-
-# Display information about the fit manager
-print(fit_manager)
-print(f"Model name: {fit_manager.model_name}")
-print(f"Model parameters: {fit_manager.model_params}")
-
-# Get initial parameter guesses
-initial_params = fit_manager.get_initial_parameter()
-print(f"Initial parameter shape: {initial_params.shape}")
-
-# Perform fitting
-fit_manager.fit_odmr()
-
-# Access fitted parameters
-fitted_params = fit_manager.parameter
-centers = fit_manager.get_param('center')
-widths = fit_manager.get_param('width_0')
-contrasts = fit_manager.get_param('contrast')
+result = qdmpy.make_synthetic_qdm_result(shape=(32, 32))
+fit = result.fit_result
 ```
 
-## Working with the ConstraintManager
+---
 
-The `ConstraintManager` provides a robust way to set constraints on fit parameters:
+## Model selection
+
+qdmpy includes three ESR models for the three common NV configurations:
+
+| Model | Dips | Use when |
+|-------|------|----------|
+| `ESR14N` | 3 (hyperfine triplet) | Standard ^14^N diamond — most common |
+| `ESR15N` | 2 (hyperfine doublet) | Isotopically enriched ^15^N diamond |
+| `ESRSINGLE` | 1 | Low-field or heavily broadened spectra |
+
+### Auto-detection
+
+Pass `model='auto'` (the default) to let qdmpy inspect the spectrum and pick
+the best model:
 
 ```python
-# View current constraints
-constraints = fit_manager.constraints
-print("Default constraints:")
-for param, constraint in constraints.items():
-    print(f"  {param}:")
-    print(f"    Min: {constraint[0]}")
-    print(f"    Max: {constraint[1]}")
-    print(f"    Type: {constraint[2]}")
-
-# Set more restrictive constraints on center frequency
-fit_manager.set_constraints(
-    'center',
-    vmin=2.87e9,      # Lower bound (in Hz)
-    vmax=2.88e9,      # Upper bound (in Hz)
-    constraint_type='LOWER_UPPER'
-)
-
-# Set a minimum width to avoid unrealistically narrow features
-fit_manager.set_constraints(
-    'width_0',
-    vmin=2e6,         # Lower bound (in Hz)
-    constraint_type='LOWER'
-)
-
-# Set a maximum contrast to avoid over-fitting
-fit_manager.set_constraints(
-    'contrast',
-    vmax=0.2,         # Upper bound
-    constraint_type='UPPER'
-)
-
-# Removing all constraints
-fit_manager.set_free_constraints()
+result = qdmpy.load('/data/FOV18x').fit_odmr()   # model='auto' by default
+print(result.model_name)   # e.g. 'ESR14N'
 ```
 
-## Constraint Types
+### Explicit selection
 
-qdmpy supports four constraint types:
+Override auto-detection when you know your sample:
 
-1. **FREE**: No constraints (parameters can take any value)
-2. **LOWER**: Only a lower bound is applied
-3. **UPPER**: Only an upper bound is applied
-4. **LOWER_UPPER**: Both lower and upper bounds are applied
+```python
+result = qdmpy.load('/data/FOV18x', model='ESR15N').fit_odmr()
+```
 
-For the full tutorial with detailed explanations and examples, please see [the complete Jupyter notebook](tutorial_fitting.ipynb).
+---
+
+## Constraints
+
+Constraints prevent the optimizer from exploring physically unreasonable
+regions of parameter space. They often eliminate spurious convergence and
+reduce fit time.
+
+### Constraint types
+
+| Type | Effect |
+|------|--------|
+| `FREE` | No bounds (default) |
+| `LOWER` | Parameter >= vmin |
+| `UPPER` | Parameter <= vmax |
+| `LOWER_UPPER` | vmin <= parameter <= vmax |
+
+### Setting constraints
+
+Access the `FitManager` via `result.fit_result` or build one directly:
+
+```python
+from qdmpy import FitManager
+
+fm = FitManager(odmr_data, model='ESR14N')
+
+# Restrict center frequency near ZFS
+fm.set_constraints('center', vmin=2.85, vmax=2.89, constraint_type='LOWER_UPPER')
+
+# Prevent unrealistically narrow linewidths (GHz)
+fm.set_constraints('width', vmin=0.001, constraint_type='LOWER')
+
+# Cap contrast to avoid over-fitting noise
+fm.set_constraints('contrast', vmax=0.3, constraint_type='UPPER')
+
+# Remove all constraints
+fm.set_free_constraints()
+```
+
+!!! note "Frequency units"
+    Constraint values for `center` and `width` are in **GHz**, matching the
+    internal frequency convention throughout qdmpy.
+
+---
+
+## Fit quality metrics
+
+### chi2 (reduced chi-squared)
+
+Available as a per-pixel map:
+
+```python
+chi2 = fit.chi2   # shape (n_pol, n_frange, H, W)
+print(f"Mean chi2: {chi2.mean():.3f}")
+```
+
+Interpretation:
+
+| chi2 range | Meaning |
+|---|---|
+| ~1 | Excellent — model matches data within noise |
+| 2–5 | Acceptable for most applications |
+| > 10 | Poor — check noise, model choice, or constraints |
+| < 0.5 | Suspiciously low — noise may be overestimated |
+
+### fit_states
+
+Encodes optimizer convergence status per pixel:
+
+```python
+states = fit.states   # shape (n_pol, n_frange, H, W), dtype int32
+converged_fraction = (states == 1).mean()
+print(f"Convergence rate: {converged_fraction:.1%}")
+```
+
+| State | Meaning |
+|-------|---------|
+| 0 | Not converged |
+| 1 | Converged (target) |
+| 2 | Max iterations reached |
+| 3 | Singular matrix / numerical issue |
+| 4 | Neg sqrt (gpufit internal) |
+
+Aim for >95 % of pixels in state 1. Low convergence usually indicates:
+
+- Model mismatch (try `model='auto'` or change explicitly)
+- Constraints too tight (widen bounds or use `FREE`)
+- Noisy data (increase `bin_factor`)
+
+---
+
+## GPU vs CPU
+
+qdmpy automatically uses GPU fitting when `pyGpufit` is installed and CUDA is
+available. No code change is needed — the same `FitManager` API is used for
+both backends.
+
+```python
+print(qdmpy.is_pygpufit_available())   # True = GPU will be used
+```
+
+**When GPU matters:** For scans larger than ~200 × 200 pixels the GPU backend
+is 10-100x faster. For small synthetic datasets or quick tests, CPU is fine.
+
+**Fallback:** If `pyGpufit` is not installed or no GPU is found, qdmpy falls
+back to SciPy least-squares automatically and logs a warning.
+
+---
+
+## Key takeaways
+
+- `model='auto'` works for most samples; override explicitly for 15N or SINGLE
+- Constraints on `center`, `width`, and `contrast` are the most impactful
+- Target chi2 ~ 1 and >95 % convergence in state 1
+- GPU fitting kicks in automatically — no code change required
+
+---
+
+## What's next
+
+- **Lila** — [04 · Spectral Folding](04-spectral-folding.ipynb) to further
+  improve SNR and extract D_ZFS maps
+- **Professor** — [03 · Extending](03-extending.ipynb) to register custom ESR
+  models in the `ModelRegistry`
