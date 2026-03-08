@@ -240,8 +240,20 @@ class Measurement:
         scan_dimensions = odmr.processed_data.scan_dimensions
         folder_files = os.listdir(path)
 
-        light_image = cls._load_image_or_zeros(path, folder_files, "light", scan_dimensions)
-        laser_image = cls._load_image_or_zeros(path, folder_files, "laser", scan_dimensions)
+        light_image = cls._load_image_or_zeros(
+            path,
+            folder_files,
+            ("light", "led"),
+            scan_dimensions,
+            image_label="light/led",
+        )
+        laser_image = cls._load_image_or_zeros(
+            path,
+            folder_files,
+            ("laser",),
+            scan_dimensions,
+            image_label="laser",
+        )
 
         return cls(
             odmr=odmr,
@@ -257,27 +269,29 @@ class Measurement:
     def _load_image_or_zeros(
         folder: Path,
         folder_files: list[str],
-        kind: str,
+        kinds: tuple[str, ...],
         scan_dimensions: tuple[int, int],
+        image_label: str,
     ) -> NDArray:
         """Load a named image from folder_files, falling back to zeros.
 
         Args:
             folder: Folder containing the image files.
             folder_files: All file names in the folder.
-            kind: Keyword to match in file name ('light' or 'laser').
+            kinds: Keywords to match in file name.
             scan_dimensions: (height, width) used for the fallback zeros array.
+            image_label: Human-readable label for logging.
 
         Returns:
             Image array, or zeros array of shape scan_dimensions if not found.
         """
-        matching = [f for f in folder_files if kind in f.lower()]
+        matching = [f for f in folder_files if any(kind in f.lower() for kind in kinds)]
         try:
             return get_image(folder, matching)
         except DataLoadError:
             logger.warning(
                 "No {} image found in {}; using zeros array of shape {}",
-                kind,
+                image_label,
                 folder,
                 scan_dimensions,
             )

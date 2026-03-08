@@ -211,7 +211,7 @@ class TestFromFolderImages:
         assert m.light_image.shape == m.odmr.processed_data.scan_dimensions
 
     def test_light_files_filtered_by_keyword(self, tmp_path: Path) -> None:
-        """Only files with 'light' in name are passed to get_image for light."""
+        """Only files with 'light' or 'led' are passed to get_image for light."""
         from qdmpy.exceptions import DataLoadError as DLE
 
         xr_data = _make_xr_data()
@@ -221,7 +221,13 @@ class TestFromFolderImages:
             captured_calls.append(list(lst))
             raise DLE("no image")
 
-        folder_files = ["light_ref.jpg", "laser_ref.jpg", "run_00000.mat", "other.txt"]
+        folder_files = [
+            "light_ref.jpg",
+            "led_ref.jpg",
+            "laser_ref.jpg",
+            "run_00000.mat",
+            "other.txt",
+        ]
         with (
             patch("qdmpy.odmr.io.MatlabLoader.load", return_value=xr_data),
             patch("qdmpy.measurement.os.listdir", return_value=folder_files),
@@ -229,8 +235,8 @@ class TestFromFolderImages:
         ):
             Measurement.from_folder(tmp_path, normalize=False, fluorescence_correction=None)
 
-        # First call = light (should only include 'light_ref.jpg')
-        assert captured_calls[0] == ["light_ref.jpg"]
+        # First call = light (should include light and led images only)
+        assert captured_calls[0] == ["light_ref.jpg", "led_ref.jpg"]
         # Second call = laser (should only include 'laser_ref.jpg')
         assert captured_calls[1] == ["laser_ref.jpg"]
 
