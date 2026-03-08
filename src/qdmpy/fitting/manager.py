@@ -507,6 +507,59 @@ class FitManager:
                 reshaped.append(np.squeeze(result.reshape((n_pol, n_pix, -1))))
         return reshaped
 
+    @classmethod
+    def for_folded(
+        cls,
+        model_name: str,
+        extra_constraints: dict[str, Any] | None = None,
+    ) -> FitManager:
+        """Create a FitManager pre-configured with folded-domain constraints.
+
+        Strips a '+FOLDED' suffix from model_name if present, builds the
+        folded-domain parameter bounds, and returns a FitManager ready for
+        refitting folded ODMR pixels.
+
+        Args:
+            model_name: Model name (with or without '+FOLDED' suffix).
+            extra_constraints: Additional per-parameter constraints that
+                override the folded defaults when provided.
+
+        Returns:
+            FitManager configured with folded-domain constraints.
+        """
+        base_name = model_name.removesuffix("+FOLDED")
+        model = ModelRegistry.get(base_name.upper())
+        _type_bounds: dict[str, dict[str, float | str]] = {
+            "center": {
+                "vmin": _FOLDED_CENTER_MIN,
+                "vmax": _FOLDED_CENTER_MAX,
+                "constraint_type": "LOWER_UPPER",
+            },
+            "width": {
+                "vmin": _FOLDED_WIDTH_MIN,
+                "vmax": _FOLDED_WIDTH_MAX,
+                "constraint_type": "LOWER_UPPER",
+            },
+            "contrast": {
+                "vmin": 0.001,
+                "vmax": _FOLDED_CONTRAST_MAX,
+                "constraint_type": "LOWER_UPPER",
+            },
+            "offset": {
+                "vmin": -0.5,
+                "vmax": 3.0,
+                "constraint_type": "LOWER_UPPER",
+            },
+        }
+        folded_constraints: dict[str, dict[str, float | str]] = {
+            param_name: _type_bounds[param_type]
+            for param_name, param_type in model.parameter_types.items()
+            if param_type in _type_bounds
+        }
+        if extra_constraints:
+            folded_constraints.update(extra_constraints)
+        return cls(base_name, constraints=folded_constraints)
+
     def fit_folded(
         self: Self,
         folded: FoldedODMR,
