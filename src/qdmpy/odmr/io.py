@@ -139,6 +139,11 @@ class MatlabLoader(BaseLoader):
         raw_data = raw_data.reshape(n_pol, n_frange, rows, cols, n_freqs)
         logger.debug("Reshaped data to ({}, {}, {}, {}, {})", n_pol, n_frange, rows, cols, n_freqs)
 
+        # The MATLAB instrument stores rows bottom-to-top (y=0 at bottom), but the
+        # LED/laser camera images (CSV) use top-to-bottom convention (y=0 at top).
+        # Flip the y axis so ODMR data aligns with the camera images.
+        raw_data = np.ascontiguousarray(raw_data[:, :, ::-1, :, :])
+
         # Build frequency coordinate
         if frequencies.ndim == 1:
             freq_ghz = np.tile(frequencies, (n_frange, 1)) / 1e9
