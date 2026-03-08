@@ -22,6 +22,7 @@ from qdmpy.fitting.guess import plot_model_detection
 from qdmpy.fitting.guesser import ParameterGuesser
 from qdmpy.fitting.manager import FitManager
 from qdmpy.fitting.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
+from qdmpy.fitting.refit import RefitSettings, refit_outliers
 from qdmpy.fitting.result import FitResult, FoldedFitResult
 
 __all__ = [
@@ -36,5 +37,7 @@ __all__ = [
     "Model",
     "ModelRegistry",
     "ParameterGuesser",
+    "RefitSettings",
     "plot_model_detection",
+    "refit_outliers",
 ]

@@ -36,6 +36,7 @@ _UNSET: object = object()
 if TYPE_CHECKING:
     from os import PathLike
 
+    from qdmpy.fitting.refit import RefitSettings
     from qdmpy.odmr.data import ODMRData
     from qdmpy.result import QDMResult
 
@@ -339,12 +340,18 @@ class Measurement:
         model_name: str | None = None,
         *,
         constraints: dict[str, Any] | None = None,
+        refit_outliers: bool = False,
+        refit_settings: RefitSettings | None = None,
     ) -> QDMResult:
         """Fit ODMR spectra and return unified result container.
 
         Args:
             model_name: Model name or None for auto-detection.
             constraints: Optional parameter constraints for fitting.
+            refit_outliers: When True, automatically refit bad pixels after the
+                initial fit using neighbor-derived initial guesses.
+            refit_settings: Configuration for outlier detection and refitting.
+                Only used when refit_outliers=True. Defaults to RefitSettings().
 
         Returns:
             QDMResult containing FitResult and lazy MagneticMap access.
@@ -368,10 +375,80 @@ class Measurement:
         )
 
         logger.info("ODMR fitting completed successfully")
-        return QDMResult(
+        result = QDMResult(
             fit_result=fit_result,
             light_image=self.light_image,
             laser_image=self.laser_image,
+        )
+
+        if refit_outliers:
+            result = self.refit_outliers(result, settings=refit_settings, constraints=constraints)
+
+        return result
+
+    def refit_outliers(
+        self: Self,
+        result: QDMResult,
+        *,
+        settings: RefitSettings | None = None,
+        constraints: dict[str, Any] | None = None,
+    ) -> QDMResult:
+        """Refit bad pixels in an existing result using neighbor-derived initial guesses.
+
+        Works transparently for both regular (fit_odmr) and folded (fit_folded_odmr)
+        results. Identifies pixels with high chi-squared or non-convergence, computes
+        initial parameter guesses from spatial neighbors, and refits just those pixels
+        via GPU. Returns a new QDMResult; the original is not modified.
+
+        Args:
+            result: QDMResult from a previous fit_odmr() or fit_folded_odmr() call.
+            settings: Outlier detection and refitting configuration.
+                Defaults to RefitSettings().
+            constraints: Optional parameter constraints to apply when refitting.
+                Defaults to the same constraints used in the original fit.
+
+        Returns:
+            New QDMResult with outlier pixels replaced by refit values.
+
+        Raises:
+            DataNotLoadedError: If required data (ODMR or folded) has not been processed.
+            DependencyError: If pyGpufit is not available.
+        """
+        import xarray as xr
+
+        from qdmpy.fitting.manager import FitManager
+        from qdmpy.fitting.refit import refit_outliers as _refit_outliers
+        from qdmpy.fitting.result import FoldedFitResult
+        from qdmpy.result import QDMResult
+
+        model_name = result.fit_result.model_name
+        if isinstance(result.fit_result, FoldedFitResult):
+            folded = self.folded_odmr  # raises DataNotLoadedError if unavailable
+            spec_vals = folded.folded_spectrum.values  # (n_pol, ny, nx, n_df)
+            data_xr = xr.DataArray(
+                np.expand_dims(spec_vals, axis=1),
+                dims=("polarity", "freq_range", "y", "x", "freq_idx"),
+            )
+            delta_f_ghz = folded.folded_spectrum.coords["delta_f_ghz"].values
+            frequencies = delta_f_ghz.reshape(1, -1)
+            fit_manager = FitManager.for_folded(model_name, extra_constraints=constraints)
+        else:
+            processed_data = self._validate_fit_prerequisites()
+            data_xr = processed_data.data
+            frequencies = processed_data.frequencies
+            fit_manager = FitManager(model_name=model_name, constraints=constraints)
+
+        new_fit_result = _refit_outliers(
+            result.fit_result,
+            data_xr,
+            frequencies,
+            fit_manager,
+            settings,
+        )
+        return QDMResult(
+            fit_result=new_fit_result,
+            light_image=result.light_image,
+            laser_image=result.laser_image,
         )
 
     @property
@@ -455,6 +532,8 @@ class Measurement:
         model_name: str | None = None,
         *,
         constraints: dict[str, Any] | None = None,
+        refit_outliers: bool = False,
+        refit_settings: RefitSettings | None = None,
     ) -> QDMResult:
         """Fit a folded ODMR spectrum and return a unified result container.
 
@@ -468,6 +547,10 @@ class Measurement:
                 fold_odmr() (accessed via self.folded_odmr).
             model_name: Model name or None to use the instance default.
             constraints: Optional additional parameter constraints for fitting.
+            refit_outliers: When True, automatically refit bad pixels after the
+                initial fit using neighbor-derived initial guesses.
+            refit_settings: Configuration for outlier detection and refitting.
+                Only used when refit_outliers=True. Defaults to RefitSettings().
 
         Returns:
             QDMResult containing FoldedFitResult and lazy MagneticMap access.
@@ -488,8 +571,11 @@ class Measurement:
         fit_manager = FitManager(model_name=model_name, constraints=constraints)
         fit_result = fit_manager.fit_folded(resolved_folded, pixel_spacing=self.pixel_spacing)
         logger.info("Folded ODMR fitting completed successfully")
-        return QDMResult(
+        result = QDMResult(
             fit_result=fit_result,
             light_image=self.light_image,
             laser_image=self.laser_image,
         )
+        if refit_outliers:
+            result = self.refit_outliers(result, settings=refit_settings, constraints=constraints)
+        return result
