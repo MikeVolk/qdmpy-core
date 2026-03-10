@@ -284,14 +284,31 @@ In the table below, `odmr` is `meas.odmr` (the `ODMR` manager) and `odmr_data` i
 
 | Old QDMpy | New qdmpy-core | Notes |
 |---|---|---|
-| `qdm.export_qdmpy(path)` | `qdmpy.save_npz(result, path)` or `qdmpy.save_qdm(result, path)` | |
+| `qdm.export_qdmpy(path)` | `qdmpy.save_npz(result, path)` or `qdmpy.save_qdm(result, path)` | NPZ is fit-only, `.qdm` is full archive |
 | `qdm.export_qdmio(path)` | **Not ported** | MATLAB export; see workaround below |
 | `qdm.export_MMT(path)` | **Not ported** | Multi-binning test format not available |
 | `get_image(folder, files)` | `qdmpy.io.get_image(folder, files)` | Same signature |
 | `get_image_file(files)` | `qdmpy.io.get_image_file(folder, files)` | Folder arg added |
 | `has_csv(files)` | `qdmpy.io.has_csv(files)` | Same |
-| (no equivalent) | `qdmpy.load_qdm(path)` or `qdmpy.load_npz(path)` | New HDF5 format |
+| (no equivalent) | `qdmpy.load_qdm(path)` or `qdmpy.load_npz(path)` | New HDF5 format + safe NPZ loader |
 | (no equivalent) | `result.save(path)` / `QDMResult.load(path)` | Object-level convenience |
+
+#### NPZ safety and legacy migration
+
+`qdmpy.save_npz()` writes a pickle-free format (JSON metadata + numeric arrays),
+and `qdmpy.load_npz()` uses safe loading (`allow_pickle=False`) for new files.
+
+Older NPZ files created by early qdmpy-core versions used pickled object arrays.
+These legacy files are still accepted for one migration release, with a
+deprecation warning. Migrate them by loading once and re-saving:
+
+```python
+legacy = qdmpy.load_npz('legacy_result.npz')
+qdmpy.save_npz(legacy, 'legacy_result_migrated.npz')
+```
+
+For long-term archives and full reproducibility (images, optional Bxyz, field
+sources), prefer the `.qdm` format.
 
 ### Configuration
 

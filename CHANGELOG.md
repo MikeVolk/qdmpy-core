@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (QEP-CORE-001: safe serialization)
+
+- **Legacy NPZ migration window** — `FitResult.load_results()` and `qdmpy.io.load_npz()` now
+  detect legacy pickle-format result files by key layout, emit `DeprecationWarning` + log warning,
+  and load them to support one-release migration.
+- **Legacy parsing hardening** — legacy readers now validate required keys and scalar payload shape
+  and raise `DataLoadError` with actionable messages for malformed files.
+- **Regression coverage** — added tests for legacy `FitResult`/`QDMResult` NPZ loading paths and
+  warning behavior, while preserving pickle-free save/load roundtrips.
+
 ### Changed (QEP-059: Unified Constraint Interface)
 
 - **`ModelConstraintsSettings`** — new `constraint_units` field (`'mt'` default, `'absolute_ghz'`

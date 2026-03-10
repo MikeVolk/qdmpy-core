@@ -79,6 +79,23 @@ qdmpy.save_qdm(result, 'my_result.qdm')   # HDF5 format
 result2 = qdmpy.load_qdm('my_result.qdm')
 ```
 
+If you need a lightweight fit-only checkpoint, use NPZ:
+
+```python
+qdmpy.save_npz(result, 'my_result.npz')
+result3 = qdmpy.load_npz('my_result.npz')
+```
+
+!!! note "Safe NPZ format"
+    New NPZ files are pickle-free and loaded with `allow_pickle=False`.
+    Legacy pickle-based NPZ files still load for one migration release, but emit
+    a deprecation warning. Re-save legacy files after loading to migrate:
+
+    ```python
+    old = qdmpy.load_npz('legacy_result.npz')
+    qdmpy.save_npz(old, 'legacy_result_migrated.npz')
+    ```
+
 ---
 
 ## Key takeaways
@@ -86,7 +103,7 @@ result2 = qdmpy.load_qdm('my_result.qdm')
 - `qdmpy.load(path).fit_odmr()` is the one-line entry point
 - `result.b111_remanent` and `result.b111_induced` give 2D arrays in µT
 - `result.magnetic_map` gives the full Bx/By/Bz reconstruction
-- `save_qdm` / `load_qdm` for persistence
+- `save_qdm` / `load_qdm` for full persistence, `save_npz` / `load_npz` for fit-only checkpoints
 
 ---
 

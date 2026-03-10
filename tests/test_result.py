@@ -599,7 +599,7 @@ class TestSafeSerializationFormat:
         )
 
     def test_rejects_missing_meta_key(self, tmp_path: Path) -> None:
-        """NPZ without __meta__ key is rejected."""
+        """NPZ without __meta__ and without legacy keys is rejected."""
         filepath = tmp_path / "old_format.npz"
         np.savez_compressed(
             filepath,
@@ -608,6 +608,29 @@ class TestSafeSerializationFormat:
         )
         with pytest.raises(DataLoadError, match="missing the __meta__ key"):
             FitResult.load_results(filepath)
+
+    def test_loads_legacy_pickle_format_with_warning(
+        self, sample_fit_result, tmp_path: Path
+    ) -> None:
+        """Legacy pickle-based NPZ format is loaded with deprecation warning."""
+        filepath = tmp_path / "legacy.npz"
+        np.savez_compressed(
+            filepath,
+            parameters=np.array([sample_fit_result.parameters], dtype=object),
+            model_name=np.array([sample_fit_result.model_name], dtype=object),
+            scan_dimensions=np.array([sample_fit_result.scan_dimensions], dtype=object),
+            pixel_spacing=np.array([sample_fit_result.pixel_spacing], dtype=object),
+            metadata=np.array([sample_fit_result.metadata], dtype=object),
+        )
+
+        with pytest.warns(DeprecationWarning, match="legacy pickle-format results file"):
+            loaded = FitResult.load_results(filepath)
+
+        assert loaded.model_name == sample_fit_result.model_name
+        assert loaded.scan_dimensions == sample_fit_result.scan_dimensions
+        assert loaded.pixel_spacing == sample_fit_result.pixel_spacing
+        assert loaded.metadata == sample_fit_result.metadata
+        assert set(loaded.parameters.keys()) == set(sample_fit_result.parameters.keys())
 
     def test_no_allow_pickle_in_save_output(self, sample_fit_result, tmp_path: Path) -> None:
         """Saved file loads cleanly with allow_pickle=False."""

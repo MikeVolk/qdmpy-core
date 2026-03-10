@@ -18,6 +18,7 @@ The FitResult class handles:
 from __future__ import annotations
 
 import json
+import warnings
 from pathlib import Path
 from typing import Any, Self
 
@@ -664,12 +665,71 @@ class FitResult(BaseModel):
             metadata=meta.get("metadata", {}),
         )
 
+    @staticmethod
+    def _extract_legacy_scalar(value: Any) -> Any:  # noqa: ANN401
+        """Extract scalar payload from legacy singleton arrays."""
+        if isinstance(value, np.ndarray):
+            if value.shape == ():
+                return value.item()
+            if value.size == 1:
+                return value.reshape(()).item()
+        return value
+
+    @classmethod
+    def _from_legacy_npz(
+        cls: type[FitResult],
+        data: np.lib.npyio.NpzFile,
+        *,
+        source: str = "<unknown>",
+    ) -> FitResult:
+        """Reconstruct a FitResult from legacy pickle-based NPZ data."""
+        if "parameters" not in data.files:
+            msg = f"Legacy file {source} is missing required 'parameters' key."
+            raise DataLoadError(msg)
+
+        try:
+            parameters_obj = cls._extract_legacy_scalar(data["parameters"])
+            model_name_obj = cls._extract_legacy_scalar(data["model_name"])
+            scan_dimensions_obj = cls._extract_legacy_scalar(data["scan_dimensions"])
+            pixel_spacing_obj = cls._extract_legacy_scalar(data["pixel_spacing"])
+
+            metadata_obj: Any = {}
+            if "metadata" in data.files:
+                metadata_obj = cls._extract_legacy_scalar(data["metadata"])
+        except Exception as exc:
+            msg = f"Could not parse legacy results file {source}: {exc}"
+            raise DataLoadError(msg) from exc
+
+        if not isinstance(parameters_obj, dict):
+            msg = f"Legacy file {source} has invalid 'parameters' payload (expected dict)."
+            raise DataLoadError(msg)
+
+        parameters = {str(name): np.asarray(arr) for name, arr in parameters_obj.items()}
+        scan_dimensions_arr = np.asarray(scan_dimensions_obj).reshape(-1)
+        if scan_dimensions_arr.size != 2:
+            msg = f"Legacy file {source} has invalid scan_dimensions (expected 2 elements)."
+            raise DataLoadError(msg)
+
+        scan_dimensions = (int(scan_dimensions_arr[0]), int(scan_dimensions_arr[1]))
+        pixel_spacing = float(pixel_spacing_obj)
+        model_name = str(model_name_obj)
+        metadata = metadata_obj if isinstance(metadata_obj, dict) else {}
+
+        return cls(
+            parameters=parameters,
+            scan_dimensions=scan_dimensions,
+            pixel_spacing=pixel_spacing,
+            model_name=model_name,
+            metadata=metadata,
+        )
+
     @classmethod
     def load_results(cls: type[FitResult], filepath: str | Path) -> FitResult:
         """Load saved fit results from a pickle-free NPZ file.
 
         Expects the new format with ``__meta__`` (JSON) and ``param_*`` keys.
-        Rejects files that require pickle deserialization.
+        Legacy pickle-based files are accepted temporarily with a deprecation
+        warning so users can migrate by re-saving.
 
         Args:
             filepath: Path to the saved results file (NPZ format).
@@ -679,7 +739,7 @@ class FitResult(BaseModel):
 
         Raises:
             DataLoadError: If the file does not exist, contains pickle data,
-                or is missing the ``__meta__`` key.
+                or is missing both ``__meta__`` and legacy keys.
         """
         filepath = Path(filepath)
 
@@ -688,7 +748,18 @@ class FitResult(BaseModel):
             raise DataLoadError(msg)
 
         try:
-            data = np.load(filepath, allow_pickle=False)
+            with np.load(filepath, allow_pickle=False) as data:
+                if "__meta__" in data.files:
+                    result = cls._from_npz(data, source=str(filepath))
+                    logger.info("Fit results loaded from: {}", filepath)
+                    return result
+
+                if "parameters" not in data.files:
+                    msg = (
+                        f"File {filepath} is missing the __meta__ key. "
+                        "This file was created with an older format that is no longer supported."
+                    )
+                    raise DataLoadError(msg)
         except ValueError as exc:
             msg = (
                 f"File {filepath} contains pickled objects and cannot be loaded safely. "
@@ -697,6 +768,16 @@ class FitResult(BaseModel):
             )
             raise DataLoadError(msg) from exc
 
-        result = cls._from_npz(data, source=str(filepath))
-        logger.info("Fit results loaded from: {}", filepath)
+        warning_msg = (
+            "Loading legacy pickle-format results file. "
+            "Re-save with FitResult.save_results() to migrate. "
+            "Pickle support will be removed in v1.0."
+        )
+        warnings.warn(warning_msg, DeprecationWarning, stacklevel=2)
+        logger.warning(warning_msg)
+
+        with np.load(filepath, allow_pickle=True) as data_legacy:
+            result = cls._from_legacy_npz(data_legacy, source=str(filepath))
+
+        logger.info("Fit results loaded from legacy format: {}", filepath)
         return result
