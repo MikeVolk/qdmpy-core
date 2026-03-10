@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib.util
 import unittest
+from types import SimpleNamespace
+from typing import Any, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -166,6 +168,36 @@ class TestFitResultPlotting(unittest.TestCase):
 
         self.mock_result.get_parameter_map.assert_called_with("center")
 
+    def test_parameter_map_center_colorbar_uses_ghz_label(self) -> None:
+        """Center parameter colorbar label follows GHz internal frequency convention."""
+        from qdmpy.plotting import plot_fit_result_parameter_map
+
+        plot_fit_result_parameter_map(self.mock_result, "center")
+        fig = plt.gcf()
+        fig.canvas.draw()
+
+        cbar_axes = [ax for ax in fig.axes if not ax.images]
+        assert cbar_axes
+        assert cbar_axes[0].get_ylabel() == "Resonance Center (GHz)"
+
+    def test_field_map_colorbar_height_matches_image_axis(self) -> None:
+        """Colorbar axis height tracks the corresponding image axis height."""
+        from qdmpy.plotting import plot_fit_result_field_map
+
+        plot_fit_result_field_map(self.mock_result)
+        fig = plt.gcf()
+        fig.canvas.draw()
+
+        image_axes = [ax for ax in fig.axes if ax.images]
+        cbar_axes = [ax for ax in fig.axes if not ax.images]
+        assert len(image_axes) == 1
+        assert len(cbar_axes) >= 1
+
+        image_pos = image_axes[0].get_position()
+        cbar_pos = cbar_axes[0].get_position()
+        assert abs(image_pos.y0 - cbar_pos.y0) < 1e-4
+        assert abs(image_pos.height - cbar_pos.height) < 1e-4
+
     def test_plot_fit_result_overview(self) -> None:
         """Test plot_fit_result_overview function."""
         from qdmpy.plotting import plot_fit_result_overview
@@ -195,6 +227,19 @@ class TestFitResultPlotting(unittest.TestCase):
 
             # File should exist
             assert os.path.exists(filename)
+
+    def test_overview_suptitle_does_not_overlap_top_row(self) -> None:
+        """Overview reserves top margin for suptitle in multi-panel layout."""
+        from qdmpy.plotting import plot_fit_result_overview
+
+        plot_fit_result_overview(self.mock_result)
+        fig = plt.gcf()
+        fig.canvas.draw()
+
+        assert fig.texts
+        suptitle_y = max(text.get_position()[1] for text in fig.texts)
+        top_axis = max(ax.get_position().y1 for ax in fig.axes)
+        assert suptitle_y > top_axis
 
     def test_plot_fit_result_overview_limited_parameters(self) -> None:
         """Test plot_fit_result_overview with limited available parameters."""
@@ -579,3 +624,83 @@ class TestMagneticComponentPlot:
         )
         with pytest.raises(ValueError, match="not in"):
             plot_magnetic_component(mag, "invalid")
+
+
+class TestDisplayLayout:
+    """Tests for qdm display figure-size heuristics."""
+
+    def test_display_layout_uses_shorter_spectra_rows(self) -> None:
+        from qdmpy.plotting.display import _compute_display_layout
+
+        _figsize, row_heights = _compute_display_layout(
+            height=1200,
+            width=1920,
+            has_images=True,
+            spec_rows=2,
+        )
+
+        # [map, map, optical, spectra, spectra]
+        assert len(row_heights) == 5
+        assert row_heights[3] < row_heights[0]
+        assert row_heights[4] < row_heights[0]
+
+    def test_display_layout_scales_map_rows_with_aspect(self) -> None:
+        from qdmpy.plotting.display import _compute_display_layout
+
+        _wide_figsize, wide_rows = _compute_display_layout(
+            height=1000,
+            width=2000,
+            has_images=False,
+            spec_rows=0,
+        )
+        _tall_figsize, tall_rows = _compute_display_layout(
+            height=2000,
+            width=1000,
+            has_images=False,
+            spec_rows=0,
+        )
+
+        assert wide_rows[0] < tall_rows[0]
+
+
+class TestB111MapPlot:
+    """Tests for B111 component plotting styles."""
+
+    def setup_method(self) -> None:
+        self._original_show = plt.show
+        plt.show = lambda: None
+
+    def teardown_method(self) -> None:
+        plt.close("all")
+        plt.show = self._original_show
+
+    def test_plot_b111_map_induced_uses_sequential_scaling(self) -> None:
+        import xarray as xr
+
+        from qdmpy.plotting import plot_b111_map
+
+        rng = np.random.default_rng(123)
+        induced = 500 + 1000 * rng.random((8, 8))
+        remanent = rng.normal(0.0, 50.0, (8, 8))
+
+        result = SimpleNamespace(
+            pixel_spacing=4e-6,
+            scan_dimensions=(8, 8),
+            model_name="ESR15N",
+            b111={
+                "remanent": xr.DataArray(remanent),
+                "induced": xr.DataArray(induced),
+            },
+        )
+
+        plot_b111_map(cast(Any, result), component="induced")
+        fig = plt.gcf()
+        fig.canvas.draw()
+
+        ax = next(axis for axis in fig.axes if axis.images)
+        image = ax.images[0]
+        assert image.get_cmap().name == "viridis"
+        assert image.norm.vmin is not None
+        assert image.norm.vmax is not None
+        assert image.norm.vmin >= 0
+        assert image.norm.vmin != -image.norm.vmax

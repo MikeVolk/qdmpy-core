@@ -9,7 +9,7 @@ import numpy as np
 from loguru import logger
 
 from qdmpy.exceptions import DataShapeError
-from qdmpy.plotting._common import _add_colorbar, _label_spatial_axes
+from qdmpy.plotting._common import _add_colorbar, _finalize_layout, _label_spatial_axes
 
 if TYPE_CHECKING:
     from qdmpy.fitting.result import FitResult
@@ -45,7 +45,7 @@ def plot_fit_result_field_map(
 
     title = f"Magnetic Field Map ({result.model_name})"
 
-    _fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(8, 6))
 
     pixel_spacing_um = result.pixel_spacing * 1e6
     height, width = result.scan_dimensions
@@ -67,7 +67,7 @@ def plot_fit_result_field_map(
     ax.set_ylabel("y [µm]")
     ax.set_title(title)
 
-    plt.tight_layout()
+    _finalize_layout(fig)
 
     if save:
         if filename is None:
@@ -95,10 +95,10 @@ def plot_fit_result_parameter_map(
     param_map = result.get_parameter_map(param_name)
 
     param_labels = {
-        "center": "Resonance Center (Hz)",
-        "width_0": "Linewidth (Hz)",
-        "width_1": "Linewidth 1 (Hz)",
-        "width_2": "Linewidth 2 (Hz)",
+        "center": "Resonance Center (GHz)",
+        "width_0": "Linewidth (GHz)",
+        "width_1": "Linewidth 1 (GHz)",
+        "width_2": "Linewidth 2 (GHz)",
         "contrast": "ODMR Contrast",
         "offset": "Baseline Offset",
         "chi2": "Fit Quality (χ²)",
@@ -109,7 +109,7 @@ def plot_fit_result_parameter_map(
     colorbar_label = param_labels.get(param_name, param_name.title())
     cmap = "viridis"
 
-    _fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(8, 6))
 
     pixel_spacing_um = result.pixel_spacing * 1e6
     height, width = result.scan_dimensions
@@ -125,11 +125,11 @@ def plot_fit_result_parameter_map(
 
     _add_colorbar(im, ax, label=colorbar_label)
 
-    ax.set_xlabel("x [μm]")
-    ax.set_ylabel("y [μm]")
+    ax.set_xlabel("x [µm]")
+    ax.set_ylabel("y [µm]")
     ax.set_title(title)
 
-    plt.tight_layout()
+    _finalize_layout(fig)
 
     if save:
         if filename is None:
@@ -173,7 +173,7 @@ def plot_fit_result_overview(
     ncols = min(3, n_plots)
     nrows = (n_plots + ncols - 1) // ncols
 
-    _fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 4 * nrows))
+    fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 4 * nrows))
     axes = [axes] if nrows == 1 and ncols == 1 else axes.flatten()
 
     pixel_spacing_um = result.pixel_spacing * 1e6
@@ -215,8 +215,8 @@ def plot_fit_result_overview(
     for i in range(plot_idx, len(axes)):
         axes[i].set_visible(False)
 
-    plt.suptitle(f"Fit Results Overview ({result.model_name})", fontsize=14)
-    plt.tight_layout()
+    fig.suptitle(f"Fit Results Overview ({result.model_name})", fontsize=14)
+    _finalize_layout(fig, reserve_top=0.06)
 
     if save:
         if filename is None:
@@ -235,9 +235,11 @@ def plot_b111_map(
 ) -> None:
     """Plot one B111 component as a spatially-resolved map.
 
-    A symmetric ``RdBu_r`` colormap is used and the colorbar limits are set
-    to the 99th percentile of |B| so that a few outlier pixels do not
-    dominate the scale.
+    For ``remanent``, a symmetric ``RdBu_r`` colormap is used with limits set
+    to the 99th percentile of |B|.
+
+    For ``induced``, a sequential ``viridis`` colormap is used with robust
+    percentile limits so the map is not forced to be zero-centered.
 
     Args:
         result: FitResult or QDMResult with a ``b111`` property.
@@ -260,23 +262,30 @@ def plot_b111_map(
     height, width = result.scan_dimensions
     extent = (0, width * pixel_spacing_um, height * pixel_spacing_um, 0)
 
-    vmax = float(np.nanpercentile(np.abs(b_map), 99))
+    if component == "remanent":
+        vmax = float(np.nanpercentile(np.abs(b_map), 99))
+        cmap = "RdBu_r"
+        vmin = -vmax
+    else:
+        vmin = float(np.nanpercentile(b_map, 1))
+        vmax = float(np.nanpercentile(b_map, 99))
+        cmap = "viridis"
 
-    _fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(8, 6))
     im = ax.imshow(
         b_map,
         extent=extent,
         origin="upper",
-        cmap="RdBu_r",
+        cmap=cmap,
         aspect="equal",
-        vmin=-vmax,
+        vmin=vmin,
         vmax=vmax,
     )
     _add_colorbar(im, ax, label=f"B111 {component} (µT)")
     ax.set_title(f"B111 {component} ({result.model_name})")
     _label_spatial_axes(ax)
 
-    plt.tight_layout()
+    _finalize_layout(fig)
 
     if save:
         if filename is None:

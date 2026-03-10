@@ -10,7 +10,12 @@ from loguru import logger
 from numpy.typing import NDArray
 
 from qdmpy.exceptions import DataShapeError, ParameterError
-from qdmpy.plotting._common import _add_colorbar, _avg_param_map, _label_spatial_axes
+from qdmpy.plotting._common import (
+    _add_colorbar,
+    _avg_param_map,
+    _finalize_layout,
+    _label_spatial_axes,
+)
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes as MplAxes
@@ -29,7 +34,7 @@ def plot_measurement_images(measurement: Measurement) -> None:
             ``laser_image`` arrays.
     """
     logger.debug("Plotting measurement optical images")
-    _fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
 
     axes[0].imshow(measurement.light_image, cmap="gray", origin="upper", aspect="equal")
     axes[0].set_title("Light image")
@@ -39,8 +44,8 @@ def plot_measurement_images(measurement: Measurement) -> None:
     axes[1].set_title("Laser image")
     axes[1].axis("off")
 
-    plt.suptitle("Optical images", fontsize=12)
-    plt.tight_layout()
+    fig.suptitle("Optical images", fontsize=12)
+    _finalize_layout(fig, reserve_top=0.05)
     plt.show()
 
 
@@ -203,6 +208,37 @@ def _plot_display_pixel_spectra(
             axes[row, col].set_visible(False)
 
 
+def _compute_display_layout(
+    height: int,
+    width: int,
+    has_images: bool,
+    spec_rows: int,
+) -> tuple[tuple[float, float], list[float]]:
+    """Compute figure size and row-height ratios for plot_qdm_display.
+
+    The map rows use equal-aspect images, so their preferred height depends on
+    scan aspect ratio. Spectra rows are intentionally shorter to avoid very tall,
+    sparse line plots.
+    """
+    n_cols = 3
+    image_aspect = width / max(height, 1)
+
+    col_width = 3.6
+    map_row_height = float(np.clip(col_width / max(image_aspect, 0.25), 2.2, 4.8))
+    optical_row_height = map_row_height * 0.9
+    spectra_row_height = 2.2
+
+    row_heights: list[float] = [map_row_height, map_row_height]
+    if has_images:
+        row_heights.append(optical_row_height)
+    if spec_rows > 0:
+        row_heights.extend([spectra_row_height] * spec_rows)
+
+    fig_width = n_cols * col_width + 0.4
+    fig_height = sum(row_heights) + 0.8
+    return (fig_width, fig_height), row_heights
+
+
 def _draw_b111_row(
     axes: NDArray,
     fit_result: FitResult,
@@ -354,9 +390,8 @@ def plot_qdm_display(
     # Resolve optical images: QDMResult fields take priority over measurement
     light_image = None
     laser_image = None
-    if hasattr(result, "light_image"):
+    if isinstance(result, _QDMResult):
         light_image = result.light_image
-    if hasattr(result, "laser_image"):
         laser_image = result.laser_image
     if light_image is None and measurement is not None:
         light_image = measurement.light_image
@@ -373,7 +408,14 @@ def plot_qdm_display(
     n_rows = 2 + (1 if has_images else 0) + spec_rows
     n_cols = 3
 
-    _fig, axes_raw = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows))
+    figsize, height_ratios = _compute_display_layout(height, width, has_images, spec_rows)
+
+    fig, axes_raw = plt.subplots(
+        n_rows,
+        n_cols,
+        figsize=figsize,
+        gridspec_kw={"height_ratios": height_ratios},
+    )
     axes: NDArray = np.atleast_2d(axes_raw)
 
     _draw_b111_row(axes, fit_result, extent, height, width)
@@ -399,6 +441,6 @@ def plot_qdm_display(
                 axes, row + 1, n_sample_pixels, fit_result, measurement, n_cols
             )
 
-    plt.suptitle(f"QDM Result Overview ({fit_result.model_name})", fontsize=14)
-    plt.tight_layout()
+    fig.suptitle(f"QDM Result Overview ({fit_result.model_name})", fontsize=14)
+    _finalize_layout(fig, reserve_top=0.06)
     plt.show()

@@ -133,13 +133,11 @@ the pipeline is working as expected. Use the plotting functions from
 from qdmpy import plotting
 
 # Fluorescence correction diagnostic
-fig = plotting.plot_fluorescence_correction(odmr)
-fig.savefig('fluorescence_check.png')
+plotting.plot_fluorescence_correction(odmr.data, correction_factor=0.2)
 ```
 
-The diagnostic shows the LED reference image and the correction factor map,
-making it easy to identify regions where the correction is too aggressive
-(factor too high) or has no effect (factor near zero).
+The diagnostic overlays original and corrected spectra for a representative pixel,
+which helps tune `correction_factor` before running full fits.
 
 ---
 

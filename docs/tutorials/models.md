@@ -41,8 +41,8 @@ print(f"Parameters: {model_14n.parameters_unique}")
 **Physics**: The ¹⁴N nucleus has three nuclear spin states (mI = -1, 0, +1), creating three hyperfine-split resonance lines.
 
 **Parameters** (6 total):
-- `center`: Center frequency of the resonance (Hz)
-- `width_0`, `width_1`, `width_2`: Linewidth for each of the three dips (Hz)
+- `center`: Center frequency of the resonance (GHz)
+- `width_0`, `width_1`, `width_2`: Linewidth for each of the three dips (GHz)
 - `contrast`: Overall contrast level (0-1)
 - `offset`: Baseline offset (0-1)
 
@@ -61,8 +61,8 @@ print(f"Number of peaks: {model_15n.n_peaks}")
 **Physics**: The ¹⁵N nucleus has two nuclear spin states (mI = -1/2, +1/2), creating two hyperfine-split resonance lines.
 
 **Parameters** (5 total):
-- `center`: Center frequency of the resonance (Hz)
-- `width_0`, `width_1`: Linewidth for each of the two dips (Hz)
+- `center`: Center frequency of the resonance (GHz)
+- `width_0`, `width_1`: Linewidth for each of the two dips (GHz)
 - `contrast`: Overall contrast level (0-1)
 - `offset`: Baseline offset (0-1)
 
@@ -85,8 +85,8 @@ print(f"Number of peaks: {model_single.n_peaks}")
 - Initial parameter estimation
 
 **Parameters** (4 total):
-- `center`: Center frequency of the resonance (Hz)
-- `width_0`: Linewidth of the dip (Hz)
+- `center`: Center frequency of the resonance (GHz)
+- `width_0`: Linewidth of the dip (GHz)
 - `contrast`: Contrast level (0-1)
 - `offset`: Baseline offset (0-1)
 
@@ -98,12 +98,12 @@ You can evaluate any model directly with parameters:
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Create frequency array
-frequencies = np.linspace(2.87e9, 2.88e9, 1000)  # 2.87-2.88 GHz
+# Create frequency array in GHz
+frequencies = np.linspace(2.87, 2.88, 1000)
 
 # Example parameters for ESR14N
 # [center, width, contrast_-1, contrast_0, contrast_+1, offset]
-params_14n = np.array([2.875e9, 3e6, 0.1, 0.2, 0.1, 0.0])
+params_14n = np.array([2.875, 0.003, 0.1, 0.2, 0.1, 0.0])
 
 # Evaluate the model
 model_14n = ModelRegistry.get('ESR14N')
@@ -111,7 +111,7 @@ spectrum = model_14n.func(frequencies, params_14n)
 
 # Plot the result
 plt.figure(figsize=(10, 6))
-plt.plot(frequencies/1e9, spectrum[0])
+plt.plot(frequencies, spectrum[0])
 plt.xlabel('Frequency (GHz)')
 plt.ylabel('Normalized Fluorescence')
 plt.title('ESR14N Model Response')
@@ -156,7 +156,7 @@ for model_name in ['ESR14N', 'ESR15N', 'ESRSINGLE']:
     print(f"\n{model_name}:")
     print(f"  Parameters: {model.n_parameters}")
     print(f"  Peaks: {model.n_peaks}")
-    print(f"  Hyperfine constant: {all_models[model_name]['hyp']} Hz")
+    print(f"  Hyperfine constant: {all_models[model_name]['hyp']} GHz")
 ```
 
 ## Advanced Usage
@@ -168,8 +168,8 @@ When using models with fitting routines, you can specify constraints:
 ```python
 # Example constraint dictionary for ESR14N
 constraints = {
-    'center': [2.8e9, 2.9e9],      # Center frequency bounds
-    'width': [1e6, 1e7],           # Linewidth bounds
+    'center': [2.8, 2.9],          # Center frequency bounds (GHz)
+    'width': [0.001, 0.01],        # Linewidth bounds (GHz)
     'contrast': [0.0, 1.0],        # Contrast bounds
     'offset': [-0.1, 0.1],         # Offset bounds
 }

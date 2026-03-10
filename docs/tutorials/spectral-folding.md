@@ -56,6 +56,27 @@ print(result.b111_remanent.shape)   # same shape as unfolded
 The folded result is a drop-in replacement for the standard result: same
 `b111_remanent`, `b111_induced`, and `magnetic_map` properties.
 
+Prefer built-in plotting helpers when a matching diagnostic exists:
+
+```python
+from qdmpy.plotting import (
+    plot_b111_map,
+    plot_folding_mean_spectrum,
+    plot_folding_overview,
+    plot_folding_pixel_spectra,
+    plot_folding_search_landscape,
+)
+
+plot_b111_map(result.fit_result, component='remanent')
+plot_folding_overview(folded)
+plot_folding_search_landscape(folded)
+plot_folding_mean_spectrum(folded)
+plot_folding_pixel_spectra(folded, x=0, y=[0, 10, 140])
+```
+
+Use custom Matplotlib code only for plot types that do not yet have a dedicated
+`qdmpy.plotting` helper.
+
 ---
 
 ## When to use folding
@@ -72,31 +93,35 @@ The folded result is a drop-in replacement for the standard result: same
 
 ## FoldingSettings parameters
 
-Accessible via `qdmpy.get_settings().folding`:
+Configure by creating a `FoldingSettings` instance and passing it to `fold_odmr()`:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `coarse_bin_factor` | 4 | Spatial binning for the initial coarse D_ZFS estimate |
-| `d_zfs_smoothing_sigma` | 2.0 | Gaussian smoothing radius (pixels) on the D_ZFS map before interpolation |
-| `fold_threshold` | 0.005 | Maximum allowed residual after folding; pixels above threshold are flagged |
-| `min_snr` | 3.0 | Minimum SNR to include a pixel in the folded fit |
+| `d_zfs_initial` | `2.870` | Starting center for D_ZFS search (GHz) |
+| `search_range` | `0.005` | Half-width of D search window (GHz) |
+| `search_steps` | `201` | Number of D candidates in the search grid |
+| `bin_factor` | `8` | Spatial binning factor for coarse D_ZFS estimation |
+| `interpolation_order` | `3` | Interpolation order for coarse->full D map (3 = bicubic) |
+| `min_overlap_points` | `5` | Minimum overlap points required for valid folding |
 
 Recommended ranges:
 
-- `coarse_bin_factor`: 2–8 depending on scan SNR; higher = more robust D estimate but coarser
-- `d_zfs_smoothing_sigma`: 1–5; increase for strain-uniform samples
-- `fold_threshold`: 0.002–0.01; lower = stricter quality cut
+- `bin_factor`: 2-8 depending on scan SNR; higher = more robust D estimate but coarser
+- `search_range`: ~0.002-0.010 GHz depending on expected D_ZFS variation
+- `search_steps`: increase for finer D resolution at higher compute cost
 
 Modify settings before calling `fold_odmr()`:
 
 ```python
-from qdmpy import get_settings
+from qdmpy.odmr.folding import FoldingSettings
 
-settings = get_settings()
-settings.folding.coarse_bin_factor = 8
-settings.folding.d_zfs_smoothing_sigma = 3.0
+folding_settings = FoldingSettings(
+    bin_factor=8,
+    search_range=0.006,
+    search_steps=301,
+)
 
-folded = meas.fold_odmr()
+folded = meas.fold_odmr(settings=folding_settings)
 ```
 
 ---
