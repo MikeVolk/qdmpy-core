@@ -17,6 +17,9 @@ Choose the path that matches your goal.
 After step 3 you can load any QDM dataset, fit ODMR spectra, and export B111
 maps. You're done.
 
+If you are opening older NPZ checkpoints, see the [Migration guide](../migration.md)
+for the one-release legacy NPZ migration path.
+
 ---
 
 ## Lila — "I want optimal results"

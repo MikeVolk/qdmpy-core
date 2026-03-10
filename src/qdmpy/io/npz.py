@@ -6,6 +6,7 @@ and nv_axis. Does not include images, Bxyz, or field_sources.
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -56,7 +57,7 @@ def load_npz(path: str | PathLike) -> QDMResult:
         access to .magnetic_map.
 
     Raises:
-        DataLoadError: If the file does not exist or is not in the safe format.
+        DataLoadError: If the file does not exist or cannot be parsed.
     """
     from qdmpy.result import QDMResult
 
@@ -67,17 +68,43 @@ def load_npz(path: str | PathLike) -> QDMResult:
         raise DataLoadError(msg)
 
     try:
-        data = np.load(path, allow_pickle=False)
+        with np.load(path, allow_pickle=False) as data:
+            if "__meta__" in data.files:
+                fit_result = FitResult._from_npz(data, source=str(path))
+
+                nv_axis: tuple[float, float, float] | None = None
+                if "nv_axis" in data:
+                    _nv = [float(v) for v in data["nv_axis"]]
+                    nv_axis = (_nv[0], _nv[1], _nv[2])
+
+                logger.info("QDMResult (NPZ) loaded from {}", path)
+                return QDMResult(fit_result=fit_result, nv_axis=nv_axis)
+
+            if "parameters" not in data.files:
+                msg = (
+                    f"File {path} is missing the __meta__ key. "
+                    "This file was created with an older format that is no longer supported."
+                )
+                raise DataLoadError(msg)
     except ValueError as exc:
         msg = f"File {path} contains pickled objects and cannot be loaded safely."
         raise DataLoadError(msg) from exc
 
-    fit_result = FitResult._from_npz(data, source=str(path))
+    warning_msg = (
+        "Loading legacy pickle-format QDMResult NPZ file. "
+        "Re-save with QDMResult.save() to migrate. "
+        "Pickle support will be removed in v1.0."
+    )
+    warnings.warn(warning_msg, DeprecationWarning, stacklevel=2)
+    logger.warning(warning_msg)
 
-    nv_axis: tuple[float, float, float] | None = None
-    if "nv_axis" in data:
-        _nv = [float(v) for v in data["nv_axis"]]
-        nv_axis = (_nv[0], _nv[1], _nv[2])
+    with np.load(path, allow_pickle=True) as data_legacy:
+        fit_result = FitResult._from_legacy_npz(data_legacy, source=str(path))
 
-    logger.info("QDMResult (NPZ) loaded from {}", path)
+        nv_axis: tuple[float, float, float] | None = None
+        if "nv_axis" in data_legacy:
+            _nv = [float(v) for v in data_legacy["nv_axis"]]
+            nv_axis = (_nv[0], _nv[1], _nv[2])
+
+    logger.info("QDMResult (NPZ) loaded from legacy format: {}", path)
     return QDMResult(fit_result=fit_result, nv_axis=nv_axis)

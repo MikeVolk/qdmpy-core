@@ -218,3 +218,24 @@ class TestPersistence:
         save_npz(qdm_result, out)
         data = np.load(out, allow_pickle=False)
         assert "__meta__" in data.files
+
+    def test_load_legacy_npz_with_warning(self, qdm_result: QDMResult, tmp_path: Path) -> None:
+        """load_npz() supports legacy pickle-format files with deprecation warning."""
+        from qdmpy.io import load_npz
+
+        out = tmp_path / "legacy_result.npz"
+        np.savez_compressed(
+            out,
+            parameters=np.array([qdm_result.fit_result.parameters], dtype=object),
+            model_name=np.array([qdm_result.model_name], dtype=object),
+            scan_dimensions=np.array([qdm_result.scan_dimensions], dtype=object),
+            pixel_spacing=np.array([qdm_result.pixel_spacing], dtype=object),
+            metadata=np.array([qdm_result.fit_result.metadata], dtype=object),
+            nv_axis=np.array([0.0, 0.8164966, 0.5773503]),
+        )
+
+        with pytest.warns(DeprecationWarning, match="legacy pickle-format QDMResult NPZ file"):
+            loaded = load_npz(out)
+
+        assert loaded.nv_axis is not None
+        np.testing.assert_allclose(loaded.nv_axis, (0.0, 0.8164966, 0.5773503))
