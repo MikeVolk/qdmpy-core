@@ -9,7 +9,7 @@ import numpy as np
 from loguru import logger
 
 from qdmpy.constants import D_ZFS
-from qdmpy.plotting._common import _add_colorbar, resolve_pixel_indices
+from qdmpy.plotting._common import _add_colorbar, _finalize_layout, resolve_pixel_indices
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -40,7 +40,7 @@ def plot_folding_search_landscape(folded: FoldedODMR) -> None:
     n_pol = residual.shape[0]
     pol_labels = list(folded.d_zfs_map.coords["polarity"].values)
 
-    _fig, axes = plt.subplots(1, n_pol, figsize=(5 * n_pol, 4), squeeze=False)
+    fig, axes = plt.subplots(1, n_pol, figsize=(5 * n_pol, 4), squeeze=False)
 
     for i_pol in range(n_pol):
         ax = axes[0, i_pol]
@@ -61,8 +61,8 @@ def plot_folding_search_landscape(folded: FoldedODMR) -> None:
         ax.set_title(f"D_ZFS search -- pol={pol_labels[i_pol]}")
         ax.legend(fontsize=8)
 
-    plt.suptitle("D_ZFS brute-force search", fontsize=12)
-    plt.tight_layout()
+    fig.suptitle("D_ZFS brute-force search", fontsize=12)
+    _finalize_layout(fig, reserve_top=0.05)
     plt.show()
 
 
@@ -100,7 +100,7 @@ def plot_folding_pixel_spectra(
     pol_labels = list(folded.folded_spectrum.coords["polarity"].values)
     n_pol = len(pol_labels)
 
-    _fig, axes = plt.subplots(1, n_pol, figsize=(6 * n_pol, 4), squeeze=False)
+    fig, axes = plt.subplots(1, n_pol, figsize=(6 * n_pol, 4), squeeze=False)
     colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
     for i_pol in range(n_pol):
@@ -153,11 +153,11 @@ def plot_folding_pixel_spectra(
 
     n_pixels = len(pixels)
     pixel_str = ", ".join(f"({yi},{xi})" for yi, xi in pixels)
-    plt.suptitle(
+    fig.suptitle(
         f"Folded ODMR spectra -- {n_pixels} pixel{'s' if n_pixels != 1 else ''}: {pixel_str}",
         fontsize=12,
     )
-    plt.tight_layout()
+    _finalize_layout(fig, reserve_top=0.05)
     plt.show()
 
 
@@ -179,7 +179,7 @@ def plot_folding_mean_spectrum(folded: FoldedODMR) -> None:
     pol_labels = list(folded.folded_spectrum.coords["polarity"].values)
     n_pol = len(pol_labels)
 
-    _fig, axes = plt.subplots(1, n_pol, figsize=(6 * n_pol, 4), squeeze=False)
+    fig, axes = plt.subplots(1, n_pol, figsize=(6 * n_pol, 4), squeeze=False)
 
     for i_pol in range(n_pol):
         ax = axes[0, i_pol]
@@ -210,8 +210,8 @@ def plot_folding_mean_spectrum(folded: FoldedODMR) -> None:
 
         ax.set_title(f"Mean folded spectrum -- pol={pol_labels[i_pol]}")
 
-    plt.suptitle("Mean folded ODMR spectrum", fontsize=12)
-    plt.tight_layout()
+    fig.suptitle("Mean folded ODMR spectrum", fontsize=12)
+    _finalize_layout(fig, reserve_top=0.05)
     plt.show()
 
 
@@ -228,7 +228,7 @@ def plot_folding_overview(folded: FoldedODMR) -> None:
         folded: FoldedODMR result.
     """
     logger.debug("Plotting folding overview")
-    _fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
 
     pol_labels = list(folded.d_zfs_map.coords["polarity"].values)
     n_pol = len(pol_labels)
@@ -293,8 +293,8 @@ def plot_folding_overview(folded: FoldedODMR) -> None:
     axes[1, 1].set_title("Fold residual (0=good)")
     _add_colorbar(im1, axes[1, 1], label="residual")
 
-    plt.suptitle("Spectral folding diagnostics", fontsize=13)
-    plt.tight_layout()
+    fig.suptitle("Spectral folding diagnostics", fontsize=13)
+    _finalize_layout(fig, reserve_top=0.06)
     plt.show()
 
 
@@ -332,7 +332,7 @@ def plot_odmr_spectra(odmr_data: ODMRData, y: int, x: int) -> None:
             axes[i, j].set_ylabel("Intensity")
 
     fig.suptitle(f"ODMR spectra at pixel ({y}, {x})")
-    plt.tight_layout()
+    _finalize_layout(fig, reserve_top=0.05)
     plt.show()
 
 
@@ -361,7 +361,7 @@ def plot_fluorescence_correction(
 
     flat_values = odmr_data.data.values.reshape(n_pol, n_frange, n_y * n_x, -1)
 
-    _f, ax = plt.subplots(
+    fig, ax = plt.subplots(
         n_pol,
         n_frange,
         sharex=False,
@@ -401,8 +401,8 @@ def plot_fluorescence_correction(
             ax[p, fr].legend()
             ax[p, fr].grid(True, alpha=0.3)
 
-    plt.tight_layout()
-    plt.suptitle(f"Fluorescence Correction Preview (Pixel {idx_flat})", y=1.02)
+    fig.suptitle(f"Fluorescence Correction Preview (Pixel {idx_flat})", y=1.02)
+    _finalize_layout(fig, reserve_top=0.08)
     plt.show()
 
 
@@ -464,5 +464,5 @@ def plot_model_detection(spectra_4d: NDArray, freq: NDArray | None = None) -> No
         ax.set_ylabel("Intensity")
         ax.legend(fontsize=8)
 
-    fig.tight_layout()
+    _finalize_layout(fig, reserve_top=0.05)
     plt.show()

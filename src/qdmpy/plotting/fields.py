@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
 
-from qdmpy.plotting._common import _add_colorbar
+from qdmpy.plotting._common import _add_colorbar, _finalize_layout
 
 if TYPE_CHECKING:
     from qdmpy.magnetic_map import MagneticMap
@@ -49,7 +49,7 @@ def plot_magnetic_component(
     cmap = "RdBu_r" if component_lower != "btotal" else "viridis"
     vmin = -vmax if component_lower != "btotal" else 0.0
 
-    _fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(8, 6))
     im = ax.imshow(
         arr, extent=extent, origin="upper", cmap=cmap, aspect="equal", vmin=vmin, vmax=vmax
     )
@@ -57,5 +57,5 @@ def plot_magnetic_component(
     ax.set_xlabel("x [µm]")
     ax.set_ylabel("y [µm]")
     ax.set_title(component)
-    plt.tight_layout()
+    _finalize_layout(fig)
     plt.show()

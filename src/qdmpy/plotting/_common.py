@@ -5,8 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import matplotlib as mpl
-import matplotlib.colorbar
-import matplotlib.image
+import matplotlib.colorbar as mpl_colorbar
+import matplotlib.figure as mpl_figure
+import matplotlib.image as mpl_image
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numpy.typing import NDArray
@@ -19,10 +20,10 @@ mpl.rcParams["figure.facecolor"] = "white"
 
 
 def _add_colorbar(
-    im: mpl.image.AxesImage,
+    im: mpl_image.AxesImage,
     ax: MplAxes,
     label: str | None = None,
-) -> mpl.colorbar.Colorbar:
+) -> mpl_colorbar.Colorbar:
     """Add a colorbar whose height matches the axes it belongs to.
 
     Uses ``make_axes_locatable`` so the colorbar is always the same height as
@@ -38,10 +39,39 @@ def _add_colorbar(
     """
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
+    cax._qdmpy_parent_ax = ax
     cbar = ax.figure.colorbar(im, cax=cax)
     if label is not None:
         cbar.set_label(label)
     return cbar
+
+
+def _sync_colorbar_heights(fig: mpl_figure.Figure) -> None:
+    """Synchronize appended colorbar heights with their parent image axes."""
+    for cax in fig.axes:
+        parent = getattr(cax, "_qdmpy_parent_ax", None)
+        if parent is None:
+            continue
+
+        parent_pos = parent.get_position()
+        cax_pos = cax.get_position()
+        if np.isclose(parent_pos.y0, cax_pos.y0) and np.isclose(parent_pos.height, cax_pos.height):
+            continue
+
+        cax.set_position((cax_pos.x0, parent_pos.y0, cax_pos.width, parent_pos.height))
+
+
+def _finalize_layout(fig: mpl_figure.Figure, *, reserve_top: float = 0.0) -> None:
+    """Apply final layout and enforce colorbar/axes geometric alignment.
+
+    Args:
+        fig: Figure to finalize.
+        reserve_top: Fraction of figure height reserved for suptitle.
+    """
+    top = max(1.0 - reserve_top, 0.7)
+    fig.tight_layout(rect=(0.0, 0.0, 1.0, top))
+    fig.canvas.draw()
+    _sync_colorbar_heights(fig)
 
 
 def resolve_pixel_indices(

@@ -7,6 +7,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (QEP-012: plotting layout cleanup)
+
+- **Colorbar/axes alignment hardening** — added a shared final layout pass in
+  `qdmpy.plotting._common` to synchronize appended colorbar heights with their
+  parent image axes after layout.
+- **Consistent figure layout strategy** — map and overview plots now use a
+  shared layout finalizer with reserved suptitle margin to reduce clipping and
+  overlap across `fit`, `display`, `fields`, and folding/ODMR diagnostics.
+- **Label consistency fixes** — fit parameter map labels now use GHz for
+  center/linewidth quantities and standardized `x [µm]` / `y [µm]` axis text.
+- **Regression tests** — expanded plotting tests to assert colorbar-height
+  alignment and suptitle/top-row separation in representative layouts.
+
 ### Changed (QEP-CORE-001: safe serialization)
 
 - **Legacy NPZ migration window** — `FitResult.load_results()` and `qdmpy.io.load_npz()` now
