@@ -430,13 +430,14 @@ class Measurement:
         """
         import xarray as xr
 
+        from qdmpy.constants import D_ZFS
         from qdmpy.fitting.manager import FitManager
         from qdmpy.fitting.refit import refit_outliers as _refit_outliers
-        from qdmpy.fitting.result import FoldedFitResult
         from qdmpy.result import QDMResult
 
         model_name = result.fit_result.model_name
-        if isinstance(result.fit_result, FoldedFitResult):
+        is_folded = result.fit_result.metadata.get("folded_fit", False)
+        if is_folded:
             folded = self.folded_odmr  # raises DataNotLoadedError if unavailable
             spec_vals = folded.folded_spectrum.values  # (n_pol, ny, nx, n_df)
             data_xr = xr.DataArray(
@@ -444,8 +445,9 @@ class Measurement:
                 dims=("polarity", "freq_range", "y", "x", "freq_idx"),
             )
             delta_f_ghz = folded.folded_spectrum.coords["delta_f_ghz"].values
-            frequencies = delta_f_ghz.reshape(1, -1)
-            fit_manager = FitManager.for_folded(model_name, extra_constraints=constraints)
+            frequencies = (D_ZFS + delta_f_ghz).reshape(1, -1)
+            base_name = model_name.removesuffix("+FOLDED")
+            fit_manager = FitManager(model_name=base_name, constraints=constraints)
         else:
             processed_data = self._validate_fit_prerequisites()
             data_xr = processed_data.data
@@ -551,10 +553,10 @@ class Measurement:
     ) -> QDMResult:
         """Fit a folded ODMR spectrum and return a unified result container.
 
-        Uses the specified model (or the instance default from ``_fit_model``)
-        with folded-domain constraints. The fitted centre is the Zeeman offset
-        (delta_f) directly, so no D_ZFS subtraction is applied when computing
-        B111 maps.
+        Uses the specified model (or the instance default from ``_fit_model``).
+        Folded spectra are fitted in the absolute-GHz domain internally, so the
+        returned result follows the same center/B111 conventions as non-folded
+        fitting.
 
         Args:
             folded: FoldedODMR result. If None, uses the cached result from
@@ -567,7 +569,7 @@ class Measurement:
                 Only used when refit_outliers=True. Defaults to RefitSettings().
 
         Returns:
-            QDMResult containing FoldedFitResult and lazy MagneticMap access.
+            QDMResult containing FitResult and lazy MagneticMap access.
 
         Raises:
             DataNotLoadedError: If no folded data is available and fold_odmr()

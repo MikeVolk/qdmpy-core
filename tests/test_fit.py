@@ -39,6 +39,7 @@ MOCK_SETTINGS = QDMpySettings(
     ),
     model=ModelSettings(
         constraints=ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
             center_min=2.8,
             center_max=2.9,
             center_type="FREE",
@@ -295,6 +296,7 @@ class TestConstraintManager:
             ["center"],
         )
         settings = ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
             center_min=2.8,
             center_max=2.9,
             center_type="FREE",
@@ -331,6 +333,7 @@ class TestConstraintManager:
             ["center"],
         )
         settings = ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
             center_min=2.8,
             center_max=2.9,
             center_type="FREE",
@@ -374,6 +377,7 @@ class TestConstraintManager:
             ["center"],
         )
         settings = ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
             center_min=2.8,
             center_max=2.9,
             center_type="FREE",
@@ -415,6 +419,7 @@ class TestConstraintManager:
             ["center"],
         )
         settings = ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
             center_min=2.8,
             center_max=2.9,
             center_type="LOWER",
@@ -478,6 +483,7 @@ def test_constraint_manager_missing_settings() -> None:
         ["center"],
     )
     settings = ModelConstraintsSettings(
+        constraint_units="absolute_ghz",
         center_min=2.8,
         center_max=2.9,
         center_type="FREE",
@@ -504,6 +510,7 @@ def test_to_array_zero_pixels() -> None:
         ["center"],
     )
     settings = ModelConstraintsSettings(
+        constraint_units="absolute_ghz",
         center_min=2.8,
         center_max=2.9,
         center_type="FREE",

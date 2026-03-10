@@ -18,6 +18,7 @@ import xarray as xr
 from loguru import logger
 from numpy.typing import NDArray
 
+from qdmpy.constants import D_ZFS, GAMMA_NV
 from qdmpy.exceptions import (
     DataValidationError,
     DependencyError,
@@ -28,7 +29,7 @@ from qdmpy.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
 from qdmpy.fitting.guess import guess_model
 from qdmpy.fitting.guesser import ParameterGuesser
 from qdmpy.fitting.models import Model, ModelRegistry
-from qdmpy.fitting.result import FitResult, FoldedFitResult
+from qdmpy.fitting.result import FitResult
 from qdmpy.odmr._validators import validate_frequencies
 from qdmpy.settings import (
     QDMpySettings,
@@ -40,13 +41,6 @@ if TYPE_CHECKING:
     from qdmpy.odmr.folding import FoldedODMR
 
 ESTIMATOR_ID = {"LSE": 0, "MLE": 1}
-
-# Folded-spectrum fitting domain constraints
-_FOLDED_CENTER_MIN = 0.001  # GHz (1 MHz minimum Zeeman shift)
-_FOLDED_CENTER_MAX = 0.080  # GHz (80 MHz ~ 2.8 mT)
-_FOLDED_WIDTH_MIN = 0.001  # GHz
-_FOLDED_WIDTH_MAX = 0.020  # GHz
-_FOLDED_CONTRAST_MAX = 1.0  # spectrum baseline is ~1.0 (mean of two normalised ranges)
 
 
 class FitManager:
@@ -203,6 +197,7 @@ class FitManager:
         for irange in range(n_frange):
             freq_min = f_ghz[irange].min()
             freq_max = f_ghz[irange].max()
+            self._apply_mt_center_window_for_range(f_ghz[irange])
             logger.info(
                 "Fitting frequency range {} from {:.3f}-{:.3f} GHz",
                 irange,
@@ -254,6 +249,51 @@ class FitManager:
             pixel_spacing=pixel_spacing,
             model_name=model.name,
             metadata=metadata,
+        )
+
+    def _apply_mt_center_window_for_range(self: Self, freq_ghz: NDArray) -> None:
+        """Apply per-range center bounds for mT-mode center windows.
+
+        For `constraint_units='mt'` and `center_type='LOWER_UPPER'`, a non-zero
+        `center_min_mt` is interpreted as a true field window `[min, max]` (mT).
+        Because non-folded fits run each branch separately, bounds are mapped as:
+        - low branch:  D_ZFS-delta_max .. D_ZFS-delta_min
+        - high branch: D_ZFS+delta_min .. D_ZFS+delta_max
+
+        Args:
+            freq_ghz: Frequency axis (GHz) of the active fit range.
+        """
+        if self._constraint_manager is None:
+            return
+
+        constraints = self._settings.model.constraints
+        if constraints.constraint_units != "mt" or constraints.center_type != "LOWER_UPPER":
+            return
+
+        delta_min = constraints.center_min_mt * 1e-3 * GAMMA_NV
+        if delta_min <= 0.0:
+            return
+        delta_max = constraints.center_max_mt * 1e-3 * GAMMA_NV
+
+        freq_min = float(np.min(freq_ghz))
+        freq_max = float(np.max(freq_ghz))
+
+        if freq_max <= D_ZFS:
+            center_min = D_ZFS - delta_max
+            center_max = D_ZFS - delta_min
+        elif freq_min >= D_ZFS:
+            center_min = D_ZFS + delta_min
+            center_max = D_ZFS + delta_max
+        else:
+            # Overlapping-around-D ranges are uncommon; keep existing symmetric
+            # bounds from ConstraintManager in this edge case.
+            return
+
+        self._constraint_manager.set_constraint(
+            "center",
+            vmin=center_min,
+            vmax=center_max,
+            constraint_type="LOWER_UPPER",
         )
 
     def __repr__(self: Self) -> str:
@@ -432,7 +472,7 @@ class FitManager:
         data: NDArray,
         freq: NDArray,
         initial_parameters: NDArray,
-    ) -> list[NDArray]:
+    ) -> list[Any]:
         """Fit a single frequency range using GPU.
 
         Args:
@@ -507,72 +547,19 @@ class FitManager:
                 reshaped.append(np.squeeze(result.reshape((n_pol, n_pix, -1))))
         return reshaped
 
-    @classmethod
-    def for_folded(
-        cls,
-        model_name: str,
-        extra_constraints: dict[str, Any] | None = None,
-    ) -> FitManager:
-        """Create a FitManager pre-configured with folded-domain constraints.
-
-        Strips a '+FOLDED' suffix from model_name if present, builds the
-        folded-domain parameter bounds, and returns a FitManager ready for
-        refitting folded ODMR pixels.
-
-        Args:
-            model_name: Model name (with or without '+FOLDED' suffix).
-            extra_constraints: Additional per-parameter constraints that
-                override the folded defaults when provided.
-
-        Returns:
-            FitManager configured with folded-domain constraints.
-        """
-        base_name = model_name.removesuffix("+FOLDED")
-        model = ModelRegistry.get(base_name.upper())
-        _type_bounds: dict[str, dict[str, float | str]] = {
-            "center": {
-                "vmin": _FOLDED_CENTER_MIN,
-                "vmax": _FOLDED_CENTER_MAX,
-                "constraint_type": "LOWER_UPPER",
-            },
-            "width": {
-                "vmin": _FOLDED_WIDTH_MIN,
-                "vmax": _FOLDED_WIDTH_MAX,
-                "constraint_type": "LOWER_UPPER",
-            },
-            "contrast": {
-                "vmin": 0.001,
-                "vmax": _FOLDED_CONTRAST_MAX,
-                "constraint_type": "LOWER_UPPER",
-            },
-            "offset": {
-                "vmin": -0.5,
-                "vmax": 3.0,
-                "constraint_type": "LOWER_UPPER",
-            },
-        }
-        folded_constraints: dict[str, dict[str, float | str]] = {
-            param_name: _type_bounds[param_type]
-            for param_name, param_type in model.parameter_types.items()
-            if param_type in _type_bounds
-        }
-        if extra_constraints:
-            folded_constraints.update(extra_constraints)
-        return cls(base_name, constraints=folded_constraints)
-
     def fit_folded(
         self: Self,
         folded: FoldedODMR,
         *,
         pixel_spacing: float = 1.0,
         raw_data: NDArray | None = None,
-    ) -> FoldedFitResult:
-        """Fit a folded ODMR spectrum and return a FoldedFitResult.
+    ) -> FitResult:
+        """Fit a folded ODMR spectrum in the absolute-GHz domain.
 
-        The folded spectrum has its frequency axis in Zeeman-offset (delta_f) GHz.
-        Fitting uses self._model (e.g. ESR14N, ESR15N, ESRSINGLE) with
-        folded-domain constraints. The resulting centre IS the Zeeman shift
-        -- no D_ZFS subtraction needed.
+        The folded spectrum's delta_f frequency axis is shifted to absolute GHz
+        (D_ZFS + delta_f) before fitting, so the optimizer works in the same
+        domain as non-folded fits. The resulting FitResult uses the standard
+        B111 calculation path (center - D_ZFS) with n_frange=1.
 
         Args:
             folded: FoldedODMR result from SpectralFolder.fold().
@@ -583,7 +570,7 @@ class FitManager:
                 of the folded one to avoid spurious peak doubling.
 
         Returns:
-            FoldedFitResult with correct B111 maps for folded data.
+            FitResult with correct B111 maps for folded data.
 
         Raises:
             DependencyError: If pyGpufit is not installed.
@@ -592,18 +579,16 @@ class FitManager:
             msg = "pyGpufit is required for fitting but not installed"
             raise DependencyError(msg)
 
-        # Extract delta_f axis from the folded spectrum coordinate
-        delta_f_ghz: NDArray = folded.folded_spectrum.coords["delta_f_ghz"].values  # (n_df,)
-        n_df = len(delta_f_ghz)
+        # Extract delta_f axis and shift to absolute GHz
+        delta_f_ghz: NDArray = folded.folded_spectrum.coords["delta_f_ghz"].values
+        abs_freq_ghz = D_ZFS + delta_f_ghz
+        n_df = len(abs_freq_ghz)
 
-        # folded_spectrum dims: (polarity, y, x, freq_idx)
-        # The folded spectrum is the mean of S_low and S_high, so its baseline is
-        # already ~1.0 (same as a single normalised ODMR spectrum).
         spec_vals = folded.folded_spectrum.values  # (n_pol, ny, nx, n_df)
         pol_labels = list(folded.folded_spectrum.coords["polarity"].values)
 
         # Build xr.DataArray: (n_pol, 1, ny, nx, n_df) matching fit() expected dims
-        data_5d = np.expand_dims(spec_vals, axis=1)  # (n_pol, 1, ny, nx, n_df)
+        data_5d = np.expand_dims(spec_vals, axis=1)
         data_xr = xr.DataArray(
             data_5d,
             dims=("polarity", "freq_range", "y", "x", "freq_idx"),
@@ -613,12 +598,10 @@ class FitManager:
             },
         )
 
-        # Frequency array: shape (1, n_df) for a single freq_range
-        freq_2d = delta_f_ghz.reshape(1, n_df)
+        # Frequency array in absolute GHz: shape (1, n_df)
+        freq_2d = abs_freq_ghz.reshape(1, n_df)
 
-        # Resolve auto model if needed — use raw (unfolded) data for reliable peak detection.
-        # The folded spectrum is in delta_f space and has ~2x as many peaks, which confuses
-        # the detector. Fall back to folded data only if raw data was not provided.
+        # Resolve auto model if needed
         if self._model is None:
             if raw_data is not None:
                 detection_flat = raw_data.reshape(
@@ -634,51 +617,35 @@ class FitManager:
             raise RuntimeError(msg)
         model: Model = self._model
 
-        # Build folded-domain constraints dynamically from the model's parameter
-        # types so that ESR14N (contrast_0/1/2), ESR15N (contrast_0/1), and
-        # ESRSINGLE (contrast) all get correct bounds.
-        _type_bounds: dict[str, dict[str, float | str]] = {
-            "center": {
-                "vmin": _FOLDED_CENTER_MIN,
-                "vmax": _FOLDED_CENTER_MAX,
-                "constraint_type": "LOWER_UPPER",
-            },
-            "width": {
-                "vmin": _FOLDED_WIDTH_MIN,
-                "vmax": _FOLDED_WIDTH_MAX,
-                "constraint_type": "LOWER_UPPER",
-            },
-            "contrast": {
-                "vmin": 0.001,
-                "vmax": _FOLDED_CONTRAST_MAX,
-                "constraint_type": "LOWER_UPPER",
-            },
-            "offset": {
-                "vmin": -0.5,
-                "vmax": 3.0,
-                "constraint_type": "LOWER_UPPER",
-            },
-        }
-        folded_constraints: dict[str, dict[str, float | str]] = {}
+        # Use the same constraints as non-folded (settings-driven, already in abs GHz).
+        # Override contrast for folded spectra (baseline ~1.0 from mean of two ranges).
+        folded_contrast: dict[str, dict[str, float | str]] = {}
         for param_name, param_type in model.parameter_types.items():
-            if param_type in _type_bounds:
-                folded_constraints[param_name] = _type_bounds[param_type]
+            if param_type == "contrast":
+                folded_contrast[param_name] = {
+                    "vmin": 0.001,
+                    "vmax": 1.0,
+                    "constraint_type": "LOWER_UPPER",
+                }
+            elif param_type == "offset":
+                folded_contrast[param_name] = {
+                    "vmin": -0.5,
+                    "vmax": 3.0,
+                    "constraint_type": "LOWER_UPPER",
+                }
 
-        # Build a dedicated FitManager with folded-domain constraints.
-        # Use the same model as the outer FitManager (e.g. ESR14N for 14N diamond)
-        # so that the correct number of dips is fitted on the folded spectrum.
         folded_mgr = FitManager(
             model.name,
-            constraints=folded_constraints,
+            constraints=folded_contrast,
             settings=self._settings,
             gpu_available=self._gpu_available,
         )
 
         raw = folded_mgr.fit(data_xr, freq_2d, pixel_spacing=pixel_spacing)
 
-        # Copy parameters (need fresh writable arrays before new object locks them)
+        # Return standard FitResult with FOLDED tag in model_name
         params = {k: np.array(v) for k, v in raw.parameters.items()}
-        return FoldedFitResult(
+        return FitResult(
             parameters=params,
             scan_dimensions=raw.scan_dimensions,
             pixel_spacing=pixel_spacing,

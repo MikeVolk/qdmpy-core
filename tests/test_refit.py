@@ -14,7 +14,7 @@ from qdmpy.fitting.refit import (
     identify_outlier_pixels,
     refit_outliers,
 )
-from qdmpy.fitting.result import FitResult, FoldedFitResult
+from qdmpy.fitting.result import FitResult
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -557,31 +557,30 @@ class TestRefitOutliers:
         assert fm.fit_frange.call_count >= 1
 
     def test_folded_fit_result_type_preserved(self) -> None:
-        """refit_outliers returns a FoldedFitResult when given a FoldedFitResult."""
+        """refit_outliers returns a FitResult when given a folded FitResult."""
         h, w = 6, 6
         n_pol, n_frange = 1, 1
         shape = (n_pol, n_frange, h, w)
-        center = np.full(shape, 0.010, dtype=np.float32)
+        center = np.full(shape, 2.880, dtype=np.float32)  # absolute GHz
         chi2 = np.ones(shape, dtype=np.float32) * 0.1
         chi2[0, 0, 3, 3] = 100.0
         states = np.zeros(shape, dtype=np.int32)
-        fr = FoldedFitResult(
+        fr = FitResult(
             parameters={"center": center, "chi2": chi2, "states": states},
             scan_dimensions=(h, w),
             pixel_spacing=4e-6,
             model_name="ESRSINGLE+FOLDED",
+            metadata={"folded_fit": True},
         )
 
-        fm = _make_mock_fm(["center"], return_value=0.011)
+        fm = _make_mock_fm(["center"], return_value=2.881)
         data = _make_data_array(n_pol=n_pol, n_frange=n_frange, h=h, w=w)
-        freq = np.linspace(-0.05, 0.05, 20).reshape(1, 20)
+        freq = np.linspace(2.875, 2.930, 20).reshape(1, 20)
         settings = RefitSettings(chi2_percentile=90.0, min_good_neighbors=1)
 
         result = refit_outliers(fr, data, freq, fm, settings)
 
-        assert isinstance(result, FoldedFitResult), (
-            f"Expected FoldedFitResult, got {type(result).__name__}"
-        )
+        assert isinstance(result, FitResult)
         assert "refit_info" in result.metadata
 
 
@@ -744,15 +743,16 @@ class TestMeasurementRefit:
         from qdmpy.result import QDMResult
 
         shape = (1, 1, h, w)
-        center = np.full(shape, 0.010, dtype=np.float32)
+        center = np.full(shape, 2.880, dtype=np.float32)  # absolute GHz
         chi2 = np.ones(shape, dtype=np.float32) * 0.1
         chi2[0, 0, 2, 2] = 100.0
         states = np.zeros(shape, dtype=np.int32)
-        fr = FoldedFitResult(
+        fr = FitResult(
             parameters={"center": center, "chi2": chi2, "states": states},
             scan_dimensions=(h, w),
             pixel_spacing=4e-6,
             model_name="ESRSINGLE+FOLDED",
+            metadata={"folded_fit": True},
         )
         return QDMResult(
             fit_result=fr,
@@ -774,7 +774,7 @@ class TestMeasurementRefit:
         return mock_folded
 
     def test_refit_outliers_folded_uses_folded_data(self) -> None:
-        """Measurement.refit_outliers routes to folded_odmr when given a FoldedFitResult."""
+        """Measurement.refit_outliers routes to folded_odmr when metadata['folded_fit']=True."""
         from qdmpy.result import QDMResult
 
         m = self._make_measurement_stub()
@@ -785,13 +785,13 @@ class TestMeasurementRefit:
         m._folded_odmr = mock_folded
 
         with patch("qdmpy.fitting.manager.FitManager") as MockFM:
-            fm_instance = _make_mock_fm(["center"], return_value=0.011)
-            MockFM.for_folded.return_value = fm_instance
+            fm_instance = _make_mock_fm(["center"], return_value=2.881)
+            MockFM.return_value = fm_instance
 
             result = m.refit_outliers(qdm_result, settings=RefitSettings(min_good_neighbors=1))
 
         assert isinstance(result, QDMResult)
-        assert isinstance(result.fit_result, FoldedFitResult)
+        assert isinstance(result.fit_result, FitResult)
         # _validate_fit_prerequisites must NOT have been called (folded path skips it)
         assert not hasattr(m, "_validate_fit_prerequisites_called")
 
@@ -806,15 +806,16 @@ class TestMeasurementRefit:
         m._folded_odmr = mock_folded
 
         shape = (1, 1, h, w)
-        folded_fr = FoldedFitResult(
+        folded_fr = FitResult(
             parameters={
-                "center": np.full(shape, 0.010, dtype=np.float32),
+                "center": np.full(shape, 2.880, dtype=np.float32),
                 "chi2": np.ones(shape, dtype=np.float32) * 0.1,
                 "states": np.zeros(shape, dtype=np.int32),
             },
             scan_dimensions=(h, w),
             pixel_spacing=4e-6,
             model_name="ESRSINGLE+FOLDED",
+            metadata={"folded_fit": True},
         )
 
         refit_called = []

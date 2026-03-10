@@ -23,7 +23,7 @@ from qdmpy.fitting.guesser import ParameterGuesser
 from qdmpy.fitting.manager import FitManager
 from qdmpy.fitting.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
 from qdmpy.fitting.refit import RefitSettings, refit_outliers
-from qdmpy.fitting.result import FitResult, FoldedFitResult
+from qdmpy.fitting.result import FitResult
 
 __all__ = [
     "CONSTRAINT_TYPES",
@@ -33,7 +33,6 @@ __all__ = [
     "ConstraintManager",
     "FitManager",
     "FitResult",
-    "FoldedFitResult",
     "Model",
     "ModelRegistry",
     "ParameterGuesser",

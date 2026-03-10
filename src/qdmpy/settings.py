@@ -47,15 +47,39 @@ class ModelFindPeaksSettings(BaseModel):
 
 
 class ModelConstraintsSettings(BaseModel):
-    """Settings for model fitting constraints."""
+    """Settings for model fitting constraints.
 
-    center_min: float = Field(default=2, description="Center frequency minimum")
-    center_max: float = Field(default=3.1, description="Center frequency maximum")
+    Supports two constraint specification modes controlled by ``constraint_units``:
+
+    - ``'mt'`` (default): User specifies center/width bounds in millitesla (Zeeman
+      shift). Converted internally to absolute GHz for the optimizer.
+    - ``'absolute_ghz'``: User specifies center/width bounds directly in absolute
+      GHz (power-user / backward-compatibility mode).
+
+    In both modes the optimizer always receives absolute-GHz constraints.
+    """
+
+    constraint_units: Literal["mt", "absolute_ghz"] = Field(
+        default="mt",
+        description='Unit mode for center/width constraints: "mt" or "absolute_ghz"',
+    )
+
+    # -- mT mode (default) --
+    center_max_mt: float = Field(default=7.0, description="Max Zeeman shift in mT (mt mode)")
+    center_min_mt: float = Field(default=0.0, description="Min Zeeman shift in mT (mt mode)")
+    width_max_mt: float = Field(default=0.7, description="Max linewidth in mT (mt mode)")
+    width_min_mt: float = Field(default=0.004, description="Min linewidth in mT (mt mode)")
+
+    # -- absolute GHz mode (power users / backward compat) --
+    center_min: float = Field(default=2, description="Center frequency minimum (absolute GHz)")
+    center_max: float = Field(default=3.1, description="Center frequency maximum (absolute GHz)")
+    width_min: float = Field(default=0.0001, description="Width minimum (GHz)")
+    width_max: float = Field(default=0.005, description="Width maximum (GHz)")
+
+    # -- constraint types (shared, unitless) --
     center_type: Literal["FREE", "LOWER", "UPPER", "LOWER_UPPER"] = Field(
         default="LOWER_UPPER", description="Center constraint type"
     )
-    width_min: float = Field(default=0.0001, description="Width minimum")
-    width_max: float = Field(default=0.005, description="Width maximum")
     width_type: Literal["FREE", "LOWER", "UPPER", "LOWER_UPPER"] = Field(
         default="LOWER_UPPER", description="Width constraint type"
     )
