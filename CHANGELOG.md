@@ -7,6 +7,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (QEP-059: Unified Constraint Interface)
+
+- **`ModelConstraintsSettings`** — new `constraint_units` field (`'mt'` default, `'absolute_ghz'`
+  for power users). Users specify center/width bounds in millitesla; converted to absolute GHz
+  internally. New fields: `center_max_mt`, `center_min_mt`, `width_max_mt`, `width_min_mt`.
+- **`ConstraintManager`** — resolves `constraint_units` mode on init, converting mT bounds to
+  absolute-GHz bounds via D_ZFS and GAMMA_NV. Both folded and non-folded paths use the same
+  constraint conversion.
+- **`FitManager.fit_folded()`** — shifts folded delta_f frequency axis to absolute GHz
+  (`D_ZFS + delta_f`) before fitting. Returns standard `FitResult` (not `FoldedFitResult`).
+  Fitted centers are absolute GHz (~2.87 + shift), same as non-folded fits.
+- **`Measurement.refit_outliers()`** — detects folded fits via `metadata['folded_fit']` instead
+  of `isinstance(result, FoldedFitResult)`.
+
+### Removed (QEP-059)
+
+- **`FoldedFitResult`** class — deleted. All fitting paths now return standard `FitResult`.
+  **Breaking change:** code importing `FoldedFitResult` or using `isinstance` checks must
+  migrate to `FitResult` with `metadata.get('folded_fit')` for detection.
+- **`_FOLDED_*` constants** — hardcoded folded-domain constraint bounds removed from
+  `fitting/manager.py`. Constraints are now settings-driven.
+- **`FitManager.for_folded()`** classmethod — removed. `fit_folded()` handles everything
+  internally with settings-driven constraints.
+
 ### Changed (docs full rewrite)
 
 - **`README.md`** — full rewrite: three-persona "Choose your path" table (Fry / Lila / Professor),

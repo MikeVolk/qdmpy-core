@@ -9,13 +9,52 @@ from __future__ import annotations
 from typing import Any, Self
 
 import numpy as np
+from loguru import logger
 from numpy.typing import NDArray
 
+from qdmpy.constants import D_ZFS, GAMMA_NV
 from qdmpy.exceptions import ParameterError
 from qdmpy.fitting.models import Model
 from qdmpy.settings import ModelConstraintsSettings
 
 CONSTRAINT_TYPES = ["FREE", "LOWER", "UPPER", "LOWER_UPPER"]
+
+
+def _mt_to_absolute_ghz(settings: ModelConstraintsSettings) -> ModelConstraintsSettings:
+    """Convert mT constraint bounds to absolute-GHz bounds.
+
+    The conversion: delta_ghz = mt * 1e-3 * GAMMA_NV, then
+    center_min = D_ZFS - delta_max, center_max = D_ZFS + delta_max.
+
+    Args:
+        settings: Settings with mT-mode fields populated.
+
+    Returns:
+        New ModelConstraintsSettings with absolute-GHz center/width bounds.
+    """
+    delta_max_ghz = settings.center_max_mt * 1e-3 * GAMMA_NV
+    width_min_ghz = settings.width_min_mt * 1e-3 * GAMMA_NV
+    width_max_ghz = settings.width_max_mt * 1e-3 * GAMMA_NV
+
+    center_min_ghz = D_ZFS - delta_max_ghz
+    center_max_ghz = D_ZFS + delta_max_ghz
+
+    logger.debug(
+        "mT -> GHz conversion: center=[{:.4f}, {:.4f}] GHz, width=[{:.6f}, {:.6f}] GHz",
+        center_min_ghz,
+        center_max_ghz,
+        width_min_ghz,
+        width_max_ghz,
+    )
+
+    return settings.model_copy(
+        update={
+            "center_min": center_min_ghz,
+            "center_max": center_max_ghz,
+            "width_min": width_min_ghz,
+            "width_max": width_max_ghz,
+        }
+    )
 
 
 class ConstraintManager:
@@ -34,7 +73,22 @@ class ConstraintManager:
         """
         self._constraints: dict[str, list[Any]] = {}
         self._model = model
-        self._initialize_constraints(settings)
+        resolved = self._resolve_settings(settings)
+        self._initialize_constraints(resolved)
+
+    @staticmethod
+    def _resolve_settings(settings: ModelConstraintsSettings) -> ModelConstraintsSettings:
+        """Resolve constraint_units mode to absolute-GHz settings.
+
+        Args:
+            settings: Raw settings (may be in mT or absolute_ghz mode).
+
+        Returns:
+            Settings with center_min/max and width_min/max in absolute GHz.
+        """
+        if settings.constraint_units == "mt":
+            return _mt_to_absolute_ghz(settings)
+        return settings
 
     def _initialize_constraints(
         self: Self,

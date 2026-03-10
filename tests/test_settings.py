@@ -63,11 +63,12 @@ class TestModelConstraintsSettings:
     def test_default_constraints(self) -> None:
         """Test default constraint values."""
         settings = ModelConstraintsSettings()
-        assert settings.center_min == 2
-        assert settings.center_max == 3.1
+        assert settings.constraint_units == "mt"
+        assert settings.center_max_mt == 7.0
+        assert settings.center_min_mt == 0.0
+        assert settings.width_max_mt == 0.7
+        assert settings.width_min_mt == 0.004
         assert settings.center_type == "LOWER_UPPER"
-        assert settings.width_min == 0.0001
-        assert settings.width_max == 0.005
         assert settings.width_type == "LOWER_UPPER"
         assert settings.contrast_min == 0.003
         assert settings.contrast_max == 0
@@ -76,16 +77,28 @@ class TestModelConstraintsSettings:
         assert settings.offset_max == 0
         assert settings.offset_type == "FREE"
 
-    def test_custom_constraints(self) -> None:
-        """Test custom constraint values."""
+    def test_custom_constraints_absolute_ghz(self) -> None:
+        """Test custom constraint values in absolute GHz mode."""
         settings = ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
             center_min=1.0,
             center_max=4.0,
             center_type="FREE",
         )
+        assert settings.constraint_units == "absolute_ghz"
         assert settings.center_min == 1.0
         assert settings.center_max == 4.0
         assert settings.center_type == "FREE"
+
+    def test_custom_constraints_mt(self) -> None:
+        """Test custom mT constraint values."""
+        settings = ModelConstraintsSettings(
+            constraint_units="mt",
+            center_max_mt=10.0,
+            width_max_mt=1.5,
+        )
+        assert settings.center_max_mt == 10.0
+        assert settings.width_max_mt == 1.5
 
     def test_valid_constraint_types(self) -> None:
         """Test all valid constraint types."""
