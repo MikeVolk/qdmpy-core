@@ -102,6 +102,9 @@ CLAUDE.md
 questions.md
 research/
 
+# Local assistant rules
+.claude/
+
 # Developer scripts (one-off tools, not library code)
 /scripts/
 scripts/output/
