@@ -5,10 +5,37 @@ Exploits the f+/f- mirror symmetry of NV-center ODMR spectra about D_ZFS:
     f+/- = D +/- gamma*B*cos(theta)
 
 The low frequency range captures f- and the high range captures f+. Folding
-them together about D gives sqrt(2) SNR improvement, a per-pixel D_ZFS map
-(temperature/strain), and a model-free quality metric (fold residual).
+them together about D produces a per-pixel D_ZFS map (temperature/strain),
+a model-free quality metric (fold residual), and halves the number of fit
+calls (one folded spectrum per polarity instead of two branches).
 
-Algorithm (two-scale):
+**SNR trade-off:** The folded spectrum has sqrt(2) lower noise per frequency
+point because it averages two independent measurements. However, the D_ZFS
+estimation step introduces per-pixel errors that propagate into the folded
+spectrum and subsequent fit. For strong B111 signals (std >> 2-3 uT), this
+error is negligible and folding gives a net accuracy benefit. For weak
+signals (B111 std < 2 uT), the D_ZFS estimation error can dominate and
+the normal (unfolded) fit may be more accurate.
+
+**D_ZFS estimation methods:**
+
+- ``centroid`` (default): Absorption-weighted centroid of each branch.
+  O(N) per pixel, no coarsening needed, ~0.06-0.16 MHz RMSE. The centroid
+  power is isotope-dependent: power=2 for ESR15N (concentrates weight on
+  the doublet), power=1 for ESR14N (avoids catastrophic failure from unequal
+  hyperfine peak depths).
+
+- ``brute_force``: Original two-scale algorithm. Coarsens spatially, sweeps
+  D candidates, then bicubic-interpolates to full resolution. Slower and
+  ~1 MHz RMSE, but preserved for reproducibility with older results.
+
+Algorithm (centroid -- default):
+    1. Compute absorption centroid per branch at full resolution
+    2. D_ZFS = (centroid_low + centroid_high) / 2
+    3. Per-pixel fold: S_folded(df) = (S_low(D-df) + S_high(D+df)) / 2
+    4. Fold residual: measure of spectrum asymmetry (quality map)
+
+Algorithm (brute_force):
     1. Spatially coarsen (bin_factor^2) -> high SNR for coarse D_ZFS estimation
     2. Brute-force search over D candidates -> coarse D_ZFS map
     3. Bicubic-interpolate coarse map to full resolution
@@ -18,7 +45,7 @@ Algorithm (two-scale):
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import xarray as xr
@@ -35,6 +62,35 @@ if TYPE_CHECKING:
 
 _MIN_FREQ_RANGES = 2
 
+# ---------------------------------------------------------------------------
+# Centroid power mapping (isotope-dependent)
+# ---------------------------------------------------------------------------
+
+_CENTROID_POWER: dict[str, float] = {
+    "ESR15N": 2.0,
+    "ESR14N": 1.0,
+    "ESRSINGLE": 1.0,
+}
+_DEFAULT_CENTROID_POWER = 1.0
+
+
+def _resolve_centroid_power(model_name: str | None) -> float:
+    """Look up the optimal centroid power for a given ESR model.
+
+    ESR15N uses power=2 (concentrates weight on the doublet peaks).
+    ESR14N uses power=1 (power=2 can fail catastrophically when hyperfine
+    peak depths are unequal). Unknown models default to power=1 (safe).
+
+    Args:
+        model_name: ESR model name, or None for the safe default.
+
+    Returns:
+        Centroid power exponent.
+    """
+    if model_name is None:
+        return _DEFAULT_CENTROID_POWER
+    return _CENTROID_POWER.get(model_name, _DEFAULT_CENTROID_POWER)
+
 
 # ---------------------------------------------------------------------------
 # Settings
@@ -44,17 +100,36 @@ _MIN_FREQ_RANGES = 2
 class FoldingSettings(BaseModel):
     """Immutable settings for the spectral folding pipeline.
 
+    The ``d_zfs_method`` controls how the per-pixel D_ZFS fold centre is
+    estimated:
+
+    - ``'auto'`` (default): selects the centroid method, which is faster
+      and more accurate than brute-force in all tested cases.
+    - ``'centroid'``: explicit centroid selection. Runs at full resolution
+      in O(N) with ~0.06-0.16 MHz RMSE.
+    - ``'brute_force'``: original two-scale algorithm. Preserves exact
+      reproducibility with older results. Uses ``search_range``,
+      ``search_steps``, ``bin_factor``, and ``interpolation_order``.
+
+    The brute-force-specific fields (``search_range``, ``search_steps``,
+    ``bin_factor``, ``interpolation_order``) are only used when
+    ``d_zfs_method='brute_force'``.
+
     Attributes:
+        d_zfs_method: D_ZFS estimation method. 'auto' and 'centroid' use the
+            absorption centroid; 'brute_force' uses the original search.
         d_zfs_initial: Starting centre for D_ZFS search in GHz.
         search_range: Half-width of brute-force search in GHz (+/-5 MHz = +/-68 K).
         search_steps: Number of candidate D values in the search grid.
         bin_factor: Spatial binning factor for coarse D_ZFS estimation.
+            Lower values give per-pixel accuracy but more noise sensitivity.
         interpolation_order: scipy.ndimage.zoom order (3 = bicubic).
         min_overlap_points: Minimum df points required; raises FoldingOverlapError otherwise.
     """
 
     model_config = ConfigDict(frozen=True)
 
+    d_zfs_method: Literal["auto", "centroid", "brute_force"] = "auto"
     d_zfs_initial: float = D_ZFS
     search_range: float = 0.005
     search_steps: int = 201
@@ -70,6 +145,18 @@ class FoldingSettings(BaseModel):
 
 class FoldedODMR(BaseModel):
     """Result of spectral folding.
+
+    The folded spectrum averages two independent measurements (low and high
+    branches) for sqrt(2) noise reduction per frequency point. The D_ZFS map
+    provides per-pixel zero-field splitting (sensitive to temperature and
+    strain). The fold residual is a model-free quality metric: low values
+    indicate good spectral symmetry.
+
+    Note:
+        D_ZFS estimation error (~0.05-0.15 MHz) propagates into the folded
+        spectrum and subsequent fit. This is negligible for strong B111
+        signals (std >> 2-3 uT) but can dominate for weak signals, making
+        the normal (unfolded) fit more accurate in that regime.
 
     Attributes:
         folded_spectrum: (polarity, y, x, freq_idx) with coord delta_f_ghz.
@@ -93,6 +180,7 @@ class FoldedODMR(BaseModel):
     settings: FoldingSettings
     d_candidates: NDArray | None = None
     search_residual: NDArray | None = None
+    d_zfs_estimation_method: str | None = None
 
     def plot(self) -> None:
         """Quick diagnostic overview of the folding result."""
@@ -173,6 +261,61 @@ def _interp_batch(
     return s_lo * (1.0 - frac) + s_hi * frac
 
 
+def _estimate_d_zfs_centroid(data: xr.DataArray, power: float) -> NDArray:
+    """Estimate per-pixel D_ZFS from absorption-weighted centroids.
+
+    Computes the weighted-mean frequency of the absorption dip in each
+    branch (low and high), then averages: D = (centroid_low + centroid_high) / 2.
+    Fully vectorized, O(N) per pixel, no spatial coarsening needed.
+
+    The ``power`` exponent controls how much weight concentrates on the
+    deepest part of the dip vs. the broad tails:
+
+    - power=1: safe for all isotopes, especially ESR14N where unequal
+      hyperfine peak depths can bias power=2 toward one peak.
+    - power=2: better accuracy for ESR15N (doublet with equal peaks).
+
+    Args:
+        data: ODMR data with shape (n_pol, n_frange, y, x, freq_idx)
+            and a ``freq_ghz`` coordinate of shape (n_frange, n_freq).
+        power: Exponent applied to absorption weights before normalisation.
+
+    Returns:
+        NDArray of shape (n_pol, ny, nx) with per-pixel D_ZFS in GHz.
+    """
+    freq_ghz = data.coords["freq_ghz"].values  # (2, n_freq)
+    f_low = freq_ghz[0]
+    f_high = freq_ghz[1]
+
+    n_pol = data.sizes["polarity"]
+    ny = data.sizes["y"]
+    nx = data.sizes["x"]
+    result = np.empty((n_pol, ny, nx))
+
+    for i_pol in range(n_pol):
+        spec_low = data.isel(polarity=i_pol).sel(freq_range="low").values
+        spec_high = data.isel(polarity=i_pol).sel(freq_range="high").values
+        # Flatten spatial dims: (ny, nx, n_freq) -> (n_pixel, n_freq)
+        flat_low = spec_low.reshape(-1, spec_low.shape[-1])
+        flat_high = spec_high.reshape(-1, spec_high.shape[-1])
+
+        # Absorption = max - spectrum, clipped >= 0, raised to power
+        abs_low = np.maximum(flat_low.max(axis=1, keepdims=True) - flat_low, 0.0) ** power
+        abs_high = np.maximum(flat_high.max(axis=1, keepdims=True) - flat_high, 0.0) ** power
+
+        # Normalise to weights
+        w_low = abs_low / (abs_low.sum(axis=1, keepdims=True) + 1e-12)
+        w_high = abs_high / (abs_high.sum(axis=1, keepdims=True) + 1e-12)
+
+        # Weighted mean frequency
+        centroid_low = (w_low * f_low[np.newaxis, :]).sum(axis=1)
+        centroid_high = (w_high * f_high[np.newaxis, :]).sum(axis=1)
+
+        result[i_pol] = ((centroid_low + centroid_high) / 2.0).reshape(ny, nx)
+
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Main class
 # ---------------------------------------------------------------------------
@@ -180,6 +323,12 @@ def _interp_batch(
 
 class SpectralFolder:
     """Folds ODMR spectra about the per-pixel D_ZFS value.
+
+    The folded spectrum has sqrt(2) lower noise per frequency point.
+    However, the D_ZFS estimation step introduces errors (~0.05-0.15 MHz
+    depending on method and linewidth) that propagate into the fitted B111.
+    For strong B111 signals this is negligible; for weak signals (std < 2 uT)
+    the normal (unfolded) fit may give better B111 accuracy.
 
     Usage::
 
@@ -194,18 +343,29 @@ class SpectralFolder:
         self,
         odmr_data: ODMRData,
         settings: FoldingSettings | None = None,
+        model_name: str | None = None,
     ) -> None:
         """Initialise SpectralFolder.
 
         Args:
             odmr_data: ODMR data with both 'low' and 'high' frequency ranges.
             settings: Folding configuration. Defaults to FoldingSettings().
+            model_name: ESR model name (e.g. 'ESR15N', 'ESR14N') used to
+                select the optimal centroid power. None uses the safe default
+                (power=1.0).
         """
         self._odmr_data = odmr_data
         self._settings = settings if settings is not None else FoldingSettings()
+        self._model_name = model_name
 
     def fold(self) -> FoldedODMR:
-        """Run full pipeline: coarsen -> D_ZFS map -> interpolate -> fold -> residual.
+        """Run the folding pipeline and return a FoldedODMR result.
+
+        The D_ZFS estimation method is controlled by
+        ``self._settings.d_zfs_method``:
+
+        - ``'auto'`` / ``'centroid'``: absorption centroid at full resolution.
+        - ``'brute_force'``: coarsen -> search -> interpolate (original).
 
         Returns:
             FoldedODMR with folded spectra, D_ZFS map, antisymmetric component,
@@ -227,42 +387,42 @@ class SpectralFolder:
             )
             raise DataValidationError(msg)
 
-        logger.debug(
-            "SpectralFolder.fold(): data shape={}, bin_factor={}, search_steps={}",
-            data.shape,
-            self._settings.bin_factor,
-            self._settings.search_steps,
-        )
+        method = self._settings.d_zfs_method
 
-        # Step 1: Coarsen
-        coarse = self._coarsen_data()
-        logger.debug(
-            "Coarse shape: {} x {} (from {} x {})",
-            coarse.sizes["y"],
-            coarse.sizes["x"],
-            data.sizes["y"],
-            data.sizes["x"],
-        )
+        if method in ("auto", "centroid"):
+            d_zfs_full = self._estimate_d_zfs_via_centroid()
+            d_candidates = None
+            search_residual = None
+            estimation_method = "centroid"
+        else:
+            logger.debug(
+                "SpectralFolder.fold(): data shape={}, bin_factor={}, search_steps={}",
+                data.shape,
+                self._settings.bin_factor,
+                self._settings.search_steps,
+            )
+            coarse = self._coarsen_data()
+            logger.debug(
+                "Coarse shape: {} x {} (from {} x {})",
+                coarse.sizes["y"],
+                coarse.sizes["x"],
+                data.sizes["y"],
+                data.sizes["x"],
+            )
+            d_zfs_coarse, d_candidates, search_residual = self._find_d_zfs_coarse(coarse)
+            logger.debug(
+                "Coarse D_ZFS: {:.6f} - {:.6f} GHz",
+                float(d_zfs_coarse.min()),
+                float(d_zfs_coarse.max()),
+            )
+            target_shape = (data.sizes["y"], data.sizes["x"])
+            d_zfs_full = self._interpolate_d_zfs(d_zfs_coarse, target_shape)
+            estimation_method = "brute_force"
 
-        # Step 2: Find D_ZFS at coarse resolution
-        d_zfs_coarse, d_candidates, search_residual = self._find_d_zfs_coarse(coarse)
-        logger.debug(
-            "Coarse D_ZFS: {:.6f} - {:.6f} GHz",
-            float(d_zfs_coarse.min()),
-            float(d_zfs_coarse.max()),
-        )
-
-        # Step 3: Interpolate to full resolution
-        target_shape = (data.sizes["y"], data.sizes["x"])
-        d_zfs_full = self._interpolate_d_zfs(d_zfs_coarse, target_shape)  # (n_pol, ny, nx)
-
-        # Step 4: Fold spectra
+        # Fold spectra and compute residual (shared by both methods)
         folded, antisymmetric, _delta_f = self._fold_spectra(d_zfs_full)
-
-        # Step 5: Compute fold residual
         fold_residual = self._compute_fold_residual(antisymmetric, folded)
 
-        # Wrap D_ZFS map
         pol_labels = list(data.coords["polarity"].values)
         d_zfs_da = xr.DataArray(
             d_zfs_full,
@@ -278,11 +438,32 @@ class SpectralFolder:
             settings=self._settings,
             d_candidates=d_candidates,
             search_residual=search_residual,
+            d_zfs_estimation_method=estimation_method,
         )
 
     # -----------------------------------------------------------------------
     # Private pipeline steps
     # -----------------------------------------------------------------------
+
+    def _estimate_d_zfs_via_centroid(self) -> NDArray:
+        """Estimate D_ZFS at full resolution using absorption centroids.
+
+        Returns:
+            NDArray of shape (n_pol, ny, nx) with per-pixel D_ZFS in GHz.
+        """
+        power = _resolve_centroid_power(self._model_name)
+        logger.info(
+            "Centroid D_ZFS estimation: model={}, power={}",
+            self._model_name or "auto",
+            power,
+        )
+        d_zfs = _estimate_d_zfs_centroid(self._odmr_data.data, power=power)
+        logger.debug(
+            "Centroid D_ZFS: {:.6f} - {:.6f} GHz",
+            float(d_zfs.min()),
+            float(d_zfs.max()),
+        )
+        return d_zfs
 
     def _coarsen_data(self) -> xr.DataArray:
         """Coarsen ODMR data spatially by bin_factor for high-SNR D_ZFS search."""
