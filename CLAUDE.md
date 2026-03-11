@@ -13,6 +13,36 @@ This repo uses **Gitflow** for branch management:
 
 **NEVER commit directly to `main` or `develop`**. Always work on a feature/bugfix/release/hotfix branch and submit a PR.
 
+## QEP Workflow
+
+Before implementing a QEP, read the full proposal under `proposals/`.  Work
+phase by phase, verifying with `uv run pytest` between phases.
+
+```
+# One QEP, full scope
+Implement QEP-052. Read proposals/QEP-052-fit-frequency-cutoff.md for the spec.
+Work phase by phase, running `uv run pytest` after each phase.
+
+# Narrow scope
+Implement Phase 1 and Phase 2 of QEP-052 only.
+
+# Reference old codebase when relevant
+Implement QEP-008. Use ~/git/QDMpy_old as reference for the MATLAB export
+and field conversion logic.
+```
+
+- Each QEP gets its own branch: `feature/qep-052-fit-frequency-cutoff`
+- After each phase, run the test suite and note the failure count delta
+- Update the QEP status from Draft to Accepted/Implemented when done
+- Update `CHANGELOG.md` under `## [Unreleased]` as work progresses
+- Every new or amended QEP must include a `## GUI Integration Requirements`
+  section describing:
+  - core API/data contracts the GUI depends on,
+  - required GUI-side settings/controls/migration updates,
+  - state/metadata needed for rendering and interaction,
+  - expected error/progress behavior surfaced to users,
+  - acceptance checks that confirm the GUI works without hidden follow-up work.
+
 ## Principles
 - Follow **clean code** principles: meaningful names, small focused functions, single responsibility, DRY, no dead code, minimal comments (code should be self-documenting)
 - Always use **uv** as the package manager (never pip, poetry, or conda directly)

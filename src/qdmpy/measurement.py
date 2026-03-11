@@ -446,8 +446,7 @@ class Measurement:
             )
             delta_f_ghz = folded.folded_spectrum.coords["delta_f_ghz"].values
             frequencies = (D_ZFS + delta_f_ghz).reshape(1, -1)
-            base_name = model_name.removesuffix("+FOLDED")
-            fit_manager = FitManager(model_name=base_name, constraints=constraints)
+            fit_manager = FitManager(model_name=model_name, constraints=constraints)
         else:
             processed_data = self._validate_fit_prerequisites()
             data_xr = processed_data.data
@@ -492,6 +491,12 @@ class Measurement:
         two-scale folding pipeline, and caches the result for use by
         fit_folded_odmr().
 
+        The folded spectrum has sqrt(2) lower noise per frequency point,
+        but the D_ZFS estimation step introduces errors that propagate
+        into the subsequent fit. For strong B111 signals (std >> 2-3 uT),
+        this is negligible; for weak signals the normal (unfolded) fit
+        via fit_odmr() may give more accurate B111 maps.
+
         Args:
             settings: Optional FoldingSettings. Defaults to FoldingSettings().
 
@@ -510,13 +515,14 @@ class Measurement:
             raise DataNotLoadedError(msg) from e
 
         resolved_settings = settings if settings is not None else FoldingSettings()
+        model_name = self._fit_model if self._fit_model != "auto" else None
         logger.info(
-            "Folding ODMR spectra (bin_factor={}, search_steps={})",
-            resolved_settings.bin_factor,
-            resolved_settings.search_steps,
+            "Folding ODMR spectra (method={}, model={})",
+            resolved_settings.d_zfs_method,
+            model_name or "auto",
         )
 
-        folder = SpectralFolder(processed_data, resolved_settings)
+        folder = SpectralFolder(processed_data, resolved_settings, model_name=model_name)
         self._folded_odmr = folder.fold()
 
         logger.info("Spectral folding complete")
@@ -557,6 +563,13 @@ class Measurement:
         Folded spectra are fitted in the absolute-GHz domain internally, so the
         returned result follows the same center/B111 conventions as non-folded
         fitting.
+
+        Note:
+            The folded fit halves the number of GPU fit calls (one spectrum per
+            polarity instead of two branches). For strong B111 signals this
+            gives comparable accuracy to fit_odmr(); for weak signals
+            (B111 std < 2 uT) the D_ZFS estimation error may degrade accuracy.
+            Compare results against fit_odmr() when signal strength is uncertain.
 
         Args:
             folded: FoldedODMR result. If None, uses the cached result from

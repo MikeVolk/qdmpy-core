@@ -468,7 +468,7 @@ class TestFitFoldedODMR:
 
         with patch("qdmpy.fitting.manager.FitManager") as mock_fm_cls:
             mock_fm = mock_fm_cls.return_value
-            mock_fm.fit_folded.return_value = _make_fit_result("ESRSINGLE+FOLDED")
+            mock_fm.fit_folded.return_value = _make_fit_result("ESRSINGLE")
 
             with patch("qdmpy.settings.is_pygpufit_available", return_value=True):
                 result = measurement.fit_folded_odmr()
@@ -478,13 +478,13 @@ class TestFitFoldedODMR:
             assert call_args.args[0] is folded
             assert isinstance(result, QDMResult)
 
-    def test_backward_compat_explicit_folded(self, measurement) -> None:
-        """fit_folded_odmr(folded=...) still works for backward compat."""
+    def test_explicit_folded_argument(self, measurement) -> None:
+        """fit_folded_odmr(folded=...) uses the explicitly supplied folded data."""
         explicit_folded = _make_folded_odmr()
 
         with patch("qdmpy.fitting.manager.FitManager") as mock_fm_cls:
             mock_fm = mock_fm_cls.return_value
-            mock_fm.fit_folded.return_value = _make_fit_result("ESRSINGLE+FOLDED")
+            mock_fm.fit_folded.return_value = _make_fit_result("ESRSINGLE")
 
             with patch("qdmpy.settings.is_pygpufit_available", return_value=True):
                 result = measurement.fit_folded_odmr(folded=explicit_folded)
@@ -525,7 +525,7 @@ class TestFitFoldedODMR:
 
         with patch("qdmpy.fitting.manager.FitManager") as mock_fm_cls:
             mock_fm = mock_fm_cls.return_value
-            mock_fm.fit_folded.return_value = _make_fit_result("ESR14N+FOLDED")
+            mock_fm.fit_folded.return_value = _make_fit_result("ESR14N")
 
             with patch("qdmpy.settings.is_pygpufit_available", return_value=True):
                 m.fit_folded_odmr()
@@ -539,7 +539,7 @@ class TestFitFoldedODMR:
 
         with patch("qdmpy.fitting.manager.FitManager") as mock_fm_cls:
             mock_fm = mock_fm_cls.return_value
-            mock_fm.fit_folded.return_value = _make_fit_result("ESRSINGLE+FOLDED")
+            mock_fm.fit_folded.return_value = _make_fit_result("ESRSINGLE")
 
             with patch("qdmpy.settings.is_pygpufit_available", return_value=True):
                 measurement.fit_folded_odmr(model_name="ESRSINGLE")

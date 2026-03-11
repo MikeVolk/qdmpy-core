@@ -21,13 +21,16 @@ QDMpySettings (root)
 ├── default_paths
 │   └── data_path: str
 ├── odmr
-│   └── norm_method: Literal['max', 'min', 'mean']
+│   └── norm_method: Literal['mean']
 ├── model
 │   ├── find_peaks
 │   │   └── prominence: float
 │   └── constraints
-│       ├── center_min/max/type
-│       ├── width_min/max/type
+│       ├── constraint_units ('mt' | 'absolute_ghz')
+│       ├── center_min/max/type (absolute_ghz mode)
+│       ├── width_min/max/type (absolute_ghz mode)
+│       ├── center_min_mt/center_max_mt (mt mode)
+│       ├── width_min_mt/width_max_mt (mt mode)
 │       ├── contrast_min/max/type
 │       └── offset_min/max/type
 ├── fit
@@ -76,8 +79,8 @@ QDMpy supports **three configuration methods**, applied in this priority order:
 Pass settings directly as constructor arguments:
 
 ```python
-from QDMpy import SETTINGS
-from QDMpy.settings import (
+from qdmpy import get_settings
+from qdmpy.settings import (
     QDMpySettings,
     FitSettings,
     ModelSettings,
@@ -94,6 +97,8 @@ custom_settings = QDMpySettings(
 )
 
 print(custom_settings.fit.estimator)  # Output: LSE
+
+SETTINGS = get_settings()
 ```
 
 ### 2. Environment Variables
@@ -110,14 +115,16 @@ export QDMPY_FIT__MAX_NUMBER_ITERATIONS=500
 export QDMPY_FIT__TOLERANCE=1e-8
 
 # Complex nested settings
-export QDMPY_MODEL__CONSTRAINTS__CENTER_MIN=2.5
-export QDMPY_MODEL__CONSTRAINTS__CENTER_MAX=3.2
+export QDMPY_MODEL__CONSTRAINTS__CONSTRAINT_UNITS=mt
+export QDMPY_MODEL__CONSTRAINTS__CENTER_MAX_MT=7.0
 ```
 
 Then import and use:
 
 ```python
-from QDMpy import SETTINGS
+from qdmpy import get_settings
+
+SETTINGS = get_settings()
 
 # Environment variables are automatically loaded
 print(SETTINGS.logging.log_level)      # DEBUG
@@ -139,8 +146,9 @@ tolerance = 1e-8
 log_level = "DEBUG"
 
 [model.constraints]
-center_min = 2.5
-center_max = 3.2
+constraint_units = "mt"
+center_max_mt = 7.0
+width_max_mt = 0.7
 center_type = "LOWER_UPPER"
 
 [odmr]
@@ -158,7 +166,9 @@ contrast_percentile = [1, 100]
 Then use:
 
 ```python
-from QDMpy import SETTINGS
+from qdmpy import get_settings
+
+SETTINGS = get_settings()
 
 # Settings are automatically loaded from ~/.config/QDMpy/settings.toml
 print(SETTINGS.fit.estimator)          # LSE
@@ -179,7 +189,9 @@ Programmatic Overrides > Environment Variables > User TOML File > Defaults
 # ~/.config/QDMpy/settings.toml contains: estimator = "LSE"
 # Environment: QDMPY_FIT__ESTIMATOR=MLE
 
-from QDMpy import SETTINGS
+from qdmpy import get_settings
+
+SETTINGS = get_settings()
 print(SETTINGS.fit.estimator)  # Output: MLE (environment variable wins)
 ```
 
@@ -192,7 +204,7 @@ All settings have sensible defaults built into the Pydantic models. You only nee
 ### Model Defaults
 
 ```python
-from QDMpy.settings import QDMpySettings
+from qdmpy.settings import QDMpySettings
 
 settings = QDMpySettings()  # Uses all defaults
 
@@ -202,19 +214,20 @@ print(settings.fit.max_number_iterations)  # 1000
 print(settings.fit.tolerance)              # 1e-10
 
 # Logging defaults
-print(settings.logging.log_level)          # 'WARNING'
+print(settings.logging.log_level)          # 'INFO'
 
 # Model constraints defaults
 constraints = settings.model.constraints
-print(constraints.center_min)              # 2
-print(constraints.center_max)              # 3.1
+print(constraints.constraint_units)        # 'mt'
+print(constraints.center_max_mt)           # 7.0
+print(constraints.width_max_mt)            # 0.7
 print(constraints.center_type)             # 'LOWER_UPPER'
 ```
 
 ### Modifying Defaults in Code
 
 ```python
-from QDMpy.settings import QDMpySettings, FitSettings, LoggingSettings
+from qdmpy.settings import QDMpySettings, FitSettings, LoggingSettings
 
 # Create settings with modified defaults
 settings = QDMpySettings(
@@ -241,7 +254,9 @@ print(settings.logging.log_level)          # 'DEBUG'
 Use the global `SETTINGS` object:
 
 ```python
-from QDMpy import SETTINGS
+from qdmpy import get_settings
+
+SETTINGS = get_settings()
 
 # Access settings via attribute notation
 print(f"Using {SETTINGS.fit.estimator} estimator")
@@ -256,8 +271,7 @@ print(f"Max iterations: {SETTINGS.fit.max_number_iterations}")
 ### Example 2: Custom Settings for Testing
 
 ```python
-from QDMpy.settings import QDMpySettings, FitSettings, ModelConstraintsSettings, ModelSettings
-from unittest.mock import patch
+from qdmpy.settings import QDMpySettings, FitSettings, ModelConstraintsSettings, ModelSettings
 
 # Create custom settings for a test
 test_settings = QDMpySettings(
@@ -268,18 +282,15 @@ test_settings = QDMpySettings(
     ),
     model=ModelSettings(
         constraints=ModelConstraintsSettings(
-            center_min=2.8e9,
-            center_max=2.9e9,
+            constraint_units='absolute_ghz',
+            center_min=2.80,
+            center_max=2.90,
             center_type='FREE',
         )
     ),
 )
 
-# Use in tests
-with patch('QDMpy.fit.SETTINGS', test_settings):
-    # Run fitting code that uses SETTINGS
-    from QDMpy.fit import FitManager
-    # ... test code ...
+# Pass test_settings directly to FitManager / Measurement APIs in tests
 ```
 
 ### Example 3: Environment Variable Configuration
@@ -294,7 +305,9 @@ python your_script.py
 
 ```python
 # your_script.py
-from QDMpy import SETTINGS
+from qdmpy import get_settings
+
+SETTINGS = get_settings()
 
 print(f"Estimator: {SETTINGS.fit.estimator}")              # LSE
 print(f"Iterations: {SETTINGS.fit.max_number_iterations}") # 200
@@ -316,7 +329,9 @@ log_level = "DEBUG"
 ```
 
 ```python
-from QDMpy import SETTINGS
+from qdmpy import get_settings
+
+SETTINGS = get_settings()
 
 # Custom values from TOML
 print(SETTINGS.fit.estimator)              # LSE
@@ -325,20 +340,23 @@ print(SETTINGS.logging.log_level)          # DEBUG
 
 # Default values (not specified in TOML)
 print(SETTINGS.fit.tolerance)              # 1e-10 (default)
-print(SETTINGS.odmr.norm_method)           # max (default)
+print(SETTINGS.odmr.norm_method)           # mean (default)
 ```
 
 ### Example 5: Accessing Constraint Settings
 
 ```python
-from QDMpy import SETTINGS
+from qdmpy import get_settings
+
+SETTINGS = get_settings()
 
 # Navigate the settings hierarchy
 constraints = SETTINGS.model.constraints
 
 # Access individual constraint values
-print(f"Center: [{constraints.center_min}, {constraints.center_max}]")
-print(f"Width: [{constraints.width_min}, {constraints.width_max}]")
+print(f"Units mode: {constraints.constraint_units}")
+print(f"Center max (mT): {constraints.center_max_mt}")
+print(f"Width max (mT): {constraints.width_max_mt}")
 print(f"Contrast: [{constraints.contrast_min}, {constraints.contrast_max}]")
 print(f"Offset: [{constraints.offset_min}, {constraints.offset_max}]")
 
@@ -357,7 +375,9 @@ print(f"Offset type: {constraints.offset_type}")      # FREE
 
 ✓ **Good:**
 ```python
-from QDMpy import SETTINGS
+from qdmpy import get_settings
+
+SETTINGS = get_settings()
 
 def process_data():
     estimator = SETTINGS.fit.estimator
@@ -366,7 +386,7 @@ def process_data():
 
 ✗ **Avoid:**
 ```python
-from QDMpy.settings import QDMpySettings
+from qdmpy.settings import QDMpySettings
 
 # Creating a new instance loses environment variable overrides
 custom_settings = QDMpySettings()
@@ -391,7 +411,9 @@ iterations = SETTINGS['fit']['max_number_iterations']
 ### 3. Validate Settings in Your Code
 
 ```python
-from QDMpy import SETTINGS
+from qdmpy import get_settings
+
+SETTINGS = get_settings()
 
 # Check if configuration is valid for your use case
 if SETTINGS.fit.estimator not in ['LSE', 'MLE']:
@@ -440,10 +462,10 @@ export QDMPY_FIT__MAX_NUMBER_ITERATIONS=1000
 ### 6. Reset to Defaults
 
 ```python
-from QDMpy import reset_config
+from qdmpy import reset_settings
 
-# Remove user config file, revert to defaults
-reset_config()
+# Re-read settings from environment/TOML on next get_settings()
+reset_settings()
 
 # Next time SETTINGS is imported, it will use only defaults
 # and environment variables
@@ -488,12 +510,13 @@ log_level = "WARNING"
 ```toml
 # ~/.config/QDMpy/settings.toml
 [model.constraints]
-center_min = 2.80e9
-center_max = 2.95e9
+constraint_units = "absolute_ghz"
+center_min = 2.80
+center_max = 2.95
 center_type = "LOWER_UPPER"
 
-width_min = 1e6
-width_max = 1e7
+width_min = 0.001
+width_max = 0.01
 width_type = "LOWER_UPPER"
 
 contrast_min = 0.01
@@ -535,12 +558,14 @@ with open(config_file, 'rb') as f:
 ```bash
 # Correct format: QDMPY_<SECTION>__<SUBSECTION>__<PARAMETER>
 export QDMPY_FIT__ESTIMATOR=LSE
-export QDMPY_MODEL__CONSTRAINTS__CENTER_MIN=2.5
+export QDMPY_MODEL__CONSTRAINTS__CENTER_MAX_MT=7.0
 
 # Then verify in Python
-from QDMpy import SETTINGS
+from qdmpy import get_settings
+
+SETTINGS = get_settings()
 print(SETTINGS.fit.estimator)
-print(SETTINGS.model.constraints.center_min)
+print(SETTINGS.model.constraints.center_max_mt)
 ```
 
 ### Issue: Settings Show Defaults Instead of Custom Values
@@ -549,7 +574,9 @@ print(SETTINGS.model.constraints.center_min)
 
 **Solution**:
 ```python
-from QDMpy import SETTINGS
+from qdmpy import get_settings
+
+SETTINGS = get_settings()
 import os
 
 # Check what's overriding your TOML settings

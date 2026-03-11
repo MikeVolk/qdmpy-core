@@ -70,7 +70,6 @@ interface in millitesla.
 - No change to `.qdm` on-disk format.
 - No change to the spectral folding pre-processing step itself (QEP-011).
 
----
 
 ## Design
 

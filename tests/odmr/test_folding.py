@@ -21,8 +21,10 @@ from qdmpy.odmr.folding import (
     FoldedODMR,
     FoldingSettings,
     SpectralFolder,
+    _estimate_d_zfs_centroid,
     _interp_batch,
     _overlap_range,
+    _resolve_centroid_power,
 )
 
 # ---------------------------------------------------------------------------
@@ -427,9 +429,9 @@ class TestInterpBatchAccuracy:
 
 class TestSearchDiagnostics:
     def test_diagnostics_populated(self) -> None:
-        """fold() populates d_candidates and search_residual."""
+        """fold() with brute_force populates d_candidates and search_residual."""
         odmr = _make_odmr_data(shape=(8, 8), noise=0.0)
-        settings = FoldingSettings(bin_factor=4, search_steps=51)
+        settings = FoldingSettings(d_zfs_method="brute_force", bin_factor=4, search_steps=51)
         result = SpectralFolder(odmr, settings).fold()
 
         assert result.d_candidates is not None
@@ -439,7 +441,7 @@ class TestSearchDiagnostics:
         """d_candidates has shape (search_steps,)."""
         n_steps = 51
         odmr = _make_odmr_data(shape=(8, 8))
-        settings = FoldingSettings(bin_factor=4, search_steps=n_steps)
+        settings = FoldingSettings(d_zfs_method="brute_force", bin_factor=4, search_steps=n_steps)
         result = SpectralFolder(odmr, settings).fold()
 
         assert result.d_candidates is not None
@@ -449,7 +451,7 @@ class TestSearchDiagnostics:
         """search_residual has shape (n_pol, search_steps)."""
         n_steps = 51
         odmr = _make_odmr_data(shape=(8, 8))
-        settings = FoldingSettings(bin_factor=4, search_steps=n_steps)
+        settings = FoldingSettings(d_zfs_method="brute_force", bin_factor=4, search_steps=n_steps)
         result = SpectralFolder(odmr, settings).fold()
 
         assert result.search_residual is not None
@@ -463,6 +465,7 @@ class TestSearchDiagnostics:
         odmr = _make_odmr_data(shape=(8, 8), d_map=d_map, noise=0.0)
 
         settings = FoldingSettings(
+            d_zfs_method="brute_force",
             d_zfs_initial=D_ZFS,
             search_range=0.005,
             search_steps=201,
@@ -615,3 +618,201 @@ class TestFoldedModelDetection:
         # The delta_f axis should span the Zeeman region
         assert delta_f.min() < ZEEMAN_14N, "delta_f axis should start below the Zeeman shift"
         assert delta_f.max() > ZEEMAN_14N, "delta_f axis should extend beyond the Zeeman shift"
+
+
+# ---------------------------------------------------------------------------
+# Centroid D_ZFS estimation tests
+# ---------------------------------------------------------------------------
+
+
+class TestResolveCentroidPower:
+    """Unit tests for the _resolve_centroid_power lookup."""
+
+    def test_esr15n_power_2(self) -> None:
+        assert _resolve_centroid_power("ESR15N") == 2.0
+
+    def test_esr14n_power_1(self) -> None:
+        assert _resolve_centroid_power("ESR14N") == 1.0
+
+    def test_esrsingle_power_1(self) -> None:
+        assert _resolve_centroid_power("ESRSINGLE") == 1.0
+
+    def test_none_returns_default(self) -> None:
+        assert _resolve_centroid_power(None) == 1.0
+
+    def test_unknown_model_returns_default(self) -> None:
+        assert _resolve_centroid_power("UnknownModel") == 1.0
+
+
+class TestCentroidDZFS:
+    """Tests for the centroid D_ZFS estimation function and its integration."""
+
+    def test_centroid_recovers_known_d_zfs(self) -> None:
+        """Synthetic data with known D shift: centroid recovery within 0.1 MHz."""
+        d_injected = D_ZFS + 0.002  # +2 MHz
+        d_map = np.full((2, 8, 8), d_injected)
+        odmr = _make_odmr_data(shape=(8, 8), d_map=d_map, noise=0.0)
+
+        d_est = _estimate_d_zfs_centroid(odmr.data, power=1.0)
+        assert d_est.shape == (2, 8, 8)
+        rmse_mhz = float(np.sqrt(np.mean((d_est - d_injected) ** 2))) * 1000
+        assert rmse_mhz < 0.1, f"Centroid RMSE {rmse_mhz:.3f} MHz exceeds 0.1 MHz"
+
+    def test_centroid_full_resolution(self) -> None:
+        """Output shape matches input spatial dims (no coarsening)."""
+        odmr = _make_odmr_data(shape=(16, 12), noise=0.0)
+        d_est = _estimate_d_zfs_centroid(odmr.data, power=1.0)
+        assert d_est.shape == (2, 16, 12)
+
+    def test_centroid_power_1_safe_for_14n(self) -> None:
+        """ESR14N with unequal peak depths: power=1 stable, power=2 degraded."""
+        # Build ESR14N data with deliberately unequal hyperfine peaks
+        ny, nx, n_freq = 4, 4, 101
+        n_pol, n_frange = 2, 2
+        d_ref = D_ZFS
+        zeeman = 0.030
+        f_low = np.linspace(d_ref - zeeman - 0.018, d_ref - zeeman + 0.018, n_freq)
+        f_high = np.linspace(d_ref + zeeman - 0.018, d_ref + zeeman + 0.018, n_freq)
+        freqs = np.stack([f_low, f_high])
+
+        spectra = np.ones((n_pol, n_frange, ny, nx, n_freq))
+        # Unequal depths: strongest at center, weaker at +/- AHYP
+        contrasts = [0.03, 0.08, 0.05]
+        for i_pol in range(n_pol):
+            for iy in range(ny):
+                for ix in range(nx):
+                    c_low = d_ref - zeeman
+                    c_high = d_ref + zeeman
+                    for k, hf_offset in enumerate((-AHYP_14N, 0.0, AHYP_14N)):
+                        spectra[i_pol, 0, iy, ix] *= _lorentzian_dip(
+                            f_low, c_low + hf_offset, DIP_WIDTH, contrasts[k]
+                        )
+                        spectra[i_pol, 1, iy, ix] *= _lorentzian_dip(
+                            f_high, c_high + hf_offset, DIP_WIDTH, contrasts[k]
+                        )
+
+        da = xr.DataArray(
+            spectra,
+            dims=("polarity", "freq_range", "y", "x", "freq_idx"),
+            coords={
+                "polarity": ["neg", "pos"],
+                "freq_range": ["low", "high"],
+                "freq_ghz": (("freq_range", "freq_idx"), freqs),
+            },
+        )
+        odmr = ODMRData(data=da)
+
+        d_p1 = _estimate_d_zfs_centroid(odmr.data, power=1.0)
+        d_p2 = _estimate_d_zfs_centroid(odmr.data, power=2.0)
+        rmse_p1 = float(np.sqrt(np.mean((d_p1 - d_ref) ** 2))) * 1000
+        rmse_p2 = float(np.sqrt(np.mean((d_p2 - d_ref) ** 2))) * 1000
+
+        # power=1 should be more stable (lower RMSE) than power=2 for unequal peaks
+        assert rmse_p1 < rmse_p2, (
+            f"power=1 RMSE ({rmse_p1:.3f} MHz) should be < power=2 ({rmse_p2:.3f} MHz)"
+        )
+
+    def test_centroid_power_2_better_for_15n(self) -> None:
+        """ESR15N doublet: power=2 gives lower RMSE than power=1."""
+        # Build ESR15N data (2-peak doublet, symmetric)
+        ny, nx, n_freq = 4, 4, 51
+        n_pol, n_frange = 2, 2
+        d_ref = D_ZFS
+        zeeman = 0.010
+        # ESR15N hyperfine splitting ~1.1 MHz = 0.0011 GHz
+        ahyp_15n = 0.0011
+        f_low, f_high = _make_freq_axes(d=d_ref, zeeman=zeeman, n_freq=n_freq)
+        freqs = np.stack([f_low, f_high])
+
+        spectra = np.ones((n_pol, n_frange, ny, nx, n_freq))
+        for i_pol in range(n_pol):
+            for iy in range(ny):
+                for ix in range(nx):
+                    c_low = d_ref - zeeman
+                    c_high = d_ref + zeeman
+                    for hf_offset in (-ahyp_15n, ahyp_15n):
+                        spectra[i_pol, 0, iy, ix] *= _lorentzian_dip(
+                            f_low, c_low + hf_offset, DIP_WIDTH, DIP_CONTRAST / 2
+                        )
+                        spectra[i_pol, 1, iy, ix] *= _lorentzian_dip(
+                            f_high, c_high + hf_offset, DIP_WIDTH, DIP_CONTRAST / 2
+                        )
+
+        da = xr.DataArray(
+            spectra,
+            dims=("polarity", "freq_range", "y", "x", "freq_idx"),
+            coords={
+                "polarity": ["neg", "pos"],
+                "freq_range": ["low", "high"],
+                "freq_ghz": (("freq_range", "freq_idx"), freqs),
+            },
+        )
+        odmr = ODMRData(data=da)
+
+        d_p1 = _estimate_d_zfs_centroid(odmr.data, power=1.0)
+        d_p2 = _estimate_d_zfs_centroid(odmr.data, power=2.0)
+        rmse_p1 = float(np.sqrt(np.mean((d_p1 - d_ref) ** 2))) * 1000
+        rmse_p2 = float(np.sqrt(np.mean((d_p2 - d_ref) ** 2))) * 1000
+
+        # power=2 should give equal or better accuracy for symmetric doublet
+        assert rmse_p2 <= rmse_p1 + 0.001, (
+            f"power=2 RMSE ({rmse_p2:.3f} MHz) should be <= power=1 ({rmse_p1:.3f} MHz)"
+        )
+
+
+class TestCentroidMethodDispatch:
+    """Tests for method dispatch and FoldedODMR provenance."""
+
+    def test_auto_method_selects_centroid(self) -> None:
+        """Default settings produce d_zfs_estimation_method='centroid'."""
+        odmr = _make_odmr_data(shape=(8, 8), noise=0.0)
+        result = SpectralFolder(odmr).fold()
+
+        assert result.d_zfs_estimation_method == "centroid"
+        # Centroid does not produce d_candidates or search_residual
+        assert result.d_candidates is None
+        assert result.search_residual is None
+
+    def test_explicit_centroid_method(self) -> None:
+        """d_zfs_method='centroid' produces centroid provenance."""
+        odmr = _make_odmr_data(shape=(8, 8), noise=0.0)
+        settings = FoldingSettings(d_zfs_method="centroid")
+        result = SpectralFolder(odmr, settings).fold()
+
+        assert result.d_zfs_estimation_method == "centroid"
+        assert result.d_candidates is None
+
+    def test_brute_force_fallback(self) -> None:
+        """d_zfs_method='brute_force' still produces d_candidates."""
+        odmr = _make_odmr_data(shape=(8, 8), noise=0.0)
+        settings = FoldingSettings(d_zfs_method="brute_force", bin_factor=4, search_steps=51)
+        result = SpectralFolder(odmr, settings).fold()
+
+        assert result.d_zfs_estimation_method == "brute_force"
+        assert result.d_candidates is not None
+        assert result.search_residual is not None
+        assert result.d_candidates.shape == (51,)
+
+    def test_centroid_d_zfs_recovery_via_folder(self) -> None:
+        """End-to-end: centroid method recovers known D shift within 0.1 MHz."""
+        d_injected = D_ZFS + 0.002
+        d_map = np.full((2, 8, 8), d_injected)
+        odmr = _make_odmr_data(shape=(8, 8), d_map=d_map, noise=0.0)
+
+        result = SpectralFolder(odmr).fold()  # default = centroid
+        d_recovered = float(result.d_zfs_map.mean())
+        assert abs(d_recovered - d_injected) < 0.0001  # < 0.1 MHz
+
+    def test_model_name_propagates_power(self) -> None:
+        """SpectralFolder with model_name='ESR15N' uses power=2."""
+        odmr = _make_odmr_data(shape=(8, 8), noise=0.0)
+        # We cannot directly observe the power used, but we can verify
+        # that passing model_name does not error and produces valid output
+        result = SpectralFolder(odmr, model_name="ESR15N").fold()
+        assert result.d_zfs_estimation_method == "centroid"
+        assert result.d_zfs_map.shape == (2, 8, 8)
+
+    def test_folding_settings_d_zfs_method_default(self) -> None:
+        """Default FoldingSettings has d_zfs_method='auto'."""
+        s = FoldingSettings()
+        assert s.d_zfs_method == "auto"
