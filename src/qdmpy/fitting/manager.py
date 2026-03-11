@@ -617,18 +617,27 @@ class FitManager:
             raise RuntimeError(msg)
         model: Model = self._model
 
-        # Use the same constraints as non-folded (settings-driven, already in abs GHz).
-        # Override contrast for folded spectra (baseline ~1.0 from mean of two ranges).
-        folded_contrast: dict[str, dict[str, float | str]] = {}
+        # Start from this manager's active constraints so caller-provided overrides
+        # (e.g. fit_folded_odmr(..., constraints=...)) are preserved.
+        folded_constraints: dict[str, dict[str, float | str]] = {}
+        for param_name, values in self.constraints.items():
+            folded_constraints[param_name] = {
+                "vmin": float(values[0]),
+                "vmax": float(values[1]),
+                "constraint_type": str(values[2]),
+            }
+
+        # Override contrast/offset bounds for folded spectra (baseline ~1.0 from
+        # averaging two branches), while keeping center/width constraints unchanged.
         for param_name, param_type in model.parameter_types.items():
             if param_type == "contrast":
-                folded_contrast[param_name] = {
+                folded_constraints[param_name] = {
                     "vmin": 0.001,
                     "vmax": 1.0,
                     "constraint_type": "LOWER_UPPER",
                 }
             elif param_type == "offset":
-                folded_contrast[param_name] = {
+                folded_constraints[param_name] = {
                     "vmin": -0.5,
                     "vmax": 3.0,
                     "constraint_type": "LOWER_UPPER",
@@ -636,19 +645,19 @@ class FitManager:
 
         folded_mgr = FitManager(
             model.name,
-            constraints=folded_contrast,
+            constraints=folded_constraints,
             settings=self._settings,
             gpu_available=self._gpu_available,
         )
 
         raw = folded_mgr.fit(data_xr, freq_2d, pixel_spacing=pixel_spacing)
 
-        # Return standard FitResult with FOLDED tag in model_name
+        # Return standard FitResult; folded status is carried in metadata.
         params = {k: np.array(v) for k, v in raw.parameters.items()}
         return FitResult(
             parameters=params,
             scan_dimensions=raw.scan_dimensions,
             pixel_spacing=pixel_spacing,
-            model_name=f"{model.name}+FOLDED",
+            model_name=model.name,
             metadata={**raw.metadata, "folded_fit": True},
         )

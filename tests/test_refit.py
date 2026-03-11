@@ -569,7 +569,7 @@ class TestRefitOutliers:
             parameters={"center": center, "chi2": chi2, "states": states},
             scan_dimensions=(h, w),
             pixel_spacing=4e-6,
-            model_name="ESRSINGLE+FOLDED",
+            model_name="ESRSINGLE",
             metadata={"folded_fit": True},
         )
 
@@ -751,7 +751,7 @@ class TestMeasurementRefit:
             parameters={"center": center, "chi2": chi2, "states": states},
             scan_dimensions=(h, w),
             pixel_spacing=4e-6,
-            model_name="ESRSINGLE+FOLDED",
+            model_name="ESRSINGLE",
             metadata={"folded_fit": True},
         )
         return QDMResult(
@@ -814,7 +814,7 @@ class TestMeasurementRefit:
             },
             scan_dimensions=(h, w),
             pixel_spacing=4e-6,
-            model_name="ESRSINGLE+FOLDED",
+            model_name="ESRSINGLE",
             metadata={"folded_fit": True},
         )
 

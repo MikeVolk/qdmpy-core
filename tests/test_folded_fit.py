@@ -138,7 +138,7 @@ class TestFoldedFitResultB111:
             parameters={"center": center_arr, "chi2": chi2},
             scan_dimensions=(NY, NX),
             pixel_spacing=4e-6,
-            model_name="ESRSINGLE+FOLDED",
+            model_name="ESRSINGLE",
             metadata={"folded_fit": True},
         )
 
@@ -194,9 +194,9 @@ class TestFoldedFitResultB111:
         assert type(result) is FitResult
 
     def test_model_name(self) -> None:
-        """Model name is preserved with +FOLDED tag."""
+        """Model name remains the base model for folded fits."""
         result = self._make_result(D_ZFS + 0.02)
-        assert result.model_name == "ESRSINGLE+FOLDED"
+        assert result.model_name == "ESRSINGLE"
 
     def test_folded_metadata_flag(self) -> None:
         """Folded fit has metadata['folded_fit'] = True."""
@@ -239,8 +239,8 @@ class TestFitFolded:
         assert result.b111_induced.shape == (NY, NX)
 
     @patch("pygpufit.gpufit.fit_constrained")
-    def test_model_name_tag(self, mock_gf) -> None:
-        """Result model_name contains FOLDED tag."""
+    def test_model_name_unchanged(self, mock_gf) -> None:
+        """Result model_name remains the base model name."""
         folded = _make_folded_odmr()
         n_pol, n_pixel = 2, NY * NX
         mock_gf.return_value = _make_mock_gpufit_result(n_pol, n_pixel, center=D_ZFS + 0.028)
@@ -248,7 +248,7 @@ class TestFitFolded:
         mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
         result = mgr.fit_folded(folded, pixel_spacing=4e-6)
 
-        assert "FOLDED" in result.model_name
+        assert result.model_name == "ESRSINGLE"
 
     @patch("pygpufit.gpufit.fit_constrained")
     def test_metadata_folded_flag(self, mock_gf) -> None:
@@ -314,6 +314,37 @@ class TestFitFolded:
         # Frequencies should be D_ZFS + delta_f, so all > D_ZFS
         assert float(user_info.min()) > D_ZFS - 0.001
         assert float(user_info.min()) == pytest.approx(D_ZFS + DELTA_F[0], abs=1e-6)
+
+    @patch("pygpufit.gpufit.fit_constrained")
+    def test_preserves_explicit_center_constraints(self, mock_gf) -> None:
+        """fit_folded() keeps explicit center bounds from the parent FitManager."""
+        folded = _make_folded_odmr()
+        n_pol, n_pixel = 2, NY * NX
+        mock_gf.return_value = _make_mock_gpufit_result(n_pol, n_pixel, center=D_ZFS + 0.028)
+
+        mgr = FitManager(
+            model_name="ESRSINGLE",
+            constraints={
+                "center": {
+                    "vmin": D_ZFS + 0.012,
+                    "vmax": D_ZFS + 0.018,
+                    "constraint_type": "LOWER_UPPER",
+                }
+            },
+            settings=MOCK_SETTINGS,
+            gpu_available=True,
+        )
+        mgr.fit_folded(folded, pixel_spacing=4e-6)
+
+        call_kwargs = mock_gf.call_args
+        constraints_arr = call_kwargs.kwargs.get(
+            "constraints", call_kwargs.args[1] if len(call_kwargs.args) > 1 else None
+        )
+        assert constraints_arr is not None
+        center_min = float(constraints_arr[0, 0])
+        center_max = float(constraints_arr[0, 1])
+        assert center_min == pytest.approx(D_ZFS + 0.012, abs=1e-6)
+        assert center_max == pytest.approx(D_ZFS + 0.018, abs=1e-6)
 
 
 # ── Constraint conversion tests (QEP-059) ───────────────────────────────────
