@@ -72,14 +72,14 @@ reduce fit time.
 
 ### Setting constraints
 
-Access the `FitManager` via `result.fit_result` or build one directly:
+Build a `FitManager` directly:
 
 ```python
 from qdmpy import FitManager
 
-fm = FitManager(odmr_data, model='ESR14N')
+fm = FitManager(model_name='ESR14N')
 
-# Restrict center frequency near ZFS
+# Restrict center frequency near ZFS (absolute GHz override)
 fm.set_constraints('center', vmin=2.85, vmax=2.89, constraint_type='LOWER_UPPER')
 
 # Prevent unrealistically narrow linewidths (GHz)
@@ -92,9 +92,16 @@ fm.set_constraints('contrast', vmax=0.3, constraint_type='UPPER')
 fm.set_free_constraints()
 ```
 
-!!! note "Frequency units"
-    Constraint values for `center` and `width` are in **GHz**, matching the
-    internal frequency convention throughout qdmpy.
+!!! note "Constraint units"
+    The optimizer always runs in **absolute GHz** internally, but user-facing
+    defaults come from `settings.model.constraints.constraint_units = 'mt'`.
+    In `mt` mode, `center_max_mt` / `width_max_mt` are converted to absolute-GHz
+    bounds around `D_ZFS`. If `center_min_mt > 0`, qdmpy enforces a true
+    per-branch center window (e.g., `2-7 mT`):
+    low branch uses `D_ZFS-delta_max .. D_ZFS-delta_min`, high branch uses
+    `D_ZFS+delta_min .. D_ZFS+delta_max`.
+    Use `constraint_units='absolute_ghz'` if you prefer entering
+    `center_min/max` and `width_min/max` directly in GHz.
 
 ---
 
@@ -123,20 +130,20 @@ Interpretation:
 Encodes optimizer convergence status per pixel:
 
 ```python
-states = fit.states   # shape (n_pol, n_frange, H, W), dtype int32
-converged_fraction = (states == 1).mean()
+states = fit.fit_states   # shape (n_pol, n_frange, H, W), dtype int32
+converged_fraction = (states == 0).mean()
 print(f"Convergence rate: {converged_fraction:.1%}")
 ```
 
 | State | Meaning |
 |-------|---------|
-| 0 | Not converged |
-| 1 | Converged (target) |
+| 0 | Converged (target) |
+| 1 | Generic failure / not converged |
 | 2 | Max iterations reached |
-| 3 | Singular matrix / numerical issue |
-| 4 | Neg sqrt (gpufit internal) |
+| 3 | Singular Hessian / numerical issue |
+| 4 | Negative curvature / gpufit internal |
 
-Aim for >95 % of pixels in state 1. Low convergence usually indicates:
+Aim for >95 % of pixels in state 0. Low convergence usually indicates:
 
 - Model mismatch (try `model='auto'` or change explicitly)
 - Constraints too tight (widen bounds or use `FREE`)
@@ -166,7 +173,7 @@ back to SciPy least-squares automatically and logs a warning.
 
 - `model='auto'` works for most samples; override explicitly for 15N or SINGLE
 - Constraints on `center`, `width`, and `contrast` are the most impactful
-- Target chi2 ~ 1 and >95 % convergence in state 1
+- Target chi2 ~ 1 and >95 % convergence in state 0
 - GPU fitting kicks in automatically — no code change required
 
 ---
