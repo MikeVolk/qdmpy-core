@@ -39,6 +39,7 @@ The `TRY003` errors are the most numerous (41) and are directly tied to QEP-009.
 This QEP focuses on the non-TRY003 issues. Once QEP-009 is implemented, TRY003
 errors resolve naturally.
 
+
 ## Specification
 
 ### 1. Eliminate magic values (PLR2004 — 13 occurrences)

@@ -43,6 +43,7 @@ or attributes that don't exist on the current API.
 - **CLI is broken** — both `process` and `calculate_QDMio` import a deleted module (`_core.qdm_old`)
 - **Model registry has a typing hole** — `Model()` without args works at runtime only because concrete subclasses override `__init__`, but ty correctly flags the base class signature mismatch
 
+
 ## Specification
 
 ### 1. Remove dead `_core.qdm_old` imports in CLI
