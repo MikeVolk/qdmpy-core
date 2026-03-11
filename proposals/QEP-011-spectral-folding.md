@@ -89,6 +89,14 @@ Spectral folding addresses all of these limitations.
 
 ---
 
+## GUI Integration Requirements
+
+1. List the exact core API/data contract touchpoints used by `qdmpy-gui` (view-model calls, settings keys, map/result fields).
+2. Define GUI state/settings migration behavior for any changed defaults, renamed keys, or persisted session/config data.
+3. Specify expected user-facing behavior in the GUI for progress, warnings, and errors introduced by this QEP.
+4. Include explicit GUI acceptance checks for this QEP scope: `load -> run action -> inspect outputs -> save/reload`, and verify no GUI-only workaround is required.
+5. If impact is expected to be none, state the rationale and include a smoke check confirming no `qdmpy-gui` regression.
+
 ## Empirical Findings from Prototype (2026-02-27)
 
 A research prototype was implemented in `research/spectral_folding.py` and
@@ -602,3 +610,52 @@ complex. Rejected.
 
 6. Levine, E.V. et al. (2019). "Principles and techniques of the quantum
    diamond microscope." Nanophotonics, 8(11), 1945–1973.
+
+---
+
+## Post-Implementation Findings (2026-03-11)
+
+### SNR improvement is conditional on signal strength
+
+Empirical benchmarking on 6 test fixtures (3 x ESR15N, 3 x ESR14N) revealed
+that the sqrt(2) noise reduction in the folded spectrum does not always
+translate to improved B111 accuracy. The D_ZFS estimation step introduces
+per-pixel errors that propagate through the folded fit:
+
+| Signal regime | D_ZFS error impact | Folded vs normal B111 |
+|---|---|---|
+| Strong (B111 std >> 2-3 uT) | Negligible | Comparable accuracy, 2x faster |
+| Weak (B111 std < 2 uT) | Dominant | Normal fit is more accurate |
+
+**Key numbers (centroid D_ZFS estimator, best tested method):**
+
+- D_ZFS estimation error: ~0.05-0.16 MHz RMSE (varies by method and linewidth)
+- ESR15N (narrow linewidth ~0.6 MHz): D_ZFS error is ~10-25% of linewidth
+- ESR14N (wider linewidth ~1.2 MHz): D_ZFS error is ~5-10% of linewidth
+- For weak-signal FOV18x: folded B111 RMSE = 0.6 uT vs normal fit (corr 0.92)
+- For strong-signal FOV1: folded B111 RMSE = 0.36-0.84 uT vs normal (corr 0.99)
+
+### D_ZFS estimation methods compared
+
+Several D_ZFS estimation methods were prototyped and benchmarked:
+
+| Method | D_ZFS RMSE | Speed (128x128) | Notes |
+|---|---|---|---|
+| Brute-force (bin_factor=8) | ~1 MHz | 200 ms | Current production; coarse spatial resolution |
+| FFT cross-correlation + refine | ~0.05 MHz | 3500 ms | Best accuracy, per-pixel loop is slow |
+| FFT zero-padded (8x oversample) | ~0.13 MHz | 480 ms | Good accuracy, fully vectorised |
+| Absorption centroid | ~0.06-0.16 MHz | 35 ms | Best speed-accuracy trade-off |
+| Phase correlation | ~0.12-0.40 MHz | 550 ms | No advantage over standard xcorr |
+
+The absorption centroid method (weighted mean frequency of the dip) emerged
+as the best overall option: trivially vectorised, O(N), and competitive or
+superior accuracy. Scripts: `scripts/prototype_fft_dzfs.py`,
+`scripts/prototype_fft_v2.py`, `scripts/compare_folded_fits.py`.
+
+### Recommendation
+
+Documentation and docstrings have been updated to reflect the conditional
+nature of the SNR benefit. The unqualified "sqrt(2) SNR improvement" claim
+has been replaced with guidance on when folding helps (strong signals, speed,
+D_ZFS mapping) vs when normal fitting is preferred (weak signals, maximum
+B111 accuracy).
