@@ -28,9 +28,19 @@ where D ~ 2.870 GHz is the zero-field splitting, gamma = 28.024 GHz/T, and B
 is the projected magnetic field. The low and high frequency ranges capture f-
 and f+ respectively — symmetric about D. Folding them together gives:
 
-- **sqrt(2) SNR improvement** for all fit parameters
+- **sqrt(2) noise reduction** in the folded spectrum (averages two measurements)
 - **D_ZFS map** (temperature: dD/dT ~ -74 kHz/K; strain sensitivity)
 - **Fold residual** — a model-free per-pixel quality metric
+- **2x fewer fit calls** (one folded spectrum per polarity instead of two branches)
+
+!!! warning "SNR trade-off"
+
+    The sqrt(2) noise reduction applies to the raw folded spectrum. However,
+    the D_ZFS estimation step introduces per-pixel errors (~0.05-0.15 MHz)
+    that propagate into the fit. For **strong B111 signals** (std >> 2-3 uT),
+    this error is negligible and folding gives a net accuracy benefit. For
+    **weak signals** (B111 std < 2 uT), the D_ZFS error can dominate and the
+    normal (unfolded) fit may produce more accurate B111 maps.
 
 ---
 
@@ -83,11 +93,12 @@ Use custom Matplotlib code only for plot types that do not yet have a dedicated
 
 | Situation | Recommendation |
 |-----------|----------------|
-| Low SNR (chi2 >> 5, many unconverged pixels) | **Use folding** — sqrt(2) SNR gain helps |
+| Strong B111 signal (std >> 2-3 uT) | **Use folding** — noise averaging helps, D_ZFS error is negligible |
 | Need D_ZFS / temperature map | **Use folding** — only folding gives D per pixel |
-| Maximum spatial resolution required | **Skip folding** — binning + folding both reduce effective resolution |
-| Fast processing needed | **Skip folding** — folding adds a two-scale D estimation step |
-| Standard 14N or 15N diamond | Either — try both and compare chi2 |
+| Weak B111 signal (std < 2 uT) | **Skip folding** — D_ZFS estimation error dominates the noise benefit |
+| Narrow ODMR linewidths (ESR15N, < 1 MHz) | **Caution** — D_ZFS estimation is harder with narrow dips; verify fold residual |
+| Maximum B111 accuracy required | **Skip folding** — normal fit uses both branches independently |
+| Faster processing needed | **Use folding** — halves the number of GPU fit calls |
 
 ---
 
@@ -128,8 +139,13 @@ folded = meas.fold_odmr(settings=folding_settings)
 
 ## Key takeaways
 
-- Folding provides sqrt(2) SNR improvement by exploiting ODMR mirror symmetry
-- Use when chi2 is poor or you need D_ZFS maps; skip for maximum resolution
+- Folding averages two measurements for sqrt(2) noise reduction per frequency
+  point, but D_ZFS estimation error can offset this gain for weak signals
+- **Strong signals** (B111 std >> 2-3 uT): folding helps — similar accuracy,
+  2x fewer fit calls
+- **Weak signals** (B111 std < 2 uT): normal fitting is more accurate
+- Use folding when you need a D_ZFS map (temperature/strain) regardless of
+  signal strength
 - `meas.fold_odmr()` + `meas.fit_folded_odmr()` is the two-line quick path
 - Tune `FoldingSettings` when the default coarse D estimate is unreliable
 
