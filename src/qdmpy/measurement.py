@@ -354,6 +354,7 @@ class Measurement:
         model_name: str | None = None,
         *,
         constraints: dict[str, Any] | None = None,
+        freq_cutoff: dict[str, dict[str, float | None]] | None = None,
         refit_outliers: bool = False,
         refit_settings: RefitSettings | None = None,
     ) -> QDMResult:
@@ -362,6 +363,9 @@ class Measurement:
         Args:
             model_name: Model name or None for auto-detection.
             constraints: Optional parameter constraints for fitting.
+            freq_cutoff: Optional per-frange frequency cutoff in GHz.
+                Schema: {'low': {'min': float|None, 'max': float|None},
+                'high': {'min': float|None, 'max': float|None}}.
             refit_outliers: When True, automatically refit bad pixels after the
                 initial fit using neighbor-derived initial guesses.
             refit_settings: Configuration for outlier detection and refitting.
@@ -381,7 +385,11 @@ class Measurement:
         logger.info("Starting ODMR fitting with model: {}", model_name)
         processed_data = self._validate_fit_prerequisites()
 
-        fit_manager = FitManager(model_name=model_name, constraints=constraints)
+        fit_manager = FitManager(
+            model_name=model_name,
+            constraints=constraints,
+            freq_cutoff=freq_cutoff,
+        )
         fit_result = fit_manager.fit(
             processed_data.data,
             processed_data.frequencies,
@@ -396,7 +404,12 @@ class Measurement:
         )
 
         if refit_outliers:
-            result = self.refit_outliers(result, settings=refit_settings, constraints=constraints)
+            result = self.refit_outliers(
+                result,
+                settings=refit_settings,
+                constraints=constraints,
+                freq_cutoff=freq_cutoff,
+            )
 
         return result
 
@@ -406,6 +419,7 @@ class Measurement:
         *,
         settings: RefitSettings | None = None,
         constraints: dict[str, Any] | None = None,
+        freq_cutoff: dict[str, dict[str, float | None]] | None = None,
     ) -> QDMResult:
         """Refit bad pixels in an existing result using neighbor-derived initial guesses.
 
@@ -420,6 +434,8 @@ class Measurement:
                 Defaults to RefitSettings().
             constraints: Optional parameter constraints to apply when refitting.
                 Defaults to the same constraints used in the original fit.
+            freq_cutoff: Optional per-frange frequency cutoff in GHz. Uses the
+                same schema as fit_odmr()/fit_folded_odmr().
 
         Returns:
             New QDMResult with outlier pixels replaced by refit values.
@@ -446,12 +462,20 @@ class Measurement:
             )
             delta_f_ghz = folded.folded_spectrum.coords["delta_f_ghz"].values
             frequencies = (D_ZFS + delta_f_ghz).reshape(1, -1)
-            fit_manager = FitManager(model_name=model_name, constraints=constraints)
+            fit_manager = FitManager(
+                model_name=model_name,
+                constraints=constraints,
+                freq_cutoff=freq_cutoff,
+            )
         else:
             processed_data = self._validate_fit_prerequisites()
             data_xr = processed_data.data
             frequencies = processed_data.frequencies
-            fit_manager = FitManager(model_name=model_name, constraints=constraints)
+            fit_manager = FitManager(
+                model_name=model_name,
+                constraints=constraints,
+                freq_cutoff=freq_cutoff,
+            )
 
         new_fit_result = _refit_outliers(
             result.fit_result,
@@ -554,6 +578,7 @@ class Measurement:
         model_name: str | None = None,
         *,
         constraints: dict[str, Any] | None = None,
+        freq_cutoff: dict[str, dict[str, float | None]] | None = None,
         refit_outliers: bool = False,
         refit_settings: RefitSettings | None = None,
     ) -> QDMResult:
@@ -576,6 +601,8 @@ class Measurement:
                 fold_odmr() (accessed via self.folded_odmr).
             model_name: Model name or None to use the instance default.
             constraints: Optional additional parameter constraints for fitting.
+            freq_cutoff: Optional frequency cutoff for folded fitting in GHz.
+                Folded fits have one range, so only the 'low' cutoff key is valid.
             refit_outliers: When True, automatically refit bad pixels after the
                 initial fit using neighbor-derived initial guesses.
             refit_settings: Configuration for outlier detection and refitting.
@@ -597,7 +624,11 @@ class Measurement:
         self._validate_fit_prerequisites()
 
         logger.info("Starting folded ODMR fitting")
-        fit_manager = FitManager(model_name=model_name, constraints=constraints)
+        fit_manager = FitManager(
+            model_name=model_name,
+            constraints=constraints,
+            freq_cutoff=freq_cutoff,
+        )
         fit_result = fit_manager.fit_folded(resolved_folded, pixel_spacing=self.pixel_spacing)
         logger.info("Folded ODMR fitting completed successfully")
         result = QDMResult(
@@ -606,5 +637,10 @@ class Measurement:
             laser_image=self.laser_image,
         )
         if refit_outliers:
-            result = self.refit_outliers(result, settings=refit_settings, constraints=constraints)
+            result = self.refit_outliers(
+                result,
+                settings=refit_settings,
+                constraints=constraints,
+                freq_cutoff=freq_cutoff,
+            )
         return result

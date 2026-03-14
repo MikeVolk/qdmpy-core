@@ -60,6 +60,10 @@ folded = meas.fold_odmr()
 # 2. Fit the folded spectra — returns QDMResult with improved SNR
 result = meas.fit_folded_odmr()
 
+# Optional: exclude contaminated frequencies in folded (single-range) fit
+# (folded fits accept the 'low' cutoff key)
+result_cut = meas.fit_folded_odmr(freq_cutoff={'low': {'min': 2.8750}})
+
 print(result.b111_remanent.shape)   # same shape as unfolded
 ```
 
@@ -147,6 +151,7 @@ folded = meas.fold_odmr(settings=folding_settings)
 - Use folding when you need a D_ZFS map (temperature/strain) regardless of
   signal strength
 - `meas.fold_odmr()` + `meas.fit_folded_odmr()` is the two-line quick path
+- Use `freq_cutoff` on folded fits when near-center bins destabilize the fit
 - Tune `FoldingSettings` when the default coarse D estimate is unreliable
 
 ---

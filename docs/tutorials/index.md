@@ -75,7 +75,7 @@ After step 4 you can register custom ESR models, implement `Processor` and
 |-------|----------|-------------|
 | [Processors](processors.md) | Lila | Pipeline order, available processors, diagnostics |
 | [ESR Models](models.md) | Professor | 14N, 15N, SINGLE — model registry, custom models |
-| [Fitting Quality](fitting.md) | Lila | chi2, fit_states, constraints, GPU vs CPU |
+| [Fitting Quality](fitting.md) | Lila | chi2, fit_states, constraints, freq_cutoff, GPU vs CPU |
 | [Spectral Folding](spectral-folding.md) | Lila/Professor | Quick path + FoldingSettings reference |
 | [Settings](settings_configuration.md) | Lila | NvSettings, global defaults |
 | [Extending](../extending.md) | Professor | Protocols for custom algorithms |

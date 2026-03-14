@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (QEP-052: fit frequency cutoff)
+
+- **Per-frange frequency masking for fitting** — added optional `freq_cutoff`
+  pass-through on `Measurement.fit_odmr()` and `Measurement.fit_folded_odmr()`
+  to restrict the GHz window used for fitting without changing raw data.
+- **FitManager cutoff validation + enforcement** — `FitManager` now validates
+  `freq_cutoff` schema (`low/high` + `min/max`), rejects invalid bounds, and
+  enforces the minimum retained frequency count after masking.
+- **Refit consistency** — `Measurement.refit_outliers()` now accepts
+  `freq_cutoff` so bad-pixel refits use the same frequency window as the
+  initial fit when requested.
+
 ### Changed (QEP-066: diamond-specific constraints groundwork)
 
 - **Tighter global mT defaults for `*N` fits** — updated `ModelConstraintsSettings`

@@ -8,6 +8,7 @@
 
 - Which ESR model to choose and how auto-detection works
 - How to set parameter constraints and why they help
+- How to restrict fit frequency windows with `freq_cutoff`
 - How to interpret chi2 and fit_states to assess quality
 - When to use GPU vs CPU fitting
 
@@ -105,6 +106,52 @@ fm.set_free_constraints()
 
 ---
 
+## Frequency cutoff (`freq_cutoff`)
+
+Use `freq_cutoff` when inner-edge points near ZFS contaminate guesses or pull
+fits toward spurious center peaks.
+
+Schema:
+
+```python
+freq_cutoff = {
+    'low': {'min': None, 'max': 2.8665},
+    'high': {'min': 2.8815, 'max': None},
+}
+```
+
+- Keys are per-branch: `low`, `high`
+- Bounds are in absolute GHz: `min`, `max`
+- `None` means no bound on that side
+
+Apply it in normal fitting:
+
+```python
+meas = qdmpy.load('/data/FOV18x', bin_factor=2)
+result = meas.fit_odmr(freq_cutoff={
+    'low': {'max': 2.8665},
+    'high': {'min': 2.8815},
+})
+```
+
+Apply it in folded fitting (single range):
+
+```python
+folded = meas.fold_odmr()
+result_folded = meas.fit_folded_odmr(
+    folded=folded,
+    freq_cutoff={'low': {'min': 2.8750}},
+)
+```
+
+!!! note "Validation rules"
+    - Unknown keys are rejected (`low/high` only, with `min/max` inside).
+    - `min` must be <= `max` when both are set.
+    - After masking, each fitted range must keep at least 10 frequency points.
+    - For folded/single-range fits, use only the `low` key.
+
+---
+
 ## Fit quality metrics
 
 ### chi2 (reduced chi-squared)
@@ -173,6 +220,7 @@ back to SciPy least-squares automatically and logs a warning.
 
 - `model='auto'` works for most samples; override explicitly for 15N or SINGLE
 - Constraints on `center`, `width`, and `contrast` are the most impactful
+- Use `freq_cutoff` to exclude contaminated inner-edge frequencies
 - Target chi2 ~ 1 and >95 % convergence in state 0
 - GPU fitting kicks in automatically — no code change required
 

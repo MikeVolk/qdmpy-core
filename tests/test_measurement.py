@@ -288,6 +288,22 @@ class TestFitODMR:
             assert kwargs.get("model_name") == "ESR14N"
             assert result.model_name == "ESR14N"
 
+    def test_freq_cutoff_wiring(self, measurement) -> None:
+        """fit_odmr forwards freq_cutoff to FitManager."""
+        cutoff = {
+            "low": {"max": 2.86},
+            "high": {"min": 2.88},
+        }
+        with patch("qdmpy.fitting.manager.FitManager") as mock_fm_cls:
+            mock_fm = mock_fm_cls.return_value
+            mock_fm.fit.return_value = _make_fit_result("ESRSINGLE")
+
+            with patch("qdmpy.settings.is_pygpufit_available", return_value=True):
+                measurement.fit_odmr(freq_cutoff=cutoff)
+
+            _, kwargs = mock_fm_cls.call_args
+            assert kwargs.get("freq_cutoff") == cutoff
+
     def test_no_processed_data(self, sample_odmr_data, sample_images, temp_output_dir) -> None:
         """Test fit_odmr with ODMR that has no processed data."""
         light_image, laser_image = sample_images
@@ -546,6 +562,21 @@ class TestFitFoldedODMR:
 
             _, kwargs = mock_fm_cls.call_args
             assert kwargs["model_name"] == "ESRSINGLE"
+
+    def test_freq_cutoff_wiring(self, measurement) -> None:
+        """fit_folded_odmr forwards freq_cutoff to FitManager."""
+        measurement._folded_odmr = _make_folded_odmr()
+        cutoff = {"low": {"min": 2.875}}
+
+        with patch("qdmpy.fitting.manager.FitManager") as mock_fm_cls:
+            mock_fm = mock_fm_cls.return_value
+            mock_fm.fit_folded.return_value = _make_fit_result("ESRSINGLE")
+
+            with patch("qdmpy.settings.is_pygpufit_available", return_value=True):
+                measurement.fit_folded_odmr(freq_cutoff=cutoff)
+
+            _, kwargs = mock_fm_cls.call_args
+            assert kwargs.get("freq_cutoff") == cutoff
 
 
 def _mock_from_folder(tmp_path, toml_content: str, **kwargs):

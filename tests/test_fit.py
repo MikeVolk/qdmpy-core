@@ -650,6 +650,112 @@ class TestFitManagerValidation:
         with pytest.raises(DataValidationError, match="at least"):
             fit.fit(da, few_freqs)
 
+    def test_rejects_freq_cutoff_unknown_range_key(self) -> None:
+        """freq_cutoff rejects unknown top-level range keys."""
+        with pytest.raises(DataValidationError, match="unknown range key"):
+            FitManager(
+                model_name="ESRSINGLE",
+                settings=MOCK_SETTINGS,
+                freq_cutoff={"middle": {"min": 2.86}},
+            )
+
+    def test_rejects_freq_cutoff_invalid_bounds(self) -> None:
+        """freq_cutoff rejects min > max for a range."""
+        with pytest.raises(DataValidationError, match="must be <="):
+            FitManager(
+                model_name="ESRSINGLE",
+                settings=MOCK_SETTINGS,
+                freq_cutoff={"low": {"min": 2.88, "max": 2.87}},
+            )
+
+    def test_rejects_freq_cutoff_high_for_single_range(
+        self, sample_data, sample_frequencies
+    ) -> None:
+        """Single-range fits only accept the 'low' cutoff key."""
+        fit = FitManager(
+            model_name="ESRSINGLE",
+            settings=MOCK_SETTINGS,
+            gpu_available=True,
+            freq_cutoff={"high": {"min": 2.875}},
+        )
+        with pytest.raises(DataValidationError, match="single-range"):
+            fit.fit(sample_data, sample_frequencies)
+
+    def test_rejects_freq_cutoff_when_too_few_points_remain(self) -> None:
+        """Applying cutoff must keep at least 10 points per frange."""
+        freqs = np.linspace(2.87, 2.88, 10)
+        data_5d = np.ones((2, 1, 2, 2, 10), dtype=np.float32)
+        da = xr.DataArray(
+            data_5d,
+            dims=("polarity", "freq_range", "y", "x", "freq_idx"),
+            coords={
+                "polarity": ["neg", "pos"],
+                "freq_range": ["low"],
+                "freq_ghz": (["freq_range", "freq_idx"], freqs.reshape(1, -1)),
+            },
+        )
+        fit = FitManager(
+            model_name="ESRSINGLE",
+            settings=MOCK_SETTINGS,
+            gpu_available=True,
+            freq_cutoff={"low": {"max": 2.878}},
+        )
+        with pytest.raises(DataValidationError, match="at least 10"):
+            fit.fit(da, freqs)
+
+
+@patch("pygpufit.gpufit.fit_constrained")
+def test_fit_applies_freq_cutoff_per_frange(mock_fit_constrained) -> None:
+    """fit() applies independent low/high frequency cutoffs before gpufit."""
+    n_pol, n_frange, h, w, n_freq = 2, 2, 2, 2, 20
+    data_5d = np.ones((n_pol, n_frange, h, w, n_freq), dtype=np.float32)
+    freqs = np.vstack(
+        [
+            np.linspace(2.82, 2.87, n_freq),
+            np.linspace(2.87, 2.93, n_freq),
+        ]
+    )
+    da = xr.DataArray(
+        data_5d,
+        dims=("polarity", "freq_range", "y", "x", "freq_idx"),
+        coords={
+            "polarity": ["neg", "pos"],
+            "freq_range": ["low", "high"],
+            "freq_ghz": (["freq_range", "freq_idx"], freqs),
+        },
+    )
+
+    fit = FitManager(
+        model_name="ESRSINGLE",
+        settings=MOCK_SETTINGS,
+        gpu_available=True,
+        freq_cutoff={
+            "low": {"max": 2.86},
+            "high": {"min": 2.89},
+        },
+    )
+
+    n_pixel = h * w
+    n_params = fit.n_parameter
+    mock_fit_constrained.return_value = [
+        np.random.random((n_pol * n_pixel, n_params)).astype(np.float32),
+        np.zeros(n_pol * n_pixel, dtype=np.int32),
+        np.random.random(n_pol * n_pixel).astype(np.float32),
+        np.ones(n_pol * n_pixel, dtype=np.int32) * 10,
+        0.5,
+    ]
+
+    _ = fit.fit(da, freqs)
+
+    assert mock_fit_constrained.call_count == 2
+    low_user_info = np.asarray(mock_fit_constrained.call_args_list[0].kwargs["user_info"])
+    high_user_info = np.asarray(mock_fit_constrained.call_args_list[1].kwargs["user_info"])
+
+    assert np.max(low_user_info) <= 2.86
+    assert np.min(high_user_info) >= 2.89
+    assert low_user_info.size < n_freq
+    assert high_user_info.size < n_freq
+
 
 @patch("pygpufit.gpufit.fit_constrained")
 def test_fit_auto_model_resolution(mock_fit_constrained, sample_data, sample_frequencies) -> None:

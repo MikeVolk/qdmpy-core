@@ -676,7 +676,7 @@ class TestMeasurementRefit:
             pixel_spacing=4e-6,
             model_name="ESRSINGLE",
         )
-        initial_result = QDMResult(
+        _ = QDMResult(
             fit_result=initial_fr,
             light_image=np.zeros((h, w)),
             laser_image=np.zeros((h, w)),
@@ -700,6 +700,50 @@ class TestMeasurementRefit:
             m.fit_odmr(refit_outliers=True)
 
         assert refit_called, "refit_outliers was not called when refit_outliers=True"
+
+    def test_fit_odmr_refit_passes_freq_cutoff(self) -> None:
+        """fit_odmr forwards freq_cutoff to refit_outliers when enabled."""
+        from qdmpy.measurement import Measurement
+        from qdmpy.result import QDMResult
+
+        h, w = 4, 4
+        m = self._make_measurement_stub()
+        mock_pd = self._make_mock_processed_data(h=h, w=w)
+        shape = (1, 1, h, w)
+        initial_fr = FitResult(
+            parameters={
+                "center": np.full(shape, 2.87, dtype=np.float32),
+                "chi2": np.ones(shape, dtype=np.float32) * 0.1,
+                "states": np.zeros(shape, dtype=np.int32),
+            },
+            scan_dimensions=(h, w),
+            pixel_spacing=4e-6,
+            model_name="ESRSINGLE",
+        )
+        initial_result = QDMResult(
+            fit_result=initial_fr,
+            light_image=np.zeros((h, w)),
+            laser_image=np.zeros((h, w)),
+        )
+        cutoff = {"low": {"max": 2.86}}
+        captured_kwargs: dict[str, object] = {}
+
+        def _fake_refit(result: QDMResult, **kwargs: object) -> QDMResult:
+            captured_kwargs.update(kwargs)
+            return result
+
+        with (
+            patch.object(Measurement, "_validate_fit_prerequisites", return_value=mock_pd),
+            patch("qdmpy.fitting.manager.FitManager") as MockFM,
+            patch.object(Measurement, "refit_outliers", side_effect=_fake_refit),
+        ):
+            fm_instance = MagicMock()
+            fm_instance.fit.return_value = initial_fr
+            MockFM.return_value = fm_instance
+
+            m.fit_odmr(refit_outliers=True, freq_cutoff=cutoff)
+
+        assert captured_kwargs.get("freq_cutoff") == cutoff
 
     def test_fit_odmr_without_refit_outliers_skips_refit(self) -> None:
         """fit_odmr() without refit_outliers=True must not call self.refit_outliers."""
@@ -836,3 +880,46 @@ class TestMeasurementRefit:
             m.fit_folded_odmr(mock_folded, refit_outliers=True)
 
         assert refit_called, "refit_outliers was not called when refit_outliers=True"
+
+    def test_fit_folded_odmr_refit_passes_freq_cutoff(self) -> None:
+        """fit_folded_odmr forwards freq_cutoff to refit_outliers when enabled."""
+        from qdmpy.measurement import Measurement
+
+        h, w = 4, 4
+        m = self._make_measurement_stub()
+        mock_pd = self._make_mock_processed_data(h=h, w=w)
+        mock_folded = self._make_mock_folded_odmr(h=h, w=w)
+        m._folded_odmr = mock_folded
+
+        shape = (1, 1, h, w)
+        folded_fr = FitResult(
+            parameters={
+                "center": np.full(shape, 2.880, dtype=np.float32),
+                "chi2": np.ones(shape, dtype=np.float32) * 0.1,
+                "states": np.zeros(shape, dtype=np.int32),
+            },
+            scan_dimensions=(h, w),
+            pixel_spacing=4e-6,
+            model_name="ESRSINGLE",
+            metadata={"folded_fit": True},
+        )
+
+        cutoff = {"low": {"min": 2.875}}
+        captured_kwargs: dict[str, object] = {}
+
+        def _fake_refit(result: object, **kwargs: object) -> object:
+            captured_kwargs.update(kwargs)
+            return result
+
+        with (
+            patch.object(Measurement, "_validate_fit_prerequisites", return_value=mock_pd),
+            patch("qdmpy.fitting.manager.FitManager") as MockFM,
+            patch.object(Measurement, "refit_outliers", side_effect=_fake_refit),
+        ):
+            fm_instance = MagicMock()
+            fm_instance.fit_folded.return_value = folded_fr
+            MockFM.return_value = fm_instance
+
+            m.fit_folded_odmr(mock_folded, refit_outliers=True, freq_cutoff=cutoff)
+
+        assert captured_kwargs.get("freq_cutoff") == cutoff
