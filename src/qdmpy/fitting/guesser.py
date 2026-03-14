@@ -21,6 +21,15 @@ from qdmpy.fitting.models import Model
 # 0.3 MHz in GHz prevents negative or near-zero widths.
 _MIN_WIDTH_GHZ = 0.0003
 
+# Envelope-HWHM to single-peak-HWHM correction factors for multi-peak models.
+#
+# Naively subtracting full AHYP from envelope HWHM tends to under-estimate width
+# (too narrow initial guesses). Coefficients below were calibrated against
+# synthetic spectra generated from qdmpy model functions across realistic width
+# and contrast ranges, minimizing MSE of guessed-vs-true width.
+_WIDTH_AHYP_CORRECTION_14N = 0.55
+_WIDTH_AHYP_CORRECTION_15N = 0.60
+
 # Mean-squared residual threshold for the initial-guess quality check on the
 # median spectrum. Spectra are normalized, so MSR > 0.01 suggests the guess
 # is substantially off and warrants investigation.
@@ -120,13 +129,20 @@ class ParameterGuesser:
             elif param_type == "width":
                 # halfpower_width measures the envelope HWHM directly from half-
                 # power points (no cumsum artifacts). For multi-peak models the
-                # envelope includes hyperfine splitting, so subtract AHYP to
-                # recover the individual Lorentzian HWHM.
+                # envelope includes hyperfine splitting. A full AHYP subtraction
+                # systematically under-estimates width in practice, so use
+                # model-specific partial correction factors.
                 envelope_hwhm = halfpower_width(flat_data, self._f_ghz)
                 if self._model.n_peaks == 3:  # ESR14N
-                    param_values = np.maximum(envelope_hwhm - AHYP_14N, _MIN_WIDTH_GHZ)
+                    param_values = np.maximum(
+                        envelope_hwhm - _WIDTH_AHYP_CORRECTION_14N * AHYP_14N,
+                        _MIN_WIDTH_GHZ,
+                    )
                 elif self._model.n_peaks == 2:  # ESR15N
-                    param_values = np.maximum(envelope_hwhm - AHYP_15N, _MIN_WIDTH_GHZ)
+                    param_values = np.maximum(
+                        envelope_hwhm - _WIDTH_AHYP_CORRECTION_15N * AHYP_15N,
+                        _MIN_WIDTH_GHZ,
+                    )
                 else:  # ESRSINGLE — envelope = individual
                     param_values = envelope_hwhm
             elif param_type == "offset":

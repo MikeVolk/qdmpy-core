@@ -33,7 +33,11 @@ from qdmpy.fitting.guess import (
     top3_contrast,
     validate_array,
 )
-from qdmpy.fitting.guesser import ParameterGuesser
+from qdmpy.fitting.guesser import (
+    _WIDTH_AHYP_CORRECTION_14N,
+    _WIDTH_AHYP_CORRECTION_15N,
+    ParameterGuesser,
+)
 from qdmpy.fitting.models import ESR14N, ESR15N, ESRSINGLE
 
 
@@ -606,7 +610,7 @@ class TestContrastPassthrough:
 
 
 class TestWidthCorrection:
-    """Test that ParameterGuesser applies AHYP correction for multi-peak models."""
+    """Test that ParameterGuesser applies calibrated AHYP correction for multi-peak models."""
 
     def _make_data_with_known_width(self, true_hwhm: float = 0.003) -> tuple:
         """Create data with a single Lorentzian of known HWHM."""
@@ -620,8 +624,8 @@ class TestWidthCorrection:
         data = spectrum[np.newaxis, np.newaxis, np.newaxis, :]  # (1,1,1,n_freq)
         return data.astype(np.float32), freq
 
-    def test_esr14n_subtracts_ahyp(self) -> None:
-        """ESR14N width = envelope_hwhm - AHYP_14N."""
+    def test_esr14n_applies_partial_ahyp_correction(self) -> None:
+        """ESR14N width uses envelope_hwhm - k14*AHYP_14N."""
         true_hwhm = 0.004  # 4 MHz, well above AHYP_14N
         data, freq = self._make_data_with_known_width(true_hwhm)
 
@@ -633,11 +637,13 @@ class TestWidthCorrection:
 
         width_idx = model.parameter_names.index("width")
         guessed_width = params[0, 0, 0, width_idx]
-        expected = max(float(envelope_hwhm[0, 0, 0]) - AHYP_14N, 0.0003)
+        expected = max(
+            float(envelope_hwhm[0, 0, 0]) - _WIDTH_AHYP_CORRECTION_14N * AHYP_14N, 0.0003
+        )
         assert guessed_width == pytest.approx(expected, rel=1e-4)
 
-    def test_esr15n_subtracts_ahyp(self) -> None:
-        """ESR15N width = envelope_hwhm - AHYP_15N."""
+    def test_esr15n_applies_partial_ahyp_correction(self) -> None:
+        """ESR15N width uses envelope_hwhm - k15*AHYP_15N."""
         true_hwhm = 0.004
         data, freq = self._make_data_with_known_width(true_hwhm)
 
@@ -649,7 +655,9 @@ class TestWidthCorrection:
 
         width_idx = model.parameter_names.index("width")
         guessed_width = params[0, 0, 0, width_idx]
-        expected = max(float(envelope_hwhm[0, 0, 0]) - AHYP_15N, 0.0003)
+        expected = max(
+            float(envelope_hwhm[0, 0, 0]) - _WIDTH_AHYP_CORRECTION_15N * AHYP_15N, 0.0003
+        )
         assert guessed_width == pytest.approx(expected, rel=1e-4)
 
     def test_esrsingle_no_correction(self) -> None:
