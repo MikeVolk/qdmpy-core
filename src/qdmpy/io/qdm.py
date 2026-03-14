@@ -372,8 +372,6 @@ def load_qdm(path: str | PathLike) -> QDMResult:
         msg = "h5py is required for .qdm loading. Install it with: uv add h5py"
         raise ImportError(msg) from exc
 
-    import xarray as xr
-
     from qdmpy.result import QDMResult
 
     path = Path(path)
@@ -417,12 +415,7 @@ def load_qdm(path: str | PathLike) -> QDMResult:
 
     # Pre-populate B111 caches so no recomputation is needed
     if b111_remanent is not None and b111_induced is not None:
-        fit_result._b111_cache = xr.Dataset(
-            {
-                "remanent": xr.DataArray(b111_remanent, dims=("y", "x")),
-                "induced": xr.DataArray(b111_induced, dims=("y", "x")),
-            }
-        )
+        fit_result.inject_b111_cache(b111_remanent, b111_induced)
 
     logger.info("QDMResult (.qdm) loaded from {}", path)
     return QDMResult(

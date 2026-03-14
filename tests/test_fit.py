@@ -16,6 +16,7 @@ from numpy.testing import assert_array_almost_equal, assert_array_equal
 from qdmpy.exceptions import (
     DataValidationError,
     ModelNotFoundError,
+    ModelNotResolvedError,
     ParameterError,
 )
 from qdmpy.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
@@ -142,14 +143,14 @@ class TestFitInitialization:
 
         fit = FitManager(model_name="ESRSINGLE", constraints=constraints, settings=MOCK_SETTINGS)
 
-        assert fit.constraints["center"][0] == 2.87
-        assert fit.constraints["center"][1] == 2.88
-        assert fit.constraints["center"][2] == "LOWER_UPPER"
+        assert fit.constraints["center"].vmin == 2.87
+        assert fit.constraints["center"].vmax == 2.88
+        assert fit.constraints["center"].constraint_type == "LOWER_UPPER"
 
     def test_auto_mode_raises_on_constraints_access(self) -> None:
-        """Test that accessing constraints in auto mode before fit() raises RuntimeError."""
+        """Test that accessing constraints in auto mode before fit() raises ModelNotResolvedError."""
         fit = FitManager(model_name="auto", settings=MOCK_SETTINGS)
-        with pytest.raises(RuntimeError, match="not yet resolved"):
+        with pytest.raises(ModelNotResolvedError, match="not yet resolved"):
             _ = fit.constraints
 
 
@@ -171,9 +172,9 @@ class TestFitProperties:
         assert isinstance(fit2.model, ESR15N)
 
     def test_parameter_names_raises_in_auto_mode(self) -> None:
-        """Test that parameter_names raises RuntimeError in unresolved auto mode."""
+        """Test that parameter_names raises ModelNotResolvedError in unresolved auto mode."""
         fit = FitManager(model_name="auto", settings=MOCK_SETTINGS)
-        with pytest.raises(RuntimeError, match="not yet resolved"):
+        with pytest.raises(ModelNotResolvedError, match="not yet resolved"):
             _ = fit.parameter_names
 
 
@@ -185,17 +186,17 @@ class TestConstraintsMethods:
         fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
         fit.set_constraints("center", vmin=2.85, vmax=2.90, constraint_type="LOWER_UPPER")
 
-        assert fit.constraints["center"][0] == 2.85
-        assert fit.constraints["center"][1] == 2.90
-        assert fit.constraints["center"][2] == "LOWER_UPPER"
+        assert fit.constraints["center"].vmin == 2.85
+        assert fit.constraints["center"].vmax == 2.90
+        assert fit.constraints["center"].constraint_type == "LOWER_UPPER"
 
     def test_set_constraints_with_numeric_type(self) -> None:
         """Test set_constraints with numeric constraint type."""
         fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
         fit.set_constraints("width", vmin=1e6, constraint_type=1)
 
-        assert fit.constraints["width"][0] == 1e6
-        assert fit.constraints["width"][2] == "LOWER"
+        assert fit.constraints["width"].vmin == 1e6
+        assert fit.constraints["width"].constraint_type == "LOWER"
 
     def test_set_constraints_invalid_type(self) -> None:
         """Test set_constraints with invalid constraint type."""
@@ -216,7 +217,7 @@ class TestConstraintsMethods:
         fit.set_free_constraints()
 
         for param in fit.parameter_names:
-            assert fit.constraints[param][2] == "FREE"
+            assert fit.constraints[param].constraint_type == "FREE"
 
     def test_get_constraints_array(self) -> None:
         """Test get_constraints_array method."""
@@ -231,14 +232,14 @@ class TestConstraintsMethods:
 
         # All values stay in GHz (no Hz conversion — QEP-018)
         expected_first_row = [
-            fit.constraints["center"][0],
-            fit.constraints["center"][1],
-            fit.constraints["width"][0],
-            fit.constraints["width"][1],
-            fit.constraints["contrast"][0],
-            fit.constraints["contrast"][1],
-            fit.constraints["offset"][0],
-            fit.constraints["offset"][1],
+            fit.constraints["center"].vmin,
+            fit.constraints["center"].vmax,
+            fit.constraints["width"].vmin,
+            fit.constraints["width"].vmax,
+            fit.constraints["contrast"].vmin,
+            fit.constraints["contrast"].vmax,
+            fit.constraints["offset"].vmin,
+            fit.constraints["offset"].vmax,
         ]
         assert_array_almost_equal(constraints_array[0], expected_first_row)
         assert_array_almost_equal(constraints_array[0], constraints_array[1])
@@ -315,15 +316,15 @@ class TestConstraintManager:
         constraints = constraint_manager.get_constraints()
         assert len(constraints) == 4
 
-        assert constraints["center"][0] == 2.8
-        assert constraints["center"][1] == 2.9
-        assert constraints["center"][2] == "FREE"
-        assert constraints["center"][3] == "GHz"
+        assert constraints["center"].vmin == 2.8
+        assert constraints["center"].vmax == 2.9
+        assert constraints["center"].constraint_type == "FREE"
+        assert constraints["center"].unit == "GHz"
 
-        assert constraints["width_0"][0] == 0.001
-        assert constraints["width_0"][1] == 0.01
-        assert constraints["width_0"][2] == "LOWER"
-        assert constraints["width_0"][3] == "a.u."
+        assert constraints["width_0"].vmin == 0.001
+        assert constraints["width_0"].vmax == 0.01
+        assert constraints["width_0"].constraint_type == "LOWER"
+        assert constraints["width_0"].unit == "a.u."
 
     def test_set_constraint(self) -> None:
         """Test setting constraints."""
@@ -354,14 +355,15 @@ class TestConstraintManager:
         )
 
         constraints = constraint_manager.get_constraints()
-        assert constraints["center"][0] == 2.85
-        assert constraints["center"][1] == 2.88
-        assert constraints["center"][2] == "LOWER_UPPER"
+        assert constraints["center"].vmin == 2.85
+        assert constraints["center"].vmax == 2.88
+        assert constraints["center"].constraint_type == "LOWER_UPPER"
 
         constraint_manager.set_constraint("width_0", vmin=0.002)
-        assert constraints["width_0"][0] == 0.002
-        assert constraints["width_0"][1] == 0.01
-        assert constraints["width_0"][2] == "FREE"
+        constraints = constraint_manager.get_constraints()
+        assert constraints["width_0"].vmin == 0.002
+        assert constraints["width_0"].vmax == 0.01
+        assert constraints["width_0"].constraint_type == "FREE"
 
         with pytest.raises(ParameterError):
             constraint_manager.set_constraint("invalid_param", vmin=1.0)
@@ -564,7 +566,7 @@ def test_set_free_constraints_complex_model() -> None:
     fit.set_free_constraints()
 
     for param in fit.parameter_names:
-        assert fit.constraints[param][2] == "FREE"
+        assert fit.constraints[param].constraint_type == "FREE"
 
 
 class TestParameterGuesser:

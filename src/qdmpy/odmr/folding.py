@@ -182,6 +182,29 @@ class FoldedODMR(BaseModel):
     search_residual: NDArray | None = None
     d_zfs_estimation_method: str | None = None
 
+    def to_fit_inputs(self) -> tuple[xr.DataArray, NDArray]:
+        """Build the 5D DataArray and absolute-GHz frequency array for fitting.
+
+        Converts the folded spectrum (delta_f domain) into the same format
+        expected by FitManager.fit() and refit_outliers(): a 5D xr.DataArray
+        with dims (polarity, freq_range, y, x, freq_idx) and a 2D frequency
+        array of shape (1, n_freq) in absolute GHz (D_ZFS + delta_f).
+
+        Returns:
+            Tuple of (data_xr, frequencies) ready for fitting/refitting.
+        """
+        spec_vals = self.folded_spectrum.values  # (n_pol, ny, nx, n_df)
+        delta_f_ghz: NDArray = self.folded_spectrum.coords["delta_f_ghz"].values
+        abs_freq_ghz = D_ZFS + delta_f_ghz
+
+        data_5d = np.expand_dims(spec_vals, axis=1)
+        data_xr = xr.DataArray(
+            data_5d,
+            dims=("polarity", "freq_range", "y", "x", "freq_idx"),
+        )
+        frequencies = abs_freq_ghz.reshape(1, -1)
+        return data_xr, frequencies
+
     def plot(self) -> None:
         """Quick diagnostic overview of the folding result."""
         from qdmpy.plotting import plot_folding_overview

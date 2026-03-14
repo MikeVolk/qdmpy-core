@@ -806,6 +806,8 @@ class TestMeasurementRefit:
 
     def _make_mock_folded_odmr(self, h: int = 4, w: int = 4, n_df: int = 20) -> MagicMock:
         """Return a mock FoldedODMR whose folded_spectrum has the expected shape/coords."""
+        from qdmpy.constants import D_ZFS
+
         spec_vals = np.ones((1, h, w, n_df), dtype=np.float32)
         delta_f = np.linspace(-0.05, 0.05, n_df)
         folded_spectrum = xr.DataArray(
@@ -815,6 +817,16 @@ class TestMeasurementRefit:
         )
         mock_folded = MagicMock()
         mock_folded.folded_spectrum = folded_spectrum
+
+        # Build to_fit_inputs() return value matching FoldedODMR.to_fit_inputs()
+        abs_freq_ghz = D_ZFS + delta_f
+        data_5d = np.expand_dims(spec_vals, axis=1)
+        data_xr = xr.DataArray(
+            data_5d,
+            dims=("polarity", "freq_range", "y", "x", "freq_idx"),
+        )
+        frequencies = abs_freq_ghz.reshape(1, -1)
+        mock_folded.to_fit_inputs.return_value = (data_xr, frequencies)
         return mock_folded
 
     def test_refit_outliers_folded_uses_folded_data(self) -> None:

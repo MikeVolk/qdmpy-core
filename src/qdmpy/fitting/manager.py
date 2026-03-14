@@ -23,9 +23,10 @@ from qdmpy.exceptions import (
     DataValidationError,
     DependencyError,
     ModelNotFoundError,
+    ModelNotResolvedError,
     ParameterError,
 )
-from qdmpy.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
+from qdmpy.fitting.constraints import CONSTRAINT_TYPES, Constraint, ConstraintManager
 from qdmpy.fitting.guess import guess_model
 from qdmpy.fitting.guesser import ParameterGuesser
 from qdmpy.fitting.models import Model, ModelRegistry
@@ -305,7 +306,7 @@ class FitManager:
 
         if self._model is None:
             msg = "Model must be set before fitting"
-            raise RuntimeError(msg)
+            raise ModelNotResolvedError(msg)
         model: Model = self._model
 
         all_params = np.empty((n_frange, n_pol, n_pixel, model.n_parameters), dtype=np.float32)
@@ -461,7 +462,7 @@ class FitManager:
         """
         if self._model is None:
             msg = "Model not yet resolved; call fit() first or specify model_name"
-            raise RuntimeError(msg)
+            raise ModelNotResolvedError(msg)
         return self._model.parameter_names
 
     @property
@@ -473,7 +474,7 @@ class FitManager:
         """
         if self._model is None:
             msg = "Model not yet resolved; call fit() first or specify model_name"
-            raise RuntimeError(msg)
+            raise ModelNotResolvedError(msg)
         return self._model.n_parameters
 
     def set_constraints(
@@ -492,11 +493,11 @@ class FitManager:
             constraint_type: Type as string or index (0=FREE, 1=LOWER, 2=UPPER, 3=LOWER_UPPER).
 
         Raises:
-            RuntimeError: If called before model is resolved (auto mode).
+            ModelNotResolvedError: If called before model is resolved (auto mode).
         """
         if self._constraint_manager is None:
             msg = "Model not yet resolved; call fit() first or specify model_name"
-            raise RuntimeError(msg)
+            raise ModelNotResolvedError(msg)
 
         if isinstance(constraint_type, int):
             if 0 <= constraint_type < len(CONSTRAINT_TYPES):
@@ -535,20 +536,20 @@ class FitManager:
         """Remove all constraints by setting all parameters to FREE."""
         if self._constraint_manager is None:
             msg = "Model not yet resolved; call fit() first or specify model_name"
-            raise RuntimeError(msg)
+            raise ModelNotResolvedError(msg)
         for param in self.parameter_names:
             self._constraint_manager.set_constraint(param, constraint_type="FREE")
 
     @property
-    def constraints(self: Self) -> dict[str, list[Any]]:
+    def constraints(self: Self) -> dict[str, Constraint]:
         """Get current parameter constraints.
 
         Returns:
-            Dictionary mapping parameter names to constraint lists.
+            Dictionary mapping parameter names to Constraint objects.
         """
         if self._constraint_manager is None:
             msg = "Model not yet resolved; call fit() first or specify model_name"
-            raise RuntimeError(msg)
+            raise ModelNotResolvedError(msg)
         return self._constraint_manager.get_constraints()
 
     def get_constraints_array(self: Self, n_pixel: int) -> NDArray:
@@ -562,7 +563,7 @@ class FitManager:
         """
         if self._constraint_manager is None:
             msg = "Model not yet resolved; call fit() first or specify model_name"
-            raise RuntimeError(msg)
+            raise ModelNotResolvedError(msg)
         return self._constraint_manager.to_array(n_pixel, self.parameter_names)
 
     def get_constraint_types(self: Self) -> NDArray:
@@ -573,13 +574,13 @@ class FitManager:
         """
         if self._constraint_manager is None:
             msg = "Model not yet resolved; call fit() first or specify model_name"
-            raise RuntimeError(msg)
+            raise ModelNotResolvedError(msg)
         return self._constraint_manager.get_constraint_types(self.parameter_names)
 
     def _param_idx(self: Self, parameter: str) -> list[int]:
         if self._model is None:
             msg = "Model not yet resolved"
-            raise RuntimeError(msg)
+            raise ModelNotResolvedError(msg)
         if parameter == "resonance":
             parameter = "center"
         if parameter == "mean_contrast":
@@ -634,7 +635,7 @@ class FitManager:
 
         if self._model is None:
             msg = "Model must be set before fitting"
-            raise RuntimeError(msg)
+            raise ModelNotResolvedError(msg)
         model: Model = self._model
         results = gf.fit_constrained(
             data=np.ascontiguousarray(data_reshaped, dtype=np.float32),
@@ -743,17 +744,17 @@ class FitManager:
 
         if self._model is None:
             msg = "Model must be set before fitting"
-            raise RuntimeError(msg)
+            raise ModelNotResolvedError(msg)
         model: Model = self._model
 
         # Start from this manager's active constraints so caller-provided overrides
         # (e.g. fit_folded_odmr(..., constraints=...)) are preserved.
         folded_constraints: dict[str, dict[str, float | str]] = {}
-        for param_name, values in self.constraints.items():
+        for param_name, constraint in self.constraints.items():
             folded_constraints[param_name] = {
-                "vmin": float(values[0]),
-                "vmax": float(values[1]),
-                "constraint_type": str(values[2]),
+                "vmin": float(constraint.vmin),
+                "vmax": float(constraint.vmax),
+                "constraint_type": str(constraint.constraint_type),
             }
 
         # Override contrast/offset bounds for folded spectra (baseline ~1.0 from
