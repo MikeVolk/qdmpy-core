@@ -64,10 +64,10 @@ class TestModelConstraintsSettings:
         """Test default constraint values."""
         settings = ModelConstraintsSettings()
         assert settings.constraint_units == "mt"
-        assert settings.center_max_mt == 7.0
+        assert settings.center_max_mt == 1.1
         assert settings.center_min_mt == 0.0
-        assert settings.width_max_mt == 0.7
-        assert settings.width_min_mt == 0.004
+        assert settings.width_max_mt == 0.08
+        assert settings.width_min_mt == 0.017
         assert settings.center_type == "LOWER_UPPER"
         assert settings.width_type == "LOWER_UPPER"
         assert settings.contrast_min == 0.003

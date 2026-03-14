@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (QEP-066: diamond-specific constraints groundwork)
+
+- **Tighter global mT defaults for `*N` fits** — updated `ModelConstraintsSettings`
+  defaults to `center_max_mt=1.1`, `width_min_mt=0.017`, and `width_max_mt=0.08`
+  to reduce over-broad search space and avoid systematically too-narrow width
+  solutions under the prior global bounds.
+
 ### Changed (QEP-012: plotting layout cleanup)
 
 - **Colorbar/axes alignment hardening** — added a shared final layout pass in

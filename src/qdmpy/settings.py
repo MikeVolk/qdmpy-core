@@ -65,10 +65,10 @@ class ModelConstraintsSettings(BaseModel):
     )
 
     # -- mT mode (default) --
-    center_max_mt: float = Field(default=7.0, description="Max Zeeman shift in mT (mt mode)")
+    center_max_mt: float = Field(default=1.1, description="Max Zeeman shift in mT (mt mode)")
     center_min_mt: float = Field(default=0.0, description="Min Zeeman shift in mT (mt mode)")
-    width_max_mt: float = Field(default=0.7, description="Max linewidth in mT (mt mode)")
-    width_min_mt: float = Field(default=0.004, description="Min linewidth in mT (mt mode)")
+    width_max_mt: float = Field(default=0.08, description="Max linewidth in mT (mt mode)")
+    width_min_mt: float = Field(default=0.017, description="Min linewidth in mT (mt mode)")
 
     # -- absolute GHz mode (power users / backward compat) --
     center_min: float = Field(default=2, description="Center frequency minimum (absolute GHz)")
