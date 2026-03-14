@@ -11,6 +11,7 @@ Hierarchy:
     |   +-- FitNotPerformedError
     |   +-- FitConvergenceError
     |   +-- ModelNotFoundError
+    |   +-- ModelNotResolvedError
     |   +-- ModelGuessNotPossibleError
     |   +-- ParameterError
     +-- FoldingError
@@ -71,6 +72,10 @@ class ModelNotFoundError(FittingError):
 
 class ModelGuessNotPossibleError(FittingError):
     """Cannot determine appropriate model from data."""
+
+
+class ModelNotResolvedError(FittingError):
+    """Model has not been resolved yet (auto mode before first fit)."""
 
 
 class ParameterError(FittingError):

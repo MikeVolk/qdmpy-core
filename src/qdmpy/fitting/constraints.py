@@ -6,7 +6,8 @@ constraints for GPU-accelerated ODMR fitting operations.
 
 from __future__ import annotations
 
-from typing import Any, Self
+from dataclasses import dataclass
+from typing import Self
 
 import numpy as np
 from loguru import logger
@@ -18,6 +19,59 @@ from qdmpy.fitting.models import Model
 from qdmpy.settings import ModelConstraintsSettings
 
 CONSTRAINT_TYPES = ["FREE", "LOWER", "UPPER", "LOWER_UPPER"]
+
+
+@dataclass(frozen=True)
+class Constraint:
+    """A single parameter constraint with typed fields.
+
+    Attributes:
+        vmin: Minimum bound for the parameter.
+        vmax: Maximum bound for the parameter.
+        constraint_type: One of 'FREE', 'LOWER', 'UPPER', 'LOWER_UPPER'.
+        unit: Physical unit of the parameter (e.g. 'GHz', 'a.u.').
+    """
+
+    vmin: float
+    vmax: float
+    constraint_type: str
+    unit: str
+
+    def __post_init__(self: Self) -> None:
+        """Validate constraint_type is a known value."""
+        if self.constraint_type not in CONSTRAINT_TYPES:
+            msg = f"Invalid constraint type: {self.constraint_type}"
+            raise ParameterError(msg)
+
+    @property
+    def type_index(self: Self) -> int:
+        """Return the integer index for the constraint type."""
+        return CONSTRAINT_TYPES.index(self.constraint_type)
+
+    def with_updates(
+        self: Self,
+        vmin: float | None = None,
+        vmax: float | None = None,
+        constraint_type: str | None = None,
+    ) -> Constraint:
+        """Return a new Constraint with selectively updated fields.
+
+        Args:
+            vmin: New minimum bound (keeps current if None).
+            vmax: New maximum bound (keeps current if None).
+            constraint_type: New type (keeps current if None).
+
+        Returns:
+            New Constraint instance with updated values.
+        """
+        return Constraint(
+            vmin=vmin if vmin is not None else self.vmin,
+            vmax=vmax if vmax is not None else self.vmax,
+            constraint_type=(
+                constraint_type if constraint_type is not None else self.constraint_type
+            ),
+            unit=self.unit,
+        )
 
 
 def _mt_to_absolute_ghz(settings: ModelConstraintsSettings) -> ModelConstraintsSettings:
@@ -71,7 +125,7 @@ class ConstraintManager:
             model: Model instance providing parameter metadata.
             settings: ModelConstraintsSettings with constraint bounds and types.
         """
-        self._constraints: dict[str, list[Any]] = {}
+        self._constraints: dict[str, Constraint] = {}
         self._model = model
         resolved = self._resolve_settings(settings)
         self._initialize_constraints(resolved)
@@ -97,12 +151,12 @@ class ConstraintManager:
         units = self._model.units
         for param in self._model.parameter_names:
             base_param = self._model.parameter_types[param]
-            self._constraints[param] = [
-                getattr(settings, f"{base_param}_min"),
-                getattr(settings, f"{base_param}_max"),
-                getattr(settings, f"{base_param}_type"),
-                units[param],
-            ]
+            self._constraints[param] = Constraint(
+                vmin=getattr(settings, f"{base_param}_min"),
+                vmax=getattr(settings, f"{base_param}_max"),
+                constraint_type=getattr(settings, f"{base_param}_type"),
+                unit=units[param],
+            )
 
     def set_constraint(
         self: Self,
@@ -122,22 +176,17 @@ class ConstraintManager:
         if param not in self._constraints:
             msg = f"Unknown parameter: {param}"
             raise ParameterError(msg)
-        current = self._constraints[param]
-        if vmin is not None:
-            current[0] = vmin
-        if vmax is not None:
-            current[1] = vmax
-        if constraint_type is not None:
-            if constraint_type not in CONSTRAINT_TYPES:
-                msg = f"Invalid constraint type: {constraint_type}"
-                raise ParameterError(msg)
-            current[2] = constraint_type
+        self._constraints[param] = self._constraints[param].with_updates(
+            vmin=vmin,
+            vmax=vmax,
+            constraint_type=constraint_type,
+        )
 
-    def get_constraints(self: Self) -> dict[str, list[Any]]:
+    def get_constraints(self: Self) -> dict[str, Constraint]:
         """Get all parameter constraints.
 
         Returns:
-            Dictionary mapping parameter names to constraint lists [vmin, vmax, type, unit].
+            Dictionary mapping parameter names to Constraint objects.
         """
         return self._constraints
 
@@ -156,8 +205,8 @@ class ConstraintManager:
         """
         constraints_list: list[float] = []
         for param in parameter_names:
-            param_min, param_max = self._constraints[param][0], self._constraints[param][1]
-            constraints_list.extend((param_min, param_max))
+            c = self._constraints[param]
+            constraints_list.extend((c.vmin, c.vmax))
         return np.tile(constraints_list, (n_pixel, 1))
 
     def get_constraint_types(self: Self, parameter_names: list[str]) -> NDArray:
@@ -170,6 +219,6 @@ class ConstraintManager:
             NDArray of constraint type indices (0=FREE, 1=LOWER, 2=UPPER, 3=LOWER_UPPER).
         """
         return np.array(
-            [CONSTRAINT_TYPES.index(self._constraints[param][2]) for param in parameter_names],
+            [self._constraints[param].type_index for param in parameter_names],
             dtype=np.int32,
         )

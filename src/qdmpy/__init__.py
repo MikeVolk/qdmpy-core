@@ -116,8 +116,9 @@ from qdmpy.testing import (
     make_synthetic_qdm_result,
 )
 
-# Configure logging on import to prevent stderr output in notebooks
-_ = get_settings()
+# Logging is configured lazily on the first get_settings() call,
+# not at import time. This avoids filesystem side effects (e.g.
+# creating ~/logs/) for users who only import types.
 
 __all__ = [
     # Entry points

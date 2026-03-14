@@ -444,9 +444,6 @@ class Measurement:
             DataNotLoadedError: If required data (ODMR or folded) has not been processed.
             DependencyError: If pyGpufit is not available.
         """
-        import xarray as xr
-
-        from qdmpy.constants import D_ZFS
         from qdmpy.fitting.manager import FitManager
         from qdmpy.fitting.refit import refit_outliers as _refit_outliers
         from qdmpy.result import QDMResult
@@ -455,13 +452,7 @@ class Measurement:
         is_folded = result.fit_result.metadata.get("folded_fit", False)
         if is_folded:
             folded = self.folded_odmr  # raises DataNotLoadedError if unavailable
-            spec_vals = folded.folded_spectrum.values  # (n_pol, ny, nx, n_df)
-            data_xr = xr.DataArray(
-                np.expand_dims(spec_vals, axis=1),
-                dims=("polarity", "freq_range", "y", "x", "freq_idx"),
-            )
-            delta_f_ghz = folded.folded_spectrum.coords["delta_f_ghz"].values
-            frequencies = (D_ZFS + delta_f_ghz).reshape(1, -1)
+            data_xr, frequencies = folded.to_fit_inputs()
             fit_manager = FitManager(
                 model_name=model_name,
                 constraints=constraints,

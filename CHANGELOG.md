@@ -7,6 +7,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (architecture cleanup)
+
+- **`ModelNotResolvedError` exception** — replaced 12 bare `RuntimeError` raises
+  in `FitManager` with a new domain exception `ModelNotResolvedError` for
+  auto-mode guards, so callers can catch them specifically.
+- **`Constraint` dataclass** — replaced `dict[str, list[Any]]` in
+  `ConstraintManager` with a frozen `Constraint` dataclass with named fields
+  (`vmin`, `vmax`, `constraint_type`, `unit`), eliminating error-prone
+  positional indexing.
+- **`FitResult.inject_b111_cache()`** — added public method to inject
+  pre-computed B111 arrays; `io/qdm.py` no longer writes to a `PrivateAttr`.
+- **`FoldedODMR.to_fit_inputs()`** — added helper to build the 5D DataArray
+  and absolute-GHz frequency array from folded spectra; removes
+  folding-internal logic from `Measurement.refit_outliers()`.
+- **Deferred `get_settings()` at import** — `import qdmpy` no longer triggers
+  filesystem side effects (logging config, `~/logs/` creation).
+
+### Removed (architecture cleanup)
+
+- Deleted stale `.ipynb_checkpoints` directories from `src/qdmpy/` and
+  `src/qdmpy/odmr/`.
+
+### Added (architecture cleanup)
+
+- Test files for previously untested modules: `test_constraints.py`,
+  `test_magnetic_map.py`, `test_analysis.py`.
+
 ### Added (QEP-052: fit frequency cutoff)
 
 - **Per-frange frequency masking for fitting** — added optional `freq_cutoff`

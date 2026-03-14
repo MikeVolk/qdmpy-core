@@ -418,6 +418,27 @@ class FitResult(BaseModel):
             }
         )
 
+    def inject_b111_cache(
+        self: Self,
+        remanent: NDArray,
+        induced: NDArray,
+    ) -> None:
+        """Inject pre-computed B111 arrays into the internal cache.
+
+        Used by deserialization (e.g. load_qdm) to restore cached B111
+        values without recomputing them from fitted parameters.
+
+        Args:
+            remanent: Remanent B111 field array with shape (H, W), in uT.
+            induced: Induced B111 field array with shape (H, W), in uT.
+        """
+        self._b111_cache = xr.Dataset(
+            {
+                "remanent": xr.DataArray(remanent, dims=("y", "x"), attrs={"units": "µT"}),
+                "induced": xr.DataArray(induced, dims=("y", "x"), attrs={"units": "µT"}),
+            }
+        )
+
     @property
     def b111_remanent(self: Self) -> NDArray:
         """Remanent B111 field component in µT as a 2D numpy array."""

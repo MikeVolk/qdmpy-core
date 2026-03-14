@@ -396,10 +396,10 @@ class TestConstraintConversion:
         model = ModelRegistry.get("ESRSINGLE")
         cm = ConstraintManager(model, settings)
         constraints = cm.get_constraints()
-        assert constraints["center"][0] == pytest.approx(2.5)
-        assert constraints["center"][1] == pytest.approx(3.2)
-        assert constraints["width"][0] == pytest.approx(0.0002)
-        assert constraints["width"][1] == pytest.approx(0.01)
+        assert constraints["center"].vmin == pytest.approx(2.5)
+        assert constraints["center"].vmax == pytest.approx(3.2)
+        assert constraints["width"].vmin == pytest.approx(0.0002)
+        assert constraints["width"].vmax == pytest.approx(0.01)
 
     def test_mt_mode_applied_in_constraint_manager(self) -> None:
         """Verify mT mode constraints are converted to absolute GHz in ConstraintManager."""
@@ -419,8 +419,8 @@ class TestConstraintConversion:
         delta_max_ghz = 6.0 * 1e-3 * GAMMA_NV
         expected_min = D_ZFS - delta_max_ghz
         expected_max = D_ZFS + delta_max_ghz
-        assert constraints["center"][0] == pytest.approx(expected_min, abs=1e-6)
-        assert constraints["center"][1] == pytest.approx(expected_max, abs=1e-6)
+        assert constraints["center"].vmin == pytest.approx(expected_min, abs=1e-6)
+        assert constraints["center"].vmax == pytest.approx(expected_max, abs=1e-6)
 
     @patch("pygpufit.gpufit.fit_constrained")
     def test_mt_center_window_applied_per_branch(self, mock_gf) -> None:

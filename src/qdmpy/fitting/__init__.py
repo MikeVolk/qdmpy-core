@@ -17,7 +17,7 @@ Public API:
 
 from __future__ import annotations
 
-from qdmpy.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
+from qdmpy.fitting.constraints import CONSTRAINT_TYPES, Constraint, ConstraintManager
 from qdmpy.fitting.guess import plot_model_detection
 from qdmpy.fitting.guesser import ParameterGuesser
 from qdmpy.fitting.manager import FitManager
@@ -27,6 +27,7 @@ from qdmpy.fitting.result import FitResult
 
 __all__ = [
     "CONSTRAINT_TYPES",
+    "Constraint",
     "ESR14N",
     "ESR15N",
     "ESRSINGLE",
