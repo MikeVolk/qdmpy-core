@@ -323,10 +323,10 @@ class Measurement:
         if refit_outliers:
             result = self.refit_outliers(
                 result,
-                settings=refit_settings,
+                refit_settings=refit_settings,
                 constraints=constraints,
                 freq_cutoff=freq_cutoff,
-                fit_settings=settings,
+                settings=settings,
                 gpu_available=gpu_available,
             )
 
@@ -336,10 +336,10 @@ class Measurement:
         self: Self,
         result: QDMResult,
         *,
-        settings: RefitSettings | None = None,
+        refit_settings: RefitSettings | None = None,
         constraints: dict[str, Any] | None = None,
         freq_cutoff: dict[str, dict[str, float | None]] | None = None,
-        fit_settings: QDMpySettings | None = None,
+        settings: QDMpySettings | None = None,
         gpu_available: bool | None = None,
     ) -> QDMResult:
         """Refit bad pixels in an existing result using neighbor-derived initial guesses.
@@ -351,14 +351,14 @@ class Measurement:
 
         Args:
             result: QDMResult from a previous fit_odmr() or fit_folded_odmr() call.
-            settings: Outlier detection and refitting configuration.
+            refit_settings: Outlier detection and refitting configuration.
                 Defaults to RefitSettings().
             constraints: Optional parameter constraints to apply when refitting.
                 Defaults to the same constraints used in the original fit.
             freq_cutoff: Optional per-frange frequency cutoff in GHz. Uses the
                 same schema as fit_odmr()/fit_folded_odmr().
-            fit_settings: Optional explicit settings object forwarded to
-                FitManager for the refit.
+            settings: Optional explicit settings object forwarded to FitManager
+                for the refit.
             gpu_available: Optional explicit override for GPU dependency
                 availability checks.
 
@@ -379,10 +379,10 @@ class Measurement:
             folded=getattr(self, "_folded_odmr", None),
             light_image=result.light_image,
             laser_image=result.laser_image,
-            settings=settings,
+            settings=refit_settings,
             constraints=constraints,
             freq_cutoff=freq_cutoff,
-            fit_settings=fit_settings,
+            fit_settings=settings,
             gpu_available=gpu_available,
         )
 
@@ -535,10 +535,10 @@ class Measurement:
         if refit_outliers:
             result = self.refit_outliers(
                 result,
-                settings=refit_settings,
+                refit_settings=refit_settings,
                 constraints=constraints,
                 freq_cutoff=freq_cutoff,
-                fit_settings=settings,
+                settings=settings,
                 gpu_available=gpu_available,
             )
         return result
