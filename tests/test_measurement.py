@@ -7,6 +7,7 @@ related to a single QDM (Quantum Diamond Microscope) measurement.
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import numpy as np
@@ -21,6 +22,32 @@ from qdmpy.odmr.folding import FoldedODMR, FoldingSettings
 from qdmpy.odmr.manager import ODMR
 from qdmpy.odmr.processors import BinningProcessor
 from qdmpy.result import QDMResult
+from qdmpy.settings import FitSettings, ModelConstraintsSettings, ModelSettings, QDMpySettings
+
+MOCK_SETTINGS = QDMpySettings(
+    fit=FitSettings(
+        estimator="LSE",
+        max_number_iterations=100,
+        tolerance=1e-6,
+    ),
+    model=ModelSettings(
+        constraints=ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
+            center_min=2.8,
+            center_max=2.9,
+            center_type="FREE",
+            width_min=0.001,
+            width_max=0.01,
+            width_type="FREE",
+            contrast_min=0.0,
+            contrast_max=1.0,
+            contrast_type="FREE",
+            offset_min=-0.1,
+            offset_max=0.1,
+            offset_type="FREE",
+        )
+    ),
+)
 
 
 @pytest.fixture
@@ -373,6 +400,20 @@ class TestFitODMR:
             _, kwargs = mock_fm_cls.call_args
             assert kwargs["model_name"] == "ESR14N"
 
+    def test_explicit_settings_and_gpu_override_are_forwarded(self, measurement) -> None:
+        """fit_odmr() can run with explicit settings and GPU override."""
+        with patch("qdmpy.fitting.manager.FitManager") as mock_fm_cls:
+            mock_fm = mock_fm_cls.return_value
+            mock_fm.fit.return_value = _make_fit_result("ESR15N")
+
+            with patch("qdmpy.settings.is_pygpufit_available", return_value=False):
+                result = measurement.fit_odmr(settings=MOCK_SETTINGS, gpu_available=True)
+
+            _, kwargs = mock_fm_cls.call_args
+            assert kwargs["settings"] is MOCK_SETTINGS
+            assert kwargs["gpu_available"] is True
+            assert isinstance(result, QDMResult)
+
 
 class TestValidateFitPrerequisites:
     """Tests for Measurement._validate_fit_prerequisites."""
@@ -395,6 +436,14 @@ class TestValidateFitPrerequisites:
             pytest.raises(DependencyError, match="pyGpufit is required"),
         ):
             measurement._validate_fit_prerequisites()
+
+    def test_explicit_gpu_override_skips_global_lookup(self, measurement) -> None:
+        with patch(
+            "qdmpy.settings.is_pygpufit_available", side_effect=AssertionError("used global")
+        ):
+            processed = measurement._validate_fit_prerequisites(gpu_available=True)
+
+        assert processed is measurement.odmr.processed_data
 
 
 class TestFoldedODMRProperty:
@@ -578,6 +627,22 @@ class TestFitFoldedODMR:
             _, kwargs = mock_fm_cls.call_args
             assert kwargs.get("freq_cutoff") == cutoff
 
+    def test_explicit_settings_and_gpu_override_are_forwarded(self, measurement) -> None:
+        """fit_folded_odmr() can run with explicit settings and GPU override."""
+        measurement._folded_odmr = _make_folded_odmr()
+
+        with patch("qdmpy.fitting.manager.FitManager") as mock_fm_cls:
+            mock_fm = mock_fm_cls.return_value
+            mock_fm.fit_folded.return_value = _make_fit_result("ESR15N")
+
+            with patch("qdmpy.settings.is_pygpufit_available", return_value=False):
+                result = measurement.fit_folded_odmr(settings=MOCK_SETTINGS, gpu_available=True)
+
+            _, kwargs = mock_fm_cls.call_args
+            assert kwargs["settings"] is MOCK_SETTINGS
+            assert kwargs["gpu_available"] is True
+            assert isinstance(result, QDMResult)
+
 
 def _mock_from_folder(tmp_path, toml_content: str, **kwargs):
     """Helper: write toml_content to tmp_path/metadata.toml and call from_folder()."""
@@ -736,6 +801,43 @@ comment = "Test measurement"
                 )
 
                 assert measurement.metadata == {}
+
+
+class TestMeasurementWorkflowWrappers:
+    """Tests for extracted measurement workflow helpers."""
+
+    def test_from_folder_delegates_to_workflow_loader(self, tmp_path) -> None:
+        odmr = ODMR(
+            ODMRData.from_numpy(
+                np.random.random((2, 2, 10, 10, 50)), (10, 10), np.linspace(2.87e9, 2.89e9, 50)
+            )
+        )
+        odmr.process_data()
+        loaded_measurement = SimpleNamespace(
+            odmr=odmr,
+            light_image=np.zeros((10, 10)),
+            laser_image=np.zeros((10, 10)),
+            pixel_spacing=4e-6,
+            fit_model="auto",
+            metadata={"measurement": {"sample": "X"}},
+        )
+
+        with patch(
+            "qdmpy.measurement.load_measurement_folder_data", return_value=loaded_measurement
+        ) as mock:
+            measurement = Measurement.from_folder(tmp_path, output_directory=tmp_path / "results")
+
+        mock.assert_called_once()
+        assert measurement.metadata["measurement"]["sample"] == "X"
+
+    def test_fold_odmr_delegates_to_workflow_helper(self, measurement) -> None:
+        folded = _make_folded_odmr()
+
+        with patch("qdmpy.measurement.fold_measurement_odmr", return_value=folded) as mock:
+            result = measurement.fold_odmr()
+
+        mock.assert_called_once()
+        assert result is folded
 
     def test_metadata_toml_with_nested_sections(self, tmp_path) -> None:
         """Test that nested TOML sections are preserved correctly."""

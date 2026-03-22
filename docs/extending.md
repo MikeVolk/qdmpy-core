@@ -72,7 +72,7 @@ class MyModel(Model):
 import qdmpy
 
 m = qdmpy.load('/data/FOV18x')
-result = m.fit_odmr(model='MYMODEL')
+result = m.fit_odmr(model_name='MYMODEL')
 ```
 
 ### Discovering registered models
@@ -185,7 +185,18 @@ b111_da = xr.DataArray(
     attrs={'pixel_spacing': result.pixel_spacing},
 )
 mm = MagneticMap.from_b111(b111_da, reconstructor=MyReconstructor())
+
+# Option C: keep reconstruction settings explicit instead of relying on globals
+mm = MagneticMap.from_b111(
+    b111_da,
+    reconstructor=MyReconstructor(),
+    settings=my_settings,
+)
 ```
+
+The extra `settings=` hook matters mainly for tests, libraries embedding
+qdmpy, or batch workflows that want reconstruction behavior independent of the
+process-global settings singleton.
 
 ---
 

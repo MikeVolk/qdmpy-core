@@ -13,6 +13,7 @@ using ``from qdmpy.io import get_image`` continues to work unchanged.
 from __future__ import annotations
 
 from qdmpy.io.images import get_image, get_image_file, has_csv, load_metadata_toml
+from qdmpy.io.magnetic_map import save_magnetic_map
 from qdmpy.io.npz import load_npz, save_npz
 from qdmpy.io.qdm import load_qdm, save_qdm
 
@@ -22,6 +23,7 @@ __all__ = [
     "get_image_file",
     "has_csv",
     "load_metadata_toml",
+    "save_magnetic_map",
     # npz
     "load_npz",
     "save_npz",

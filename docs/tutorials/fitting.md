@@ -46,6 +46,10 @@ result = qdmpy.load('/data/FOV18x').fit_odmr()   # model='auto' by default
 print(result.model_name)   # e.g. 'ESR14N'
 ```
 
+If you need deterministic behavior in tests or batch jobs, keep the returned
+`Measurement` object and pass explicit overrides through `fit_odmr()`, such as
+`settings=my_settings` or `gpu_available=False`.
+
 ### Explicit selection
 
 Override auto-detection when you know your sample:
@@ -211,8 +215,21 @@ print(qdmpy.is_pygpufit_available())   # True = GPU will be used
 **When GPU matters:** For scans larger than ~200 × 200 pixels the GPU backend
 is 10-100x faster. For small synthetic datasets or quick tests, CPU is fine.
 
-**Fallback:** If `pyGpufit` is not installed or no GPU is found, qdmpy falls
-back to SciPy least-squares automatically and logs a warning.
+**Explicit override:** For tests, CI, or embedded pipelines you can override
+the wrapper's runtime decision directly:
+
+```python
+meas = qdmpy.load('/data/FOV18x')
+
+# Use an explicit dependency result at the Measurement boundary
+result = meas.fit_odmr(gpu_available=False)
+
+# Or inject a custom settings object into FitManager construction
+result = meas.fit_odmr(settings=my_settings, gpu_available=True)
+```
+
+Use these overrides when you need deterministic behavior. For normal user
+workflows, `qdmpy.load(...).fit_odmr()` remains the recommended API.
 
 ---
 

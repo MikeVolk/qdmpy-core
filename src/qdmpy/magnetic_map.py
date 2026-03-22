@@ -7,11 +7,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
 
 import numpy as np
 import xarray as xr
 from loguru import logger
+
+if TYPE_CHECKING:
+    from qdmpy.settings import QDMpySettings
 
 
 @runtime_checkable
@@ -144,6 +147,7 @@ class MagneticMap:
         nv_axis: tuple[float, float, float] | None = None,
         epsilon: float | None = None,
         reconstructor: FieldReconstructor | None = None,
+        settings: QDMpySettings | None = None,
     ) -> MagneticMap:
         """Reconstruct Bxyz from a preprocessed B111 map.
 
@@ -153,11 +157,13 @@ class MagneticMap:
             nv_axis: NV unit vector (ux, uy, uz). Defaults to
                      ``get_settings().nv.axis``.
             epsilon: k=0 regularisation. Defaults to
-                     ``get_settings().nv.epsilon``. Ignored when
-                     ``reconstructor`` is provided.
+                      ``get_settings().nv.epsilon``. Ignored when
+                      ``reconstructor`` is provided.
             reconstructor: Optional custom :class:`FieldReconstructor`. When
                 provided, the default Fourier inversion is bypassed and
                 ``reconstructor.reconstruct(b111, nv_axis)`` is called instead.
+            settings: Optional resolved settings object used only when
+                ``nv_axis`` or ``epsilon`` are omitted.
 
         Returns:
             MagneticMap with b111, bx, by, bz, btotal.
@@ -165,14 +171,19 @@ class MagneticMap:
         Raises:
             ValueError: If pixel_spacing not in b111.attrs.
         """
-        from qdmpy.settings import get_settings
-
         if "pixel_spacing" not in b111.attrs:
             raise ValueError("b111.attrs must contain 'pixel_spacing' (metres)")
 
         logger.info("Reconstructing 3D magnetic field from B111 map")
-        settings = get_settings()
-        nv = nv_axis or settings.nv.axis
+        resolved_settings = settings
+        if resolved_settings is None and (nv_axis is None or epsilon is None):
+            from qdmpy.settings import get_settings
+
+            resolved_settings = get_settings()
+        nv = nv_axis or (resolved_settings.nv.axis if resolved_settings is not None else None)
+        if nv is None:
+            msg = "nv_axis must be provided when settings are unavailable"
+            raise ValueError(msg)
 
         def _da(arr: np.ndarray, name: str) -> xr.DataArray:
             return xr.DataArray(
@@ -194,7 +205,16 @@ class MagneticMap:
                 nv_axis=nv,
             )
 
-        eps = epsilon if epsilon is not None else settings.nv.epsilon
+        eps = (
+            epsilon
+            if epsilon is not None
+            else resolved_settings.nv.epsilon
+            if resolved_settings is not None
+            else None
+        )
+        if eps is None:
+            msg = "epsilon must be provided when settings are unavailable"
+            raise ValueError(msg)
         ps = float(b111.attrs["pixel_spacing"])
 
         bx_arr, by_arr, bz_arr = _reconstruct_bxyz(b111.values, ps, nv, eps)
@@ -250,6 +270,6 @@ class MagneticMap:
         Args:
             path: File path for NetCDF output.
         """
-        path_obj = Path(path) if isinstance(path, str) else path
-        self.to_dataset().to_netcdf(path_obj)
-        logger.info("MagneticMap saved to {}", path_obj)
+        from qdmpy.io import save_magnetic_map
+
+        save_magnetic_map(self, path)

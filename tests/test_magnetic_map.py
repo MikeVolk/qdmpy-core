@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 import xarray as xr
 
 from qdmpy.magnetic_map import FieldReconstructor, MagneticMap, _reconstruct_bxyz
+from qdmpy.settings import NvSettings, QDMpySettings
 
 # ---------------------------------------------------------------------------
 # _reconstruct_bxyz (Fourier inversion)
@@ -99,7 +102,63 @@ class TestMagneticMap:
         mm = MagneticMap.from_b111(b111_da, nv_axis=(0, 0, 1), reconstructor=ZeroReconstructor())
         np.testing.assert_array_equal(mm.bz.values, 0)
 
+    def test_explicit_settings_avoid_global_lookup(self, b111_da) -> None:
+        settings = QDMpySettings(nv=NvSettings(axis=(0, 0, 1), epsilon=1e-30))
+
+        with patch("qdmpy.settings.get_settings", side_effect=AssertionError("global lookup used")):
+            mm = MagneticMap.from_b111(b111_da, settings=settings)
+
+        assert mm.nv_axis == (0, 0, 1)
+
     def test_frozen_dataclass(self, b111_da) -> None:
         mm = MagneticMap.from_b111(b111_da, nv_axis=(0, 0, 1), epsilon=1e-30)
         with pytest.raises(AttributeError):
             mm.nv_axis = (1, 0, 0)  # type: ignore[misc]
+
+    def test_save_delegates_to_io_adapter(self, b111_da, tmp_path) -> None:
+        """MagneticMap.save() stays a thin wrapper over qdmpy.io."""
+        mm = MagneticMap.from_b111(b111_da, nv_axis=(0, 0, 1), epsilon=1e-30)
+        path = tmp_path / "map.nc"
+
+        with patch("qdmpy.io.save_magnetic_map") as mock_save:
+            mm.save(path)
+
+        mock_save.assert_called_once_with(mm, path)
+
+
+class TestMagneticMapPersistenceAdapter:
+    """Tests for the MagneticMap persistence adapter."""
+
+    def test_save_magnetic_map_writes_netcdf(self, tmp_path) -> None:
+        from qdmpy.io import save_magnetic_map
+
+        rng = np.random.default_rng(42)
+        coords = {"y": np.arange(4), "x": np.arange(4)}
+        attrs = {"pixel_spacing": 4e-6}
+
+        def _da(name: str) -> xr.DataArray:
+            return xr.DataArray(
+                rng.random((4, 4)),
+                dims=("y", "x"),
+                coords=coords,
+                attrs={**attrs, "component": name},
+            )
+
+        magnetic_map = MagneticMap(
+            b111=_da("b111"),
+            bx=_da("Bx"),
+            by=_da("By"),
+            bz=_da("Bz"),
+            btotal=_da("Btotal"),
+            nv_axis=(0.0, 0.0, 1.0),
+        )
+        path = tmp_path / "map.nc"
+
+        save_magnetic_map(magnetic_map, path)
+
+        assert path.exists()
+        dataset = xr.load_dataset(path)
+        try:
+            assert set(dataset.data_vars) == {"b111", "Bx", "By", "Bz", "Btotal"}
+        finally:
+            dataset.close()

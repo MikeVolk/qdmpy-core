@@ -52,9 +52,10 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from loguru import logger
+from pydantic import TypeAdapter
 
 from qdmpy.exceptions import DataLoadError, DataValidationError
-from qdmpy.field_source import FieldSource, FieldSourceType
+from qdmpy.field_source import FieldSourceType
 from qdmpy.fitting.result import FitResult
 
 if TYPE_CHECKING:
@@ -68,6 +69,7 @@ if TYPE_CHECKING:
 
 _QDM_VERSION = "1.0"
 _QDM_MAGIC_EXT = ".qdm"
+_FIELD_SOURCE_ADAPTER = TypeAdapter(FieldSourceType)
 
 
 # ---------------------------------------------------------------------------
@@ -275,7 +277,7 @@ def _read_field_sources(f: h5py_t.File) -> list[FieldSourceType]:
         field_map: NDArray | None = np.array(sg["field_map"]) if "field_map" in sg else None
         src_data = json.loads(src_json)
         src_data["field_map"] = field_map
-        sources.append(FieldSource(**src_data))
+        sources.append(_FIELD_SOURCE_ADAPTER.validate_python(src_data))
     return sources
 
 

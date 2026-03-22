@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 
 from qdmpy.exceptions import DataLoadError, DataValidationError
-from qdmpy.field_source import FieldSource
+from qdmpy.field_source import FieldSource, MagneticModel, MagneticSource, UpwardContinuedSource
 from qdmpy.io import load_npz, load_qdm, save_npz, save_qdm
 from qdmpy.testing import make_synthetic_qdm_result
 
@@ -49,6 +49,40 @@ def result_with_field_sources():
     """QDMResult with a FieldSource attached."""
     result = make_synthetic_qdm_result(shape=(8, 8))
     src = FieldSource(name="test bias", kind="generic")
+    return result.model_copy(update={"field_sources": [src]})
+
+
+@pytest.fixture
+def result_with_magnetic_source():
+    """QDMResult with a MagneticSource attached."""
+    result = make_synthetic_qdm_result(shape=(8, 8))
+    src = MagneticSource(
+        name="grain",
+        center=(3.5, 4.5),
+        half_extent=(2.0, 1.5),
+        pixel_spacing=result.pixel_spacing,
+        model=MagneticModel(inclination=20.0, declination=45.0, magnetic_moment=1e-12),
+    )
+    return result.model_copy(update={"field_sources": [src]})
+
+
+@pytest.fixture
+def result_with_upward_continued_source():
+    """QDMResult with an UpwardContinuedSource attached."""
+    result = make_synthetic_qdm_result(shape=(8, 8))
+    parent = MagneticSource(
+        name="grain",
+        center=(3.5, 4.5),
+        half_extent=(2.0, 1.5),
+        pixel_spacing=result.pixel_spacing,
+        model=MagneticModel(inclination=20.0, declination=45.0, magnetic_moment=1e-12),
+    )
+    src = UpwardContinuedSource(
+        name="grain @ 10um",
+        parent=parent,
+        height_um=10.0,
+        model=MagneticModel(inclination=25.0, declination=50.0, magnetic_moment=7.5e-13),
+    )
     return result.model_copy(update={"field_sources": [src]})
 
 
@@ -124,6 +158,46 @@ class TestSaveLoadQdm:
         assert len(loaded.field_sources) == 1
         assert loaded.field_sources[0].field_map is not None
         np.testing.assert_allclose(loaded.field_sources[0].field_map, fmap, rtol=1e-5)
+
+    def test_magnetic_source_round_trip(self, tmp_path: Path, result_with_magnetic_source) -> None:
+        """MagneticSource survives the .qdm round-trip with subtype fidelity."""
+        path = tmp_path / "out.qdm"
+        save_qdm(result_with_magnetic_source, path)
+        loaded = load_qdm(path)
+
+        assert len(loaded.field_sources) == 1
+        src = loaded.field_sources[0]
+        assert isinstance(src, MagneticSource)
+        assert src.kind == "magnetic"
+        assert src.center == (3.5, 4.5)
+        assert src.half_extent == (2.0, 1.5)
+        assert src.pixel_spacing == result_with_magnetic_source.pixel_spacing
+        assert src.model.inclination == 20.0
+        assert src.model.declination == 45.0
+        assert src.model.magnetic_moment == 1e-12
+
+    def test_upward_continued_source_round_trip(
+        self,
+        tmp_path: Path,
+        result_with_upward_continued_source,
+    ) -> None:
+        """UpwardContinuedSource survives the .qdm round-trip with subtype fidelity."""
+        path = tmp_path / "out.qdm"
+        save_qdm(result_with_upward_continued_source, path)
+        loaded = load_qdm(path)
+
+        assert len(loaded.field_sources) == 1
+        src = loaded.field_sources[0]
+        assert isinstance(src, UpwardContinuedSource)
+        assert src.kind == "upward_continued"
+        assert src.height_um == 10.0
+        assert src.parent.kind == "magnetic"
+        assert src.parent.center == (3.5, 4.5)
+        assert src.parent.half_extent == (2.0, 1.5)
+        assert src.parent.pixel_spacing == result_with_upward_continued_source.pixel_spacing
+        assert src.model.inclination == 25.0
+        assert src.model.declination == 50.0
+        assert src.model.magnetic_moment == 7.5e-13
 
     def test_overwrite_protection(self, tmp_path: Path, result_no_images) -> None:
         """FileExistsError raised when file exists and overwrite=False."""

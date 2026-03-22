@@ -24,10 +24,19 @@ import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 
-from qdmpy.exceptions import DataLoadError, DataNotLoadedError, DependencyError
-from qdmpy.io import get_image, load_metadata_toml
+from qdmpy.exceptions import DataNotLoadedError
+from qdmpy.io import get_image
+from qdmpy.measurement_workflows import (
+    fit_folded_measurement_odmr,
+    fit_measurement_odmr,
+    fold_measurement_odmr,
+    load_measurement_folder_data,
+    refit_measurement_result,
+    validate_processed_odmr,
+)
 from qdmpy.odmr.folding import FoldedODMR, FoldingSettings, SpectralFolder
 from qdmpy.odmr.manager import ODMR
+from qdmpy.settings import QDMpySettings
 
 # Sentinel for parameters not explicitly set by the caller, used to distinguish
 # "user passed None (meaning: skip)" from "user passed nothing (meaning: use default)".
@@ -39,6 +48,7 @@ if TYPE_CHECKING:
     from qdmpy.fitting.refit import RefitSettings
     from qdmpy.odmr.data import ODMRData
     from qdmpy.result import QDMResult
+    from qdmpy.settings import QDMpySettings
 
 
 class Measurement:
@@ -193,109 +203,30 @@ class Measurement:
             >>> m.pixel_spacing   # from [acquisition] pixel_spacing = 2e-6
             2e-06
         """
-        from qdmpy.odmr.data import ODMRData
-        from qdmpy.odmr.io import MatlabLoader
-        from qdmpy.odmr.processors import (
-            BinningProcessor,
-            FluorescenceCorrectionProcessor,
-            NormalizationProcessor,
-        )
-
         path = Path(path)
         logger.info("Loading measurement from {}", path)
 
-        meta = load_metadata_toml(path)
-        acq = meta.get("acquisition", {})
-
-        # Resolve each param: explicit arg > metadata.toml [acquisition] > code default
-        resolved_bin_factor = (
-            bin_factor if bin_factor is not None else int(acq.get("bin_factor", 1))
-        )
-        resolved_model = model if model is not None else str(acq.get("model", "auto"))
-        resolved_pixel_spacing = (
-            pixel_spacing if pixel_spacing is not None else float(acq.get("pixel_spacing", 4e-6))
-        )
-        resolved_normalize = (
-            normalize if normalize is not None else bool(acq.get("normalize", True))
-        )
-
-        if fluorescence_correction is not _UNSET:
-            resolved_fc: float | None = fluorescence_correction  # type: ignore[assignment]
-        else:
-            fc_val = acq.get("fluorescence_correction", 0.2)
-            resolved_fc = float(fc_val) if fc_val is not None else None
-
-        odmr = ODMR(ODMRData.from_loader(MatlabLoader(str(path))))
-
-        if resolved_bin_factor > 1:
-            odmr.processor_manager.add_processor(BinningProcessor(bin_factor=resolved_bin_factor))
-        if resolved_normalize:
-            odmr.processor_manager.add_processor(NormalizationProcessor())
-        if resolved_fc is not None:
-            odmr.processor_manager.add_processor(
-                FluorescenceCorrectionProcessor(correction_factor=resolved_fc)
-            )
-        odmr.process_data()
-
-        scan_dimensions = odmr.processed_data.scan_dimensions
-        folder_files = os.listdir(path)
-
-        light_image = cls._load_image_or_zeros(
+        loaded = load_measurement_folder_data(
             path,
-            folder_files,
-            ("light", "led"),
-            scan_dimensions,
-            image_label="light/led",
-        )
-        laser_image = cls._load_image_or_zeros(
-            path,
-            folder_files,
-            ("laser",),
-            scan_dimensions,
-            image_label="laser",
+            bin_factor=bin_factor,
+            model=model,
+            pixel_spacing=pixel_spacing,
+            normalize=normalize,
+            fluorescence_correction=fluorescence_correction,
+            unset_sentinel=_UNSET,
+            listdir=os.listdir,
+            image_loader=get_image,
         )
 
         return cls(
-            odmr=odmr,
-            light_image=light_image,
-            laser_image=laser_image,
-            pixel_spacing=resolved_pixel_spacing,
-            fit_model=resolved_model,
+            odmr=loaded.odmr,
+            light_image=loaded.light_image,
+            laser_image=loaded.laser_image,
+            pixel_spacing=loaded.pixel_spacing,
+            fit_model=loaded.fit_model,
             output_directory=output_directory or path / "results",
-            metadata=meta,
+            metadata=loaded.metadata,
         )
-
-    @staticmethod
-    def _load_image_or_zeros(
-        folder: Path,
-        folder_files: list[str],
-        kinds: tuple[str, ...],
-        scan_dimensions: tuple[int, int],
-        image_label: str,
-    ) -> NDArray:
-        """Load a named image from folder_files, falling back to zeros.
-
-        Args:
-            folder: Folder containing the image files.
-            folder_files: All file names in the folder.
-            kinds: Keywords to match in file name.
-            scan_dimensions: (height, width) used for the fallback zeros array.
-            image_label: Human-readable label for logging.
-
-        Returns:
-            Image array, or zeros array of shape scan_dimensions if not found.
-        """
-        matching = [f for f in folder_files if any(kind in f.lower() for kind in kinds)]
-        try:
-            return get_image(folder, matching)
-        except DataLoadError:
-            logger.warning(
-                "No {} image found in {}; using zeros array of shape {}",
-                image_label,
-                folder,
-                scan_dimensions,
-            )
-            return np.zeros(scan_dimensions)
 
     def __str__(self: Self) -> str:
         """Return a string representation of the Measurement object.
@@ -323,7 +254,11 @@ class Measurement:
             f"pixel_spacing={self.pixel_spacing})"
         )
 
-    def _validate_fit_prerequisites(self: Self) -> ODMRData:
+    def _validate_fit_prerequisites(
+        self: Self,
+        *,
+        gpu_available: bool | None = None,
+    ) -> ODMRData:
         """Validate that processed data and GPU fitting are available.
 
         Returns:
@@ -333,21 +268,7 @@ class Measurement:
             DataNotLoadedError: If ODMR data hasn't been processed.
             DependencyError: If pyGpufit is not available.
         """
-        try:
-            processed_data = self.odmr.processed_data
-        except (AttributeError, ValueError, DataNotLoadedError) as e:
-            msg = "ODMR data must be processed before fitting. Call odmr.process_data() first."
-            raise DataNotLoadedError(msg) from e
-
-        from qdmpy.settings import is_pygpufit_available
-
-        if not is_pygpufit_available():
-            msg = (
-                "pyGpufit is required for fitting but not available. "
-                "Please install pyGpufit to enable fitting functionality."
-            )
-            raise DependencyError(msg)
-        return processed_data
+        return validate_processed_odmr(self.odmr, gpu_available=gpu_available)
 
     def fit_odmr(
         self: Self,
@@ -357,6 +278,8 @@ class Measurement:
         freq_cutoff: dict[str, dict[str, float | None]] | None = None,
         refit_outliers: bool = False,
         refit_settings: RefitSettings | None = None,
+        settings: QDMpySettings | None = None,
+        gpu_available: bool | None = None,
     ) -> QDMResult:
         """Fit ODMR spectra and return unified result container.
 
@@ -370,6 +293,9 @@ class Measurement:
                 initial fit using neighbor-derived initial guesses.
             refit_settings: Configuration for outlier detection and refitting.
                 Only used when refit_outliers=True. Defaults to RefitSettings().
+            settings: Optional explicit settings object forwarded to FitManager.
+            gpu_available: Optional explicit override for GPU dependency
+                availability checks.
 
         Returns:
             QDMResult containing FitResult and lazy MagneticMap access.
@@ -378,30 +304,21 @@ class Measurement:
             DataNotLoadedError: If ODMR data hasn't been processed yet.
             DependencyError: If required fitting dependencies are not available.
         """
-        from qdmpy.fitting.manager import FitManager
-        from qdmpy.result import QDMResult
-
         model_name = model_name or self._fit_model
         logger.info("Starting ODMR fitting with model: {}", model_name)
-        processed_data = self._validate_fit_prerequisites()
-
-        fit_manager = FitManager(
+        processed_data = self._validate_fit_prerequisites(gpu_available=gpu_available)
+        result = fit_measurement_odmr(
+            processed_data,
+            pixel_spacing=self.pixel_spacing,
             model_name=model_name,
             constraints=constraints,
             freq_cutoff=freq_cutoff,
-        )
-        fit_result = fit_manager.fit(
-            processed_data.data,
-            processed_data.frequencies,
-            pixel_spacing=self.pixel_spacing,
-        )
-
-        logger.info("ODMR fitting completed successfully")
-        result = QDMResult(
-            fit_result=fit_result,
             light_image=self.light_image,
             laser_image=self.laser_image,
+            settings=settings,
+            gpu_available=gpu_available,
         )
+        logger.info("ODMR fitting completed successfully")
 
         if refit_outliers:
             result = self.refit_outliers(
@@ -409,6 +326,8 @@ class Measurement:
                 settings=refit_settings,
                 constraints=constraints,
                 freq_cutoff=freq_cutoff,
+                fit_settings=settings,
+                gpu_available=gpu_available,
             )
 
         return result
@@ -420,6 +339,8 @@ class Measurement:
         settings: RefitSettings | None = None,
         constraints: dict[str, Any] | None = None,
         freq_cutoff: dict[str, dict[str, float | None]] | None = None,
+        fit_settings: QDMpySettings | None = None,
+        gpu_available: bool | None = None,
     ) -> QDMResult:
         """Refit bad pixels in an existing result using neighbor-derived initial guesses.
 
@@ -436,6 +357,10 @@ class Measurement:
                 Defaults to the same constraints used in the original fit.
             freq_cutoff: Optional per-frange frequency cutoff in GHz. Uses the
                 same schema as fit_odmr()/fit_folded_odmr().
+            fit_settings: Optional explicit settings object forwarded to
+                FitManager for the refit.
+            gpu_available: Optional explicit override for GPU dependency
+                availability checks.
 
         Returns:
             New QDMResult with outlier pixels replaced by refit values.
@@ -444,41 +369,21 @@ class Measurement:
             DataNotLoadedError: If required data (ODMR or folded) has not been processed.
             DependencyError: If pyGpufit is not available.
         """
-        from qdmpy.fitting.manager import FitManager
-        from qdmpy.fitting.refit import refit_outliers as _refit_outliers
-        from qdmpy.result import QDMResult
+        processed_data = None
+        if not result.fit_result.metadata.get("folded_fit", False):
+            processed_data = self._validate_fit_prerequisites(gpu_available=gpu_available)
 
-        model_name = result.fit_result.model_name
-        is_folded = result.fit_result.metadata.get("folded_fit", False)
-        if is_folded:
-            folded = self.folded_odmr  # raises DataNotLoadedError if unavailable
-            data_xr, frequencies = folded.to_fit_inputs()
-            fit_manager = FitManager(
-                model_name=model_name,
-                constraints=constraints,
-                freq_cutoff=freq_cutoff,
-            )
-        else:
-            processed_data = self._validate_fit_prerequisites()
-            data_xr = processed_data.data
-            frequencies = processed_data.frequencies
-            fit_manager = FitManager(
-                model_name=model_name,
-                constraints=constraints,
-                freq_cutoff=freq_cutoff,
-            )
-
-        new_fit_result = _refit_outliers(
-            result.fit_result,
-            data_xr,
-            frequencies,
-            fit_manager,
-            settings,
-        )
-        return QDMResult(
-            fit_result=new_fit_result,
+        return refit_measurement_result(
+            result,
+            processed_data=processed_data,
+            folded=getattr(self, "_folded_odmr", None),
             light_image=result.light_image,
             laser_image=result.laser_image,
+            settings=settings,
+            constraints=constraints,
+            freq_cutoff=freq_cutoff,
+            fit_settings=fit_settings,
+            gpu_available=gpu_available,
         )
 
     @property
@@ -523,12 +428,6 @@ class Measurement:
             DataValidationError: If data doesn't have both frequency ranges.
             FoldingOverlapError: If frequency overlap is too narrow.
         """
-        try:
-            processed_data = self.odmr.processed_data
-        except (AttributeError, ValueError, DataNotLoadedError) as e:
-            msg = "ODMR data must be processed before folding. Call odmr.process_data() first."
-            raise DataNotLoadedError(msg) from e
-
         resolved_settings = settings if settings is not None else FoldingSettings()
         model_name = self._fit_model if self._fit_model != "auto" else None
         logger.info(
@@ -537,8 +436,12 @@ class Measurement:
             model_name or "auto",
         )
 
-        folder = SpectralFolder(processed_data, resolved_settings, model_name=model_name)
-        self._folded_odmr = folder.fold()
+        self._folded_odmr = fold_measurement_odmr(
+            self.odmr,
+            settings=resolved_settings,
+            model_name=model_name,
+            folder_factory=SpectralFolder,
+        )
 
         logger.info("Spectral folding complete")
         return self._folded_odmr
@@ -572,6 +475,8 @@ class Measurement:
         freq_cutoff: dict[str, dict[str, float | None]] | None = None,
         refit_outliers: bool = False,
         refit_settings: RefitSettings | None = None,
+        settings: QDMpySettings | None = None,
+        gpu_available: bool | None = None,
     ) -> QDMResult:
         """Fit a folded ODMR spectrum and return a unified result container.
 
@@ -598,6 +503,9 @@ class Measurement:
                 initial fit using neighbor-derived initial guesses.
             refit_settings: Configuration for outlier detection and refitting.
                 Only used when refit_outliers=True. Defaults to RefitSettings().
+            settings: Optional explicit settings object forwarded to FitManager.
+            gpu_available: Optional explicit override for GPU dependency
+                availability checks.
 
         Returns:
             QDMResult containing FitResult and lazy MagneticMap access.
@@ -607,31 +515,30 @@ class Measurement:
                 hasn't been called.
             DependencyError: If pyGpufit is not available.
         """
-        from qdmpy.fitting.manager import FitManager
-        from qdmpy.result import QDMResult
-
         resolved_folded = folded if folded is not None else self.folded_odmr
         model_name = model_name or self._fit_model
-        self._validate_fit_prerequisites()
+        self._validate_fit_prerequisites(gpu_available=gpu_available)
 
         logger.info("Starting folded ODMR fitting")
-        fit_manager = FitManager(
+        result = fit_folded_measurement_odmr(
+            resolved_folded,
+            pixel_spacing=self.pixel_spacing,
             model_name=model_name,
             constraints=constraints,
             freq_cutoff=freq_cutoff,
-        )
-        fit_result = fit_manager.fit_folded(resolved_folded, pixel_spacing=self.pixel_spacing)
-        logger.info("Folded ODMR fitting completed successfully")
-        result = QDMResult(
-            fit_result=fit_result,
             light_image=self.light_image,
             laser_image=self.laser_image,
+            fit_settings=settings,
+            gpu_available=gpu_available,
         )
+        logger.info("Folded ODMR fitting completed successfully")
         if refit_outliers:
             result = self.refit_outliers(
                 result,
                 settings=refit_settings,
                 constraints=constraints,
                 freq_cutoff=freq_cutoff,
+                fit_settings=settings,
+                gpu_available=gpu_available,
             )
         return result

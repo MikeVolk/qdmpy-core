@@ -70,6 +70,13 @@ print(result.b111_remanent.shape)   # same shape as unfolded
 The folded result is a drop-in replacement for the standard result: same
 `b111_remanent`, `b111_induced`, and `magnetic_map` properties.
 
+For deterministic testing or batch execution, `fit_folded_odmr()` also accepts
+the same advanced overrides as normal fitting:
+
+```python
+result = meas.fit_folded_odmr(settings=my_settings, gpu_available=True)
+```
+
 Prefer built-in plotting helpers when a matching diagnostic exists:
 
 ```python
@@ -153,6 +160,7 @@ folded = meas.fold_odmr(settings=folding_settings)
 - `meas.fold_odmr()` + `meas.fit_folded_odmr()` is the two-line quick path
 - Use `freq_cutoff` on folded fits when near-center bins destabilize the fit
 - Tune `FoldingSettings` when the default coarse D estimate is unreliable
+- advanced callers can pass explicit `settings=` / `gpu_available=` to keep folded fits deterministic in tests and pipelines
 
 ---
 

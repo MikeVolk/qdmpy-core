@@ -59,11 +59,11 @@ def test_real_fov1_fixture_matches_expected_folded_behavior() -> None:
         "real_fov18x_fov14925_x45y62",
     ],
 )
-def test_real_fov18x_fixtures_preserve_known_folded_gap(fixture_name: str) -> None:
-    """FOV18x crops currently show substantial folded-vs-normal mismatch."""
+def test_real_fov18x_fixtures_keep_folded_induced_field_close(fixture_name: str) -> None:
+    """FOV18x crops now keep folded induced fields reasonably close to normal fits."""
     path = Path("tests/data") / fixture_name
     metrics = _compute_folded_vs_normal_metrics(path, model_name="ESR15N")
 
-    assert metrics["induced_rmse"] > 8.0
-    assert metrics["remanent_rmse"] > 3.0
-    assert metrics["induced_corr"] < 0.4
+    assert metrics["induced_rmse"] < 2.0
+    assert metrics["remanent_rmse"] < 0.5
+    assert metrics["induced_corr"] > 0.7
