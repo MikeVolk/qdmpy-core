@@ -16,11 +16,14 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
+from qdmpy.settings import FitSettings, ModelConstraintsSettings, ModelSettings, QDMpySettings
+
 try:
     import pygpufit.gpufit as gf
 
     _HAS_GPUFIT = True
 except ImportError:
+    gf = None
     _HAS_GPUFIT = False
 
 pytestmark = pytest.mark.skipif(not _HAS_GPUFIT, reason="Requires pygpufit installation")
@@ -36,9 +39,31 @@ _MODEL_ID_ATTR: dict[str, str] = {
     "ESRSINGLE": "ESRSINGLE",
 }
 
+_GPUFIT_CONSISTENCY_SETTINGS = QDMpySettings(
+    fit=FitSettings(estimator="LSE", max_number_iterations=1000, tolerance=1e-10),
+    model=ModelSettings(
+        constraints=ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
+            center_min=2.82,
+            center_max=2.92,
+            center_type="LOWER_UPPER",
+            width_min=0.0001,
+            width_max=0.01,
+            width_type="LOWER_UPPER",
+            contrast_min=0.0,
+            contrast_max=1.0,
+            contrast_type="LOWER_UPPER",
+            offset_min=-0.1,
+            offset_max=0.1,
+            offset_type="LOWER_UPPER",
+        )
+    ),
+)
+
 
 def _expected_model_id(model_name: str) -> int:
     """Return the model ID from the installed pygpufit package for *model_name*."""
+    assert gf is not None
     attr = _MODEL_ID_ATTR[model_name]
     return int(getattr(gf.ModelID, attr))
 
@@ -65,7 +90,9 @@ def _run_consistency(model_name: str, true_params: np.ndarray) -> None:
     model = ModelRegistry.get(model_name)
     spectra = model.func(FREQ, true_params).astype(np.float32)  # (N, n_freq)
 
-    fm = FitManager(model_name=model_name)
+    fm = FitManager(
+        model_name=model_name, settings=_GPUFIT_CONSISTENCY_SETTINGS, gpu_available=True
+    )
     data = spectra[np.newaxis]  # (1, N, n_freq)
     init = true_params[np.newaxis]  # (1, N, n_params)
 

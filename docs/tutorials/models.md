@@ -211,7 +211,7 @@ from qdmpy.models import ModelRegistry
 model = ModelRegistry.get('ESR14N')  # or 'ESR15N', 'ESRSINGLE'
 
 # 3. The model is automatically used by fitting routines
-# measurement.fit_odmr(model=model)
+# measurement.fit_odmr(model_name=model.name)
 ```
 
 For complete examples including custom model registration, see [03 · Extending the Framework](03-extending.ipynb).

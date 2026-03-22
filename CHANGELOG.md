@@ -7,6 +7,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (QEP-067: architecture boundaries)
+
+- **`.qdm` field-source round-tripping** — `qdmpy.io.load_qdm()` now restores
+  concrete `FieldSource` subtypes (`MagneticSource`,
+  `UpwardContinuedSource`) instead of collapsing them back to the generic base
+  model on load.
+- **`MagneticMap.save()` boundary cleanup** — NetCDF persistence now delegates
+  through `qdmpy.io.save_magnetic_map()`, keeping `MagneticMap` as a thin
+  convenience wrapper rather than owning I/O details directly.
+- **Explicit fitting/reconstruction seams** — `Measurement.fit_odmr()`,
+  `Measurement.fit_folded_odmr()`, `Measurement.refit_outliers()`, and
+  `MagneticMap.from_b111()` now accept explicit settings/dependency overrides
+  for deterministic tests and embedded/batch use, while preserving the existing
+  default user workflow.
+- **`Measurement` workflow extraction** — folder loading, fit/refit, and folded
+  fit orchestration now live in concrete helpers under
+  `qdmpy.measurement_workflows`, reducing cross-layer logic inside the public
+  `Measurement` wrapper.
+
+### Changed (docs)
+
+- Updated quickstart/tutorial/extending docs to mention the new explicit
+  `settings=` / `gpu_available=` advanced hooks and the
+  `MagneticMap.from_b111(..., settings=...)` seam.
+
 ### Changed (architecture cleanup)
 
 - **`ModelNotResolvedError` exception** — replaced 12 bare `RuntimeError` raises

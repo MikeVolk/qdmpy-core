@@ -653,7 +653,10 @@ class TestMeasurementRefit:
             fm_instance = _make_mock_fm(["center"])
             MockFM.return_value = fm_instance
 
-            result = m.refit_outliers(qdm_result, settings=RefitSettings(min_good_neighbors=1))
+            result = m.refit_outliers(
+                qdm_result,
+                refit_settings=RefitSettings(min_good_neighbors=1),
+            )
 
         assert isinstance(result, QDMResult)
 
@@ -844,7 +847,10 @@ class TestMeasurementRefit:
             fm_instance = _make_mock_fm(["center"], return_value=2.881)
             MockFM.return_value = fm_instance
 
-            result = m.refit_outliers(qdm_result, settings=RefitSettings(min_good_neighbors=1))
+            result = m.refit_outliers(
+                qdm_result,
+                refit_settings=RefitSettings(min_good_neighbors=1),
+            )
 
         assert isinstance(result, QDMResult)
         assert isinstance(result.fit_result, FitResult)

@@ -37,6 +37,12 @@ result = qdmpy.load('/data/FOV18x').fit_odmr()
 That's it. `result` is a `QDMResult` containing all fitted parameters and
 lazy access to field maps.
 
+!!! note "Advanced control"
+    The one-line path is still the recommended default. When you need explicit
+    test or batch control over fitting behavior, keep the `Measurement` object
+    and pass overrides directly to `fit_odmr()`, for example
+    `settings=custom_settings` or `gpu_available=False`.
+
 ### Without data files
 
 Use synthetic data for exploration or CI:
@@ -69,6 +75,9 @@ bz = mm.bz.values                 # xr.DataArray in µT
 ```
 
 `magnetic_map` is computed lazily on first access and cached.
+
+If you already have a `b111` map and want explicit reconstruction settings,
+you can also call `MagneticMap.from_b111(..., settings=custom_settings)`.
 
 ---
 
@@ -104,6 +113,7 @@ result3 = qdmpy.load_npz('my_result.npz')
 - `result.b111_remanent` and `result.b111_induced` give 2D arrays in µT
 - `result.magnetic_map` gives the full Bx/By/Bz reconstruction
 - `save_qdm` / `load_qdm` for full persistence, `save_npz` / `load_npz` for fit-only checkpoints
+- advanced callers can inject explicit fitting/reconstruction settings without changing the quick path
 
 ---
 
