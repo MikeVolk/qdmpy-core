@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Status** | Draft |
+| **Status** | Implemented |
 | **Priority** | P2 |
 | **Complexity** | L |
 | **Depends on** | QEP-005 |
