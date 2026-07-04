@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 import xarray as xr
 from numpy.testing import assert_array_almost_equal, assert_array_equal
+from numpy.typing import NDArray
 
 from qdmpy.exceptions import (
     DataValidationError,
@@ -30,6 +31,7 @@ from qdmpy.settings import (
     ModelSettings,
     QDMpySettings,
 )
+from qdmpy.testing import FakeFitBackend
 
 # Mock settings for tests (center/width values in GHz, matching default settings convention)
 MOCK_SETTINGS = QDMpySettings(
@@ -454,13 +456,13 @@ class TestFitting:
 
     def test_fit_returns_fit_result(self, sample_data, sample_frequencies) -> None:
         """Test that fit() returns a FitResult."""
-        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
         result = fit.fit(sample_data, sample_frequencies)
         assert isinstance(result, FitResult)
 
     def test_fit_reuse(self, sample_data, sample_frequencies) -> None:
         """Test that the same FitManager can be called twice with different data."""
-        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
         result1 = fit.fit(sample_data, sample_frequencies)
         result2 = fit.fit(sample_data, sample_frequencies)
         assert isinstance(result1, FitResult)
@@ -533,18 +535,9 @@ def test_to_array_zero_pixels() -> None:
     assert constraints_array.shape == (0, len(model_params) * 2)
 
 
-@patch("pygpufit.gpufit.fit_constrained")
-def test_fit_frange_mocked(mock_fit_constrained, sample_data, sample_frequencies) -> None:
-    """Test fit_frange with mocked pyGpufit."""
-    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
-
-    mock_fit_constrained.return_value = [
-        np.random.random((8, fit.n_parameter)),
-        np.zeros(8, dtype=int),
-        np.random.random(8),
-        np.ones(8, dtype=int) * 10,
-        0.5,
-    ]
+def test_fit_frange_mocked(sample_data, sample_frequencies) -> None:
+    """Test fit_frange via the injectable FakeFitBackend (no GPU required)."""
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
 
     # flat_data: (n_pol, n_frange, n_pixel, n_freq) -> per-range: (n_pol, n_pixel, n_freq)
     values = sample_data.values
@@ -624,14 +617,14 @@ class TestFitManagerValidation:
                 "freq_ghz": (["freq_range", "freq_idx"], np.empty((1, 0))),
             },
         )
-        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
         with pytest.raises(DataValidationError, match="empty"):
             fit.fit(empty_data, np.array([]))
 
     def test_rejects_freq_count_mismatch(self, sample_data) -> None:
         """Test that frequency count mismatch raises DataValidationError."""
         wrong_freqs = np.linspace(2.87, 2.88, 20)
-        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
         with pytest.raises(DataValidationError, match="must match"):
             fit.fit(sample_data, wrong_freqs)
 
@@ -648,7 +641,7 @@ class TestFitManagerValidation:
                 "freq_ghz": (["freq_range", "freq_idx"], few_freqs.reshape(1, -1)),
             },
         )
-        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
         with pytest.raises(DataValidationError, match="at least"):
             fit.fit(da, few_freqs)
 
@@ -677,7 +670,7 @@ class TestFitManagerValidation:
         fit = FitManager(
             model_name="ESRSINGLE",
             settings=MOCK_SETTINGS,
-            gpu_available=True,
+            backend=FakeFitBackend(),
             freq_cutoff={"high": {"min": 2.875}},
         )
         with pytest.raises(DataValidationError, match="single-range"):
@@ -699,16 +692,28 @@ class TestFitManagerValidation:
         fit = FitManager(
             model_name="ESRSINGLE",
             settings=MOCK_SETTINGS,
-            gpu_available=True,
+            backend=FakeFitBackend(),
             freq_cutoff={"low": {"max": 2.878}},
         )
         with pytest.raises(DataValidationError, match="at least 10"):
             fit.fit(da, freqs)
 
 
-@patch("pygpufit.gpufit.fit_constrained")
-def test_fit_applies_freq_cutoff_per_frange(mock_fit_constrained) -> None:
-    """fit() applies independent low/high frequency cutoffs before gpufit."""
+class _RecordingFitBackend(FakeFitBackend):
+    """FakeFitBackend that records the freq_ghz array passed to each fit() call."""
+
+    def __init__(self) -> None:
+        self.freq_calls: list[NDArray] = []
+
+    def fit(self, data, freq_ghz, initial_parameters, constraints, constraint_types, model, options):
+        self.freq_calls.append(np.asarray(freq_ghz))
+        return super().fit(
+            data, freq_ghz, initial_parameters, constraints, constraint_types, model, options
+        )
+
+
+def test_fit_applies_freq_cutoff_per_frange() -> None:
+    """fit() applies independent low/high frequency cutoffs before fitting."""
     n_pol, n_frange, h, w, n_freq = 2, 2, 2, 2, 20
     data_5d = np.ones((n_pol, n_frange, h, w, n_freq), dtype=np.float32)
     freqs = np.vstack(
@@ -727,31 +732,21 @@ def test_fit_applies_freq_cutoff_per_frange(mock_fit_constrained) -> None:
         },
     )
 
+    backend = _RecordingFitBackend()
     fit = FitManager(
         model_name="ESRSINGLE",
         settings=MOCK_SETTINGS,
-        gpu_available=True,
+        backend=backend,
         freq_cutoff={
             "low": {"max": 2.86},
             "high": {"min": 2.89},
         },
     )
 
-    n_pixel = h * w
-    n_params = fit.n_parameter
-    mock_fit_constrained.return_value = [
-        np.random.random((n_pol * n_pixel, n_params)).astype(np.float32),
-        np.zeros(n_pol * n_pixel, dtype=np.int32),
-        np.random.random(n_pol * n_pixel).astype(np.float32),
-        np.ones(n_pol * n_pixel, dtype=np.int32) * 10,
-        0.5,
-    ]
-
     _ = fit.fit(da, freqs)
 
-    assert mock_fit_constrained.call_count == 2
-    low_user_info = np.asarray(mock_fit_constrained.call_args_list[0].kwargs["user_info"])
-    high_user_info = np.asarray(mock_fit_constrained.call_args_list[1].kwargs["user_info"])
+    assert len(backend.freq_calls) == 2
+    low_user_info, high_user_info = backend.freq_calls
 
     assert np.max(low_user_info) <= 2.86
     assert np.min(high_user_info) >= 2.89
@@ -759,24 +754,12 @@ def test_fit_applies_freq_cutoff_per_frange(mock_fit_constrained) -> None:
     assert high_user_info.size < n_freq
 
 
-@patch("pygpufit.gpufit.fit_constrained")
-def test_fit_auto_model_resolution(mock_fit_constrained, sample_data, sample_frequencies) -> None:
+def test_fit_auto_model_resolution(sample_data, sample_frequencies) -> None:
     """Test that auto mode resolves the model on first fit() call."""
-    fit = FitManager(model_name="auto", settings=MOCK_SETTINGS, gpu_available=True)
+    fit = FitManager(model_name="auto", settings=MOCK_SETTINGS, backend=FakeFitBackend())
     assert fit.model is None
 
     resolved_model = ESRSINGLE()
-    n_pol, _, n_y, n_x, _ = sample_data.shape
-    n_pixel = n_y * n_x
-    n_params = resolved_model.n_parameters
-
-    mock_fit_constrained.return_value = [
-        np.random.random((n_pol * n_pixel, n_params)).astype(np.float32),
-        np.zeros(n_pol * n_pixel, dtype=np.int32),
-        np.random.random(n_pol * n_pixel).astype(np.float32),
-        np.ones(n_pol * n_pixel, dtype=np.int32) * 10,
-        0.5,
-    ]
 
     with patch("qdmpy.fitting.manager.guess_model", return_value=resolved_model):
         result = fit.fit(sample_data, sample_frequencies)
@@ -785,22 +768,11 @@ def test_fit_auto_model_resolution(mock_fit_constrained, sample_data, sample_fre
         assert fit.model_name == "ESRSINGLE"
 
 
-@patch("pygpufit.gpufit.fit_constrained")
-def test_fit_returns_fit_result(mock_fit_constrained, sample_data, sample_frequencies) -> None:
+def test_fit_returns_fit_result(sample_data, sample_frequencies) -> None:
     """Test that fit() returns a FitResult with the expected structure."""
-    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
 
-    n_pol, _, n_y, n_x, _ = sample_data.shape
-    n_pixel = n_y * n_x
-    n_params = fit.n_parameter
-
-    mock_fit_constrained.return_value = [
-        np.random.random((n_pol * n_pixel, n_params)).astype(np.float32),
-        np.zeros(n_pol * n_pixel, dtype=np.int32),
-        np.random.random(n_pol * n_pixel).astype(np.float32),
-        np.ones(n_pol * n_pixel, dtype=np.int32) * 10,
-        0.5,
-    ]
+    _, _, n_y, n_x, _ = sample_data.shape
 
     result = fit.fit(sample_data, sample_frequencies)
 
@@ -812,24 +784,9 @@ def test_fit_returns_fit_result(mock_fit_constrained, sample_data, sample_freque
     assert "states" in result.parameters
 
 
-@patch("pygpufit.gpufit.fit_constrained")
-def test_fit_reuse_independent_results(
-    mock_fit_constrained, sample_data, sample_frequencies
-) -> None:
+def test_fit_reuse_independent_results(sample_data, sample_frequencies) -> None:
     """Test that the same FitManager returns independent FitResult objects."""
-    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
-
-    n_pol, _, n_y, n_x, _ = sample_data.shape
-    n_pixel = n_y * n_x
-    n_params = fit.n_parameter
-
-    mock_fit_constrained.return_value = [
-        np.random.random((n_pol * n_pixel, n_params)).astype(np.float32),
-        np.zeros(n_pol * n_pixel, dtype=np.int32),
-        np.random.random(n_pol * n_pixel).astype(np.float32),
-        np.ones(n_pol * n_pixel, dtype=np.int32) * 10,
-        0.5,
-    ]
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
 
     result1 = fit.fit(sample_data, sample_frequencies)
     result2 = fit.fit(sample_data, sample_frequencies)

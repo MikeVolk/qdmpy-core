@@ -11,6 +11,7 @@ guesses are managed by dedicated modules (constraints.py and guesser.py).
 from __future__ import annotations
 
 import datetime
+import warnings
 from typing import TYPE_CHECKING, Any, Self
 
 import numpy as np
@@ -26,22 +27,23 @@ from qdmpy.exceptions import (
     ModelNotResolvedError,
     ParameterError,
 )
+from qdmpy.fitting.backends import (
+    FitBackend,
+    FitBackendOptions,
+    resolve_backend,
+    with_forced_availability,
+)
 from qdmpy.fitting.constraints import CONSTRAINT_TYPES, Constraint, ConstraintManager
 from qdmpy.fitting.guess import guess_model
 from qdmpy.fitting.guesser import ParameterGuesser
 from qdmpy.fitting.models import Model, ModelRegistry
 from qdmpy.fitting.result import FitResult
 from qdmpy.odmr._validators import validate_frequencies
-from qdmpy.settings import (
-    QDMpySettings,
-    get_settings,
-    is_pygpufit_available,
-)
+from qdmpy.settings import QDMpySettings, get_settings
 
 if TYPE_CHECKING:
     from qdmpy.odmr.folding import FoldedODMR
 
-ESTIMATOR_ID = {"LSE": 0, "MLE": 1}
 _MIN_FREQ_POINTS = 10
 
 
@@ -61,6 +63,7 @@ class FitManager:
         *,
         freq_cutoff: dict[str, dict[str, float | None]] | None = None,
         settings: QDMpySettings | None = None,
+        backend: FitBackend | str | None = None,
         gpu_available: bool | None = None,
     ) -> None:
         """Initialize a FitManager with model configuration.
@@ -74,13 +77,22 @@ class FitManager:
                 Schema: {'low': {'min': float|None, 'max': float|None},
                         'high': {'min': float|None, 'max': float|None}}.
             settings: Optional QDMpySettings instance (defaults to global get_settings()).
-            gpu_available: Optional GPU availability override (defaults to is_pygpufit_available()).
+            backend: Optional FitBackend instance, or a backend name
+                ('auto', 'gpufit', 'scipy'). Defaults to ``settings.fit.backend``.
+                See :mod:`qdmpy.fitting.backends` (QEP-068).
+            gpu_available: Deprecated; use ``backend`` instead. Optional GPU
+                availability override.
+
+        Raises:
+            ParameterError: If both ``backend`` and ``gpu_available`` are given.
         """
         self._settings = settings or get_settings()
-        self._gpu_available = (
-            gpu_available if gpu_available is not None else is_pygpufit_available()
+        self._backend = self._resolve_backend(backend, gpu_available)
+        self._backend_options = FitBackendOptions(
+            estimator=self._settings.fit.estimator,
+            max_number_iterations=self._settings.fit.max_number_iterations,
+            tolerance=self._settings.fit.tolerance,
         )
-        self.estimator_id = ESTIMATOR_ID[self._settings.fit.estimator]
         self._freq_cutoff = self._normalize_freq_cutoff(freq_cutoff)
 
         if model_name == "auto":
@@ -103,6 +115,42 @@ class FitManager:
                 for param, constraint in constraints.items():
                     self.set_constraints(param, **constraint)
             logger.info("FitManager initialized with model: {}", self._model.name)
+
+    def _resolve_backend(
+        self: Self,
+        backend: FitBackend | str | None,
+        gpu_available: bool | None,
+    ) -> FitBackend:
+        """Resolve the constructor's ``backend``/``gpu_available`` arguments.
+
+        Raises:
+            ParameterError: If both ``backend`` and ``gpu_available`` are given.
+        """
+        if gpu_available is not None:
+            warnings.warn(
+                "FitManager(gpu_available=...) is deprecated and will be removed "
+                "in a future release. Pass backend='gpufit'/'scipy' or a "
+                "FitBackend instance instead.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            if backend is not None:
+                msg = "Pass either 'backend' or the deprecated 'gpu_available', not both"
+                raise ParameterError(msg)
+            from qdmpy.fitting.backends import GpufitBackend
+
+            return with_forced_availability(GpufitBackend(), available=gpu_available)
+
+        return resolve_backend(backend if backend is not None else self._settings.fit.backend)
+
+    def _require_backend_available(self: Self) -> None:
+        """Raise DependencyError if the resolved backend cannot run here."""
+        if not self._backend.is_available():
+            msg = (
+                f"Fit backend '{self._backend.name}' is required for fitting "
+                "but is not available"
+            )
+            raise DependencyError(msg)
 
     @staticmethod
     def _validate_inputs(data: xr.DataArray, frequencies: NDArray) -> None:
@@ -287,9 +335,7 @@ class FitManager:
             DependencyError: If pyGpufit is not installed.
             DataValidationError: If data or frequencies fail validation.
         """
-        if not self._gpu_available:
-            msg = "pyGpufit is required for fitting but not installed"
-            raise DependencyError(msg)
+        self._require_backend_available()
 
         self._validate_inputs(data, frequencies)
         f_ghz = np.atleast_2d(frequencies)
@@ -603,7 +649,12 @@ class FitManager:
         freq: NDArray,
         initial_parameters: NDArray,
     ) -> list[Any]:
-        """Fit a single frequency range using GPU.
+        """Fit a single frequency range via the resolved backend.
+
+        Thin shape adapter over ``self._backend.fit()`` (QEP-068): builds the
+        constraint arrays this FitManager owns, then delegates the actual
+        optimization to whichever backend was resolved at construction time
+        (gpufit, scipy, or a test fake).
 
         Args:
             data: ODMR data with shape (n_pol, n_pixel, n_freq).
@@ -611,45 +662,50 @@ class FitManager:
             initial_parameters: Initial parameter guesses.
 
         Returns:
-            List containing [fit_params, states, chi_squares, iterations, exec_time].
+            List containing [fit_params, states, chi_squares, iterations, exec_time],
+            preserved for compatibility with callers like ``fitting.refit``.
 
         Raises:
-            ImportError: If pyGpufit is not installed.
+            DependencyError: If the resolved backend is not available, or does
+                not support the current model.
+            ModelNotResolvedError: If called before the model is resolved.
         """
-        if not self._gpu_available:
-            msg = "pyGpufit is required for fitting but not installed"
-            raise DependencyError(msg)
-
-        import pygpufit.gpufit as gf
-
-        n_freqs = data.shape[-1]
-        data_reshaped = data.reshape((-1, n_freqs))
-        initial_parameters_reshaped = initial_parameters.reshape((-1, self.n_parameter))
-
-        # All values (freq, center, width, constraints) are kept in GHz.
-        # The pyGpufit ESR kernels have AHYP hardcoded in GHz (ahyp=0.0015 for 15N,
-        # ahyp=0.002158 for 14N) so any Hz conversion breaks the hyperfine splitting.
-        n_pixel = data_reshaped.shape[0]
-        constraints = self.get_constraints_array(n_pixel)
-        constraint_types = self.get_constraint_types()
+        self._require_backend_available()
 
         if self._model is None:
             msg = "Model must be set before fitting"
             raise ModelNotResolvedError(msg)
         model: Model = self._model
-        results = gf.fit_constrained(
-            data=np.ascontiguousarray(data_reshaped, dtype=np.float32),
-            user_info=np.ascontiguousarray(freq, dtype=np.float32),
-            constraints=np.ascontiguousarray(constraints, dtype=np.float32),
+
+        if not self._backend.supports(model):
+            msg = (
+                f"Backend '{self._backend.name}' does not support model "
+                f"'{model.name}' (model_id={model.model_id}). Try "
+                "backend='scipy' for custom CPU-only models."
+            )
+            raise DependencyError(msg)
+
+        n_freqs = data.shape[-1]
+        n_pixel = data.reshape((-1, n_freqs)).shape[0]
+        constraints = self.get_constraints_array(n_pixel)
+        constraint_types = self.get_constraint_types()
+
+        output = self._backend.fit(
+            data=data,
+            freq_ghz=freq,
+            initial_parameters=initial_parameters,
+            constraints=constraints,
             constraint_types=constraint_types,
-            initial_parameters=np.ascontiguousarray(initial_parameters_reshaped, dtype=np.float32),
-            weights=None,
-            model_id=model.model_id,
-            max_number_iterations=self._settings.fit.max_number_iterations,
-            tolerance=self._settings.fit.tolerance,
-            estimator_id=self.estimator_id,
+            model=model,
+            options=self._backend_options,
         )
-        return list(results)
+        return [
+            output.parameters,
+            output.states,
+            output.chi2,
+            output.iterations,
+            output.execution_time,
+        ]
 
     def _reshape_frange_results(
         self: Self,
@@ -703,11 +759,9 @@ class FitManager:
             FitResult with correct B111 maps for folded data.
 
         Raises:
-            DependencyError: If pyGpufit is not installed.
+            DependencyError: If the resolved backend is not available.
         """
-        if not self._gpu_available:
-            msg = "pyGpufit is required for fitting but not installed"
-            raise DependencyError(msg)
+        self._require_backend_available()
 
         # Extract delta_f axis and shift to absolute GHz
         delta_f_ghz: NDArray = folded.folded_spectrum.coords["delta_f_ghz"].values
@@ -778,7 +832,7 @@ class FitManager:
             constraints=folded_constraints,
             freq_cutoff=self._freq_cutoff,
             settings=self._settings,
-            gpu_available=self._gpu_available,
+            backend=self._backend,
         )
 
         raw = folded_mgr.fit(data_xr, freq_2d, pixel_spacing=pixel_spacing)

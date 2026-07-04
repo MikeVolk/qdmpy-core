@@ -9,10 +9,58 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added (QEP-068: fit backend seam)
 
-- **QEP-068 proposal** — new draft proposal introducing a `FitBackend`
-  protocol (gpufit / scipy / test-fake adapters) to replace the scattered
-  `gpu_available` plumbing, revive the CPU custom-model contract, and make
-  fit-adjacent tests injectable (`proposals/QEP-068-fit-backend-seam.md`).
+- **`qdmpy.fitting.backends`** — new module defining the `FitBackend`
+  protocol and its adapters: `GpufitBackend` (GPU, extracted from
+  `FitManager.fit_frange`), `ScipyBackend` (CPU fitting via
+  `scipy.optimize.least_squares`, supports any model including pure-Python
+  custom models with `model_id=-1`), and `resolve_backend()` /
+  `with_forced_availability()` for name/instance resolution. This module is
+  now the *only* place `pygpufit` is imported in the codebase.
+- **`FitManager(backend=...)`** — `FitManager`, `Measurement.fit_odmr()`,
+  `Measurement.fit_folded_odmr()`, and `Measurement.refit_outliers()` accept
+  an explicit `backend` (a name — `'auto'`/`'gpufit'`/`'scipy'` — or a
+  `FitBackend` instance). `'auto'` never silently falls back to a slower CPU
+  fit: a missing gpufit install raises `DependencyError` naming the explicit
+  `backend='scipy'` opt-in.
+- **`FitSettings.backend`** — new settings field (default `'auto'`) selecting
+  the default backend when no explicit `backend=` is passed.
+- **`qdmpy.testing.FakeFitBackend`** — deterministic, dependency-free fit
+  backend (echoes back initial parameters, always converged) for tests that
+  exercise the real `FitManager`/`Measurement` fit pipeline without a GPU.
+- **`tests/test_fitting_backends.py`** — new test suite covering backend
+  resolution, `GpufitBackend.supports()`/`ScipyBackend` behavior, the
+  `gpu_available` deprecation path, and an end-to-end pure-Python custom
+  model fit via `backend='scipy'` (previously impossible — the documented
+  `model_id=-1` contract had no CPU path to fulfil it).
+
+### Changed (QEP-068: fit backend seam)
+
+- **`FitManager(gpu_available=...)` deprecated** — still works (emits
+  `DeprecationWarning`) but is superseded by `backend=`. Passing both raises
+  `ParameterError`.
+- **`tests/test_fit.py`, `tests/test_folded_fit.py`** — migrated off
+  `@patch("pygpufit.gpufit.fit_constrained")` to the injectable
+  `FakeFitBackend`/recording-backend pattern; no longer require a real
+  (or even importable) pyGpufit install to run.
+
+### Fixed (QEP-068: fit backend seam)
+
+- **`is_pygpufit_available()` crashed instead of returning `False`** when
+  pyGpufit was installed but its native library failed to load (e.g. a Linux
+  wheel's `.so` on macOS) — it only caught `ImportError`, not the `OSError`
+  `ctypes.cdll.LoadLibrary` actually raises. Now caught in
+  `qdmpy.settings.is_pygpufit_available()` and the equivalent guard in
+  `tests/integration/test_gpufit_consistency.py`.
+- **`fitting/models.py` imported `pygpufit.gpufit` at module level** purely
+  to read three integer `ModelID` constants — meaning `import qdmpy` (and the
+  entire test suite) crashed on any machine where pyGpufit's native library
+  can't load, before any dependency check ever ran. Replaced with local
+  integer constants; `pygpufit` is no longer imported anywhere outside
+  `fitting/backends.py`.
+- **`FitManager.fit_folded()` duplicated folded fit-input construction**
+  instead of reusing `FoldedODMR.to_fit_inputs()`; the internally-constructed
+  `FitManager` now forwards the already-resolved `backend` instance instead
+  of re-deriving GPU availability from a boolean.
 
 ### Changed (QEP-067: architecture boundaries)
 

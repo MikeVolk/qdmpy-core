@@ -22,7 +22,7 @@ try:
     import pygpufit.gpufit as gf
 
     _HAS_GPUFIT = True
-except ImportError:
+except (ImportError, OSError):
     gf = None
     _HAS_GPUFIT = False
 

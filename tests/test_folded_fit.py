@@ -1,7 +1,7 @@
 """Unit tests for folded fitting (QEP-059: unified constraint interface).
 
-All tests use synthetic FoldedODMR data and a mocked GPU
-(pattern from tests/test_fit.py: @patch("pygpufit.gpufit.fit_constrained")).
+All tests use synthetic FoldedODMR data fitted through an injectable
+FitBackend (QEP-068) — no GPU or mocked pygpufit internals required.
 
 With QEP-059, folded fits use absolute-GHz frequencies (D_ZFS + delta_f)
 and return a standard FitResult. No FoldedFitResult subclass exists.
@@ -9,14 +9,14 @@ and return a standard FitResult. No FoldedFitResult subclass exists.
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import numpy as np
 import pytest
 import xarray as xr
 from numpy.testing import assert_array_almost_equal
 
 from qdmpy.constants import D_ZFS, GAMMA_NV
+from qdmpy.exceptions import DependencyError
+from qdmpy.fitting.backends import BackendFitOutput, with_forced_availability
 from qdmpy.fitting.manager import FitManager
 from qdmpy.fitting.result import FitResult
 from qdmpy.odmr.folding import FoldedODMR, FoldingSettings
@@ -26,6 +26,7 @@ from qdmpy.settings import (
     ModelSettings,
     QDMpySettings,
 )
+from qdmpy.testing import FakeFitBackend
 
 # ── Settings ────────────────────────────────────────────────────────────────
 
@@ -122,6 +123,62 @@ def _make_mock_gpufit_result(n_pol: int, n_pixel: int, center: float) -> list:
     return [params, states, chi2, iters, exec_time]
 
 
+class _RecordingFixedBackend:
+    """FitBackend that records call inputs and returns a fixed ESRSINGLE result.
+
+    ``centers`` may be a single float (same centre for every call) or a list
+    of floats consumed one per call, mirroring Mock's ``side_effect`` — used
+    by tests that fit two frequency branches with different known centres.
+    """
+
+    name = "fixed"
+
+    def __init__(self, centers: float | list[float]) -> None:
+        self._centers = centers if isinstance(centers, list) else None
+        self._single_center = centers if not isinstance(centers, list) else None
+        self._call_index = 0
+        self.calls: list[dict] = []
+
+    def is_available(self) -> bool:
+        return True
+
+    def supports(self, model) -> bool:
+        return True
+
+    def fit(
+        self,
+        data,
+        freq_ghz,
+        initial_parameters,
+        constraints,
+        constraint_types,
+        model,
+        options,
+    ) -> BackendFitOutput:
+        self.calls.append(
+            {
+                "freq_ghz": np.asarray(freq_ghz),
+                "constraints": np.asarray(constraints),
+                "constraint_types": np.asarray(constraint_types),
+            }
+        )
+        center = self._centers[self._call_index] if self._centers is not None else self._single_center
+        self._call_index += 1
+
+        n_freqs = data.shape[-1]
+        n_fits = data.reshape((-1, n_freqs)).shape[0]
+        params, states, chi2, iterations, exec_time = _make_mock_gpufit_result(
+            1, n_fits, center=center
+        )
+        return BackendFitOutput(
+            parameters=params,
+            states=states,
+            chi2=chi2,
+            iterations=iterations,
+            execution_time=exec_time,
+        )
+
+
 # ── Folded FitResult B111 tests (QEP-059: absolute-GHz domain) ──────────────
 
 
@@ -210,85 +267,68 @@ class TestFoldedFitResultB111:
 class TestFitFolded:
     """Test FitManager.fit_folded() with mocked pyGpufit."""
 
-    @patch("pygpufit.gpufit.fit_constrained")
-    def test_returns_fit_result(self, mock_gf) -> None:
+    def test_returns_fit_result(self) -> None:
         """fit_folded() returns a standard FitResult (not a subclass)."""
         folded = _make_folded_odmr()
-        n_pol, n_pixel = 2, NY * NX
-        center_abs = D_ZFS + 0.028
-        mock_gf.return_value = _make_mock_gpufit_result(n_pol, n_pixel, center=center_abs)
+        backend = _RecordingFixedBackend(D_ZFS + 0.028)
 
-        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
+        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=backend)
         result = mgr.fit_folded(folded, pixel_spacing=4e-6)
 
         assert isinstance(result, FitResult)
         assert type(result) is FitResult
 
-    @patch("pygpufit.gpufit.fit_constrained")
-    def test_output_shape(self, mock_gf) -> None:
+    def test_output_shape(self) -> None:
         """b111_remanent has shape matching scan_dimensions."""
         folded = _make_folded_odmr()
-        n_pol, n_pixel = 2, NY * NX
-        mock_gf.return_value = _make_mock_gpufit_result(n_pol, n_pixel, center=D_ZFS + 0.028)
+        backend = _RecordingFixedBackend(D_ZFS + 0.028)
 
-        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
+        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=backend)
         result = mgr.fit_folded(folded, pixel_spacing=4e-6)
 
         assert result.scan_dimensions == (NY, NX)
         assert result.b111_remanent.shape == (NY, NX)
         assert result.b111_induced.shape == (NY, NX)
 
-    @patch("pygpufit.gpufit.fit_constrained")
-    def test_model_name_unchanged(self, mock_gf) -> None:
+    def test_model_name_unchanged(self) -> None:
         """Result model_name remains the base model name."""
         folded = _make_folded_odmr()
-        n_pol, n_pixel = 2, NY * NX
-        mock_gf.return_value = _make_mock_gpufit_result(n_pol, n_pixel, center=D_ZFS + 0.028)
+        backend = _RecordingFixedBackend(D_ZFS + 0.028)
 
-        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
+        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=backend)
         result = mgr.fit_folded(folded, pixel_spacing=4e-6)
 
         assert result.model_name == "ESRSINGLE"
 
-    @patch("pygpufit.gpufit.fit_constrained")
-    def test_metadata_folded_flag(self, mock_gf) -> None:
+    def test_metadata_folded_flag(self) -> None:
         """Result metadata contains folded_fit: True."""
         folded = _make_folded_odmr()
-        n_pol, n_pixel = 2, NY * NX
-        mock_gf.return_value = _make_mock_gpufit_result(n_pol, n_pixel, center=D_ZFS + 0.028)
+        backend = _RecordingFixedBackend(D_ZFS + 0.028)
 
-        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
+        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=backend)
         result = mgr.fit_folded(folded, pixel_spacing=4e-6)
 
         assert result.metadata.get("folded_fit") is True
 
-    @patch("pygpufit.gpufit.fit_constrained")
-    def test_no_gpu_raises_dependency_error(self, mock_gf) -> None:
-        """fit_folded() raises DependencyError when GPU is not available."""
-        from qdmpy.exceptions import DependencyError
-
+    def test_no_gpu_raises_dependency_error(self) -> None:
+        """fit_folded() raises DependencyError when the backend is not available."""
         folded = _make_folded_odmr()
-        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=False)
+        unavailable_backend = with_forced_availability(FakeFitBackend(), available=False)
+        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=unavailable_backend)
 
         with pytest.raises(DependencyError):
             mgr.fit_folded(folded)
 
-    @patch("pygpufit.gpufit.fit_constrained")
-    def test_constraints_in_absolute_ghz_domain(self, mock_gf) -> None:
+    def test_constraints_in_absolute_ghz_domain(self) -> None:
         """The inner FitManager uses absolute-GHz centre constraints."""
         folded = _make_folded_odmr()
-        n_pol, n_pixel = 2, NY * NX
-        mock_gf.return_value = _make_mock_gpufit_result(n_pol, n_pixel, center=D_ZFS + 0.028)
+        backend = _RecordingFixedBackend(D_ZFS + 0.028)
 
-        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
+        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=backend)
         mgr.fit_folded(folded, pixel_spacing=4e-6)
 
-        # Inspect the constraints array passed to gpufit
-        call_kwargs = mock_gf.call_args
-        constraints_arr = call_kwargs.kwargs.get(
-            "constraints", call_kwargs.args[1] if len(call_kwargs.args) > 1 else None
-        )
-        assert constraints_arr is not None
+        # Inspect the constraints array passed to the backend
+        constraints_arr = backend.calls[0]["constraints"]
         # column 0 = center_min, column 1 = center_max
         # With absolute_ghz mode: center_min=2.70, center_max=3.04
         center_min = float(constraints_arr[0, 0])
@@ -296,31 +336,23 @@ class TestFitFolded:
         assert center_min == pytest.approx(2.70, abs=0.01)
         assert center_max == pytest.approx(3.04, abs=0.01)
 
-    @patch("pygpufit.gpufit.fit_constrained")
-    def test_frequency_axis_shifted_to_absolute(self, mock_gf) -> None:
-        """Verify that the user_info (freq axis) is in absolute GHz, not delta_f."""
+    def test_frequency_axis_shifted_to_absolute(self) -> None:
+        """Verify that the freq axis is in absolute GHz, not delta_f."""
         folded = _make_folded_odmr()
-        n_pol, n_pixel = 2, NY * NX
-        mock_gf.return_value = _make_mock_gpufit_result(n_pol, n_pixel, center=D_ZFS + 0.028)
+        backend = _RecordingFixedBackend(D_ZFS + 0.028)
 
-        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
+        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=backend)
         mgr.fit_folded(folded, pixel_spacing=4e-6)
 
-        call_kwargs = mock_gf.call_args
-        user_info = call_kwargs.kwargs.get(
-            "user_info", call_kwargs.args[0] if len(call_kwargs.args) > 0 else None
-        )
-        assert user_info is not None
+        user_info = backend.calls[0]["freq_ghz"]
         # Frequencies should be D_ZFS + delta_f, so all > D_ZFS
         assert float(user_info.min()) > D_ZFS - 0.001
         assert float(user_info.min()) == pytest.approx(D_ZFS + DELTA_F[0], abs=1e-6)
 
-    @patch("pygpufit.gpufit.fit_constrained")
-    def test_preserves_explicit_center_constraints(self, mock_gf) -> None:
+    def test_preserves_explicit_center_constraints(self) -> None:
         """fit_folded() keeps explicit center bounds from the parent FitManager."""
         folded = _make_folded_odmr()
-        n_pol, n_pixel = 2, NY * NX
-        mock_gf.return_value = _make_mock_gpufit_result(n_pol, n_pixel, center=D_ZFS + 0.028)
+        backend = _RecordingFixedBackend(D_ZFS + 0.028)
 
         mgr = FitManager(
             model_name="ESRSINGLE",
@@ -332,15 +364,11 @@ class TestFitFolded:
                 }
             },
             settings=MOCK_SETTINGS,
-            gpu_available=True,
+            backend=backend,
         )
         mgr.fit_folded(folded, pixel_spacing=4e-6)
 
-        call_kwargs = mock_gf.call_args
-        constraints_arr = call_kwargs.kwargs.get(
-            "constraints", call_kwargs.args[1] if len(call_kwargs.args) > 1 else None
-        )
-        assert constraints_arr is not None
+        constraints_arr = backend.calls[0]["constraints"]
         center_min = float(constraints_arr[0, 0])
         center_max = float(constraints_arr[0, 1])
         assert center_min == pytest.approx(D_ZFS + 0.012, abs=1e-6)
@@ -422,8 +450,7 @@ class TestConstraintConversion:
         assert constraints["center"].vmin == pytest.approx(expected_min, abs=1e-6)
         assert constraints["center"].vmax == pytest.approx(expected_max, abs=1e-6)
 
-    @patch("pygpufit.gpufit.fit_constrained")
-    def test_mt_center_window_applied_per_branch(self, mock_gf) -> None:
+    def test_mt_center_window_applied_per_branch(self) -> None:
         """center_min_mt enforces a true [min, max] mT window per frequency branch."""
         settings = QDMpySettings(
             fit=FitSettings(estimator="LSE", max_number_iterations=100, tolerance=1e-6),
@@ -438,7 +465,6 @@ class TestConstraintConversion:
         )
 
         n_pol, ny, nx, n_freq = 2, 2, 2, 16
-        n_pixel = ny * nx
         low_freq = np.linspace(D_ZFS - 0.08, D_ZFS - 0.005, n_freq)
         high_freq = np.linspace(D_ZFS + 0.005, D_ZFS + 0.08, n_freq)
         freqs = np.stack([low_freq, high_freq], axis=0)
@@ -451,19 +477,16 @@ class TestConstraintConversion:
 
         low_center = D_ZFS - (3.0 * 1e-3 * GAMMA_NV)
         high_center = D_ZFS + (3.0 * 1e-3 * GAMMA_NV)
-        mock_gf.side_effect = [
-            _make_mock_gpufit_result(n_pol, n_pixel, center=low_center),
-            _make_mock_gpufit_result(n_pol, n_pixel, center=high_center),
-        ]
+        backend = _RecordingFixedBackend([low_center, high_center])
 
-        mgr = FitManager(model_name="ESRSINGLE", settings=settings, gpu_available=True)
+        mgr = FitManager(model_name="ESRSINGLE", settings=settings, backend=backend)
         _ = mgr.fit(data, freqs)
 
         delta_min = 2.0 * 1e-3 * GAMMA_NV
         delta_max = 7.0 * 1e-3 * GAMMA_NV
 
-        low_constraints = mock_gf.call_args_list[0].kwargs["constraints"]
-        high_constraints = mock_gf.call_args_list[1].kwargs["constraints"]
+        low_constraints = backend.calls[0]["constraints"]
+        high_constraints = backend.calls[1]["constraints"]
 
         assert float(low_constraints[0, 0]) == pytest.approx(D_ZFS - delta_max, abs=1e-6)
         assert float(low_constraints[0, 1]) == pytest.approx(D_ZFS - delta_min, abs=1e-6)
@@ -471,8 +494,7 @@ class TestConstraintConversion:
         assert float(high_constraints[0, 0]) == pytest.approx(D_ZFS + delta_min, abs=1e-6)
         assert float(high_constraints[0, 1]) == pytest.approx(D_ZFS + delta_max, abs=1e-6)
 
-    @patch("pygpufit.gpufit.fit_constrained")
-    def test_mt_center_window_applied_in_folded_fit(self, mock_gf) -> None:
+    def test_mt_center_window_applied_in_folded_fit(self) -> None:
         """Folded fit uses the high-branch window when center_min_mt > 0."""
         settings = QDMpySettings(
             fit=FitSettings(estimator="LSE", max_number_iterations=100, tolerance=1e-6),
@@ -487,19 +509,14 @@ class TestConstraintConversion:
         )
 
         folded = _make_folded_odmr()
-        n_pol, n_pixel = 2, NY * NX
-        mock_gf.return_value = _make_mock_gpufit_result(
-            n_pol,
-            n_pixel,
-            center=D_ZFS + (3.0 * 1e-3 * GAMMA_NV),
-        )
+        backend = _RecordingFixedBackend(D_ZFS + (3.0 * 1e-3 * GAMMA_NV))
 
-        mgr = FitManager(model_name="ESRSINGLE", settings=settings, gpu_available=True)
+        mgr = FitManager(model_name="ESRSINGLE", settings=settings, backend=backend)
         _ = mgr.fit_folded(folded, pixel_spacing=4e-6)
 
         delta_min = 2.0 * 1e-3 * GAMMA_NV
         delta_max = 7.0 * 1e-3 * GAMMA_NV
-        constraints = mock_gf.call_args.kwargs["constraints"]
+        constraints = backend.calls[0]["constraints"]
 
         assert float(constraints[0, 0]) == pytest.approx(D_ZFS + delta_min, abs=1e-6)
         assert float(constraints[0, 1]) == pytest.approx(D_ZFS + delta_max, abs=1e-6)

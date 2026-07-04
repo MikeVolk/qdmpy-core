@@ -16,9 +16,61 @@ from numpy.typing import NDArray
 from qdmpy.constants import D_ZFS, GAMMA_NV
 
 if TYPE_CHECKING:
+    from qdmpy.fitting.backends import BackendFitOutput, FitBackendOptions
+    from qdmpy.fitting.models import Model
     from qdmpy.fitting.result import FitResult
     from qdmpy.odmr.data import ODMRData
     from qdmpy.result import QDMResult
+
+
+class FakeFitBackend:
+    """Deterministic fit backend for tests — no GPU, no SciPy optimization.
+
+    Returns the supplied initial parameters unchanged, with every fit marked
+    converged (``states=0``) and ``chi2=0``. Lets FitManager/Measurement-
+    adjacent tests exercise the real fit pipeline end-to-end via dependency
+    injection instead of monkeypatching ``pygpufit`` internals (QEP-068).
+
+    Example:
+        >>> from qdmpy.fitting.manager import FitManager
+        >>> from qdmpy.testing import FakeFitBackend
+        >>> fit_manager = FitManager(model_name="ESRSINGLE", backend=FakeFitBackend())
+    """
+
+    name = "fake"
+
+    def is_available(self: FakeFitBackend) -> bool:
+        """Always available — this backend has no external dependency."""
+        return True
+
+    def supports(self: FakeFitBackend, model: Model) -> bool:  # noqa: ARG002
+        """Support any model; this backend never calls ``model.func``."""
+        return True
+
+    def fit(
+        self: FakeFitBackend,
+        data: NDArray,
+        freq_ghz: NDArray,  # noqa: ARG002
+        initial_parameters: NDArray,
+        constraints: NDArray,  # noqa: ARG002
+        constraint_types: NDArray,  # noqa: ARG002
+        model: Model,  # noqa: ARG002
+        options: FitBackendOptions,  # noqa: ARG002
+    ) -> BackendFitOutput:
+        """Echo back ``initial_parameters`` as a synthetic converged fit."""
+        from qdmpy.fitting.backends import BackendFitOutput
+
+        n_freqs = data.shape[-1]
+        n_fits = data.reshape((-1, n_freqs)).shape[0]
+        n_params = initial_parameters.shape[-1]
+        params = np.asarray(initial_parameters, dtype=np.float32).reshape((n_fits, n_params))
+        return BackendFitOutput(
+            parameters=params,
+            states=np.zeros(n_fits, dtype=np.int32),
+            chi2=np.zeros(n_fits, dtype=np.float32),
+            iterations=np.ones(n_fits, dtype=np.int32),
+            execution_time=0.0,
+        )
 
 
 def _dipole_field(shape: tuple[int, int], amplitude: float = 50.0) -> NDArray:

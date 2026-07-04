@@ -14,11 +14,18 @@ from abc import ABC, abstractmethod
 from typing import Any, ClassVar
 
 import numpy as np
-import pygpufit.gpufit as gf
 from loguru import logger
 from numpy.typing import NDArray
 
 from qdmpy.constants import AHYP_14N, AHYP_15N
+
+# Mirrors pygpufit.gpufit.ModelID values. Fixed protocol constants, not runtime
+# lookups, so Model never imports pygpufit — fitting/backends.py is the only
+# module that does (QEP-068). Custom CPU-only models use -1 (see Model docs
+# below) to signal "no gpufit model_id; fit via a CPU backend instead".
+_GPUFIT_MODEL_ID_ESR14N = 15
+_GPUFIT_MODEL_ID_ESR15N = 16
+_GPUFIT_MODEL_ID_ESRSINGLE = 17
 
 
 def esr14n(
@@ -453,7 +460,7 @@ class ESR14N(Model):
             ["center", "width", "contrast_0", "contrast_1", "contrast_2", "offset"],
         )
         self.ahyp = AHYP_14N
-        self.model_id = gf.ModelID.ESR14N
+        self.model_id = _GPUFIT_MODEL_ID_ESR14N
 
     @property
     def parameter_types(self: ESR14N) -> dict[str, str]:
@@ -495,7 +502,7 @@ class ESR15N(Model):
             ["center", "width", "contrast_0", "contrast_1", "offset"],
         )
         self.ahyp = AHYP_15N
-        self.model_id = gf.ModelID.ESR15N
+        self.model_id = _GPUFIT_MODEL_ID_ESR15N
 
     @property
     def parameter_types(self: ESR15N) -> dict[str, str]:
@@ -531,7 +538,7 @@ class ESRSINGLE(Model):
     def __init__(self: ESRSINGLE) -> None:
         """Initialize ESRSINGLE model with single-dip parameters."""
         super().__init__("ESRSINGLE", 1, ["center", "width", "contrast", "offset"])
-        self.model_id = gf.ModelID.ESRSINGLE
+        self.model_id = _GPUFIT_MODEL_ID_ESRSINGLE
 
     @property
     def parameter_types(self: ESRSINGLE) -> dict[str, str]:

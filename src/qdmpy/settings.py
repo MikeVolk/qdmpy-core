@@ -117,6 +117,14 @@ class FitSettings(BaseModel):
     estimator: Literal["LSE", "MLE"] = Field(default="MLE", description="Estimator type")
     max_number_iterations: int = Field(default=1000, description="Maximum iterations for fitting")
     tolerance: float = Field(default=1e-10, description="Fitting tolerance")
+    backend: Literal["auto", "gpufit", "scipy"] = Field(
+        default="auto",
+        description=(
+            "Fit optimizer backend. 'auto' uses gpufit if available and raises "
+            "otherwise (no silent CPU fallback); 'scipy' is a CPU backend for "
+            "custom models or GPU-less machines. See qdmpy.fitting.backends."
+        ),
+    )
 
     model_config = ConfigDict(extra="ignore")
 
@@ -331,10 +339,16 @@ def reset_settings() -> None:
 
 
 def is_pygpufit_available() -> bool:
-    """Return True if the pygpufit GPU fitting library can be imported."""
+    """Return True if the pygpufit GPU fitting library can be imported.
+
+    Catches both ``ImportError`` (package not installed) and ``OSError``
+    (package installed but its native library fails to load — e.g. a Linux
+    wheel's ``.so`` on macOS/Windows) so an incompatible pyGpufit install
+    degrades to "unavailable" instead of crashing at import time.
+    """
     try:
         import pygpufit.gpufit  # noqa: F401
-    except ImportError:
+    except (ImportError, OSError):
         return False
     else:
         return True

@@ -15,6 +15,7 @@ from numpy.typing import NDArray
 from qdmpy.exceptions import DataLoadError, DataNotLoadedError, DependencyError
 
 if TYPE_CHECKING:
+    from qdmpy.fitting.backends import FitBackend
     from qdmpy.fitting.manager import FitManager
     from qdmpy.fitting.refit import RefitSettings
     from qdmpy.fitting.result import FitResult
@@ -151,10 +152,26 @@ def load_measurement_folder_data(
     )
 
 
+def _backend_needs_gpufit_preflight(backend: FitBackend | str | None) -> bool:
+    """Whether the workflow-level GPU-availability guard applies to ``backend``.
+
+    Returns False only for an explicitly-requested non-gpufit backend (a
+    caller-supplied FitBackend instance, or a backend name other than
+    'auto'/'gpufit'), so requesting ``backend='scipy'`` isn't blocked by a
+    check that only makes sense for the gpufit path.
+    """
+    if backend is None:
+        return True
+    if isinstance(backend, str):
+        return backend in ("auto", "gpufit")
+    return False
+
+
 def validate_processed_odmr(
     odmr: ODMR,
     *,
     gpu_available: bool | None = None,
+    backend: FitBackend | str | None = None,
 ) -> ODMRData:
     """Return processed ODMR data after dependency validation."""
     try:
@@ -162,6 +179,9 @@ def validate_processed_odmr(
     except (AttributeError, ValueError, DataNotLoadedError) as exc:
         msg = "ODMR data must be processed before fitting. Call odmr.process_data() first."
         raise DataNotLoadedError(msg) from exc
+
+    if gpu_available is None and not _backend_needs_gpufit_preflight(backend):
+        return processed_data
 
     resolved_gpu_available = gpu_available
     if resolved_gpu_available is None:
@@ -183,6 +203,7 @@ def build_fit_manager(
     constraints: dict[str, Any] | None,
     freq_cutoff: dict[str, dict[str, float | None]] | None,
     settings: QDMpySettings | None = None,
+    backend: FitBackend | str | None = None,
     gpu_available: bool | None = None,
 ) -> FitManager:
     """Build the concrete FitManager used by Measurement workflows."""
@@ -193,6 +214,7 @@ def build_fit_manager(
         constraints=constraints,
         freq_cutoff=freq_cutoff,
         settings=settings,
+        backend=backend,
         gpu_available=gpu_available,
     )
 
@@ -220,6 +242,7 @@ def fit_measurement_odmr(
     light_image: NDArray,
     laser_image: NDArray,
     settings: QDMpySettings | None = None,
+    backend: FitBackend | str | None = None,
     gpu_available: bool | None = None,
 ) -> QDMResult:
     """Fit processed ODMR data and wrap the public result."""
@@ -228,6 +251,7 @@ def fit_measurement_odmr(
         constraints=constraints,
         freq_cutoff=freq_cutoff,
         settings=settings,
+        backend=backend,
         gpu_available=gpu_available,
     )
     fit_result = fit_manager.fit(
@@ -253,6 +277,7 @@ def refit_measurement_result(
     constraints: dict[str, Any] | None,
     freq_cutoff: dict[str, dict[str, float | None]] | None,
     fit_settings: QDMpySettings | None = None,
+    backend: FitBackend | str | None = None,
     gpu_available: bool | None = None,
 ) -> QDMResult:
     """Refit outlier pixels for either regular or folded measurement results."""
@@ -277,6 +302,7 @@ def refit_measurement_result(
         constraints=constraints,
         freq_cutoff=freq_cutoff,
         settings=fit_settings,
+        backend=backend,
         gpu_available=gpu_available,
     )
     new_fit_result = _refit_outliers(
@@ -321,6 +347,7 @@ def fit_folded_measurement_odmr(
     light_image: NDArray,
     laser_image: NDArray,
     fit_settings: QDMpySettings | None = None,
+    backend: FitBackend | str | None = None,
     gpu_available: bool | None = None,
 ) -> QDMResult:
     """Fit folded ODMR data and wrap the public result."""
@@ -336,6 +363,7 @@ def fit_folded_measurement_odmr(
         constraints=constraints,
         freq_cutoff=freq_cutoff,
         settings=fit_settings,
+        backend=backend,
         gpu_available=gpu_available,
     )
     fit_result = fit_manager.fit_folded(folded, pixel_spacing=pixel_spacing)

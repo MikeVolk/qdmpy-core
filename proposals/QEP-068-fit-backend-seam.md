@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Status** | Draft |
+| **Status** | Implemented (Phases 1-3; Phase 4 removal deferred to next minor release) |
 | **Priority** | P1 |
 | **Complexity** | M |
 | **Depends on** | QEP-029 (config/execution split), QEP-059 (constraint unification) |
@@ -289,7 +289,64 @@ workflow.
 
 ## Success Criteria
 
-- `pygpufit` is imported in exactly one module (`fitting/backends.py`).
-- Zero `gpu_available` parameters on public signatures at Phase 4.
-- A pure-Python registered model fits successfully via `backend='scipy'`.
+- `pygpufit` is imported in exactly one module (`fitting/backends.py`). ✅
+- Zero `gpu_available` parameters on public signatures at Phase 4. (Phase 4 —
+  actual removal — deferred; see below.)
+- A pure-Python registered model fits successfully via `backend='scipy'`. ✅
+  (`tests/test_fitting_backends.py::TestCustomPurePythonModel`)
 - Mock/patch sites across the four fit-adjacent test files reduced by ≥ 70%.
+  ✅ for `test_fit.py` and `test_folded_fit.py` (100% of
+  `@patch("pygpufit.gpufit.fit_constrained")` sites removed — 4 and 10 sites
+  respectively). Not attempted for `test_measurement.py`/`test_refit.py`; see
+  below.
+
+## Implementation Notes (2026-07-04)
+
+Phases 1-3 are implemented on `feature/qep-068-fit-backend-seam`. Notes on
+where the implementation refined the original design:
+
+- **A blocking prerequisite surfaced during implementation:**
+  `fitting/models.py` imported `pygpufit.gpufit` at module level solely to
+  read three integer `ModelID` constants. On any machine where pyGpufit's
+  native library fails to load (confirmed on macOS during this work — a
+  Linux wheel's `.so` cannot `dlopen`), this crashed `import qdmpy` itself,
+  before any dependency check could run, taking the entire test suite down
+  with it. Fixed by replacing the import with local integer constants
+  (`_GPUFIT_MODEL_ID_ESR14N` etc.) — `pygpufit` is now only ever imported
+  inside `GpufitBackend`, satisfying the "one import site" success criterion
+  as a side effect. `is_pygpufit_available()` also only caught `ImportError`,
+  not the `OSError` a broken binary actually raises — fixed alongside.
+- **Backend resolution is lazy, not eager.** The original design had
+  `resolve_backend('auto')` raise `DependencyError` immediately if gpufit
+  was unavailable. This broke the "configuration never touches hardware"
+  invariant `FitManager` already had (QEP-029): constructing a `FitManager`
+  previously always succeeded regardless of GPU availability; only `fit()`
+  raised. `resolve_backend()` now only *selects* a backend; availability is
+  checked lazily via `FitManager._require_backend_available()` at fit time,
+  exactly mirroring the boolean flag it replaces.
+- **`measurement_workflows.validate_processed_odmr`'s early GPU check was
+  narrowed, not deleted.** The draft's Design section said this check "loses
+  the GPU check" entirely. In practice existing tests
+  (`test_measurement.py::test_no_pygpufit` et al.) depend on it raising
+  `DependencyError` with the exact message `"pyGpufit is required..."` for
+  the default/gpufit path. The implemented version
+  (`_backend_needs_gpufit_preflight`) skips the early check only when the
+  caller explicitly requests a non-gpufit backend, preserving 100% backward
+  compatibility while still not blocking `backend='scipy'` fits.
+- **`test_measurement.py` / `test_refit.py` were not migrated.** Their
+  `@patch("qdmpy.fitting.manager.FitManager")` mocks operate one layer above
+  the backend seam — they test that `Measurement`/`refit` construct
+  `FitManager` with correct kwargs, not fitting behavior itself. They were
+  never broken by the pygpufit/OSError issue (the mock replaces the whole
+  class) and converting them to `FakeFitBackend` would change what they
+  assert (wiring → behavior), which is a separate, legitimate refactor.
+  Flagged here as a follow-up rather than folded into this QEP silently.
+- **`ScipyBackend` clips the initial guess into bounds** before calling
+  `scipy.optimize.least_squares` — discovered empirically:
+  `gf.fit_constrained` tolerates an initial guess outside the constraint
+  bounds, but `least_squares` raises `ValueError: Initial guess is outside
+  of provided bounds`. Not itemized in the original design; documented in
+  `ScipyBackend._fit_all_pixels`.
+- **Phase 4 (removing `gpu_available`) is intentionally not done** in this
+  pass — it is a breaking change gated on a release cycle, per the QEP's own
+  migration plan.

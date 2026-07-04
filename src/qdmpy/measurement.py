@@ -45,6 +45,7 @@ _UNSET: object = object()
 if TYPE_CHECKING:
     from os import PathLike
 
+    from qdmpy.fitting.backends import FitBackend
     from qdmpy.fitting.refit import RefitSettings
     from qdmpy.odmr.data import ODMRData
     from qdmpy.result import QDMResult
@@ -257,6 +258,7 @@ class Measurement:
     def _validate_fit_prerequisites(
         self: Self,
         *,
+        backend: FitBackend | str | None = None,
         gpu_available: bool | None = None,
     ) -> ODMRData:
         """Validate that processed data and GPU fitting are available.
@@ -268,7 +270,7 @@ class Measurement:
             DataNotLoadedError: If ODMR data hasn't been processed.
             DependencyError: If pyGpufit is not available.
         """
-        return validate_processed_odmr(self.odmr, gpu_available=gpu_available)
+        return validate_processed_odmr(self.odmr, gpu_available=gpu_available, backend=backend)
 
     def fit_odmr(
         self: Self,
@@ -279,6 +281,7 @@ class Measurement:
         refit_outliers: bool = False,
         refit_settings: RefitSettings | None = None,
         settings: QDMpySettings | None = None,
+        backend: FitBackend | str | None = None,
         gpu_available: bool | None = None,
     ) -> QDMResult:
         """Fit ODMR spectra and return unified result container.
@@ -294,8 +297,10 @@ class Measurement:
             refit_settings: Configuration for outlier detection and refitting.
                 Only used when refit_outliers=True. Defaults to RefitSettings().
             settings: Optional explicit settings object forwarded to FitManager.
-            gpu_available: Optional explicit override for GPU dependency
-                availability checks.
+            backend: Optional FitBackend instance, or a backend name
+                ('auto', 'gpufit', 'scipy'). See qdmpy.fitting.backends (QEP-068).
+            gpu_available: Deprecated; use ``backend`` instead. Optional
+                explicit override for GPU dependency availability checks.
 
         Returns:
             QDMResult containing FitResult and lazy MagneticMap access.
@@ -306,7 +311,9 @@ class Measurement:
         """
         model_name = model_name or self._fit_model
         logger.info("Starting ODMR fitting with model: {}", model_name)
-        processed_data = self._validate_fit_prerequisites(gpu_available=gpu_available)
+        processed_data = self._validate_fit_prerequisites(
+            backend=backend, gpu_available=gpu_available
+        )
         result = fit_measurement_odmr(
             processed_data,
             pixel_spacing=self.pixel_spacing,
@@ -316,6 +323,7 @@ class Measurement:
             light_image=self.light_image,
             laser_image=self.laser_image,
             settings=settings,
+            backend=backend,
             gpu_available=gpu_available,
         )
         logger.info("ODMR fitting completed successfully")
@@ -327,6 +335,7 @@ class Measurement:
                 constraints=constraints,
                 freq_cutoff=freq_cutoff,
                 settings=settings,
+                backend=backend,
                 gpu_available=gpu_available,
             )
 
@@ -340,6 +349,7 @@ class Measurement:
         constraints: dict[str, Any] | None = None,
         freq_cutoff: dict[str, dict[str, float | None]] | None = None,
         settings: QDMpySettings | None = None,
+        backend: FitBackend | str | None = None,
         gpu_available: bool | None = None,
     ) -> QDMResult:
         """Refit bad pixels in an existing result using neighbor-derived initial guesses.
@@ -359,8 +369,10 @@ class Measurement:
                 same schema as fit_odmr()/fit_folded_odmr().
             settings: Optional explicit settings object forwarded to FitManager
                 for the refit.
-            gpu_available: Optional explicit override for GPU dependency
-                availability checks.
+            backend: Optional FitBackend instance, or a backend name. See
+                qdmpy.fitting.backends (QEP-068).
+            gpu_available: Deprecated; use ``backend`` instead. Optional
+                explicit override for GPU dependency availability checks.
 
         Returns:
             New QDMResult with outlier pixels replaced by refit values.
@@ -371,7 +383,9 @@ class Measurement:
         """
         processed_data = None
         if not result.fit_result.metadata.get("folded_fit", False):
-            processed_data = self._validate_fit_prerequisites(gpu_available=gpu_available)
+            processed_data = self._validate_fit_prerequisites(
+                backend=backend, gpu_available=gpu_available
+            )
 
         return refit_measurement_result(
             result,
@@ -383,6 +397,7 @@ class Measurement:
             constraints=constraints,
             freq_cutoff=freq_cutoff,
             fit_settings=settings,
+            backend=backend,
             gpu_available=gpu_available,
         )
 
@@ -476,6 +491,7 @@ class Measurement:
         refit_outliers: bool = False,
         refit_settings: RefitSettings | None = None,
         settings: QDMpySettings | None = None,
+        backend: FitBackend | str | None = None,
         gpu_available: bool | None = None,
     ) -> QDMResult:
         """Fit a folded ODMR spectrum and return a unified result container.
@@ -504,8 +520,10 @@ class Measurement:
             refit_settings: Configuration for outlier detection and refitting.
                 Only used when refit_outliers=True. Defaults to RefitSettings().
             settings: Optional explicit settings object forwarded to FitManager.
-            gpu_available: Optional explicit override for GPU dependency
-                availability checks.
+            backend: Optional FitBackend instance, or a backend name. See
+                qdmpy.fitting.backends (QEP-068).
+            gpu_available: Deprecated; use ``backend`` instead. Optional
+                explicit override for GPU dependency availability checks.
 
         Returns:
             QDMResult containing FitResult and lazy MagneticMap access.
@@ -517,7 +535,7 @@ class Measurement:
         """
         resolved_folded = folded if folded is not None else self.folded_odmr
         model_name = model_name or self._fit_model
-        self._validate_fit_prerequisites(gpu_available=gpu_available)
+        self._validate_fit_prerequisites(backend=backend, gpu_available=gpu_available)
 
         logger.info("Starting folded ODMR fitting")
         result = fit_folded_measurement_odmr(
@@ -529,6 +547,7 @@ class Measurement:
             light_image=self.light_image,
             laser_image=self.laser_image,
             fit_settings=settings,
+            backend=backend,
             gpu_available=gpu_available,
         )
         logger.info("Folded ODMR fitting completed successfully")
@@ -539,6 +558,7 @@ class Measurement:
                 constraints=constraints,
                 freq_cutoff=freq_cutoff,
                 settings=settings,
+                backend=backend,
                 gpu_available=gpu_available,
             )
         return result
