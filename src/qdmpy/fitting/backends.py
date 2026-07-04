@@ -4,14 +4,16 @@ QEP-068. This module is the only place ``pygpufit`` may be imported — every
 availability check and every call into the GPU library is funneled through
 :class:`GpufitBackend`. ``FitManager`` depends on the :class:`FitBackend`
 protocol, never on pygpufit directly, which makes the optimizer swappable
-(GPU, CPU, or a test fake) without touching fitting logic.
+without touching fitting logic. Adapters: :class:`GpufitBackend` (CUDA),
+:class:`~qdmpy.fitting.torch_backend.TorchBackend` (cuda/mps/cpu, QEP-069),
+:class:`ScipyBackend` (per-pixel CPU), plus test fakes via the protocol.
 """
 
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 import numpy as np
 from loguru import logger
@@ -97,6 +99,10 @@ class GpufitBackend:
     """
 
     name = "gpufit"
+    install_hint = (
+        "Install pyGpufit, or use backend='torch' (`uv sync --extra gpu`) "
+        "or backend='scipy'."
+    )
 
     def is_available(self: GpufitBackend) -> bool:
         """Return True if pyGpufit can be imported on this machine."""
@@ -269,23 +275,33 @@ class ScipyBackend:
         constraint_types: NDArray,
         n_params: int,
     ) -> tuple[NDArray, NDArray]:
-        """Map the (n_pixel, 2*n_params) constraint array to scipy bounds.
+        """Delegate to the shared :func:`bounds_from_constraints`."""
+        return bounds_from_constraints(constraints, constraint_types, n_params)
 
-        ``constraint_types`` (one entry per parameter) selects which bound
-        columns are active: LOWER/LOWER_UPPER activates vmin, UPPER/LOWER_UPPER
-        activates vmax, FREE leaves both at +/-inf regardless of the array.
-        """
-        constraints = np.asarray(constraints, dtype=np.float64)
-        n_pixel = constraints.shape[0]
-        lower = np.full((n_pixel, n_params), -np.inf)
-        upper = np.full((n_pixel, n_params), np.inf)
-        for j in range(n_params):
-            ctype = CONSTRAINT_TYPES[constraint_types[j]]
-            if ctype in ("LOWER", "LOWER_UPPER"):
-                lower[:, j] = constraints[:, 2 * j]
-            if ctype in ("UPPER", "LOWER_UPPER"):
-                upper[:, j] = constraints[:, 2 * j + 1]
-        return lower, upper
+
+def bounds_from_constraints(
+    constraints: NDArray,
+    constraint_types: NDArray,
+    n_params: int,
+) -> tuple[NDArray, NDArray]:
+    """Map the (n_pixel, 2*n_params) constraint array to (lower, upper) bounds.
+
+    ``constraint_types`` (one entry per parameter) selects which bound
+    columns are active: LOWER/LOWER_UPPER activates vmin, UPPER/LOWER_UPPER
+    activates vmax, FREE leaves both at +/-inf regardless of the array.
+    Shared by ScipyBackend and TorchBackend (QEP-069).
+    """
+    constraints = np.asarray(constraints, dtype=np.float64)
+    n_pixel = constraints.shape[0]
+    lower = np.full((n_pixel, n_params), -np.inf)
+    upper = np.full((n_pixel, n_params), np.inf)
+    for j in range(n_params):
+        ctype = CONSTRAINT_TYPES[constraint_types[j]]
+        if ctype in ("LOWER", "LOWER_UPPER"):
+            lower[:, j] = constraints[:, 2 * j]
+        if ctype in ("UPPER", "LOWER_UPPER"):
+            upper[:, j] = constraints[:, 2 * j + 1]
+    return lower, upper
 
 
 class _ForcedAvailability:
@@ -331,15 +347,93 @@ def with_forced_availability(backend: FitBackend, *, available: bool) -> FitBack
     return _ForcedAvailability(backend, available)
 
 
-_BACKENDS_BY_NAME: dict[str, type] = {}
+class AutoBackend:
+    """Lazy delegate behind ``backend='auto'`` (QEP-069).
+
+    Picks, at first use (never at construction — the config/execution split
+    from QEP-029 means choosing a backend must not touch hardware):
+
+    1. :class:`GpufitBackend` if pyGpufit is importable;
+    2. else :class:`~qdmpy.fitting.torch_backend.TorchBackend` if torch is
+       installed **and** a real GPU device (cuda/mps) is available;
+    3. else unavailable — fitting raises a DependencyError listing all
+       remedies.
+
+    Torch-CPU and scipy are never auto-selected: a full frame on a CPU
+    optimizer silently taking minutes-to-hours is worse than a clear error
+    naming the explicit opt-in.
+    """
+
+    name = "auto"
+
+    install_hint = (
+        "No GPU fit backend found: pyGpufit is not installed and no torch GPU "
+        "device (cuda/mps) is available. Install pyGpufit, or install torch via "
+        "`uv sync --extra gpu` / `pip install 'qdmpy[gpu]'`, or explicitly opt "
+        "into a CPU fit with backend='torch' or backend='scipy'."
+    )
+
+    def _delegate(self: AutoBackend) -> FitBackend | None:
+        """Resolve the concrete backend.
+
+        Intentionally uncached so test-time availability patching is always
+        honoured (the underlying imports are process-cached anyway).
+        """
+        gpufit = GpufitBackend()
+        if gpufit.is_available():
+            return gpufit
+        from qdmpy.fitting.torch_backend import TorchBackend, torch_gpu_device_available
+
+        if torch_gpu_device_available():
+            return TorchBackend()
+        return None
+
+    def is_available(self: AutoBackend) -> bool:
+        """Return True if either gpufit or a torch GPU device can fit."""
+        return self._delegate() is not None
+
+    def supports(self: AutoBackend, model: Model) -> bool:
+        """Forward to the resolved delegate; False when none is available."""
+        delegate = self._delegate()
+        return delegate is not None and delegate.supports(model)
+
+    def fit(
+        self: AutoBackend,
+        data: NDArray,
+        freq_ghz: NDArray,
+        initial_parameters: NDArray,
+        constraints: NDArray,
+        constraint_types: NDArray,
+        model: Model,
+        options: FitBackendOptions,
+    ) -> BackendFitOutput:
+        """Fit via the resolved delegate, raising with remedies when none exists."""
+        delegate = self._delegate()
+        if delegate is None:
+            raise DependencyError(self.install_hint)
+        logger.debug("Auto backend delegating to '{}'", delegate.name)
+        return delegate.fit(
+            data, freq_ghz, initial_parameters, constraints, constraint_types, model, options
+        )
 
 
-def _register_backend_name(name: str, factory: type) -> None:
+def _torch_backend_factory() -> FitBackend:
+    """Deferred import: torch_backend imports from this module (no cycle)."""
+    from qdmpy.fitting.torch_backend import TorchBackend
+
+    return TorchBackend()
+
+
+_BACKENDS_BY_NAME: dict[str, Any] = {}
+
+
+def _register_backend_name(name: str, factory: Any) -> None:  # noqa: ANN401
     _BACKENDS_BY_NAME[name] = factory
 
 
 _register_backend_name("gpufit", GpufitBackend)
 _register_backend_name("scipy", ScipyBackend)
+_register_backend_name("torch", _torch_backend_factory)
 
 
 def resolve_backend(spec: FitBackend | str | None) -> FitBackend:
@@ -353,23 +447,24 @@ def resolve_backend(spec: FitBackend | str | None) -> FitBackend:
     happens to be unavailable on this machine; only fitting should.
 
     Args:
-        spec: ``'auto'`` or ``None`` resolves to the gpufit backend.
-            ``'gpufit'``/``'scipy'`` request a specific backend by name. Any
-            other value is assumed to already be a :class:`FitBackend`
-            instance and is returned unchanged.
+        spec: ``'auto'`` or ``None`` resolves to :class:`AutoBackend`
+            (gpufit if available, else torch on a real GPU device, else
+            unavailable). ``'gpufit'``/``'scipy'``/``'torch'`` request a
+            specific backend by name. Any other value is assumed to already
+            be a :class:`FitBackend` instance and is returned unchanged.
 
     Returns:
         A concrete FitBackend, not yet checked for availability. ``'auto'``
-        never silently falls back between backends — a missing gpufit
-        install surfaces a DependencyError at fit time naming the explicit
-        opt-in (``backend='scipy'``) rather than transparently switching to
-        a much slower CPU fit on production-sized data.
+        never silently falls back to a CPU optimizer — on a machine with
+        neither pygpufit nor a torch GPU device, fitting raises a
+        DependencyError naming the explicit opt-ins (``backend='torch'`` /
+        ``backend='scipy'``) rather than transparently taking minutes on CPU.
 
     Raises:
         ParameterError: If ``spec`` is an unrecognised string.
     """
     if spec is None or spec == "auto":
-        return GpufitBackend()
+        return AutoBackend()
 
     if isinstance(spec, str):
         if spec not in _BACKENDS_BY_NAME:

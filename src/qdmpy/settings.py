@@ -117,12 +117,13 @@ class FitSettings(BaseModel):
     estimator: Literal["LSE", "MLE"] = Field(default="MLE", description="Estimator type")
     max_number_iterations: int = Field(default=1000, description="Maximum iterations for fitting")
     tolerance: float = Field(default=1e-10, description="Fitting tolerance")
-    backend: Literal["auto", "gpufit", "scipy"] = Field(
+    backend: Literal["auto", "gpufit", "scipy", "torch"] = Field(
         default="auto",
         description=(
-            "Fit optimizer backend. 'auto' uses gpufit if available and raises "
-            "otherwise (no silent CPU fallback); 'scipy' is a CPU backend for "
-            "custom models or GPU-less machines. See qdmpy.fitting.backends."
+            "Fit optimizer backend. 'auto' uses gpufit if available, else "
+            "torch when a real GPU device (cuda/mps) exists, else raises "
+            "(never a silent CPU fallback). 'torch' (any device incl. CPU) "
+            "and 'scipy' are explicit opt-ins. See qdmpy.fitting.backends."
         ),
     )
 

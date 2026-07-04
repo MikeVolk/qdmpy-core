@@ -15,8 +15,10 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from qdmpy.exceptions import ParameterError
+from qdmpy.exceptions import DependencyError, ParameterError
 from qdmpy.fitting.backends import (
+    AutoBackend,
+    FitBackendOptions,
     GpufitBackend,
     ScipyBackend,
     resolve_backend,
@@ -31,11 +33,11 @@ from qdmpy.testing import FakeFitBackend, make_synthetic_odmr_data
 class TestResolveBackend:
     """Backend name/instance resolution matrix."""
 
-    def test_auto_resolves_to_gpufit(self) -> None:
-        assert isinstance(resolve_backend("auto"), GpufitBackend)
+    def test_auto_resolves_to_auto_backend(self) -> None:
+        assert isinstance(resolve_backend("auto"), AutoBackend)
 
-    def test_none_resolves_to_gpufit(self) -> None:
-        assert isinstance(resolve_backend(None), GpufitBackend)
+    def test_none_resolves_to_auto_backend(self) -> None:
+        assert isinstance(resolve_backend(None), AutoBackend)
 
     def test_gpufit_name_resolves_to_gpufit(self) -> None:
         assert isinstance(resolve_backend("gpufit"), GpufitBackend)
@@ -53,10 +55,58 @@ class TestResolveBackend:
 
     def test_auto_never_raises_at_resolution_time(self) -> None:
         """Resolution never touches availability (config/execution split)."""
-        with patch("qdmpy.settings.is_pygpufit_available", return_value=False):
+        with (
+            patch("qdmpy.settings.is_pygpufit_available", return_value=False),
+            patch("qdmpy.fitting.torch_backend.torch_gpu_device_available", return_value=False),
+        ):
             backend = resolve_backend("auto")
-            assert isinstance(backend, GpufitBackend)
+            assert isinstance(backend, AutoBackend)
             assert backend.is_available() is False
+
+
+class TestAutoBackendDelegation:
+    """AutoBackend picks gpufit -> torch-GPU -> unavailable (QEP-069)."""
+
+    def test_delegates_to_gpufit_when_available(self) -> None:
+        with patch("qdmpy.settings.is_pygpufit_available", return_value=True):
+            delegate = AutoBackend()._delegate()
+        assert isinstance(delegate, GpufitBackend)
+
+    def test_delegates_to_torch_when_gpufit_missing_and_gpu_present(self) -> None:
+        with (
+            patch("qdmpy.settings.is_pygpufit_available", return_value=False),
+            patch("qdmpy.fitting.torch_backend.torch_gpu_device_available", return_value=True),
+        ):
+            delegate = AutoBackend()._delegate()
+        from qdmpy.fitting.torch_backend import TorchBackend
+
+        assert isinstance(delegate, TorchBackend)
+
+    def test_never_falls_back_to_cpu_backends(self) -> None:
+        """No gpufit and no torch GPU device -> unavailable, not scipy/torch-CPU."""
+        with (
+            patch("qdmpy.settings.is_pygpufit_available", return_value=False),
+            patch("qdmpy.fitting.torch_backend.torch_gpu_device_available", return_value=False),
+        ):
+            backend = AutoBackend()
+            assert backend._delegate() is None
+            assert backend.is_available() is False
+
+    def test_fit_without_delegate_raises_triple_remedy_hint(self) -> None:
+        with (
+            patch("qdmpy.settings.is_pygpufit_available", return_value=False),
+            patch("qdmpy.fitting.torch_backend.torch_gpu_device_available", return_value=False),
+            pytest.raises(DependencyError, match="--extra gpu"),
+        ):
+            AutoBackend().fit(
+                data=np.ones((2, 10), dtype=np.float32),
+                freq_ghz=np.linspace(2.87, 2.88, 10),
+                initial_parameters=np.ones((2, 4), dtype=np.float32),
+                constraints=np.zeros((2, 8), dtype=np.float32),
+                constraint_types=np.zeros(4, dtype=np.int32),
+                model=ModelRegistry.get("ESRSINGLE"),
+                options=FitBackendOptions(),
+            )
 
 
 class TestGpufitBackendSupports:

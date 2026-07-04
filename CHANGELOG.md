@@ -7,6 +7,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (QEP-069: torch fit backend)
+
+- **`qdmpy.fitting.torch_backend.TorchBackend`** — architecture-independent
+  GPU fitting via a batched Levenberg-Marquardt engine in PyTorch, one code
+  path for CUDA, Apple-silicon MPS, and CPU. All fits in a chunk advance in
+  parallel (stacked finite-difference Jacobians, batched Cholesky
+  normal-equation solves, active-set handling of box constraints, working-set
+  compaction). On an Apple-silicon MPS device: ~31,000 fits/s on synthetic
+  ESR14N frames (~5 min for a full 1200x1920 x 2-pol x 2-range frame) with
+  100% convergence — versus hours for the per-pixel ScipyBackend.
+- **`gpu` optional extra** — `uv sync --extra gpu` / `pip install
+  'qdmpy[gpu]'` installs torch (>=2.4). torch is imported lazily inside the
+  backend only; `import qdmpy` never pays the torch import cost (guarded by a
+  subprocess test).
+- **Framework-neutral models** — the built-in model functions now use
+  `_ensure_2d` instead of `np.atleast_2d`, so the *same* physics code
+  evaluates numpy arrays and torch tensors (no duplicated kernels). Custom
+  models written with pure arithmetic/broadcasting are GPU-fittable
+  automatically; numpy-only models get a clear error naming
+  `backend='scipy'`.
+- **`fit.backend` gains `'torch'`**; `TorchBackend(device=..., chunk_size=...)`
+  exposes device override (cuda/mps/cpu/auto) and GPU-memory chunking.
+- **`tests/test_fitting_torch_backend.py`** and
+  **`tests/integration/test_torch_consistency.py`** — LM unit tests (bounds,
+  clamping, chunk-invariance, NaN handling, device resolution, custom
+  models) plus the same recovery contract as the gpufit consistency suite,
+  from true and perturbed starts, parametrized over every locally available
+  device (cpu always; mps/cuda when present).
+
+### Changed (QEP-069: torch fit backend)
+
+- **`backend='auto'` resolution** — now gpufit if available, **else torch
+  when a real GPU device (cuda/mps) exists**, else a DependencyError listing
+  all remedies. Machines where fitting previously failed outright (e.g.
+  Apple silicon) now work with zero configuration once the `gpu` extra is
+  installed; CUDA/gpufit machines are unaffected. CPU fitting (torch-CPU,
+  scipy) remains an explicit opt-in — never a silent fallback.
+- The workflow-level pygpufit preflight now applies only to an explicit
+  `backend='gpufit'` request; `'auto'` defers to
+  `FitManager._require_backend_available()`, whose error now includes the
+  backend's install hint.
+
 ### Added (QEP-068: fit backend seam)
 
 - **`qdmpy.fitting.backends`** — new module defining the `FitBackend`

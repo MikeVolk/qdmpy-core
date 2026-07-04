@@ -430,12 +430,24 @@ class TestValidateFitPrerequisites:
         with pytest.raises(DataNotLoadedError, match="ODMR data must be processed"):
             m._validate_fit_prerequisites()
 
-    def test_no_pygpufit(self, measurement) -> None:
+    def test_no_pygpufit_default_backend_defers_to_fitmanager(self, measurement) -> None:
+        """Default/auto backend no longer preflight-raises on missing pygpufit.
+
+        Since QEP-069 'auto' may legitimately resolve to the torch backend, so
+        the workflow preflight only applies to an explicit backend='gpufit';
+        for auto the fail-fast happens in FitManager._require_backend_available.
+        """
+        with patch("qdmpy.settings.is_pygpufit_available", return_value=False):
+            processed = measurement._validate_fit_prerequisites()
+
+        assert processed is measurement.odmr.processed_data
+
+    def test_no_pygpufit_explicit_gpufit_backend_raises(self, measurement) -> None:
         with (
             patch("qdmpy.settings.is_pygpufit_available", return_value=False),
             pytest.raises(DependencyError, match="pyGpufit is required"),
         ):
-            measurement._validate_fit_prerequisites()
+            measurement._validate_fit_prerequisites(backend="gpufit")
 
     def test_explicit_gpu_override_skips_global_lookup(self, measurement) -> None:
         with patch(
@@ -567,14 +579,14 @@ class TestFitFoldedODMR:
             measurement.fit_folded_odmr()
 
     def test_validates_gpu(self, measurement) -> None:
-        """fit_folded_odmr() checks GPU availability."""
+        """fit_folded_odmr() with explicit gpufit backend checks pygpufit availability."""
         measurement._folded_odmr = _make_folded_odmr()
 
         with (
             patch("qdmpy.settings.is_pygpufit_available", return_value=False),
             pytest.raises(DependencyError, match="pyGpufit is required"),
         ):
-            measurement.fit_folded_odmr()
+            measurement.fit_folded_odmr(backend="gpufit")
 
     def test_fit_model_wiring(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """fit_folded_odmr() uses _fit_model when model_name is None."""

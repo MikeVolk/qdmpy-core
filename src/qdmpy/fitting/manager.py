@@ -78,8 +78,9 @@ class FitManager:
                         'high': {'min': float|None, 'max': float|None}}.
             settings: Optional QDMpySettings instance (defaults to global get_settings()).
             backend: Optional FitBackend instance, or a backend name
-                ('auto', 'gpufit', 'scipy'). Defaults to ``settings.fit.backend``.
-                See :mod:`qdmpy.fitting.backends` (QEP-068).
+                ('auto', 'gpufit', 'scipy', 'torch'). Defaults to
+                ``settings.fit.backend``. See :mod:`qdmpy.fitting.backends`
+                (QEP-068) and :mod:`qdmpy.fitting.torch_backend` (QEP-069).
             gpu_available: Deprecated; use ``backend`` instead. Optional GPU
                 availability override.
 
@@ -146,9 +147,10 @@ class FitManager:
     def _require_backend_available(self: Self) -> None:
         """Raise DependencyError if the resolved backend cannot run here."""
         if not self._backend.is_available():
+            hint = getattr(self._backend, "install_hint", "")
             msg = (
                 f"Fit backend '{self._backend.name}' is required for fitting "
-                "but is not available"
+                "but is not available." + (f" {hint}" if hint else "")
             )
             raise DependencyError(msg)
 

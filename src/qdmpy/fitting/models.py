@@ -28,6 +28,25 @@ _GPUFIT_MODEL_ID_ESR15N = 16
 _GPUFIT_MODEL_ID_ESRSINGLE = 17
 
 
+def _ensure_2d(parameter: NDArray) -> NDArray:
+    """Framework-neutral ``np.atleast_2d`` for model parameter arrays.
+
+    ``np.atleast_2d`` on a torch tensor would trigger ``__array__`` and
+    silently copy the data to a CPU numpy array, defeating GPU fitting
+    (QEP-069). This helper reshapes anything that already has ``.ndim``
+    (numpy arrays *and* torch tensors) without conversion, and coerces
+    plain Python sequences via ``np.asarray`` to preserve the previous
+    behaviour for list inputs.
+    """
+    if not hasattr(parameter, "ndim"):
+        parameter = np.asarray(parameter)
+    if parameter.ndim == 0:
+        return parameter.reshape(1, 1)
+    if parameter.ndim == 1:
+        return parameter.reshape(1, -1)
+    return parameter
+
+
 def esr14n(
     x: NDArray[np.floating],
     parameter: NDArray[np.floating],
@@ -71,7 +90,7 @@ def esr14n(
         >>> params = np.array([2.87, 0.002, 0.1, 0.2, 0.1, 0.0])
         >>> spectrum = esr14n(x, params)
     """
-    parameter = np.atleast_2d(parameter)
+    parameter = _ensure_2d(parameter)
     center = parameter[:, 0:1]
     width_sq = parameter[:, 1:2] ** 2
     c0, c1, c2 = parameter[:, 2:3], parameter[:, 3:4], parameter[:, 4:5]
@@ -124,7 +143,7 @@ def esr15n(
         >>> params = np.array([2.87, 0.002, 0.15, 0.15, 0.0])
         >>> spectrum = esr15n(x, params)
     """
-    parameter = np.atleast_2d(parameter)
+    parameter = _ensure_2d(parameter)
     center = parameter[:, 0:1]
     width_sq = parameter[:, 1:2] ** 2
     c0, c1 = parameter[:, 2:3], parameter[:, 3:4]
@@ -167,7 +186,7 @@ def esrsingle(x: NDArray[np.floating], parameter: NDArray[np.floating]) -> NDArr
         >>> params = np.array([2.875, 0.003, 0.2, 0.0])
         >>> spectrum = esrsingle(x, params)
     """
-    parameter = np.atleast_2d(parameter)
+    parameter = _ensure_2d(parameter)
     center = parameter[:, 0:1]
     width_sq = parameter[:, 1:2] ** 2
     contrast = parameter[:, 2:3]
@@ -191,7 +210,12 @@ class Model(ABC):
     **Custom model contract:**
 
     To add a new ESR line-shape model, subclass ``Model``, set the required
-    class-level attributes, and register it with ``@ModelRegistry.register``:
+    class-level attributes, and register it with ``@ModelRegistry.register``.
+    ``func`` must use only framework-neutral operations — arithmetic,
+    broadcasting, and slicing that work identically on numpy arrays and
+    torch tensors (no ``np.*`` calls on ``x`` or ``parameters``). Models
+    written this way are fittable on the GPU via ``backend='torch'``
+    (QEP-069); numpy-only models remain fittable via ``backend='scipy'``:
 
     .. code-block:: python
 

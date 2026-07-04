@@ -30,6 +30,13 @@ dependencies = [
     "tomli>=2.4.0",
 ]
 
+[project.optional-dependencies]
+# Architecture-independent GPU fitting (QEP-069): TorchBackend runs on
+# CUDA, Apple-silicon MPS, and CPU. Install with `uv sync --extra gpu`.
+gpu = [
+    "torch>=2.4",
+]
+
 [project.urls]
 Documentation = "https://mikevolk.github.io/qdmpy-core"
 Homepage = "https://mikevolk.github.io/qdmpy-core"

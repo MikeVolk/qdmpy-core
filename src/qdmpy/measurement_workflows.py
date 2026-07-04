@@ -153,18 +153,15 @@ def load_measurement_folder_data(
 
 
 def _backend_needs_gpufit_preflight(backend: FitBackend | str | None) -> bool:
-    """Whether the workflow-level GPU-availability guard applies to ``backend``.
+    """Whether the workflow-level pygpufit guard applies to ``backend``.
 
-    Returns False only for an explicitly-requested non-gpufit backend (a
-    caller-supplied FitBackend instance, or a backend name other than
-    'auto'/'gpufit'), so requesting ``backend='scipy'`` isn't blocked by a
-    check that only makes sense for the gpufit path.
+    Only an explicit ``backend='gpufit'`` request hard-requires pygpufit here.
+    ``'auto'``/None may legitimately resolve to the torch backend (QEP-069),
+    so preflighting pygpufit for them would wrongly block torch-capable
+    machines; their fail-fast happens in
+    ``FitManager._require_backend_available()`` with the richer install hint.
     """
-    if backend is None:
-        return True
-    if isinstance(backend, str):
-        return backend in ("auto", "gpufit")
-    return False
+    return isinstance(backend, str) and backend == "gpufit"
 
 
 def validate_processed_odmr(
