@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (QEP-068: fit backend seam)
+
+- **QEP-068 proposal** — new draft proposal introducing a `FitBackend`
+  protocol (gpufit / scipy / test-fake adapters) to replace the scattered
+  `gpu_available` plumbing, revive the CPU custom-model contract, and make
+  fit-adjacent tests injectable (`proposals/QEP-068-fit-backend-seam.md`).
+
 ### Changed (QEP-067: architecture boundaries)
 
 - **`.qdm` field-source round-tripping** — `qdmpy.io.load_qdm()` now restores
