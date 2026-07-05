@@ -470,6 +470,97 @@ class TestFitting:
         assert result1 is not result2
 
 
+class TestPipelineStages:
+    """Unit tests for the extracted fit() pipeline stages (QEP-070 phase 3)."""
+
+    def test_prepare_data_shapes(self, sample_data, sample_frequencies) -> None:
+        from qdmpy.fitting.manager import _PreparedFitInputs
+
+        prepared = FitManager._prepare_data(sample_data, sample_frequencies)
+        assert isinstance(prepared, _PreparedFitInputs)
+        assert prepared.flat_data.shape == (2, 1, 4, 10)
+        assert prepared.freq_ghz.shape == (1, 10)
+        assert prepared.scan_dimensions == (2, 2)
+        assert prepared.n_pol == 2
+        assert prepared.n_frange == 1
+        assert prepared.n_pixel == 4
+        assert prepared.n_freq == 10
+
+    def test_resolve_model_already_set(self) -> None:
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        model = fit._resolve_model(np.zeros((2, 1, 4, 10)))
+        assert model is fit.model
+
+    def test_resolve_model_auto_detects(self, sample_data, sample_frequencies) -> None:
+        fit = FitManager(model_name="auto", settings=MOCK_SETTINGS)
+        resolved_model = ESRSINGLE()
+        prepared = FitManager._prepare_data(sample_data, sample_frequencies)
+        with patch("qdmpy.fitting.manager.guess_model", return_value=resolved_model):
+            model = fit._resolve_model(prepared.flat_data)
+        assert model is resolved_model
+        assert fit.model is resolved_model
+
+    def test_resolve_model_raises_if_unresolved(self) -> None:
+        fit = FitManager(model_name="auto", settings=MOCK_SETTINGS)
+        with (
+            patch.object(fit, "_resolve_auto_model", return_value=None),
+            pytest.raises(ModelNotResolvedError, match="Model must be set"),
+        ):
+            fit._resolve_model(np.zeros((2, 1, 4, 10)))
+
+    def test_guess_parameters_shape(self, sample_data, sample_frequencies) -> None:
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        prepared = FitManager._prepare_data(sample_data, sample_frequencies)
+        range_data = prepared.flat_data[:, 0]
+        range_freq = prepared.freq_ghz[0]
+        initial = fit._guess_parameters(fit.model, range_data, range_freq)
+        assert initial.shape == (prepared.n_pol, prepared.n_pixel, fit.model.n_parameters)
+
+    def test_assemble_result_quality_metrics(self) -> None:
+        from qdmpy.fitting.manager import _PreparedFitInputs, _RangeFitOutputs
+
+        model = ModelRegistry.get("ESRSINGLE")
+        n_frange, n_pol, n_pixel = 1, 2, 4
+        raw = _RangeFitOutputs(
+            params=np.ones((n_frange, n_pol, n_pixel, model.n_parameters), dtype=np.float32),
+            states=np.zeros((n_frange, n_pol, n_pixel), dtype=np.int32),
+            chi2=np.zeros((n_frange, n_pol, n_pixel), dtype=np.float32),
+            iterations=np.ones((n_frange, n_pol, n_pixel), dtype=np.int32),
+            exec_times=(0.5,),
+        )
+        prepared = _PreparedFitInputs(
+            flat_data=np.zeros((n_pol, n_frange, n_pixel, 10)),
+            freq_ghz=np.zeros((n_frange, 10)),
+            scan_dimensions=(2, 2),
+        )
+        result = FitManager._assemble_result(raw, model, prepared, pixel_spacing=4e-6)
+        assert result.metadata["quality_metrics"]["total_fit_time"] == pytest.approx(0.5)
+        assert result.metadata["quality_metrics"]["convergence_rate"] == pytest.approx(1.0)
+        assert result.scan_dimensions == (2, 2)
+
+    def test_assemble_result_merges_extra_metadata(self) -> None:
+        from qdmpy.fitting.manager import _PreparedFitInputs, _RangeFitOutputs
+
+        model = ModelRegistry.get("ESRSINGLE")
+        n_frange, n_pol, n_pixel = 1, 2, 4
+        raw = _RangeFitOutputs(
+            params=np.ones((n_frange, n_pol, n_pixel, model.n_parameters), dtype=np.float32),
+            states=np.zeros((n_frange, n_pol, n_pixel), dtype=np.int32),
+            chi2=np.zeros((n_frange, n_pol, n_pixel), dtype=np.float32),
+            iterations=np.ones((n_frange, n_pol, n_pixel), dtype=np.int32),
+            exec_times=(0.0,),
+        )
+        prepared = _PreparedFitInputs(
+            flat_data=np.zeros((n_pol, n_frange, n_pixel, 10)),
+            freq_ghz=np.zeros((n_frange, 10)),
+            scan_dimensions=(2, 2),
+        )
+        result = FitManager._assemble_result(
+            raw, model, prepared, pixel_spacing=4e-6, extra_metadata={"folded_fit": True}
+        )
+        assert result.metadata["folded_fit"] is True
+
+
 def test_set_constraints_missing_param() -> None:
     """Test set_constraints with a missing parameter."""
     fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)

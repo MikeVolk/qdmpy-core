@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime
 import warnings
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Self
 
 import numpy as np
@@ -50,9 +51,47 @@ from qdmpy.odmr._validators import validate_frequencies
 from qdmpy.settings import QDMpySettings, get_settings
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from qdmpy.odmr.folding import FoldedODMR
 
 _MIN_FREQ_POINTS = 10
+
+
+@dataclass(frozen=True)
+class _PreparedFitInputs:
+    """Flattened, validated fit inputs shared by fit() and fit_folded()."""
+
+    flat_data: NDArray  # (n_pol, n_frange, n_pixel, n_freq)
+    freq_ghz: NDArray  # (n_frange, n_freq)
+    scan_dimensions: tuple[int, int]
+
+    @property
+    def n_pol(self: Self) -> int:
+        return self.flat_data.shape[0]
+
+    @property
+    def n_frange(self: Self) -> int:
+        return self.flat_data.shape[1]
+
+    @property
+    def n_pixel(self: Self) -> int:
+        return self.flat_data.shape[2]
+
+    @property
+    def n_freq(self: Self) -> int:
+        return self.flat_data.shape[3]
+
+
+@dataclass(frozen=True)
+class _RangeFitOutputs:
+    """Per-frange, per-polarity, per-pixel results from _fit_all_franges()."""
+
+    params: NDArray  # (n_frange, n_pol, n_pixel, n_params)
+    states: NDArray  # (n_frange, n_pol, n_pixel)
+    chi2: NDArray  # (n_frange, n_pol, n_pixel)
+    iterations: NDArray  # (n_frange, n_pol, n_pixel)
+    exec_times: tuple[float, ...]
 
 
 class FitManager:
@@ -248,25 +287,86 @@ class FitManager:
             DataValidationError: If data or frequencies fail validation.
         """
         self._require_backend_available()
-
         self._validate_inputs(data, frequencies)
+        prepared = self._prepare_data(data, frequencies)
+        return self._fit_prepared(prepared, pixel_spacing=pixel_spacing)
+
+    @staticmethod
+    def _prepare_data(data: xr.DataArray, frequencies: NDArray) -> _PreparedFitInputs:
+        """Flatten ODMR data into the pipeline's working shape.
+
+        Args:
+            data: xr.DataArray with dims (polarity, freq_range, y, x, freq_idx).
+            frequencies: Frequency array in GHz, shape (n_frange, n_freq).
+
+        Returns:
+            _PreparedFitInputs with 4D flattened data, 2D frequency array, and
+            scan dimensions.
+        """
         f_ghz = np.atleast_2d(frequencies)
-
         values = data.values  # (n_pol, n_frange, y, x, n_freq)
-        n_pol, n_frange = values.shape[0], values.shape[1]
-        self._validate_freq_cutoff_for_n_ranges(n_frange)
-        n_freq = values.shape[-1]
+        n_pol, n_frange, n_freq = values.shape[0], values.shape[1], values.shape[-1]
         flat_data = values.reshape(n_pol, n_frange, -1, n_freq)
-        n_pixel = flat_data.shape[2]
+        scan_dimensions = (data.sizes["y"], data.sizes["x"])
+        return _PreparedFitInputs(
+            flat_data=flat_data, freq_ghz=f_ghz, scan_dimensions=scan_dimensions
+        )
 
+    def _resolve_model(self: Self, detection_data: NDArray) -> Model:
+        """Resolve the fitting model, auto-detecting from `detection_data` if needed.
+
+        Args:
+            detection_data: 4D array (n_pol, n_frange, n_pixel, n_freq) used for
+                model auto-detection when constructed with model_name='auto'.
+
+        Returns:
+            The resolved Model.
+
+        Raises:
+            ModelNotResolvedError: If the model is still unresolved after detection.
+        """
         if self._model is None:
-            self._resolve_auto_model(flat_data)
-
+            self._resolve_auto_model(detection_data)
         if self._model is None:
             msg = "Model must be set before fitting"
             raise ModelNotResolvedError(msg)
-        model: Model = self._model
+        return self._model
 
+    def _guess_parameters(
+        self: Self, model: Model, range_data: NDArray, range_freq: NDArray
+    ) -> NDArray:
+        """Generate initial parameter guesses for one (post-cutoff) frequency range.
+
+        Args:
+            model: Resolved fitting model.
+            range_data: Data for one range, shape (n_pol, n_pixel, n_freq).
+            range_freq: Frequency axis (GHz) for this range, shape (n_freq,).
+
+        Returns:
+            NDArray of shape (n_pol, n_pixel, n_params).
+        """
+        guesser = ParameterGuesser(model, np.atleast_2d(range_freq))
+        return guesser.guess(range_data[:, np.newaxis, :, :])[:, 0]
+
+    def _fit_all_franges(
+        self: Self,
+        prepared: _PreparedFitInputs,
+        model: Model,
+        base_constraints: dict[str, Constraint],
+    ) -> _RangeFitOutputs:
+        """Fit every frequency range, applying per-range constraints and cutoffs.
+
+        Args:
+            prepared: Flattened data/frequencies from _prepare_data().
+            model: Resolved fitting model.
+            base_constraints: Constraint mapping each range starts from (the
+                per-range mT center window, if any, is layered on top without
+                mutating shared state).
+
+        Returns:
+            _RangeFitOutputs with per-frange, per-pol, per-pixel results.
+        """
+        n_frange, n_pol, n_pixel = prepared.n_frange, prepared.n_pol, prepared.n_pixel
         all_params = np.empty((n_frange, n_pol, n_pixel, model.n_parameters), dtype=np.float32)
         all_states = np.empty((n_frange, n_pol, n_pixel), dtype=np.int32)
         all_chi2 = np.empty((n_frange, n_pol, n_pixel), dtype=np.float32)
@@ -274,10 +374,10 @@ class FitManager:
         exec_times: list[float] = []
 
         for irange in range(n_frange):
-            freq_min = f_ghz[irange].min()
-            freq_max = f_ghz[irange].max()
+            freq_min = prepared.freq_ghz[irange].min()
+            freq_max = prepared.freq_ghz[irange].max()
             effective_constraints = self._effective_constraints_for_range(
-                self.constraints, f_ghz[irange]
+                base_constraints, prepared.freq_ghz[irange]
             )
             logger.info(
                 "Fitting frequency range {} from {:.3f}-{:.3f} GHz",
@@ -287,15 +387,14 @@ class FitManager:
             )
 
             range_data, range_freq = self._apply_freq_cutoff_for_range(
-                flat_data[:, irange],
-                f_ghz[irange],
+                prepared.flat_data[:, irange],
+                prepared.freq_ghz[irange],
                 irange,
                 n_frange,
             )
-            guesser = ParameterGuesser(model, np.atleast_2d(range_freq))
-            initial_params = guesser.guess(range_data[:, np.newaxis, :, :])
+            initial_params = self._guess_parameters(model, range_data, range_freq)
             output = self._run_backend_fit(
-                range_data, range_freq, initial_params[:, 0], model, effective_constraints
+                range_data, range_freq, initial_params, model, effective_constraints
             )
             raw = [
                 output.parameters,
@@ -304,7 +403,9 @@ class FitManager:
                 output.iterations,
                 output.execution_time,
             ]
-            shaped = self._reshape_frange_results(raw, data_shape=flat_data[:, irange].shape)
+            shaped = self._reshape_frange_results(
+                raw, data_shape=prepared.flat_data[:, irange].shape
+            )
             all_params[irange] = shaped[0]
             all_states[irange] = shaped[1]
             all_chi2[irange] = shaped[2]
@@ -312,13 +413,40 @@ class FitManager:
             exec_times.append(shaped[4])
             logger.info("Fit finished in {:.2f} seconds", shaped[4])
 
-        # Transpose from (n_frange, n_pol, ...) to (n_pol, n_frange, ...)
-        params_pf = np.swapaxes(all_params, 0, 1)  # (n_pol, n_frange, n_pixel, n_params)
-        states_pf = np.swapaxes(all_states, 0, 1)  # (n_pol, n_frange, n_pixel)
-        chi2_pf = np.swapaxes(all_chi2, 0, 1)  # (n_pol, n_frange, n_pixel)
+        return _RangeFitOutputs(
+            params=all_params,
+            states=all_states,
+            chi2=all_chi2,
+            iterations=all_iters,
+            exec_times=tuple(exec_times),
+        )
 
-        scan_dimensions = (data.sizes["y"], data.sizes["x"])
-        h, w = scan_dimensions
+    @staticmethod
+    def _assemble_result(
+        raw: _RangeFitOutputs,
+        model: Model,
+        prepared: _PreparedFitInputs,
+        pixel_spacing: float,
+        extra_metadata: Mapping[str, Any] | None = None,
+    ) -> FitResult:
+        """Transpose per-frange results into a FitResult with quality metrics.
+
+        Args:
+            raw: Per-frange fit outputs from _fit_all_franges().
+            model: Resolved fitting model.
+            prepared: Flattened data/frequencies (for scan_dimensions).
+            pixel_spacing: Physical pixel spacing in meters.
+            extra_metadata: Optional extra keys merged into FitResult.metadata.
+
+        Returns:
+            FitResult containing all fitted parameters and analysis methods.
+        """
+        # Transpose from (n_frange, n_pol, ...) to (n_pol, n_frange, ...)
+        params_pf = np.swapaxes(raw.params, 0, 1)  # (n_pol, n_frange, n_pixel, n_params)
+        states_pf = np.swapaxes(raw.states, 0, 1)  # (n_pol, n_frange, n_pixel)
+        chi2_pf = np.swapaxes(raw.chi2, 0, 1)  # (n_pol, n_frange, n_pixel)
+
+        h, w = prepared.scan_dimensions
         n_pol, n_frange = params_pf.shape[:2]
 
         # Reshape flat spatial dimension to 2D (H, W)
@@ -335,20 +463,52 @@ class FitManager:
             "convergence_rate": float(np.mean(states_pf == 0)),
             "n_pixels": int(chi2_pf.size),
             "n_converged": int(np.sum(states_pf == 0)),
-            "total_fit_time": sum(exec_times),
+            "total_fit_time": sum(raw.exec_times),
         }
         metadata = {
             "fit_timestamp": datetime.datetime.now().isoformat(),
             "quality_metrics": quality_metrics,
+            **(extra_metadata or {}),
         }
 
         return FitResult(
             parameters=parameters,
-            scan_dimensions=scan_dimensions,
+            scan_dimensions=prepared.scan_dimensions,
             pixel_spacing=pixel_spacing,
             model_name=model.name,
             metadata=metadata,
         )
+
+    def _fit_prepared(
+        self: Self,
+        prepared: _PreparedFitInputs,
+        *,
+        pixel_spacing: float,
+        detection_data: NDArray | None = None,
+        extra_metadata: Mapping[str, Any] | None = None,
+    ) -> FitResult:
+        """Shared internal execution path for fit() and fit_folded() (QEP-070).
+
+        Args:
+            prepared: Flattened data/frequencies from _prepare_data().
+            pixel_spacing: Physical pixel spacing in meters.
+            detection_data: 4D array used for auto-model detection; defaults to
+                `prepared.flat_data` when not given.
+            extra_metadata: Optional extra keys merged into FitResult.metadata.
+
+        Returns:
+            FitResult containing all fitted parameters and analysis methods.
+
+        Raises:
+            DataValidationError: If freq_cutoff is incompatible with the range count.
+            ModelNotResolvedError: If the model is still unresolved after detection.
+        """
+        self._validate_freq_cutoff_for_n_ranges(prepared.n_frange)
+        model = self._resolve_model(
+            detection_data if detection_data is not None else prepared.flat_data
+        )
+        raw = self._fit_all_franges(prepared, model, self.constraints)
+        return self._assemble_result(raw, model, prepared, pixel_spacing, extra_metadata)
 
     def _mt_center_window_for_range(self: Self, freq_ghz: NDArray) -> tuple[float, float] | None:
         """Compute the mT-mode center window for one frequency range, if any.
