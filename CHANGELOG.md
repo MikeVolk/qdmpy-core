@@ -7,14 +7,45 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### Added (QEP-070: fit pipeline unification, proposal)
+### Added (QEP-070: fit pipeline unification)
 
-- **`proposals/QEP-070-fit-pipeline-unification.md`** — decomposes
-  `FitManager.fit()` into independently testable stages, routes `fit_folded()`
-  through the same internal execution path (removing its second-`FitManager`
-  construction), fixes a mid-fit `ConstraintManager` mutation bug, and
-  extracts `freq_cutoff` parsing into a frozen `FreqCutoff` value object.
-  Supersedes QEP-FIT-003 and QEP-060.
+- **`qdmpy.fitting.freq_cutoff.FreqCutoff`** — frozen value object replacing
+  ~110 lines of inline `freq_cutoff` dict parsing in `FitManager`, with its
+  own independently-tested schema/range validation.
+- **`qdmpy.fitting.constraints.constraints_to_array` /
+  `constraint_type_indices`** — pure module-level projections extracted from
+  `ConstraintManager.to_array`/`.get_constraint_types`.
+- **`qdmpy.fitting.constraints.ConstraintOverride`** — frozen value object for
+  per-parameter-type constraint overrides, used by `fit_folded()`'s
+  contrast/offset bounds instead of constructing a second `FitManager`.
+- `FitManager.fit()` decomposed into independently unit-tested stages
+  (`_prepare_data`, `_resolve_model`, `_guess_parameters`, `_fit_all_franges`,
+  `_assemble_result`) composed through a shared `_fit_prepared()` internal
+  execution path also used by `fit_folded()`.
+- `tests/test_fit_pipeline_parity.py`, `tests/test_freq_cutoff.py` — parity,
+  characterization, and unit test coverage for the above.
+
+### Fixed (QEP-070: fit pipeline unification)
+
+- `FitManager.fit()` no longer mutates the shared `ConstraintManager` mid-fit
+  when applying per-frange mT center-window bounds — the last frange's window
+  used to leak into the manager's stored constraints, contradicting the
+  documented "stateless between calls" contract. Per-range constraints are
+  now computed fresh and layered via `Constraint.with_updates()` without
+  writing back to shared state.
+- `fit_folded()` no longer hand-rebuilds the folded-to-fit-inputs conversion
+  or constructs a second `FitManager`; it now calls
+  `FoldedODMR.to_fit_inputs()` (the same conversion the refit path already
+  used) and delegates to the shared `_fit_prepared()` path.
+
+### Changed (QEP-070: fit pipeline unification)
+
+- `FitManager._param_idx()`'s undocumented `"resonance"`/`"mean_contrast"`
+  parameter aliases now raise `DeprecationWarning` before remapping to
+  `"center"`/`"contrast"`.
+
+Supersedes QEP-FIT-003 and QEP-060 — see
+`proposals/QEP-070-fit-pipeline-unification.md`.
 
 ### Added (QEP-069: torch fit backend)
 

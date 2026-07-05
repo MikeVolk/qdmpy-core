@@ -66,6 +66,10 @@ _FOLDED_CONSTRAINT_OVERRIDES: dict[str, ConstraintOverride] = {
     "offset": ConstraintOverride(vmin=-0.5, vmax=3.0, constraint_type="LOWER_UPPER"),
 }
 
+# Undocumented legacy names accepted by _param_idx(); deprecated in favor of
+# the parameter-type names used everywhere else (QEP-070).
+_PARAM_ALIASES: dict[str, str] = {"resonance": "center", "mean_contrast": "contrast"}
+
 
 @dataclass(frozen=True)
 class _PreparedFitInputs:
@@ -106,10 +110,16 @@ class _RangeFitOutputs:
 class FitManager:
     """Manages fitting operations for ODMR spectral data.
 
-    Configuration (model, constraints) is set at construction time.
-    Data is provided per-call via fit(), keeping the instance stateless between calls.
-    The same FitManager can be reused with different data, returning an independent
-    FitResult each time.
+    Configuration (model, constraints) is set at construction time. Data is
+    provided per-call via fit()/fit_folded(), and no call mutates the shared
+    constraint state — per-range constraint overrides (mT center windows,
+    folded contrast/offset bounds) are computed fresh each call and never
+    written back to the manager. The same FitManager can be reused with
+    different data, returning an independent FitResult each time.
+
+    The one stateful transition is model resolution: constructing with
+    ``model_name='auto'`` leaves the model unset until the first fit() or
+    fit_folded() call, after which it is fixed for the manager's lifetime.
     """
 
     def __init__(
@@ -810,10 +820,14 @@ class FitManager:
         if self._model is None:
             msg = "Model not yet resolved"
             raise ModelNotResolvedError(msg)
-        if parameter == "resonance":
-            parameter = "center"
-        if parameter == "mean_contrast":
-            parameter = "contrast"
+        if parameter in _PARAM_ALIASES:
+            canonical = _PARAM_ALIASES[parameter]
+            warnings.warn(
+                f"Parameter alias '{parameter}' is deprecated; use '{canonical}' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            parameter = canonical
         idx = [
             i
             for i, p in enumerate(self._model.parameter_names)

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Status** | Draft |
+| **Status** | Implemented |
 | **Priority** | P1 |
 | **Complexity** | L |
 | **Depends on** | QEP-068 (fit backend seam), QEP-069 (torch backend) |

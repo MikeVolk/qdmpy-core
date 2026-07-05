@@ -927,10 +927,20 @@ def test_param_idx() -> None:
     # ESR14N params: [center, width, contrast_0, contrast_1, contrast_2, offset]
     # center is at index 0
     assert fit._param_idx("center") == [0]
-    assert fit._param_idx("resonance") == [0]
 
     with pytest.raises(ParameterError):
         fit._param_idx("invalid_param")
+
+
+def test_param_idx_aliases_are_deprecated() -> None:
+    """resonance/mean_contrast are deprecated aliases for center/contrast."""
+    fit = FitManager(model_name="ESR14N", settings=MOCK_SETTINGS)
+
+    with pytest.deprecated_call(match="resonance"):
+        assert fit._param_idx("resonance") == [0]
+
+    with pytest.deprecated_call(match="mean_contrast"):
+        assert fit._param_idx("mean_contrast") == [2, 3, 4]
 
 
 def test_get_initial_parameter_via_guesser(sample_data, sample_frequencies) -> None:

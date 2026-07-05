@@ -289,6 +289,17 @@ class TestPerFrangeMtCenterWindow:
             D_ZFS + delta_min, abs=1e-6
         )
 
+    def test_repeated_fit_under_mt_settings_yields_identical_results(self) -> None:
+        """Two fit() calls on the same manager under mT settings must be independent."""
+        data, freqs = _make_two_frange_data()
+        mgr = FitManager(model_name="ESRSINGLE", settings=MT_SETTINGS, backend=FakeFitBackend())
+
+        result1 = mgr.fit(data, freqs)
+        result2 = mgr.fit(data, freqs)
+
+        for key in result1.parameters:
+            np.testing.assert_array_equal(result1.parameters[key], result2.parameters[key])
+
 
 class TestFoldedNonFoldedParity:
     """fit_folded() must reach the backend with the same effective inputs as a
