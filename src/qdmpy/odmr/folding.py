@@ -196,11 +196,13 @@ class FoldedODMR(BaseModel):
         spec_vals = self.folded_spectrum.values  # (n_pol, ny, nx, n_df)
         delta_f_ghz: NDArray = self.folded_spectrum.coords["delta_f_ghz"].values
         abs_freq_ghz = D_ZFS + delta_f_ghz
+        pol_labels = list(self.folded_spectrum.coords["polarity"].values)
 
         data_5d = np.expand_dims(spec_vals, axis=1)
         data_xr = xr.DataArray(
             data_5d,
             dims=("polarity", "freq_range", "y", "x", "freq_idx"),
+            coords={"polarity": pol_labels, "freq_range": ["folded"]},
         )
         frequencies = abs_freq_ghz.reshape(1, -1)
         return data_xr, frequencies

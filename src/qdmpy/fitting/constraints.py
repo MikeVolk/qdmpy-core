@@ -77,6 +77,20 @@ class Constraint:
         )
 
 
+@dataclass(frozen=True)
+class ConstraintOverride:
+    """A vmin/vmax/constraint_type override applied to one parameter type.
+
+    Used by ``FitManager`` to layer per-call constraint overrides (e.g. the
+    folded-fit contrast/offset bounds) onto a base constraint mapping without
+    constructing a second manager.
+    """
+
+    vmin: float
+    vmax: float
+    constraint_type: str
+
+
 def constraints_to_array(
     constraints: Mapping[str, Constraint], n_pixel: int, parameter_names: list[str]
 ) -> NDArray:

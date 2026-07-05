@@ -39,6 +39,7 @@ from qdmpy.fitting.constraints import (
     CONSTRAINT_TYPES,
     Constraint,
     ConstraintManager,
+    ConstraintOverride,
     constraint_type_indices,
     constraints_to_array,
 )
@@ -56,6 +57,14 @@ if TYPE_CHECKING:
     from qdmpy.odmr.folding import FoldedODMR
 
 _MIN_FREQ_POINTS = 10
+
+# Folded spectra average two branches together, shifting contrast/offset
+# baselines relative to a single unfolded branch; fit_folded() layers these
+# onto the caller's constraints for contrast/offset parameters only.
+_FOLDED_CONSTRAINT_OVERRIDES: dict[str, ConstraintOverride] = {
+    "contrast": ConstraintOverride(vmin=0.001, vmax=1.0, constraint_type="LOWER_UPPER"),
+    "offset": ConstraintOverride(vmin=-0.5, vmax=3.0, constraint_type="LOWER_UPPER"),
+}
 
 
 @dataclass(frozen=True)
@@ -479,12 +488,43 @@ class FitManager:
             metadata=metadata,
         )
 
+    def _base_constraints_with_overrides(
+        self: Self,
+        model: Model,
+        overrides: Mapping[str, ConstraintOverride] | None,
+    ) -> dict[str, Constraint]:
+        """Return this manager's constraints, with per-parameter-type overrides applied.
+
+        Args:
+            model: Resolved fitting model (maps parameter name -> parameter type).
+            overrides: Optional constraint override keyed by parameter type
+                (e.g. ``{"contrast": ConstraintOverride(...)}``).
+
+        Returns:
+            `self.constraints` unchanged when no overrides are given, else a new
+            dict with matching parameters replaced via `Constraint.with_updates()`.
+        """
+        base = self.constraints
+        if not overrides:
+            return base
+        effective = dict(base)
+        for param_name, param_type in model.parameter_types.items():
+            override = overrides.get(param_type)
+            if override is not None:
+                effective[param_name] = base[param_name].with_updates(
+                    vmin=override.vmin,
+                    vmax=override.vmax,
+                    constraint_type=override.constraint_type,
+                )
+        return effective
+
     def _fit_prepared(
         self: Self,
         prepared: _PreparedFitInputs,
         *,
         pixel_spacing: float,
         detection_data: NDArray | None = None,
+        constraint_overrides: Mapping[str, ConstraintOverride] | None = None,
         extra_metadata: Mapping[str, Any] | None = None,
     ) -> FitResult:
         """Shared internal execution path for fit() and fit_folded() (QEP-070).
@@ -494,6 +534,8 @@ class FitManager:
             pixel_spacing: Physical pixel spacing in meters.
             detection_data: 4D array used for auto-model detection; defaults to
                 `prepared.flat_data` when not given.
+            constraint_overrides: Optional per-parameter-type constraint
+                overrides (used by fit_folded()).
             extra_metadata: Optional extra keys merged into FitResult.metadata.
 
         Returns:
@@ -507,7 +549,8 @@ class FitManager:
         model = self._resolve_model(
             detection_data if detection_data is not None else prepared.flat_data
         )
-        raw = self._fit_all_franges(prepared, model, self.constraints)
+        base_constraints = self._base_constraints_with_overrides(model, constraint_overrides)
+        raw = self._fit_all_franges(prepared, model, base_constraints)
         return self._assemble_result(raw, model, prepared, pixel_spacing, extra_metadata)
 
     def _mt_center_window_for_range(self: Self, freq_ghz: NDArray) -> tuple[float, float] | None:
@@ -882,86 +925,20 @@ class FitManager:
         """
         self._require_backend_available()
 
-        # Extract delta_f axis and shift to absolute GHz
-        delta_f_ghz: NDArray = folded.folded_spectrum.coords["delta_f_ghz"].values
-        abs_freq_ghz = D_ZFS + delta_f_ghz
-        n_df = len(abs_freq_ghz)
+        data_xr, freq_2d = folded.to_fit_inputs()
+        self._validate_inputs(data_xr, freq_2d)
+        prepared = self._prepare_data(data_xr, freq_2d)
 
-        spec_vals = folded.folded_spectrum.values  # (n_pol, ny, nx, n_df)
-        pol_labels = list(folded.folded_spectrum.coords["polarity"].values)
+        detection_data = None
+        if raw_data is not None:
+            detection_data = raw_data.reshape(
+                raw_data.shape[0], raw_data.shape[1], -1, raw_data.shape[-1]
+            )
 
-        # Build xr.DataArray: (n_pol, 1, ny, nx, n_df) matching fit() expected dims
-        data_5d = np.expand_dims(spec_vals, axis=1)
-        data_xr = xr.DataArray(
-            data_5d,
-            dims=("polarity", "freq_range", "y", "x", "freq_idx"),
-            coords={
-                "polarity": pol_labels,
-                "freq_range": ["folded"],
-            },
-        )
-
-        # Frequency array in absolute GHz: shape (1, n_df)
-        freq_2d = abs_freq_ghz.reshape(1, n_df)
-
-        # Resolve auto model if needed
-        if self._model is None:
-            if raw_data is not None:
-                detection_flat = raw_data.reshape(
-                    raw_data.shape[0], raw_data.shape[1], -1, raw_data.shape[-1]
-                )
-            else:
-                n_freq = data_5d.shape[-1]
-                detection_flat = data_5d.reshape(data_5d.shape[0], data_5d.shape[1], -1, n_freq)
-            self._resolve_auto_model(detection_flat)
-
-        if self._model is None:
-            msg = "Model must be set before fitting"
-            raise ModelNotResolvedError(msg)
-        model: Model = self._model
-
-        # Start from this manager's active constraints so caller-provided overrides
-        # (e.g. fit_folded_odmr(..., constraints=...)) are preserved.
-        folded_constraints: dict[str, dict[str, float | str]] = {}
-        for param_name, constraint in self.constraints.items():
-            folded_constraints[param_name] = {
-                "vmin": float(constraint.vmin),
-                "vmax": float(constraint.vmax),
-                "constraint_type": str(constraint.constraint_type),
-            }
-
-        # Override contrast/offset bounds for folded spectra (baseline ~1.0 from
-        # averaging two branches), while keeping center/width constraints unchanged.
-        for param_name, param_type in model.parameter_types.items():
-            if param_type == "contrast":
-                folded_constraints[param_name] = {
-                    "vmin": 0.001,
-                    "vmax": 1.0,
-                    "constraint_type": "LOWER_UPPER",
-                }
-            elif param_type == "offset":
-                folded_constraints[param_name] = {
-                    "vmin": -0.5,
-                    "vmax": 3.0,
-                    "constraint_type": "LOWER_UPPER",
-                }
-
-        folded_mgr = FitManager(
-            model.name,
-            constraints=folded_constraints,
-            freq_cutoff=self._freq_cutoff,
-            settings=self._settings,
-            backend=self._backend,
-        )
-
-        raw = folded_mgr.fit(data_xr, freq_2d, pixel_spacing=pixel_spacing)
-
-        # Return standard FitResult; folded status is carried in metadata.
-        params = {k: np.array(v) for k, v in raw.parameters.items()}
-        return FitResult(
-            parameters=params,
-            scan_dimensions=raw.scan_dimensions,
+        return self._fit_prepared(
+            prepared,
             pixel_spacing=pixel_spacing,
-            model_name=model.name,
-            metadata={**raw.metadata, "folded_fit": True},
+            detection_data=detection_data,
+            constraint_overrides=_FOLDED_CONSTRAINT_OVERRIDES,
+            extra_metadata={"folded_fit": True},
         )

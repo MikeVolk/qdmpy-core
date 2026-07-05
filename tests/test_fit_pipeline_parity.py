@@ -5,18 +5,23 @@ shapes, quality metrics, and the exact arrays handed to the FitBackend — so
 the QEP-070 decomposition (god-method extraction, non-mutating constraints,
 folded-path unification) can be verified to preserve behavior at every phase.
 
-All tests use injectable FitBackend fakes (QEP-068); no GPU or mocking.
+Tests use injectable FitBackend fakes (QEP-068); no GPU. `guess_model` is
+patched only where auto-model detection input needs to be inspected.
 """
 
 from __future__ import annotations
+
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 import xarray as xr
 
 from qdmpy.constants import D_ZFS, GAMMA_NV
+from qdmpy.exceptions import DataValidationError
 from qdmpy.fitting.backends import BackendFitOutput
 from qdmpy.fitting.manager import FitManager
+from qdmpy.fitting.models import ESRSINGLE
 from qdmpy.fitting.result import FitResult
 from qdmpy.odmr.folding import FoldedODMR, FoldingSettings
 from qdmpy.settings import (
@@ -283,3 +288,91 @@ class TestPerFrangeMtCenterWindow:
         assert float(backend.calls[1]["constraints"][0, 0]) == pytest.approx(
             D_ZFS + delta_min, abs=1e-6
         )
+
+
+class TestFoldedNonFoldedParity:
+    """fit_folded() must reach the backend with the same effective inputs as a
+    manually-equivalent fit() call (QEP-070 phase 4: no second FitManager).
+    """
+
+    def test_backend_receives_equivalent_inputs(self) -> None:
+        folded = _make_folded_odmr()
+
+        backend_folded = _RecordingEchoBackend()
+        mgr_folded = FitManager(
+            model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=backend_folded
+        )
+        result_folded = mgr_folded.fit_folded(folded, pixel_spacing=4e-6)
+
+        backend_direct = _RecordingEchoBackend()
+        mgr_direct = FitManager(
+            model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=backend_direct
+        )
+        mgr_direct.set_constraints("contrast", vmin=0.001, vmax=1.0, constraint_type="LOWER_UPPER")
+        mgr_direct.set_constraints("offset", vmin=-0.5, vmax=3.0, constraint_type="LOWER_UPPER")
+        data_xr, freq_2d = folded.to_fit_inputs()
+        result_direct = mgr_direct.fit(data_xr, freq_2d, pixel_spacing=4e-6)
+
+        np.testing.assert_array_equal(
+            backend_folded.calls[0]["freq_ghz"], backend_direct.calls[0]["freq_ghz"]
+        )
+        np.testing.assert_array_equal(
+            backend_folded.calls[0]["constraints"], backend_direct.calls[0]["constraints"]
+        )
+        np.testing.assert_array_equal(
+            backend_folded.calls[0]["constraint_types"], backend_direct.calls[0]["constraint_types"]
+        )
+        for key in result_direct.parameters:
+            np.testing.assert_allclose(
+                result_folded.parameters[key], result_direct.parameters[key]
+            )
+        assert result_folded.metadata["folded_fit"] is True
+        assert "folded_fit" not in result_direct.metadata
+
+    def test_no_second_fit_manager_constructed(self) -> None:
+        folded = _make_folded_odmr()
+        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
+
+        with patch.object(FitManager, "__init__", wraps=FitManager.__init__) as mock_init:
+            mgr.fit_folded(folded, pixel_spacing=4e-6)
+
+        mock_init.assert_not_called()
+
+
+class TestFoldedAutoModelDetection:
+    """fit_folded()'s raw_data controls which array is handed to guess_model()."""
+
+    def test_uses_raw_data_when_given(self) -> None:
+        folded = _make_folded_odmr(n_df=20)
+        raw_data = np.ones((2, 2, NY, NX, 30), dtype=np.float32)
+        mgr = FitManager(model_name="auto", settings=MOCK_SETTINGS, backend=FakeFitBackend())
+
+        with patch(
+            "qdmpy.fitting.manager.guess_model", return_value=ESRSINGLE()
+        ) as mock_guess:
+            mgr.fit_folded(folded, pixel_spacing=4e-6, raw_data=raw_data)
+
+        detection_arg = mock_guess.call_args[0][0]
+        assert detection_arg.shape[-1] == 30
+
+    def test_falls_back_to_folded_data_without_raw_data(self) -> None:
+        folded = _make_folded_odmr(n_df=20)
+        mgr = FitManager(model_name="auto", settings=MOCK_SETTINGS, backend=FakeFitBackend())
+
+        with patch(
+            "qdmpy.fitting.manager.guess_model", return_value=ESRSINGLE()
+        ) as mock_guess:
+            mgr.fit_folded(folded, pixel_spacing=4e-6)
+
+        detection_arg = mock_guess.call_args[0][0]
+        assert detection_arg.shape[-1] == 20
+
+
+class TestFoldedFitErrorContractParity:
+    """fit_folded() must validate inputs with the same errors as fit()."""
+
+    def test_too_few_frequency_points_raises(self) -> None:
+        folded = _make_folded_odmr(n_df=5)
+        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
+        with pytest.raises(DataValidationError, match="at least"):
+            mgr.fit_folded(folded, pixel_spacing=4e-6)
