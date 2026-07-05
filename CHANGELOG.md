@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (QEP-070: fit pipeline unification, proposal)
+
+- **`proposals/QEP-070-fit-pipeline-unification.md`** — decomposes
+  `FitManager.fit()` into independently testable stages, routes `fit_folded()`
+  through the same internal execution path (removing its second-`FitManager`
+  construction), fixes a mid-fit `ConstraintManager` mutation bug, and
+  extracts `freq_cutoff` parsing into a frozen `FreqCutoff` value object.
+  Supersedes QEP-FIT-003 and QEP-060.
+
 ### Added (QEP-069: torch fit backend)
 
 - **`qdmpy.fitting.torch_backend.TorchBackend`** — architecture-independent

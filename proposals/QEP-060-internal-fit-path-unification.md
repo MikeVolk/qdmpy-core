@@ -2,13 +2,20 @@
 
 | Field | Value |
 |-------|-------|
-| **Status** | Draft |
+| **Status** | Superseded by QEP-070 |
 | **Priority** | P2 |
 | **Complexity** | M |
 | **Depends on** | QEP-059 |
 | **Blocks** | None |
 | **Author** | QDMpy Team |
 | **Created** | 2026-03-10 |
+
+---
+
+> Superseded 2026-07-05 by QEP-070 (fit-pipeline-unification), which implements this
+> unification together with QEP-FIT-003's decomposition since removing `fit_folded`'s
+> second-`FitManager` construction requires the same non-mutating constraint mechanism
+> the decomposition introduces.
 
 ---
 

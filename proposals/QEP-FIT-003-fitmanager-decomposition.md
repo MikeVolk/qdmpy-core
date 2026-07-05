@@ -1,9 +1,13 @@
 # QEP-FIT-003 — FitManager.fit() Decomposition
 
-**Status:** Draft
+**Status:** Superseded by QEP-070
 **Created:** 2026-02-22
 **Severity:** HIGH (H-5)
 **Module:** `fitting/manager.py`
+
+> Superseded 2026-07-05 by QEP-070 (fit-pipeline-unification), which implements this
+> decomposition together with QEP-060's folded-path unification since the two designs
+> depend on the same non-mutating constraint mechanism.
 
 ---
 
