@@ -127,7 +127,7 @@ class FitManager:
         model_name: str = "ESR14N",
         constraints: dict[str, Any] | None = None,
         *,
-        freq_cutoff: FreqCutoff | dict[str, dict[str, float | None]] | None = None,
+        freq_cutoff: dict[str, dict[str, float | None]] | None = None,
         settings: QDMpySettings | None = None,
         backend: FitBackend | str | None = None,
         gpu_available: bool | None = None,
@@ -139,10 +139,9 @@ class FitManager:
                         If 'auto', model is resolved on the first fit() call.
             constraints: Optional dict mapping parameter names to constraint kwargs
                          (vmin, vmax, constraint_type). Applied after model resolution.
-            freq_cutoff: Optional per-frange frequency bounds in GHz, as a
-                :class:`~qdmpy.fitting.freq_cutoff.FreqCutoff` or a raw dict
-                with schema {'low': {'min': float|None, 'max': float|None},
-                'high': {'min': float|None, 'max': float|None}}.
+            freq_cutoff: Optional per-frange frequency bounds in GHz.
+                Schema: {'low': {'min': float|None, 'max': float|None},
+                        'high': {'min': float|None, 'max': float|None}}.
             settings: Optional QDMpySettings instance (defaults to global get_settings()).
             backend: Optional FitBackend instance, or a backend name
                 ('auto', 'gpufit', 'scipy', 'torch'). Defaults to
