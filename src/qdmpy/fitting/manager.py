@@ -28,12 +28,19 @@ from qdmpy.exceptions import (
     ParameterError,
 )
 from qdmpy.fitting.backends import (
+    BackendFitOutput,
     FitBackend,
     FitBackendOptions,
     resolve_backend,
     with_forced_availability,
 )
-from qdmpy.fitting.constraints import CONSTRAINT_TYPES, Constraint, ConstraintManager
+from qdmpy.fitting.constraints import (
+    CONSTRAINT_TYPES,
+    Constraint,
+    ConstraintManager,
+    constraint_type_indices,
+    constraints_to_array,
+)
 from qdmpy.fitting.freq_cutoff import FreqCutoff
 from qdmpy.fitting.guess import guess_model
 from qdmpy.fitting.guesser import ParameterGuesser
@@ -269,7 +276,9 @@ class FitManager:
         for irange in range(n_frange):
             freq_min = f_ghz[irange].min()
             freq_max = f_ghz[irange].max()
-            self._apply_mt_center_window_for_range(f_ghz[irange])
+            effective_constraints = self._effective_constraints_for_range(
+                self.constraints, f_ghz[irange]
+            )
             logger.info(
                 "Fitting frequency range {} from {:.3f}-{:.3f} GHz",
                 irange,
@@ -285,7 +294,16 @@ class FitManager:
             )
             guesser = ParameterGuesser(model, np.atleast_2d(range_freq))
             initial_params = guesser.guess(range_data[:, np.newaxis, :, :])
-            raw = self.fit_frange(range_data, range_freq, initial_params[:, 0])
+            output = self._run_backend_fit(
+                range_data, range_freq, initial_params[:, 0], model, effective_constraints
+            )
+            raw = [
+                output.parameters,
+                output.states,
+                output.chi2,
+                output.iterations,
+                output.execution_time,
+            ]
             shaped = self._reshape_frange_results(raw, data_shape=flat_data[:, irange].shape)
             all_params[irange] = shaped[0]
             all_states[irange] = shaped[1]
@@ -332,8 +350,8 @@ class FitManager:
             metadata=metadata,
         )
 
-    def _apply_mt_center_window_for_range(self: Self, freq_ghz: NDArray) -> None:
-        """Apply per-range center bounds for mT-mode center windows.
+    def _mt_center_window_for_range(self: Self, freq_ghz: NDArray) -> tuple[float, float] | None:
+        """Compute the mT-mode center window for one frequency range, if any.
 
         For `constraint_units='mt'` and `center_type='LOWER_UPPER'`, a non-zero
         `center_min_mt` is interpreted as a true field window `[min, max]` (mT).
@@ -343,38 +361,95 @@ class FitManager:
 
         Args:
             freq_ghz: Frequency axis (GHz) of the active fit range.
-        """
-        if self._constraint_manager is None:
-            return
 
+        Returns:
+            (center_min, center_max) in GHz, or None if no window applies.
+        """
         constraints = self._settings.model.constraints
         if constraints.constraint_units != "mt" or constraints.center_type != "LOWER_UPPER":
-            return
+            return None
 
         delta_min = constraints.center_min_mt * 1e-3 * GAMMA_NV
         if delta_min <= 0.0:
-            return
+            return None
         delta_max = constraints.center_max_mt * 1e-3 * GAMMA_NV
 
         freq_min = float(np.min(freq_ghz))
         freq_max = float(np.max(freq_ghz))
 
         if freq_max <= D_ZFS:
-            center_min = D_ZFS - delta_max
-            center_max = D_ZFS - delta_min
-        elif freq_min >= D_ZFS:
-            center_min = D_ZFS + delta_min
-            center_max = D_ZFS + delta_max
-        else:
-            # Overlapping-around-D ranges are uncommon; keep existing symmetric
-            # bounds from ConstraintManager in this edge case.
-            return
+            return D_ZFS - delta_max, D_ZFS - delta_min
+        if freq_min >= D_ZFS:
+            return D_ZFS + delta_min, D_ZFS + delta_max
+        # Overlapping-around-D ranges are uncommon; keep existing symmetric bounds.
+        return None
 
-        self._constraint_manager.set_constraint(
-            "center",
-            vmin=center_min,
-            vmax=center_max,
-            constraint_type="LOWER_UPPER",
+    def _effective_constraints_for_range(
+        self: Self, base: dict[str, Constraint], freq_ghz: NDArray
+    ) -> dict[str, Constraint]:
+        """Layer the per-range mT center window onto `base` without mutating shared state.
+
+        Args:
+            base: Constraint mapping to start from (typically `self.constraints`).
+            freq_ghz: Frequency axis (GHz) of the active fit range.
+
+        Returns:
+            `base` unchanged, or a new dict with `center` replaced by the window.
+        """
+        window = self._mt_center_window_for_range(freq_ghz)
+        if window is None:
+            return base
+        center_min, center_max = window
+        effective = dict(base)
+        effective["center"] = base["center"].with_updates(
+            vmin=center_min, vmax=center_max, constraint_type="LOWER_UPPER"
+        )
+        return effective
+
+    def _run_backend_fit(
+        self: Self,
+        data: NDArray,
+        freq: NDArray,
+        initial_parameters: NDArray,
+        model: Model,
+        constraints_map: dict[str, Constraint],
+    ) -> BackendFitOutput:
+        """Run the resolved backend on one frequency range's data.
+
+        Args:
+            data: ODMR data with shape (n_pol, n_pixel, n_freq).
+            freq: Frequency values in GHz for this range.
+            initial_parameters: Initial parameter guesses.
+            model: Resolved fitting model.
+            constraints_map: Constraint mapping to project into backend arrays.
+
+        Returns:
+            BackendFitOutput from the resolved FitBackend.
+
+        Raises:
+            DependencyError: If the resolved backend does not support `model`.
+        """
+        if not self._backend.supports(model):
+            msg = (
+                f"Backend '{self._backend.name}' does not support model "
+                f"'{model.name}' (model_id={model.model_id}). Try "
+                "backend='scipy' for custom CPU-only models."
+            )
+            raise DependencyError(msg)
+
+        n_freqs = data.shape[-1]
+        n_pixel = data.reshape((-1, n_freqs)).shape[0]
+        constraints = constraints_to_array(constraints_map, n_pixel, model.parameter_names)
+        constraint_types = constraint_type_indices(constraints_map, model.parameter_names)
+
+        return self._backend.fit(
+            data=data,
+            freq_ghz=freq,
+            initial_parameters=initial_parameters,
+            constraints=constraints,
+            constraint_types=constraint_types,
+            model=model,
+            options=self._backend_options,
         )
 
     def __repr__(self: Self) -> str:
@@ -582,28 +657,7 @@ class FitManager:
             raise ModelNotResolvedError(msg)
         model: Model = self._model
 
-        if not self._backend.supports(model):
-            msg = (
-                f"Backend '{self._backend.name}' does not support model "
-                f"'{model.name}' (model_id={model.model_id}). Try "
-                "backend='scipy' for custom CPU-only models."
-            )
-            raise DependencyError(msg)
-
-        n_freqs = data.shape[-1]
-        n_pixel = data.reshape((-1, n_freqs)).shape[0]
-        constraints = self.get_constraints_array(n_pixel)
-        constraint_types = self.get_constraint_types()
-
-        output = self._backend.fit(
-            data=data,
-            freq_ghz=freq,
-            initial_parameters=initial_parameters,
-            constraints=constraints,
-            constraint_types=constraint_types,
-            model=model,
-            options=self._backend_options,
-        )
+        output = self._run_backend_fit(data, freq, initial_parameters, model, self.constraints)
         return [
             output.parameters,
             output.states,

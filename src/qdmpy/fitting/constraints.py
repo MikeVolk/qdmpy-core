@@ -7,11 +7,14 @@ constraints for GPU-accelerated ODMR fitting operations.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 from qdmpy.constants import D_ZFS, GAMMA_NV
 from qdmpy.exceptions import ParameterError
@@ -72,6 +75,47 @@ class Constraint:
             ),
             unit=self.unit,
         )
+
+
+def constraints_to_array(
+    constraints: Mapping[str, Constraint], n_pixel: int, parameter_names: list[str]
+) -> NDArray:
+    """Convert a constraint mapping to array format for GPU fitting.
+
+    All frequency values are kept in GHz, matching the GPU kernel convention
+    (pyGpufit ESR models have AHYP hardcoded in GHz).
+
+    Args:
+        constraints: Mapping of parameter name to Constraint.
+        n_pixel: Number of pixels (for array replication).
+        parameter_names: List of parameter names to extract constraints for.
+
+    Returns:
+        NDArray of shape (n_pixel, 2*n_params) with min/max bounds in GHz.
+    """
+    constraints_list: list[float] = []
+    for param in parameter_names:
+        c = constraints[param]
+        constraints_list.extend((c.vmin, c.vmax))
+    return np.tile(constraints_list, (n_pixel, 1))
+
+
+def constraint_type_indices(
+    constraints: Mapping[str, Constraint], parameter_names: list[str]
+) -> NDArray:
+    """Get constraint type indices for parameters from a constraint mapping.
+
+    Args:
+        constraints: Mapping of parameter name to Constraint.
+        parameter_names: List of parameter names.
+
+    Returns:
+        NDArray of constraint type indices (0=FREE, 1=LOWER, 2=UPPER, 3=LOWER_UPPER).
+    """
+    return np.array(
+        [constraints[param].type_index for param in parameter_names],
+        dtype=np.int32,
+    )
 
 
 def _mt_to_absolute_ghz(settings: ModelConstraintsSettings) -> ModelConstraintsSettings:
@@ -183,18 +227,16 @@ class ConstraintManager:
         )
 
     def get_constraints(self: Self) -> dict[str, Constraint]:
-        """Get all parameter constraints.
+        """Get a copy of all parameter constraints.
 
         Returns:
-            Dictionary mapping parameter names to Constraint objects.
+            Dictionary mapping parameter names to Constraint objects. Mutating
+            the returned dict does not affect this manager's internal state.
         """
-        return self._constraints
+        return dict(self._constraints)
 
     def to_array(self: Self, n_pixel: int, parameter_names: list[str]) -> NDArray:
         """Convert constraints to array format for GPU fitting.
-
-        All frequency values are kept in GHz, matching the GPU kernel convention
-        (pyGpufit ESR models have AHYP hardcoded in GHz).
 
         Args:
             n_pixel: Number of pixels (for array replication).
@@ -203,11 +245,7 @@ class ConstraintManager:
         Returns:
             NDArray of shape (n_pixel, 2*n_params) with min/max bounds in GHz.
         """
-        constraints_list: list[float] = []
-        for param in parameter_names:
-            c = self._constraints[param]
-            constraints_list.extend((c.vmin, c.vmax))
-        return np.tile(constraints_list, (n_pixel, 1))
+        return constraints_to_array(self._constraints, n_pixel, parameter_names)
 
     def get_constraint_types(self: Self, parameter_names: list[str]) -> NDArray:
         """Get constraint type indices for parameters.
@@ -218,7 +256,4 @@ class ConstraintManager:
         Returns:
             NDArray of constraint type indices (0=FREE, 1=LOWER, 2=UPPER, 3=LOWER_UPPER).
         """
-        return np.array(
-            [self._constraints[param].type_index for param in parameter_names],
-            dtype=np.int32,
-        )
+        return constraint_type_indices(self._constraints, parameter_names)

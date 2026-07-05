@@ -535,6 +535,40 @@ def test_to_array_zero_pixels() -> None:
     assert constraints_array.shape == (0, len(model_params) * 2)
 
 
+def test_get_constraints_returns_defensive_copy() -> None:
+    """Mutating the dict returned by get_constraints() must not affect the manager."""
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+
+    snapshot = fit.constraints
+    del snapshot["center"]
+
+    assert "center" in fit.constraints
+
+
+def test_constraints_to_array_matches_manager_to_array() -> None:
+    """Module-level constraints_to_array() must match ConstraintManager.to_array()."""
+    from qdmpy.fitting.constraints import constraints_to_array
+
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+    params = fit.parameter_names
+
+    expected = fit.get_constraints_array(3)
+    actual = constraints_to_array(fit.constraints, 3, params)
+    assert_array_equal(actual, expected)
+
+
+def test_constraint_type_indices_matches_manager_get_constraint_types() -> None:
+    """Module-level constraint_type_indices() must match ConstraintManager.get_constraint_types()."""
+    from qdmpy.fitting.constraints import constraint_type_indices
+
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+    params = fit.parameter_names
+
+    expected = fit.get_constraint_types()
+    actual = constraint_type_indices(fit.constraints, params)
+    assert_array_equal(actual, expected)
+
+
 def test_fit_frange_mocked(sample_data, sample_frequencies) -> None:
     """Test fit_frange via the injectable FakeFitBackend (no GPU required)."""
     fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())

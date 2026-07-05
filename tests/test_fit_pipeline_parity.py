@@ -258,3 +258,28 @@ class TestPerFrangeMtCenterWindow:
         assert float(low_constraints[0, 1]) == pytest.approx(D_ZFS - delta_min, abs=1e-6)
         assert float(high_constraints[0, 0]) == pytest.approx(D_ZFS + delta_min, abs=1e-6)
         assert float(high_constraints[0, 1]) == pytest.approx(D_ZFS + delta_max, abs=1e-6)
+
+    def test_shared_constraint_manager_not_mutated_after_fit(self) -> None:
+        """fit() must not leak a per-range mT window into the shared ConstraintManager."""
+        data, freqs = _make_two_frange_data()
+        backend = _RecordingEchoBackend()
+        mgr = FitManager(model_name="ESRSINGLE", settings=MT_SETTINGS, backend=backend)
+
+        before = mgr.constraints["center"]
+        mgr.fit(data, freqs)
+        after = mgr.constraints["center"]
+
+        assert after == before
+
+        # A second fit must reproduce the exact same per-branch windows, proving
+        # the manager's stored constraints were never overwritten by the first call.
+        backend.calls = []
+        mgr.fit(data, freqs)
+        delta_min = 2.0 * 1e-3 * GAMMA_NV
+        delta_max = 7.0 * 1e-3 * GAMMA_NV
+        assert float(backend.calls[0]["constraints"][0, 0]) == pytest.approx(
+            D_ZFS - delta_max, abs=1e-6
+        )
+        assert float(backend.calls[1]["constraints"][0, 0]) == pytest.approx(
+            D_ZFS + delta_min, abs=1e-6
+        )
