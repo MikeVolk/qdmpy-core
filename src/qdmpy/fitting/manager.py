@@ -34,6 +34,7 @@ from qdmpy.fitting.backends import (
     with_forced_availability,
 )
 from qdmpy.fitting.constraints import CONSTRAINT_TYPES, Constraint, ConstraintManager
+from qdmpy.fitting.freq_cutoff import FreqCutoff
 from qdmpy.fitting.guess import guess_model
 from qdmpy.fitting.guesser import ParameterGuesser
 from qdmpy.fitting.models import Model, ModelRegistry
@@ -61,7 +62,7 @@ class FitManager:
         model_name: str = "ESR14N",
         constraints: dict[str, Any] | None = None,
         *,
-        freq_cutoff: dict[str, dict[str, float | None]] | None = None,
+        freq_cutoff: FreqCutoff | dict[str, dict[str, float | None]] | None = None,
         settings: QDMpySettings | None = None,
         backend: FitBackend | str | None = None,
         gpu_available: bool | None = None,
@@ -73,9 +74,10 @@ class FitManager:
                         If 'auto', model is resolved on the first fit() call.
             constraints: Optional dict mapping parameter names to constraint kwargs
                          (vmin, vmax, constraint_type). Applied after model resolution.
-            freq_cutoff: Optional per-frange frequency bounds in GHz.
-                Schema: {'low': {'min': float|None, 'max': float|None},
-                        'high': {'min': float|None, 'max': float|None}}.
+            freq_cutoff: Optional per-frange frequency bounds in GHz, as a
+                :class:`~qdmpy.fitting.freq_cutoff.FreqCutoff` or a raw dict
+                with schema {'low': {'min': float|None, 'max': float|None},
+                'high': {'min': float|None, 'max': float|None}}.
             settings: Optional QDMpySettings instance (defaults to global get_settings()).
             backend: Optional FitBackend instance, or a backend name
                 ('auto', 'gpufit', 'scipy', 'torch'). Defaults to
@@ -94,7 +96,7 @@ class FitManager:
             max_number_iterations=self._settings.fit.max_number_iterations,
             tolerance=self._settings.fit.tolerance,
         )
-        self._freq_cutoff = self._normalize_freq_cutoff(freq_cutoff)
+        self._freq_cutoff = FreqCutoff.from_raw(freq_cutoff)
 
         if model_name == "auto":
             self._model: Model | None = None
@@ -187,86 +189,9 @@ class FitManager:
 
         validate_frequencies(freq_2d)
 
-    @staticmethod
-    def _coerce_optional_float(value: object, *, field_name: str) -> float | None:
-        if value is None:
-            return None
-        if isinstance(value, (int, float, np.floating, np.integer)):
-            return float(value)
-        msg = f"freq_cutoff field '{field_name}' must be a number or None, got {type(value)!r}"
-        raise DataValidationError(msg)
-
-    def _normalize_freq_cutoff(
-        self: Self,
-        freq_cutoff: dict[str, dict[str, float | None]] | None,
-    ) -> dict[str, dict[str, float | None]] | None:
-        if freq_cutoff is None:
-            return None
-        if not isinstance(freq_cutoff, dict):
-            msg = "freq_cutoff must be a dictionary"
-            raise DataValidationError(msg)
-
-        allowed_ranges = {"low", "high"}
-        normalized: dict[str, dict[str, float | None]] = {}
-
-        for range_key, bounds in freq_cutoff.items():
-            if range_key not in allowed_ranges:
-                msg = (
-                    "freq_cutoff has unknown range key "
-                    f"'{range_key}'. Allowed keys are: ['low', 'high']"
-                )
-                raise DataValidationError(msg)
-            if not isinstance(bounds, dict):
-                msg = f"freq_cutoff['{range_key}'] must be a dictionary"
-                raise DataValidationError(msg)
-
-            unknown_bounds = set(bounds).difference({"min", "max"})
-            if unknown_bounds:
-                unknown = sorted(unknown_bounds)
-                msg = (
-                    f"freq_cutoff['{range_key}'] has unknown keys {unknown}. "
-                    "Allowed keys are: ['min', 'max']"
-                )
-                raise DataValidationError(msg)
-
-            min_v = self._coerce_optional_float(bounds.get("min"), field_name=f"{range_key}.min")
-            max_v = self._coerce_optional_float(bounds.get("max"), field_name=f"{range_key}.max")
-            if min_v is not None and max_v is not None and min_v > max_v:
-                msg = (
-                    f"freq_cutoff['{range_key}'] has invalid bounds: "
-                    f"min ({min_v}) must be <= max ({max_v})"
-                )
-                raise DataValidationError(msg)
-
-            if min_v is not None or max_v is not None:
-                normalized[range_key] = {"min": min_v, "max": max_v}
-
-        return normalized or None
-
     def _validate_freq_cutoff_for_n_ranges(self: Self, n_frange: int) -> None:
-        if self._freq_cutoff is None:
-            return
-        if n_frange == 1:
-            if "high" in self._freq_cutoff:
-                msg = (
-                    "freq_cutoff['high'] is not valid for single-range fits. "
-                    "Use 'low' for single-range (including folded) fits."
-                )
-                raise DataValidationError(msg)
-            return
-        if n_frange == 2:
-            return
-
-        msg = f"freq_cutoff is only supported for 1 or 2 frequency ranges, got {n_frange}"
-        raise DataValidationError(msg)
-
-    def _get_range_cutoff(self: Self, irange: int, n_frange: int) -> dict[str, float | None] | None:
-        if self._freq_cutoff is None:
-            return None
-        if n_frange == 1:
-            return self._freq_cutoff.get("low")
-        range_key = "low" if irange == 0 else "high"
-        return self._freq_cutoff.get(range_key)
+        if self._freq_cutoff is not None:
+            self._freq_cutoff.validate_for_n_ranges(n_frange)
 
     def _apply_freq_cutoff_for_range(
         self: Self,
@@ -275,33 +200,11 @@ class FitManager:
         irange: int,
         n_frange: int,
     ) -> tuple[NDArray, NDArray]:
-        cutoff = self._get_range_cutoff(irange, n_frange)
-        if cutoff is None:
+        if self._freq_cutoff is None:
             return range_data, range_freq_ghz
-
-        fmin = cutoff.get("min")
-        fmax = cutoff.get("max")
-        mask = np.ones(range_freq_ghz.shape, dtype=bool)
-        if fmin is not None:
-            mask &= range_freq_ghz >= fmin
-        if fmax is not None:
-            mask &= range_freq_ghz <= fmax
-
-        n_kept = int(np.sum(mask))
-        if n_kept < _MIN_FREQ_POINTS:
-            range_label = "low" if n_frange == 1 or irange == 0 else "high"
-            msg = (
-                f"freq_cutoff for range '{range_label}' keeps {n_kept} frequency points, "
-                f"but at least {_MIN_FREQ_POINTS} are required"
-            )
-            raise DataValidationError(msg)
-
-        if n_kept == range_freq_ghz.size:
-            return range_data, range_freq_ghz
-
-        masked_freq = np.ascontiguousarray(range_freq_ghz[mask], dtype=np.float64)
-        masked_data = np.ascontiguousarray(range_data[..., mask])
-        return masked_data, masked_freq
+        return self._freq_cutoff.apply_to_range(
+            range_data, range_freq_ghz, irange, n_frange, min_points=_MIN_FREQ_POINTS
+        )
 
     def _resolve_auto_model(self: Self, flat_data: NDArray) -> None:
         """Resolve auto model from data and initialize constraint manager.
