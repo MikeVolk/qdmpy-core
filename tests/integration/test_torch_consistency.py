@@ -18,6 +18,7 @@ same file validates real GPUs on developer machines.
 from __future__ import annotations
 
 import importlib.util
+import zlib
 
 import numpy as np
 import pytest
@@ -84,7 +85,9 @@ def _run_consistency(model_name: str, device: str, *, perturb: bool) -> None:
     from qdmpy.fitting.torch_backend import TorchBackend
 
     model = ModelRegistry.get(model_name)
-    true_params = _make_params(model_name, seed=hash(model_name) % 2**31)
+    # crc32, not hash(): str hashing is randomized per-process (PYTHONHASHSEED),
+    # which made this test flaky across runs.
+    true_params = _make_params(model_name, seed=zlib.crc32(model_name.encode()))
     spectra = model.func(FREQ, true_params).astype(np.float32)
 
     init = true_params.copy()

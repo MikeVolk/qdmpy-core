@@ -47,6 +47,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Supersedes QEP-FIT-003 and QEP-060 — see
 `proposals/QEP-070-fit-pipeline-unification.md`.
 
+### Fixed
+
+- `tests/integration/test_torch_consistency.py` seeded synthetic parameters
+  with `hash(model_name)`, which is randomized per-process
+  (`PYTHONHASHSEED`) — made `test_recovers_truth_from_perturbed_start`
+  intermittently fail depending on run. Seeds now derive from `zlib.crc32`,
+  which is stable across processes.
+
 ### Added (QEP-069: torch fit backend)
 
 - **`qdmpy.fitting.torch_backend.TorchBackend`** — architecture-independent
