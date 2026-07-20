@@ -561,6 +561,29 @@ class TestPipelineStages:
         assert result.metadata["folded_fit"] is True
 
 
+class TestReshapeFrangeResultsPixelCounts:
+    """_reshape_frange_results() must keep (n_pol, n_pixel) intact for any pixel count.
+
+    A bare np.squeeze() drops every singleton dimension, not just the trailing
+    per-pixel-scalar axis — with n_pixel=1 and n_pol>1 that collapses the pixel
+    axis too and crashes the buffer assignment in _fit_all_franges(). Covers
+    n_pol=1 (previously worked via broadcasting) and n_pol=2 (previously crashed).
+    """
+
+    @pytest.mark.parametrize(("n_pol", "n_pixel"), [(1, 4), (1, 1), (2, 1), (2, 4)])
+    def test_fit_handles_pixel_count(self, n_pol: int, n_pixel: int) -> None:
+        numpy_4d = np.ones((n_pol, 1, n_pixel, 10))
+        data = _make_xr_data(numpy_4d)
+        freqs = np.linspace(2.87, 2.88, 10)
+
+        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
+        result = mgr.fit(data, freqs)
+
+        side = int(np.sqrt(n_pixel))
+        for arr in result.parameters.values():
+            assert arr.shape == (n_pol, 1, side, side)
+
+
 def test_set_constraints_missing_param() -> None:
     """Test set_constraints with a missing parameter."""
     fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)

@@ -890,7 +890,9 @@ class FitManager:
         """Reshape fit results from flat (n_pol*n_pixel, n_params) to (n_pol, n_pixel, n_params).
 
         Frequency parameters (center, width) remain in GHz — no unit conversion required
-        because the pyGpufit kernels use GHz throughout.
+        because the pyGpufit kernels use GHz throughout. Only the trailing axis is dropped
+        when it's a singleton (per-pixel scalars like states/chi2/iterations) — n_pol and
+        n_pixel are always kept, even when either is 1, so callers can rely on a fixed rank.
 
         Args:
             results: List of results from pygpufit.
@@ -905,7 +907,8 @@ class FitManager:
             if isinstance(result, float):
                 reshaped.append(result)
             else:
-                reshaped.append(np.squeeze(result.reshape((n_pol, n_pix, -1))))
+                arr = result.reshape((n_pol, n_pix, -1))
+                reshaped.append(arr[..., 0] if arr.shape[-1] == 1 else arr)
         return reshaped
 
     def fit_folded(

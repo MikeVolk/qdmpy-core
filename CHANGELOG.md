@@ -49,6 +49,11 @@ Supersedes QEP-FIT-003 and QEP-060 — see
 
 ### Fixed
 
+- `FitManager.fit()`/`fit_folded()` no longer crash on a single-pixel scan
+  (`ny=nx=1`) with more than one polarity. `_reshape_frange_results()` used a
+  bare `np.squeeze()`, which dropped the pixel axis along with the intended
+  trailing singleton, breaking the per-frange buffer assignment; it now drops
+  only the trailing axis.
 - `tests/integration/test_torch_consistency.py` seeded synthetic parameters
   with `hash(model_name)`, which is randomized per-process
   (`PYTHONHASHSEED`) — made `test_recovers_truth_from_perturbed_start`
