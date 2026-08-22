@@ -52,8 +52,7 @@ def _parse_range_bounds(range_key: str, raw_bounds: object) -> FreqCutoffBounds:
     max_v = _coerce_optional_float(bounds.get("max"), field_name=f"{range_key}.max")
     if min_v is not None and max_v is not None and min_v > max_v:
         msg = (
-            f"freq_cutoff['{range_key}'] has invalid bounds: "
-            f"min ({min_v}) must be <= max ({max_v})"
+            f"freq_cutoff['{range_key}'] has invalid bounds: min ({min_v}) must be <= max ({max_v})"
         )
         raise DataValidationError(msg)
 

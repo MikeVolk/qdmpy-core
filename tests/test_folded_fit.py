@@ -162,7 +162,9 @@ class _RecordingFixedBackend:
                 "constraint_types": np.asarray(constraint_types),
             }
         )
-        center = self._centers[self._call_index] if self._centers is not None else self._single_center
+        center = (
+            self._centers[self._call_index] if self._centers is not None else self._single_center
+        )
         self._call_index += 1
 
         n_freqs = data.shape[-1]
@@ -314,7 +316,9 @@ class TestFitFolded:
         """fit_folded() raises DependencyError when the backend is not available."""
         folded = _make_folded_odmr()
         unavailable_backend = with_forced_availability(FakeFitBackend(), available=False)
-        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=unavailable_backend)
+        mgr = FitManager(
+            model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=unavailable_backend
+        )
 
         with pytest.raises(DependencyError):
             mgr.fit_folded(folded)

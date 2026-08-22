@@ -128,7 +128,12 @@ class TestGpufitBackendSupports:
 
             @property
             def parameter_types(self) -> dict[str, str]:
-                return {"center": "center", "width": "width", "contrast": "contrast", "offset": "offset"}
+                return {
+                    "center": "center",
+                    "width": "width",
+                    "contrast": "contrast",
+                    "offset": "offset",
+                }
 
             @property
             def frequency_parameters(self) -> list[str]:
@@ -204,7 +209,9 @@ class TestScipyBackend:
         constraints = np.tile([1.0, 2.0, 3.0, 4.0], (5, 1))
         constraint_types = np.array([0, 3], dtype=np.int32)  # FREE, LOWER_UPPER
 
-        lower, upper = ScipyBackend._bounds_from_constraints(constraints, constraint_types, n_params)
+        lower, upper = ScipyBackend._bounds_from_constraints(
+            constraints, constraint_types, n_params
+        )
 
         assert np.all(lower[:, 0] == -np.inf)
         assert np.all(upper[:, 0] == np.inf)

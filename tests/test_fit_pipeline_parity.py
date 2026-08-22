@@ -334,9 +334,7 @@ class TestFoldedNonFoldedParity:
             backend_folded.calls[0]["constraint_types"], backend_direct.calls[0]["constraint_types"]
         )
         for key in result_direct.parameters:
-            np.testing.assert_allclose(
-                result_folded.parameters[key], result_direct.parameters[key]
-            )
+            np.testing.assert_allclose(result_folded.parameters[key], result_direct.parameters[key])
         assert result_folded.metadata["folded_fit"] is True
         assert "folded_fit" not in result_direct.metadata
 
@@ -358,9 +356,7 @@ class TestFoldedAutoModelDetection:
         raw_data = np.ones((2, 2, NY, NX, 30), dtype=np.float32)
         mgr = FitManager(model_name="auto", settings=MOCK_SETTINGS, backend=FakeFitBackend())
 
-        with patch(
-            "qdmpy.fitting.manager.guess_model", return_value=ESRSINGLE()
-        ) as mock_guess:
+        with patch("qdmpy.fitting.manager.guess_model", return_value=ESRSINGLE()) as mock_guess:
             mgr.fit_folded(folded, pixel_spacing=4e-6, raw_data=raw_data)
 
         detection_arg = mock_guess.call_args[0][0]
@@ -370,9 +366,7 @@ class TestFoldedAutoModelDetection:
         folded = _make_folded_odmr(n_df=20)
         mgr = FitManager(model_name="auto", settings=MOCK_SETTINGS, backend=FakeFitBackend())
 
-        with patch(
-            "qdmpy.fitting.manager.guess_model", return_value=ESRSINGLE()
-        ) as mock_guess:
+        with patch("qdmpy.fitting.manager.guess_model", return_value=ESRSINGLE()) as mock_guess:
             mgr.fit_folded(folded, pixel_spacing=4e-6)
 
         detection_arg = mock_guess.call_args[0][0]

@@ -104,6 +104,7 @@ research/
 # Local assistant rules
 .claude/
 .opencode/
+.mike/
 
 # Developer scripts (one-off tools, not library code)
 /scripts/

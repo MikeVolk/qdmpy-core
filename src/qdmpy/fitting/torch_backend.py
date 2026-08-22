@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import importlib.util
 import time
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, Self, cast
 
 import numpy as np
 from loguru import logger
@@ -29,7 +29,7 @@ from qdmpy.fitting.backends import (
 from qdmpy.fitting.models import Model
 
 if TYPE_CHECKING:
-    import torch as torch_types
+    import torch as torch_types  # ty: ignore[unresolved-import]
 
 _LAMBDA_INIT = 1e-3
 _LAMBDA_UP = 10.0
@@ -62,9 +62,7 @@ _COMPACT_EVERY = 8
 # converged instead of burning iterations to the max_number_iterations cap.
 _MAX_REJECT_STREAK = 10
 
-_INSTALL_HINT = (
-    "Install the GPU extra: `uv sync --extra gpu` (or `pip install 'qdmpy[gpu]'`)."
-)
+_INSTALL_HINT = "Install the GPU extra: `uv sync --extra gpu` (or `pip install 'qdmpy[gpu]'`)."
 
 
 def torch_gpu_device_available() -> bool:
@@ -75,7 +73,7 @@ def torch_gpu_device_available() -> bool:
     """
     if importlib.util.find_spec("torch") is None:
         return False
-    import torch
+    import torch  # ty: ignore[unresolved-import]
 
     return torch.cuda.is_available() or torch.backends.mps.is_available()
 
@@ -215,7 +213,7 @@ class TorchBackend:
     def _import_torch() -> Any:  # noqa: ANN401
         """Import torch lazily, raising DependencyError with the install hint."""
         try:
-            import torch
+            import torch  # ty: ignore[unresolved-import]
         except ImportError as exc:
             msg = f"torch is required for the 'torch' backend but is not installed. {_INSTALL_HINT}"
             raise DependencyError(msg) from exc
@@ -250,7 +248,7 @@ class TorchBackend:
         try:
             # func is annotated for numpy but the framework-neutral contract
             # (Model docstring) guarantees tensors work via duck typing.
-            out = model.func(x, p)  # ty: ignore[invalid-argument-type]
+            out = model.func(cast(NDArray, x), cast(NDArray, p))
         except Exception as exc:
             msg = (
                 f"Model '{model.name}'.func failed when called with torch tensors ({exc!r}). "
@@ -415,12 +413,7 @@ class TorchBackend:
                 # forever and never hit the accepted-step convergence check
                 # below. Accepting equality makes delta-chi2 == 0 converge
                 # immediately instead.
-                accept = (
-                    alive
-                    & (info == 0)
-                    & torch.isfinite(chi2_trial)
-                    & (chi2_trial <= chi2_w)
-                )
+                accept = alive & (info == 0) & torch.isfinite(chi2_trial) & (chi2_trial <= chi2_w)
                 reject_streak = torch.where(
                     accept | conv_w,
                     torch.zeros_like(reject_streak),

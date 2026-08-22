@@ -100,8 +100,7 @@ class GpufitBackend:
 
     name = "gpufit"
     install_hint = (
-        "Install pyGpufit, or use backend='torch' (`uv sync --extra gpu`) "
-        "or backend='scipy'."
+        "Install pyGpufit, or use backend='torch' (`uv sync --extra gpu`) or backend='scipy'."
     )
 
     def is_available(self: GpufitBackend) -> bool:
@@ -148,9 +147,7 @@ class GpufitBackend:
             user_info=np.ascontiguousarray(freq_ghz, dtype=np.float32),
             constraints=np.ascontiguousarray(constraints, dtype=np.float32),
             constraint_types=constraint_types,
-            initial_parameters=np.ascontiguousarray(
-                initial_parameters_reshaped, dtype=np.float32
-            ),
+            initial_parameters=np.ascontiguousarray(initial_parameters_reshaped, dtype=np.float32),
             weights=None,
             model_id=model.model_id,
             max_number_iterations=options.max_number_iterations,
@@ -200,8 +197,7 @@ class ScipyBackend:
         """Fit via per-pixel ``scipy.optimize.least_squares``."""
         if options.estimator != "LSE":
             logger.warning(
-                "ScipyBackend only supports least-squares (LSE); ignoring "
-                "estimator={!r}",
+                "ScipyBackend only supports least-squares (LSE); ignoring estimator={!r}",
                 options.estimator,
             )
 

@@ -853,7 +853,9 @@ class _RecordingFitBackend(FakeFitBackend):
     def __init__(self) -> None:
         self.freq_calls: list[NDArray] = []
 
-    def fit(self, data, freq_ghz, initial_parameters, constraints, constraint_types, model, options):
+    def fit(
+        self, data, freq_ghz, initial_parameters, constraints, constraint_types, model, options
+    ):
         self.freq_calls.append(np.asarray(freq_ghz))
         return super().fit(
             data, freq_ghz, initial_parameters, constraints, constraint_types, model, options
