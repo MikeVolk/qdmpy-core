@@ -61,6 +61,18 @@ Supersedes QEP-FIT-003 and QEP-060 — see
   `constraint_overrides` — this reverses a scope boundary QEP-070 explicitly
   left in place; see `proposals/QEP-071-refit-pipeline-consistency.md`.
 
+### Fixed (examples)
+
+- `examples/example_data.py` and `examples/fit_15n_sample.py` no longer
+  import from `qdmpy.models`/`qdmpy.odmr.odmr`, modules removed by the
+  pre-QEP-070 `fitting/`/`odmr/` subpackage restructure — both were broken
+  (`ModuleNotFoundError`) and unrelated to QEP-070/071. Rewritten against the
+  current top-level `qdmpy` API (`qdmpy.load()` and the manual
+  `MatlabLoader`/`ODMR`/`FitManager` pipeline, matching
+  `docs/tutorials/02-exploration.ipynb`); both now actually run a real fit
+  (`fit_15n_sample.py` previously skipped fitting entirely) and were verified
+  end-to-end against `tests/data/FOV18x`.
+
 ### Fixed
 
 - `FitManager.fit()`/`fit_folded()` no longer crash on a single-pixel scan

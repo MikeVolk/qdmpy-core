@@ -1,99 +1,68 @@
 #!/usr/bin/env python3
 """Sample script for loading, binning, and fitting 15N diamond ODMR data.
 
-This script demonstrates the complete workflow for processing ODMR data:
-1. Load data from MATLAB files using MatlabLoader
-2. Apply spatial binning to improve signal-to-noise ratio
-3. Fit 15N diamond pattern to the processed data
+Demonstrates the manual mid-level pipeline (loader -> ODMR -> processors ->
+FitManager) rather than the qdmpy.load() one-liner shown in example_data.py
+-- useful when you need direct control over the processing pipeline.
 
-The script uses data from the test directory and applies QDMpy's processing pipeline.
+Usage:
+    python fit_15n_sample.py
 """
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-# Add src to path for local imports
-sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
+import matplotlib.pyplot as plt
+from loguru import logger
 
+from qdmpy import ODMR, BinningProcessor, FitManager, MatlabLoader, NormalizationProcessor, ODMRData
 
-from qdmpy.models import ModelRegistry
-from qdmpy.odmr.odmr import ODMR
-
-from qdmpy.odmr.data import ODMRData
-from qdmpy.odmr.io import MatlabLoader
-from qdmpy.odmr.processors import BinningProcessor, NormalizationProcessor
+# tests/data/ is gitignored fixture data present in a dev checkout; point
+# this at your own data folder if you don't have it.
+DATA_FOLDER = Path(__file__).resolve().parents[1] / "tests" / "data" / "FOV18x"
 
 
 def main() -> None:
-    """Main function to demonstrate 15N ODMR data processing and fitting."""
-    # Data path
-    data_folder = "/home/mike/git/QDMpy/tests/data/FOV18x"
+    """Load, bin, fit, and visualize 15N ODMR data."""
+    loader = MatlabLoader(data_folder=str(DATA_FOLDER))
+    raw = ODMRData.from_loader(loader)
 
-    # Load data using MatlabLoader
-    loader = MatlabLoader(data_folder=data_folder)
-    odmr_data = ODMRData.from_loader(loader=loader)
-
-    # Create ODMR instance and setup processing pipeline
-    odmr = ODMR(odmr_data)
-
-    # Add processors to the pipeline
+    odmr = ODMR(raw)
     odmr.processor_manager.add_processor(BinningProcessor(bin_factor=2))
     odmr.processor_manager.add_processor(NormalizationProcessor())
-
-    # Apply processing
     odmr.process_data()
 
-    # Get 15N model from registry
-    ModelRegistry.get("ESR15N")
+    logger.info("Fitting ESR15N model")
+    fit_manager = FitManager("ESR15N", backend="scipy")
+    fit_result = fit_manager.fit(
+        odmr.processed_data.data, odmr.processed_data.frequencies, pixel_spacing=4e-6
+    )
 
-    # Prepare data for fitting - FitManager expects 4D data: (n_polarity, n_frange, n_pixel, n_frequencies)
-    # Let's use a subset of the full data
-    fit_data = odmr.processed_data.data[:, :, :10, :]  # First 10 pixels only
-    frequencies_ghz = odmr.processed_data.frequencies / 1e9  # Convert to GHz
+    quality = fit_result.metadata["quality_metrics"]
+    logger.info(
+        "Fit complete: mean_chi2={:.4f}, convergence_rate={:.1%}",
+        quality["mean_chi2"],
+        quality["convergence_rate"],
+    )
 
-    # Since fitting has some issues with the current pyGpufit setup,
-    # let's demonstrate data visualization instead
-    try:
-        import matplotlib.pyplot as plt
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+    h, w = odmr.processed_data.shape[2], odmr.processed_data.shape[3]
+    pixel_coords = [(y, x) for y in (h // 4, 3 * h // 4) for x in (w // 4, 3 * w // 4)]
 
-        # Plot spectra from first few pixels
-        _fig, axes = plt.subplots(2, 2, figsize=(12, 8))
-        axes = axes.flatten()
+    for ax, (y, x) in zip(axes.flat, pixel_coords, strict=True):
+        freq, spec = odmr.spectrum(y=y, x=x, polarity="neg", freq_range="low", processed=True)
+        ax.plot(freq, spec, "b-", linewidth=2)
+        ax.set_xlabel("Frequency (GHz)")
+        ax.set_ylabel("ODMR Signal (normalized)")
+        ax.set_title(f"Pixel ({y}, {x}) ODMR Spectrum")
+        ax.grid(True, alpha=0.3)
 
-        for i in range(min(4, fit_data.shape[2])):
-            ax = axes[i]
-            # Plot spectrum for first polarity, first frequency range, pixel i
-            spectrum = fit_data[0, 0, i, :]
-            # Use correct frequency slice for the first frequency range
-            freq_slice = frequencies_ghz[: spectrum.shape[0]]
-            ax.plot(freq_slice, spectrum, "b-", linewidth=2)
-            ax.set_xlabel("Frequency (GHz)")
-            ax.set_ylabel("ODMR Signal (normalized)")
-            ax.set_title(f"Pixel {i + 1} ODMR Spectrum")
-            ax.grid(True, alpha=0.3)
-
-            # Mark expected 15N resonance positions (rough estimate)
-            center_freq = 2.87  # GHz, typical for NV centers
-            ahyp_15n = 3.03e-3  # GHz, 15N hyperfine splitting
-            ax.axvline(
-                center_freq - ahyp_15n, color="r", linestyle="--", alpha=0.7, label="15N resonances"
-            )
-            ax.axvline(center_freq + ahyp_15n, color="r", linestyle="--", alpha=0.7)
-            if i == 0:
-                ax.legend()
-
-        plt.tight_layout()
-        plt.savefig("odmr_spectra_sample.png", dpi=150, bbox_inches="tight")
-
-        # Display some statistics
-
-    except ImportError:
-        pass
-
-    except Exception:
-        return
+    fig.tight_layout()
+    output_path = Path(__file__).parent / "odmr_spectra_sample.png"
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    logger.info("Saved sample spectra to {}", output_path)
+    plt.show()
 
 
 if __name__ == "__main__":
