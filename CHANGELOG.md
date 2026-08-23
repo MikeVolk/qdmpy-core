@@ -47,6 +47,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Supersedes QEP-FIT-003 and QEP-060 — see
 `proposals/QEP-070-fit-pipeline-unification.md`.
 
+### Fixed (QEP-071: refit pipeline consistency)
+
+- `FitManager.fit_frange()` now applies `freq_cutoff` trimming and per-range
+  constraint overrides (mT center window, folded-fit contrast/offset bounds)
+  before delegating to the backend, matching the preprocessing `fit()`/
+  `fit_folded()` already apply. Previously `fitting.refit`'s outlier-refit
+  path called `fit_frange()` with the manager's plain, unmodified
+  constraints and the full uncut frequency axis, so refit pixels were fit
+  inconsistently with the rest of the map whenever `freq_cutoff` was
+  configured or the original fit was folded. `fit_frange()`'s signature
+  changed to require `irange`/`n_frange` (no default) and accept an optional
+  `constraint_overrides` — this reverses a scope boundary QEP-070 explicitly
+  left in place; see `proposals/QEP-071-refit-pipeline-consistency.md`.
+
 ### Fixed
 
 - `FitManager.fit()`/`fit_folded()` no longer crash on a single-pixel scan

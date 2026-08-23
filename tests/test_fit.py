@@ -12,7 +12,6 @@ import numpy as np
 import pytest
 import xarray as xr
 from numpy.testing import assert_array_almost_equal, assert_array_equal
-from numpy.typing import NDArray
 
 from qdmpy.exceptions import (
     DataValidationError,
@@ -31,7 +30,7 @@ from qdmpy.settings import (
     ModelSettings,
     QDMpySettings,
 )
-from qdmpy.testing import FakeFitBackend
+from qdmpy.testing import FakeFitBackend, RecordingFitBackend
 
 # Mock settings for tests (center/width values in GHz, matching default settings convention)
 MOCK_SETTINGS = QDMpySettings(
@@ -694,7 +693,9 @@ def test_fit_frange_mocked(sample_data, sample_frequencies) -> None:
     flat_data = values.reshape(n_pol, n_frange, -1, n_freq)
     guesser = ParameterGuesser(fit.model, np.atleast_2d(sample_frequencies))
     initial_params = guesser.guess(flat_data)
-    results = fit.fit_frange(flat_data[:, 0], sample_frequencies, initial_params[:, 0])
+    results = fit.fit_frange(
+        flat_data[:, 0], sample_frequencies, initial_params[:, 0], irange=0, n_frange=1
+    )
     assert len(results) == 5
     assert results[0].shape == (8, fit.n_parameter)
 
@@ -847,21 +848,6 @@ class TestFitManagerValidation:
             fit.fit(da, freqs)
 
 
-class _RecordingFitBackend(FakeFitBackend):
-    """FakeFitBackend that records the freq_ghz array passed to each fit() call."""
-
-    def __init__(self) -> None:
-        self.freq_calls: list[NDArray] = []
-
-    def fit(
-        self, data, freq_ghz, initial_parameters, constraints, constraint_types, model, options
-    ):
-        self.freq_calls.append(np.asarray(freq_ghz))
-        return super().fit(
-            data, freq_ghz, initial_parameters, constraints, constraint_types, model, options
-        )
-
-
 def test_fit_applies_freq_cutoff_per_frange() -> None:
     """fit() applies independent low/high frequency cutoffs before fitting."""
     n_pol, n_frange, h, w, n_freq = 2, 2, 2, 2, 20
@@ -882,7 +868,7 @@ def test_fit_applies_freq_cutoff_per_frange() -> None:
         },
     )
 
-    backend = _RecordingFitBackend()
+    backend = RecordingFitBackend()
     fit = FitManager(
         model_name="ESRSINGLE",
         settings=MOCK_SETTINGS,

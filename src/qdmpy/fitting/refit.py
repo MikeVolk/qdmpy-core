@@ -31,6 +31,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, field_validator
 from scipy.ndimage import convolve
 
+from qdmpy.fitting.manager import FOLDED_CONSTRAINT_OVERRIDES
 from qdmpy.fitting.result import FitResult
 
 if TYPE_CHECKING:
@@ -259,6 +260,9 @@ def _refit_pass(
     n_params = fit_manager.n_parameter
     f_ghz = np.atleast_2d(frequencies)
     data_values = data.values  # (n_pol, n_frange, h, w, n_freq)
+    constraint_overrides = (
+        FOLDED_CONSTRAINT_OVERRIDES if fit_result.metadata.get("folded_fit") else None
+    )
 
     per_frange_info: dict[str, dict[str, int]] = {}
 
@@ -301,7 +305,14 @@ def _refit_pass(
             subset_guesses[:, :, iparam] = flat_guesses[:, flat_pixel_indices]
 
         # GPU refit of the outlier pixel subset
-        raw = fit_manager.fit_frange(subset_data, f_ghz[irange], subset_guesses)
+        raw = fit_manager.fit_frange(
+            subset_data,
+            f_ghz[irange],
+            subset_guesses,
+            irange=irange,
+            n_frange=n_frange,
+            constraint_overrides=constraint_overrides,
+        )
 
         # Reshape raw gpufit output: (n_pol * n_refit, ...) -> (n_pol, n_refit, ...)
         new_fit_params = np.asarray(raw[0]).reshape(n_pol, n_refit, n_params)

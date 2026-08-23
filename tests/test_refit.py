@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from qdmpy.fitting.manager import FOLDED_CONSTRAINT_OVERRIDES, FitManager
 from qdmpy.fitting.refit import (
     RefitSettings,
     compute_neighbor_guesses,
@@ -15,6 +16,30 @@ from qdmpy.fitting.refit import (
     refit_outliers,
 )
 from qdmpy.fitting.result import FitResult
+from qdmpy.settings import FitSettings, ModelConstraintsSettings, ModelSettings, QDMpySettings
+from qdmpy.testing import RecordingFitBackend
+
+# Mock settings for FitManager-backed refit tests (mirrors tests/test_fit.py's MOCK_SETTINGS).
+_REFIT_SETTINGS = QDMpySettings(
+    fit=FitSettings(estimator="LSE", max_number_iterations=100, tolerance=1e-6),
+    model=ModelSettings(
+        constraints=ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
+            center_min=2.8,
+            center_max=2.9,
+            center_type="FREE",
+            width_min=0.001,
+            width_max=0.01,
+            width_type="FREE",
+            contrast_min=0.0,
+            contrast_max=1.0,
+            contrast_type="FREE",
+            offset_min=-0.1,
+            offset_max=0.1,
+            offset_type="FREE",
+        )
+    ),
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -59,7 +84,15 @@ def _make_mock_fm(
     fm.parameter_names = param_names
     fm.n_parameter = n_params
 
-    def _fit_frange(data: np.ndarray, freq: np.ndarray, initial_params: np.ndarray) -> list:
+    def _fit_frange(
+        data: np.ndarray,
+        freq: np.ndarray,
+        initial_params: np.ndarray,
+        *,
+        irange: int,
+        n_frange: int,
+        constraint_overrides: object = None,
+    ) -> list:
         n_data = data.shape[0] * data.shape[1]  # n_pol * n_pixel
         params_out = np.full((n_data, n_params), return_value, dtype=np.float32)
         states_out = np.zeros(n_data, dtype=np.int32)
@@ -497,7 +530,13 @@ class TestRefitOutliers:
         call_count = []
 
         def counting_fit_frange(
-            data: np.ndarray, freq: np.ndarray, initial_params: np.ndarray
+            data: np.ndarray,
+            freq: np.ndarray,
+            initial_params: np.ndarray,
+            *,
+            irange: int,
+            n_frange: int,
+            constraint_overrides: object = None,
         ) -> list:
             call_count.append(1)
             n_data = data.shape[0] * data.shape[1]
@@ -582,6 +621,92 @@ class TestRefitOutliers:
 
         assert isinstance(result, FitResult)
         assert "refit_info" in result.metadata
+
+    def _make_esrsingle_fit_result(
+        self,
+        h: int = 6,
+        w: int = 6,
+        bad_pixel: tuple[int, int] = (3, 3),
+        metadata: dict[str, object] | None = None,
+    ) -> FitResult:
+        """FitResult with all 4 ESRSINGLE parameters, one clearly bad pixel."""
+        shape = (1, 1, h, w)
+        params = {
+            "center": np.full(shape, 2.87, dtype=np.float32),
+            "width": np.full(shape, 0.005, dtype=np.float32),
+            "contrast": np.full(shape, 0.1, dtype=np.float32),
+            "offset": np.full(shape, 0.0, dtype=np.float32),
+            "chi2": np.ones(shape, dtype=np.float32) * 0.1,
+            "states": np.zeros(shape, dtype=np.int32),
+        }
+        params["chi2"][0, 0, bad_pixel[0], bad_pixel[1]] = 100.0
+        return FitResult(
+            parameters=params,
+            scan_dimensions=(h, w),
+            pixel_spacing=4e-6,
+            model_name="ESRSINGLE",
+            metadata=metadata or {},
+        )
+
+    def test_refit_applies_freq_cutoff(self) -> None:
+        """refit_outliers crops the refit frequency axis to the configured freq_cutoff.
+
+        Regression test for review finding F3: fit_frange() used to ignore
+        freq_cutoff entirely, so outlier pixels were refit against the full
+        frequency axis while the rest of the map was fit against the cutoff
+        range.
+        """
+        h, w, n_freq = 6, 6, 30
+        fr = self._make_esrsingle_fit_result(h=h, w=w, bad_pixel=(3, 3))
+        backend = RecordingFitBackend()
+        fit_manager = FitManager(
+            model_name="ESRSINGLE",
+            settings=_REFIT_SETTINGS,
+            backend=backend,
+            freq_cutoff={"low": {"max": 2.87}},
+        )
+        data = _make_data_array(n_pol=1, n_frange=1, h=h, w=w, n_freq=n_freq)
+        freq = np.linspace(2.82, 2.92, n_freq).reshape(1, n_freq)
+        settings = RefitSettings(chi2_percentile=90.0, min_good_neighbors=1)
+
+        refit_outliers(fr, data, freq, fit_manager, settings)
+
+        assert len(backend.freq_calls) >= 1
+        recorded_freq = backend.freq_calls[-1]
+        assert float(np.max(recorded_freq)) <= 2.87
+        assert recorded_freq.size < n_freq
+
+    def test_refit_applies_folded_constraint_overrides(self) -> None:
+        """refit_outliers layers FOLDED_CONSTRAINT_OVERRIDES onto a folded fit's refit.
+
+        Regression test for review finding F3: fit_frange() used to always
+        fit with the manager's plain base constraints, so outlier pixels in a
+        folded fit lost the folded contrast/offset bounds that the original
+        fit_folded() call applied.
+        """
+        h, w = 6, 6
+        fr = self._make_esrsingle_fit_result(
+            h=h, w=w, bad_pixel=(3, 3), metadata={"folded_fit": True}
+        )
+        backend = RecordingFitBackend()
+        fit_manager = FitManager(model_name="ESRSINGLE", settings=_REFIT_SETTINGS, backend=backend)
+        data = _make_data_array(n_pol=1, n_frange=1, h=h, w=w)
+        freq = np.linspace(2.875, 2.930, 20).reshape(1, 20)
+        settings = RefitSettings(chi2_percentile=90.0, min_good_neighbors=1)
+
+        refit_outliers(fr, data, freq, fit_manager, settings)
+
+        assert len(backend.constraints_calls) >= 1
+        offset_idx = fit_manager.parameter_names.index("offset")
+        recorded_offset_bounds = backend.constraints_calls[-1][
+            0, 2 * offset_idx : 2 * offset_idx + 2
+        ]
+        assert recorded_offset_bounds[0] == pytest.approx(
+            FOLDED_CONSTRAINT_OVERRIDES["offset"].vmin
+        )
+        assert recorded_offset_bounds[1] == pytest.approx(
+            FOLDED_CONSTRAINT_OVERRIDES["offset"].vmax
+        )
 
 
 # ---------------------------------------------------------------------------

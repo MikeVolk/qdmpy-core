@@ -73,6 +73,48 @@ class FakeFitBackend:
         )
 
 
+class RecordingFitBackend(FakeFitBackend):
+    """FakeFitBackend that records the freq_ghz/constraints passed to each fit() call.
+
+    Lets tests assert on what a FitManager actually sent to the backend —
+    e.g. that freq_cutoff cropped the frequency axis, or that a constraint
+    override reached the backend's bounds — rather than only on the fit's
+    output.
+
+    Example:
+        >>> from qdmpy.fitting.manager import FitManager
+        >>> from qdmpy.testing import RecordingFitBackend
+        >>> backend = RecordingFitBackend()
+        >>> fit_manager = FitManager(model_name="ESRSINGLE", backend=backend)
+        >>> # ... fit_manager.fit(...) ...
+        >>> backend.freq_calls[-1]  # freq_ghz array from the most recent fit() call
+    """
+
+    def __init__(self: RecordingFitBackend) -> None:
+        """Initialize empty per-call recording lists."""
+        self.freq_calls: list[NDArray] = []
+        self.constraints_calls: list[NDArray] = []
+        self.constraint_types_calls: list[NDArray] = []
+
+    def fit(
+        self: RecordingFitBackend,
+        data: NDArray,
+        freq_ghz: NDArray,
+        initial_parameters: NDArray,
+        constraints: NDArray,
+        constraint_types: NDArray,
+        model: Model,
+        options: FitBackendOptions,
+    ) -> BackendFitOutput:
+        """Record freq_ghz/constraints, then delegate to FakeFitBackend.fit()."""
+        self.freq_calls.append(np.asarray(freq_ghz))
+        self.constraints_calls.append(np.asarray(constraints))
+        self.constraint_types_calls.append(np.asarray(constraint_types))
+        return super().fit(
+            data, freq_ghz, initial_parameters, constraints, constraint_types, model, options
+        )
+
+
 def _dipole_field(shape: tuple[int, int], amplitude: float = 50.0) -> NDArray:
     """Create a simple dipole-like 2D B111 pattern (µT)."""
     H, W = shape

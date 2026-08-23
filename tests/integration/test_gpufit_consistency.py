@@ -96,7 +96,7 @@ def _run_consistency(model_name: str, true_params: np.ndarray) -> None:
     data = spectra[np.newaxis]  # (1, N, n_freq)
     init = true_params[np.newaxis]  # (1, N, n_params)
 
-    results = fm.fit_frange(data, FREQ, init)
+    results = fm.fit_frange(data, FREQ, init, irange=0, n_frange=1)
     recovered = results[0].reshape(-1, model.n_parameters)
     states = results[1].flatten()
     chi2 = results[2].flatten()

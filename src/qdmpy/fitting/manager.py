@@ -60,8 +60,9 @@ _MIN_FREQ_POINTS = 10
 
 # Folded spectra average two branches together, shifting contrast/offset
 # baselines relative to a single unfolded branch; fit_folded() layers these
-# onto the caller's constraints for contrast/offset parameters only.
-_FOLDED_CONSTRAINT_OVERRIDES: dict[str, ConstraintOverride] = {
+# onto the caller's constraints for contrast/offset parameters only. Also
+# used by qdmpy.fitting.refit to keep refit consistent with a folded fit.
+FOLDED_CONSTRAINT_OVERRIDES: dict[str, ConstraintOverride] = {
     "contrast": ConstraintOverride(vmin=0.001, vmax=1.0, constraint_type="LOWER_UPPER"),
     "offset": ConstraintOverride(vmin=-0.5, vmax=3.0, constraint_type="LOWER_UPPER"),
 }
@@ -844,27 +845,38 @@ class FitManager:
         data: NDArray,
         freq: NDArray,
         initial_parameters: NDArray,
+        *,
+        irange: int,
+        n_frange: int,
+        constraint_overrides: Mapping[str, ConstraintOverride] | None = None,
     ) -> list[Any]:
         """Fit a single frequency range via the resolved backend.
 
-        Thin shape adapter over ``self._backend.fit()`` (QEP-068): builds the
-        constraint arrays this FitManager owns, then delegates the actual
-        optimization to whichever backend was resolved at construction time
-        (gpufit, scipy, or a test fake).
+        Applies the same per-range preprocessing ``_fit_all_franges()`` uses
+        (freq_cutoff trimming, mT-center-window / caller-supplied constraint
+        overrides) so results stay consistent with however this FitManager
+        was configured. Used directly by ``fit_frange``'s own callers and by
+        ``qdmpy.fitting.refit``, which must reproduce the original fit's
+        cutoff/constraint configuration when refitting outlier pixels.
 
         Args:
             data: ODMR data with shape (n_pol, n_pixel, n_freq).
-            freq: Frequency values in GHz for this range.
+            freq: Full (pre-cutoff) frequency axis in GHz for this range.
             initial_parameters: Initial parameter guesses.
+            irange: Index of this frequency range among ``n_frange`` ranges.
+            n_frange: Total number of frequency ranges being fit.
+            constraint_overrides: Optional per-parameter-type constraint
+                overrides (e.g. folded-fit contrast/offset bounds), layered
+                onto this manager's constraints before the mT-center-window.
 
         Returns:
-            List containing [fit_params, states, chi_squares, iterations, exec_time],
-            preserved for compatibility with callers like ``fitting.refit``.
+            List containing [fit_params, states, chi_squares, iterations, exec_time].
 
         Raises:
             DependencyError: If the resolved backend is not available, or does
                 not support the current model.
             ModelNotResolvedError: If called before the model is resolved.
+            DataValidationError: If freq_cutoff is incompatible with n_frange.
         """
         self._require_backend_available()
 
@@ -873,7 +885,12 @@ class FitManager:
             raise ModelNotResolvedError(msg)
         model: Model = self._model
 
-        output = self._run_backend_fit(data, freq, initial_parameters, model, self.constraints)
+        self._validate_freq_cutoff_for_n_ranges(n_frange)
+        base = self._base_constraints_with_overrides(model, constraint_overrides)
+        effective = self._effective_constraints_for_range(base, freq)
+        range_data, range_freq = self._apply_freq_cutoff_for_range(data, freq, irange, n_frange)
+
+        output = self._run_backend_fit(range_data, range_freq, initial_parameters, model, effective)
         return [
             output.parameters,
             output.states,
@@ -955,6 +972,6 @@ class FitManager:
             prepared,
             pixel_spacing=pixel_spacing,
             detection_data=detection_data,
-            constraint_overrides=_FOLDED_CONSTRAINT_OVERRIDES,
+            constraint_overrides=FOLDED_CONSTRAINT_OVERRIDES,
             extra_metadata={"folded_fit": True},
         )
