@@ -49,6 +49,43 @@ Findings from `docs/reviews/2026-08-30-correctness-and-solid-review.md`.
   `**kwargs` in its signature. Now threaded through to the underlying
   `ax.imshow` call.
 
+### Fixed (CI)
+
+- `.github/workflows/test.yml`'s `pre-commit` and `test` jobs still installed
+  via Poetry on Python 3.7-3.10, from before this repo switched to `uv` and
+  raised its Python floor to 3.13 -- `poetry install` failed immediately with
+  no `poetry.lock` present, so every push/PR had a permanently red `Test`
+  workflow regardless of code changes. Both jobs now use `uv sync` on Python
+  3.13, matching the pattern already established in `notebooks.yml` and
+  `qdmpy-gui/.github/workflows/ci.yml`.
+- Bumped `actions/checkout@v2` -> `@v4` (deprecated runner) across every
+  workflow file, `actions/setup-python@v2` -> `@v5` in `cookiecutter.yml`,
+  and `peter-evans/create-pull-request@v3` -> `@v7` in `cookiecutter.yml` /
+  `dependencies.yml`, so `actionlint` passes.
+- Replaced a deprecated `::set-output` command in `cookiecutter.yml` with
+  `$GITHUB_OUTPUT`.
+- `dependencies.yml`, `draft_release.yml`, and `release.yml` also still ran
+  Poetry end to end (dependency auto-updates, version bumping, PyPI
+  publish) and would have failed the same way if actually triggered. All
+  three now run on `uv`: `uv lock --dry-run --upgrade` replaces
+  `poetry show -o`, `uv version --bump {major,minor,patch}` (or an explicit
+  version) replaces `poetry version`, and `uv build` / `uv publish` replace
+  `poetry publish`. `kacl-cli` now runs via `uvx --from python-kacl` rather
+  than being a project dependency. The archived `actions/create-release@v1`
+  is replaced with `gh release create`. Removed the now-unused
+  `.github/actions/python-poetry-env` composite action.
+- With `test.yml` finally installing via `uv` instead of failing at
+  `poetry install`, `uv run pytest` ran to completion on a CI runner for the
+  first time and surfaced two test modules that were never actually
+  CI-worthy: `tests/integration/test_folded_real_data_regression.py` hits
+  real data fixtures not present in the repo (now skips cleanly, matching
+  the existing `test_io.py`/`test_data.py` "Test data directory not found"
+  convention), and `tests/integration/test_gpufit_consistency.py` only
+  checked that `pygpufit` *imports*, not that a CUDA-capable GPU is actually
+  present -- it imports fine on any machine with the wheel installed and
+  fails at fit time with "CUDA driver version is insufficient" otherwise.
+  Both now gate on `pygpufit.gpufit.cuda_available()`.
+
 ### Added (QEP-073: analytic Jacobians)
 
 - **`Model.jacobian(x, parameters)`** — optional hook returning per-parameter

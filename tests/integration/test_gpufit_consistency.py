@@ -21,12 +21,17 @@ from qdmpy.settings import FitSettings, ModelConstraintsSettings, ModelSettings,
 try:
     import pygpufit.gpufit as gf
 
-    _HAS_GPUFIT = True
+    # pygpufit imports fine on any machine with the wheel installed -- it's
+    # a thin Python wrapper around a compiled CUDA library. Actually calling
+    # it without a functional GPU driver raises at fit time (e.g. "CUDA
+    # driver version is insufficient for CUDA runtime version"), so the
+    # import succeeding is not sufficient to know these tests can run.
+    _HAS_GPUFIT = gf.cuda_available()
 except (ImportError, OSError):
     gf = None
     _HAS_GPUFIT = False
 
-pytestmark = pytest.mark.skipif(not _HAS_GPUFIT, reason="Requires pygpufit installation")
+pytestmark = pytest.mark.skipif(not _HAS_GPUFIT, reason="Requires a CUDA-capable GPU")
 
 N = 64
 N_FREQ = 50
