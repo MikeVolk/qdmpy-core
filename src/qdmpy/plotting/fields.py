@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 def plot_magnetic_component(
     mag_map: MagneticMap,
     component: str = "Bz",
+    **imshow_kwargs: Any,  # noqa: ANN401
 ) -> None:
     """Plot one MagneticMap component as a spatially-resolved map.
 
@@ -27,6 +28,8 @@ def plot_magnetic_component(
         mag_map: MagneticMap instance.
         component: Which component to display: ``'b111'``, ``'Bx'``, ``'By'``,
             ``'Bz'``, or ``'Btotal'``.
+        **imshow_kwargs: Passed to ``ax.imshow(**imshow_kwargs)``, overriding
+            the defaults below (e.g. ``cmap``, ``vmin``, ``vmax``).
 
     Raises:
         ValueError: If component is not recognized.
@@ -50,9 +53,16 @@ def plot_magnetic_component(
     vmin = -vmax if component_lower != "btotal" else 0.0
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    im = ax.imshow(
-        arr, extent=extent, origin="upper", cmap=cmap, aspect="equal", vmin=vmin, vmax=vmax
-    )
+    imshow_options: dict[str, Any] = {
+        "extent": extent,
+        "origin": "upper",
+        "cmap": cmap,
+        "aspect": "equal",
+        "vmin": vmin,
+        "vmax": vmax,
+    }
+    imshow_options.update(imshow_kwargs)
+    im = ax.imshow(arr, **imshow_options)
     _add_colorbar(im, ax, label=f"{component} (µT)")
     ax.set_xlabel("x [µm]")
     ax.set_ylabel("y [µm]")

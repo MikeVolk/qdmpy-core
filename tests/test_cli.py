@@ -134,3 +134,19 @@ class TestMain:
         ):
             rc = main()
         assert rc == 0
+
+    def test_resolves_real_version_not_unknown(self) -> None:
+        """Regression test: get_version() used to be called with "QDMpy",
+        but the distribution is named "qdmpy-core" (pyproject.toml), so a
+        real install always raised PackageNotFoundError and every --version
+        / error-path banner silently showed "unknown".
+        """
+        from importlib.metadata import version
+
+        assert version("qdmpy-core") != "unknown"
+
+        with patch("sys.argv", ["qdmpy", "models"]), patch("qdmpy.cli.get_version") as mock_gv:
+            mock_gv.return_value = "9.9.9"
+            main()
+
+        mock_gv.assert_called_once_with("qdmpy-core")

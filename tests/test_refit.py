@@ -708,6 +708,49 @@ class TestRefitOutliers:
             FOLDED_CONSTRAINT_OVERRIDES["offset"].vmax
         )
 
+    def test_worse_refit_is_rejected(self) -> None:
+        """A refit that lands in a worse local minimum must not overwrite the pixel.
+
+        Regression test for review finding F2 (2026-08-22 review, still open
+        as of the 2026-08-30 review): _refit_pass used to write refit results
+        back unconditionally, even when the refit chi2 was strictly worse
+        than the pixel's original chi2. The refit should only be accepted
+        when it actually improves the fit.
+        """
+        h, w = 6, 6
+        fr = self._make_simple_fit_result(h=h, w=w, bad_pixel=(3, 3))
+        original_center = float(fr.parameters["center"][0, 0, 3, 3])
+        original_chi2 = float(fr.parameters["chi2"][0, 0, 3, 3])
+
+        def _fit_frange_worse(
+            data: np.ndarray,
+            freq: np.ndarray,
+            initial_params: np.ndarray,
+            *,
+            irange: int,
+            n_frange: int,
+            constraint_overrides: object = None,
+        ) -> list:
+            n_data = data.shape[0] * data.shape[1]
+            params_out = np.full((n_data, 1), 3.37, dtype=np.float32)
+            states_out = np.zeros(n_data, dtype=np.int32)
+            chi2_out = np.full(n_data, 999.0, dtype=np.float32)  # worse than original_chi2
+            iters_out = np.ones(n_data, dtype=np.int32) * 10
+            return [params_out, states_out, chi2_out, iters_out, 0.01]
+
+        fm = MagicMock()
+        fm.parameter_names = ["center"]
+        fm.n_parameter = 1
+        fm.fit_frange.side_effect = _fit_frange_worse
+        data = _make_data_array(n_pol=1, n_frange=1, h=h, w=w)
+        freq = np.linspace(2.84, 2.90, 20).reshape(1, 20)
+        settings = RefitSettings(chi2_percentile=90.0, min_good_neighbors=1)
+
+        result = refit_outliers(fr, data, freq, fm, settings)
+
+        assert result.parameters["center"][0, 0, 3, 3] == pytest.approx(original_center)
+        assert result.parameters["chi2"][0, 0, 3, 3] == pytest.approx(original_chi2)
+
 
 # ---------------------------------------------------------------------------
 # Measurement.refit_outliers and fit_odmr(refit_outliers=True)

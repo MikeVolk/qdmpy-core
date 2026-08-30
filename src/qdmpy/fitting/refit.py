@@ -204,6 +204,42 @@ def compute_neighbor_guesses(
     return guess_dict, refittable_mask
 
 
+def _accept_improved_refits(
+    new_params: dict[str, NDArray],
+    model_parameter_names: list[str],
+    *,
+    irange: int,
+    rows: NDArray,
+    cols: NDArray,
+    new_fit_params: NDArray,
+    new_states_arr: NDArray,
+    new_chi2_arr: NDArray,
+) -> int:
+    """Write refit results back only where they improve on the pixel's chi2.
+
+    A refit can land in a worse local minimum than the pixel already had;
+    writing it back unconditionally would silently degrade the map. A
+    non-finite old chi2 has no valid baseline, so any finite refit result is
+    accepted for it. Mutates ``new_params`` in place.
+
+    Returns:
+        Number of (polarity, pixel) entries whose refit was accepted.
+    """
+    old_chi2 = new_params["chi2"][:, irange, rows, cols]
+    improved = (new_chi2_arr < old_chi2) | ~np.isfinite(old_chi2)
+
+    for iparam, pname in enumerate(model_parameter_names):
+        old_param = new_params[pname][:, irange, rows, cols]
+        new_params[pname][:, irange, rows, cols] = np.where(
+            improved, new_fit_params[:, :, iparam], old_param
+        )
+    old_states = new_params["states"][:, irange, rows, cols]
+    new_params["chi2"][:, irange, rows, cols] = np.where(improved, new_chi2_arr, old_chi2)
+    new_params["states"][:, irange, rows, cols] = np.where(improved, new_states_arr, old_states)
+
+    return int(np.sum(improved))
+
+
 def _refit_pass(
     fit_result: FitResult,
     data: xr.DataArray,
@@ -319,17 +355,24 @@ def _refit_pass(
         new_states_arr = np.asarray(raw[1]).reshape(n_pol, n_refit)
         new_chi2_arr = np.asarray(raw[2]).reshape(n_pol, n_refit)
 
-        # Write refit results back at the outlier pixel positions
-        for iparam, pname in enumerate(model_parameter_names):
-            new_params[pname][:, irange, rows, cols] = new_fit_params[:, :, iparam]
-        new_params["chi2"][:, irange, rows, cols] = new_chi2_arr
-        new_params["states"][:, irange, rows, cols] = new_states_arr
+        n_accepted = _accept_improved_refits(
+            new_params,
+            model_parameter_names,
+            irange=irange,
+            rows=rows,
+            cols=cols,
+            new_fit_params=new_fit_params,
+            new_states_arr=new_states_arr,
+            new_chi2_arr=new_chi2_arr,
+        )
 
         logger.info(
-            "frange {}: refitted {} of {} outlier pixels",
+            "frange {}: refitted {} of {} outlier pixels ({} accepted, {} rejected as worse)",
             irange,
             n_refit,
             n_outlier_frange,
+            n_accepted,
+            new_chi2_arr.size - n_accepted,
         )
 
     n_total_refitted = sum(v["n_refitted"] for v in per_frange_info.values())

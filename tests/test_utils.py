@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import pytest
 
 from qdmpy.utils import (
     double_norm,
@@ -49,6 +50,23 @@ class TestUtils(unittest.TestCase):
 
             assert result == expected
 
+    def test_millify_large_values_do_not_raise(self) -> None:
+        """Regression test for review finding: millify used to raise IndexError
+        for |n| >= 1e15 because millidx was clamped to [0, len(MILLNAMES) - 1]
+        and then indexed as MILLNAMES[millidx + 3] -- out of range past 1e12.
+        """
+        for value in (1e15, 1e18, 1e21, 1e24):
+            result = millify(value)
+            assert result.endswith(" T")
+
+    def test_millify_small_values_use_milli_prefix(self) -> None:
+        """Regression test for review finding: millify used to silently collapse
+        sub-milli values to "0.0" instead of using a milli/micro/nano prefix,
+        because negative millidx values were clamped up to 0.
+        """
+        assert millify(0.0005) == "500.0μ"
+        assert millify(1e-8) == "10.0n"
+
     def test_double_norm(self) -> None:
         """Test double norm function for array normalization."""
         # Create a test array with positive and negative values
@@ -60,6 +78,32 @@ class TestUtils(unittest.TestCase):
         assert np.all(result <= 1)
         assert result.min() == 0
         assert result.max() == 1
+
+    def test_double_norm_2d_default_axis_does_not_raise(self) -> None:
+        """Regression test: double_norm's documented default (axis=None, i.e.
+        normalize globally) used to raise AxisError for any array with ndim > 1,
+        because np.expand_dims always inserted the restored dimension at
+        data.ndim - 1 instead of at the reduction axis.
+        """
+        test_array = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 60.0]])
+
+        result = double_norm(test_array)
+
+        assert result.shape == test_array.shape
+        assert result.min() == pytest.approx(0.0)
+        assert result.max() == pytest.approx(1.0)
+
+    def test_double_norm_non_last_axis(self) -> None:
+        """Regression test: double_norm(data, axis=0) used to raise a broadcast
+        ValueError for any axis other than the last one.
+        """
+        test_array = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 60.0]])
+
+        result = double_norm(test_array, axis=0)
+
+        assert result.shape == test_array.shape
+        np.testing.assert_allclose(result.min(axis=0), 0.0)
+        np.testing.assert_allclose(result.max(axis=0), 1.0)
 
     def test_idx2rc(self) -> None:
         """Test conversion from linear indices to row-column coordinates."""

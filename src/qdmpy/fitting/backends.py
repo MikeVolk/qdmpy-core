@@ -29,6 +29,11 @@ if TYPE_CHECKING:
 
 ESTIMATOR_ID = {"LSE": 0, "MLE": 1}
 
+# Matches TorchBackend._STATE_INVALID (torch_backend.py) -- a pixel whose
+# input data contains non-finite values, distinct from gpufit's convergence
+# state codes.
+_STATE_INVALID = 2
+
 
 @dataclass(frozen=True)
 class BackendFitOutput:
@@ -251,12 +256,24 @@ class ScipyBackend:
         for i in range(n_fits):
             target = data[i]
 
-            def residuals(p: NDArray, _target: NDArray = target) -> NDArray:
-                return model.func(freq_ghz, p[np.newaxis, :])[0] - _target
-
             # least_squares (unlike gpufit) rejects an x0 outside its bounds;
             # clip rather than raise, matching gpufit's tolerant behaviour.
             x0 = np.clip(initial[i], lower[i], upper[i])
+
+            if not np.isfinite(target).all():
+                # least_squares raises ValueError on non-finite residuals at
+                # the initial point, aborting the whole batch. Mark this
+                # pixel invalid instead, matching TorchBackend's convention,
+                # so one bad pixel doesn't take down every other fit.
+                params_out[i] = x0
+                states_out[i] = _STATE_INVALID
+                chi2_out[i] = np.nan
+                iterations_out[i] = 0
+                continue
+
+            def residuals(p: NDArray, _target: NDArray = target) -> NDArray:
+                return model.func(freq_ghz, p[np.newaxis, :])[0] - _target
+
             result = least_squares(
                 residuals,
                 x0,
