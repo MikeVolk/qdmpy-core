@@ -7,6 +7,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (CI)
+
+- `.github/workflows/test.yml`'s `pre-commit` and `test` jobs still installed
+  via Poetry on Python 3.7-3.10, from before this repo switched to `uv` and
+  raised its Python floor to 3.13 -- `poetry install` failed immediately with
+  no `poetry.lock` present, so every push/PR had a permanently red `Test`
+  workflow regardless of code changes. Both jobs now use `uv sync` on Python
+  3.13, matching the pattern already established in `notebooks.yml` and
+  `qdmpy-gui/.github/workflows/ci.yml`.
+- Bumped `actions/checkout@v2` -> `@v4` (deprecated runner) across every
+  workflow file, `actions/setup-python@v2` -> `@v5` in `cookiecutter.yml`,
+  and `peter-evans/create-pull-request@v3` -> `@v7` in `cookiecutter.yml` /
+  `dependencies.yml`, so `actionlint` passes.
+- Replaced a deprecated `::set-output` command in `cookiecutter.yml` with
+  `$GITHUB_OUTPUT`.
+
 ### Added (QEP-073: analytic Jacobians)
 
 - **`Model.jacobian(x, parameters)`** — optional hook returning per-parameter
