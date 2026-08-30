@@ -7,6 +7,78 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-08-30 bugs & tech-debt review, P0 -- silent wrong results)
+
+The four findings from `docs/reviews/2026-08-30-bugs-and-tech-debt-review.md`
+where the library returned plausible-looking wrong data rather than failing.
+
+- **`.qdm` round-trip silently lost every fit state.** `states` was written
+  to disk as `fit_states` and then skipped on read, so every loaded result
+  reported 100% convergence, `get_fit_quality_metrics()` dropped
+  `convergence_rate`/`n_converged`, and
+  `refit_outliers(include_non_converged=True)` became a no-op on loaded
+  results. Measured before the fix: 45 non-converged pixels -> 0.
+- **`.qdm` files now carry the frequency axis they were fitted against.**
+  The format's documented `fit/frequencies` dataset was never actually
+  written, so a saved result could not be refit or replotted against its own
+  x-axis. `FitManager` now records `metadata["frequencies_ghz"]` and
+  `save_qdm` persists it as a float64 dataset.
+- **Refit no longer reports work it discarded, and converges when it should.**
+  `refit_info["n_refitted"]` counted *attempted* refits, so `_refit_pass`
+  always returned a new `FitResult` and `refit_outliers`' early-stop never
+  fired -- measured at 4 passes / 112 pixel-fits / 0 parameters changed on a
+  clean fit. `refit_info` now reports `n_accepted` alongside `n_refitted`,
+  per-frange as well, and a pass where nothing improved ends the loop. The
+  per-frange log line no longer mixes per-pixel and per-(polarity, pixel)
+  counts.
+
+### Changed (2026-08-30 bugs & tech-debt review, P0)
+
+- **BREAKING -- unknown fields are rejected everywhere.** `BaseProcessor`,
+  `BaseFieldProcessor`, their concrete subclasses, and the whole settings
+  tree now use `extra="forbid"`. Previously a typo was silently dropped and
+  the object ran on a default the caller never chose: `settings.toml` with
+  `center_min_ml` (for `center_min_mt`) fitted under the wrong constraint
+  with no diagnostic, and the published tutorial's
+  `OutlierProcessor(threshold=3.0)` constructed with the destructive default.
+  Stray `QDMPY_*` environment variables are unaffected -- pydantic-settings
+  only maps env vars onto declared fields.
+- **BREAKING -- dead settings sections removed.** `default_paths`, `odmr`,
+  `model.find_peaks` and the entire `outlier_detection` tree
+  (`OutlierDetectionSettings`, `LocalOutlierFactorSettings`,
+  `StatisticsPercentileSettings`) are gone. Nothing in the library ever read
+  them, but they were documented and user-settable. Combined with
+  `extra="forbid"` above, an existing `settings.toml` containing them will
+  now fail to load -- delete those sections. `model.find_peaks.prominence` in
+  particular advertised a tunable peak-detection threshold on the
+  model-detection path while `guess.py` used its own adaptive
+  `_relative_prominence`; the adaptive version is kept.
+
+### Deprecated (2026-08-30 bugs & tech-debt review, P0)
+
+- **`OutlierProcessor` is deprecated and will be removed in the next minor
+  release.** It cannot work at any setting: it z-scores along `freq_idx`,
+  where the ODMR resonance dip is by definition the largest deviation.
+  Measured on a clean ESR14N spectrum the dip's z-score (~1.9) is the maximum
+  anywhere, so `>= 2.0` masks nothing, `< 2.0` masks the resonance first, and
+  the shipped default `0.003` masks ~99.9% of the data. Construction now
+  warns, and `process()` warns again if it masked more than half the data.
+  Use `qdmpy.field_processing.HotPixelFilter` for spatial outlier rejection.
+  (Open as F1 since the 2026-08-22 review.)
+
+### Documentation (2026-08-30 bugs & tech-debt review, P0)
+
+- `docs/tutorials/processors.md` no longer instructs users to call
+  `OutlierProcessor(threshold=3.0)` (no such field -- it silently produced
+  the 99.9%-masking default), `FluorescenceCorrectionProcessor(factor=0.2)`
+  (the field is `correction_factor`), or `NormalizationProcessor(method='max')`
+  ahead of fluorescence correction, which the code itself warns against.
+- `docs/migration.md` no longer recommends `OutlierProcessor` as the port
+  target for the old `LocalOutlierFactor`/`IsolationForest` detectors; it
+  points at `HotPixelFilter`.
+- `docs/tutorials/settings_configuration.md` updated for the removed
+  sections and the new `extra="forbid"` behaviour.
+
 ### Changed (2026-08-30 correctness review, SOLID findings)
 
 The 5 `develop`-scope SOLID findings from

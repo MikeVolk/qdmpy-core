@@ -295,6 +295,51 @@ class TestSaveLoadQdm:
                     err_msg=f"Parameter {key!r} mismatch after round-trip",
                 )
 
+    def test_fit_states_survive_round_trip(self, result_no_images, tmp_path) -> None:
+        """Non-converged pixels must not come back as converged.
+
+        Regression: ``states`` was written to disk as ``fit_states`` and then
+        skipped on read, so every loaded result reported a 100% convergence
+        rate, ``get_fit_quality_metrics()`` silently dropped
+        ``convergence_rate``, and ``refit_outliers(include_non_converged=True)``
+        became a no-op on any loaded result.
+        """
+        states = np.zeros_like(result_no_images.parameters["chi2"], dtype=np.int32)
+        states.flat[:5] = 3  # five non-converged pixels
+        params = {k: np.array(v) for k, v in result_no_images.parameters.items()}
+        params["states"] = states
+        fit_result = result_no_images.fit_result.model_copy(update={"parameters": params})
+        result = result_no_images.model_copy(update={"fit_result": fit_result})
+
+        path = tmp_path / "states.qdm"
+        save_qdm(result, path)
+        loaded = load_qdm(path)
+
+        assert "states" in loaded.parameters
+        np.testing.assert_array_equal(loaded.parameters["states"], states)
+        assert int((loaded.fit_states != 0).sum()) == 5
+        assert "convergence_rate" in loaded.get_fit_quality_metrics()
+
+    def test_frequency_axis_survives_round_trip(self, tmp_path) -> None:
+        """A saved result carries the frequency axis it was fitted against.
+
+        Without it a .qdm cannot be refit or replotted against its own x-axis.
+        """
+        from qdmpy.fitting.manager import FitManager
+        from qdmpy.result import QDMResult
+        from qdmpy.testing import make_synthetic_odmr_data
+
+        data = make_synthetic_odmr_data(shape=(4, 4), n_freq=50)
+        fit_result = FitManager(model_name="ESR14N", backend="scipy").fit(
+            data.data, data.frequencies
+        )
+
+        path = tmp_path / "freqs.qdm"
+        save_qdm(QDMResult(fit_result=fit_result), path)
+        loaded = load_qdm(path)
+
+        np.testing.assert_allclose(np.asarray(loaded.metadata["frequencies_ghz"]), data.frequencies)
+
 
 # ---------------------------------------------------------------------------
 # save_npz / load_npz

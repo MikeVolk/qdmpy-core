@@ -21,7 +21,6 @@ from qdmpy import (
     BinningProcessor,
     NormalizationProcessor,
     FluorescenceCorrectionProcessor,
-    OutlierProcessor,
     ODMR,
 )
 ```
@@ -33,9 +32,8 @@ from qdmpy import (
 | Processor | Effect | When to use |
 |-----------|--------|-------------|
 | `BinningProcessor(bin_factor=N)` | 2×2 spatial averaging (reduces resolution, improves SNR) | Always for noisy data; try bin_factor=2 first |
-| `NormalizationProcessor(method='max')` | Normalises each pixel spectrum to [0, 1] | Almost always — required before fluorescence correction |
-| `FluorescenceCorrectionProcessor(factor=0.2)` | Removes global fluorescence variations using LED reference | When LED image is available; reduces baseline drift |
-| `OutlierProcessor(threshold=3.0)` | Flags and removes anomalous pixels (sigma-clipping) | Optional; useful for samples with debris or damage |
+| `NormalizationProcessor(method='mean')` | Divides each pixel spectrum by its own mean, preserving per-pixel baseline variation | Almost always — required before fluorescence correction |
+| `FluorescenceCorrectionProcessor(correction_factor=0.2)` | Removes global fluorescence variations using LED reference | When LED image is available; reduces baseline drift |
 
 ---
 
@@ -48,9 +46,10 @@ odmr_data = qdmpy.make_synthetic_odmr_data(shape=(64, 64))
 odmr = qdmpy.ODMR(odmr_data)
 
 odmr.processor_manager.add_processor(BinningProcessor(bin_factor=2))
-odmr.processor_manager.add_processor(NormalizationProcessor(method='max'))
-odmr.processor_manager.add_processor(FluorescenceCorrectionProcessor(factor=0.2))
-odmr.processor_manager.add_processor(OutlierProcessor(threshold=3.0))
+odmr.processor_manager.add_processor(NormalizationProcessor(method='mean'))
+odmr.processor_manager.add_processor(
+    FluorescenceCorrectionProcessor(correction_factor=0.2)
+)
 
 odmr.process_data()
 ```
@@ -82,14 +81,16 @@ result = qdmpy.load(
        fluorescence correction assumes a normalised baseline
     3. `FluorescenceCorrectionProcessor` — requires a normalised spectrum to
        identify the baseline correctly
-    4. `OutlierProcessor` — flag anomalous pixels last, after the data has
-       been corrected and normalised
 
     **Wrong order (example):**
     ```python
     # BAD: fluorescence correction before normalisation
-    odmr.processor_manager.add_processor(FluorescenceCorrectionProcessor(0.2))
-    odmr.processor_manager.add_processor(NormalizationProcessor('max'))   # too late
+    odmr.processor_manager.add_processor(
+        FluorescenceCorrectionProcessor(correction_factor=0.2)
+    )
+    odmr.processor_manager.add_processor(
+        NormalizationProcessor(method='mean')   # too late
+    )
     ```
 
 ---

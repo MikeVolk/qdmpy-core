@@ -145,12 +145,12 @@ class TestNvSettingsImmutability:
         with pytest.raises((ValidationError, TypeError)):
             nv.epsilon = 1e-5
 
-    def test_extra_fields_are_ignored(self) -> None:
-        """Extra keyword arguments do not raise; they are silently dropped."""
+    def test_extra_fields_are_rejected(self) -> None:
+        """Extra keyword arguments raise rather than being silently dropped."""
         from qdmpy.settings import NvSettings
 
-        nv = NvSettings(unknown_field="should_be_ignored")
-        assert not hasattr(nv, "unknown_field")
+        with pytest.raises(ValidationError):
+            NvSettings(unknown_field="should_not_be_ignored")
 
 
 class TestNvSettingsTypeValidation:

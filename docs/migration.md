@@ -134,7 +134,7 @@ result2 = QDMResult.load("result.qdm")       # equivalent convenience method
 | `odmr.normalize_data()` | `NormalizationProcessor()` | Default method="mean" |
 | `odmr.normalize_data(method="max")` | `NormalizationProcessor(method="max")` | Deprecated; loses baseline info |
 | `qdm.correct_glob_fluorescence(f)` | `FluorescenceCorrectionProcessor(f)` | Must run after normalization |
-| `odmr.apply_outlier_mask()` | `OutlierProcessor()` | Z-score based; see note below |
+| `odmr.apply_outlier_mask()` | `HotPixelFilter` (post-fit) | `OutlierProcessor` is deprecated; see note below |
 | `odmr.reset_data()` | `odmr.reset()` | |
 | `odmr.remove_overexposed()` | `HotPixelFilter(threshold_std=5)` in `FieldProcessingPipeline` | Applied post-fit |
 
@@ -145,20 +145,26 @@ from qdmpy.odmr.processors import (
     BinningProcessor,
     NormalizationProcessor,
     FluorescenceCorrectionProcessor,
-    OutlierProcessor,
 )
 
 pm = meas.odmr.processor_manager
 pm.add_processor(BinningProcessor(bin_factor=2))
 pm.add_processor(NormalizationProcessor())                     # 1. normalize first
 pm.add_processor(FluorescenceCorrectionProcessor(correction_factor=0.2))  # 2. then correct
-pm.add_processor(OutlierProcessor(z_score_threshold=0.003))   # 3. then mask outliers
 meas.odmr.process_data()
 ```
 
-!!! note "OutlierProcessor change"
-    The new `OutlierProcessor` is a z-score filter (`z_score_threshold` parameter only).
-    The old `LocalOutlierFactor` and `IsolationForest` methods are not yet ported.
+!!! warning "OutlierProcessor is deprecated -- do not port to it"
+    `OutlierProcessor` z-scores along the *frequency* axis, where the ODMR
+    resonance dip is by definition the largest deviation. There is no working
+    threshold: `>= 2.0` masks nothing, `< 2.0` masks the resonance itself, and
+    the default `0.003` masks ~99.9% of the data. It is deprecated and will be
+    removed in the next minor release.
+
+    Port outlier rejection to `qdmpy.field_processing.HotPixelFilter` instead,
+    which runs post-fit and scores each pixel against its spatial neighbourhood
+    -- the comparison the old `LocalOutlierFactor`/`IsolationForest` methods
+    were actually making.
 
 ### Fitting
 
@@ -227,11 +233,15 @@ c2 = result.get_parameter("contrast_2")
 
 ### Outlier Detection
 
-The new `OutlierProcessor` uses a z-score threshold rather than scikit-learn algorithms:
+The scikit-learn detectors were not ported. Use `HotPixelFilter` in a
+post-fit `FieldProcessingPipeline`; it rejects pixels that are anomalous
+relative to their spatial neighbours, which is the comparison the old
+detectors made. `OutlierProcessor` is deprecated and is not a valid target
+(see the warning above).
 
 | Old QDMpy | New qdmpy-core | Notes |
 |---|---|---|
-| `qdm.detect_outliers(method="LocalOutlierFactor")` | `OutlierProcessor(z_score_threshold=0.003)` | Algorithm changed |
+| `qdm.detect_outliers(method="LocalOutlierFactor")` | `HotPixelFilter(threshold_sigma=5)` | Post-fit, spatial |
 | `qdm.detect_outliers(method="IsolationForest")` | Not yet ported | |
 | `StatisticsPercentile(...)` | Not yet ported | |
 | `qdm.outliers` | Not a direct property; use processed data NaN mask | |
@@ -491,8 +501,8 @@ The following features from old QDMpy are not yet available in qdmpy-core:
 |---|---|---|---|
 | MATLAB export | `qdm.export_qdmio()` | Not planned | See workaround below |
 | Multi-binning test export | `qdm.export_MMT()` | Not planned | Dev utility; script manually if needed |
-| LocalOutlierFactor outlier detection | `detect_outliers(method="LocalOutlierFactor")` | Not yet ported | Use `OutlierProcessor(z_score_threshold=...)` |
-| IsolationForest outlier detection | `detect_outliers(method="IsolationForest")` | Not yet ported | Use `OutlierProcessor(z_score_threshold=...)` |
+| LocalOutlierFactor outlier detection | `detect_outliers(method="LocalOutlierFactor")` | Not yet ported | Use `HotPixelFilter` post-fit |
+| IsolationForest outlier detection | `detect_outliers(method="IsolationForest")` | Not yet ported | Use `HotPixelFilter` post-fit |
 | StatisticsPercentile outlier detection | `StatisticsPercentile(...)` | Not yet ported | |
 | Outlier DataFrame | `qdm.outlier_pdf` | Not ported | NaN mask in processed data is equivalent |
 | Most-divergent pixel | `odmr.get_most_divergent_from_mean()` | Not ported | Compute manually from mean spectrum |

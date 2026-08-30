@@ -18,13 +18,7 @@ QDMpy uses a **nested Pydantic model** structure to organize all configuration o
 
 ```
 QDMpySettings (root)
-├── default_paths
-│   └── data_path: str
-├── odmr
-│   └── norm_method: Literal['mean']
 ├── model
-│   ├── find_peaks
-│   │   └── prominence: float
 │   └── constraints
 │       ├── constraint_units ('mt' | 'absolute_ghz')
 │       ├── center_min/max/type (absolute_ghz mode)
@@ -36,23 +30,28 @@ QDMpySettings (root)
 ├── fit
 │   ├── estimator: Literal['LSE', 'MLE']
 │   ├── max_number_iterations: int
-│   └── tolerance: float
-├── outlier_detection
-│   ├── method: Literal['LocalOutlierFactor', 'StatisticsPercentile']
-│   ├── statistics_percentile
-│   │   ├── chi2_percentile: list[float]
-│   │   ├── width_percentile: list[float]
-│   │   └── contrast_percentile: list[float]
-│   └── local_outlier_factor
-│       ├── n_neighbors: int
-│       ├── algorithm: str
-│       ├── leaf_size: int
-│       ├── metric: str
-│       ├── p: int
-│       └── contamination: str | float
+│   ├── tolerance: float
+│   └── backend: Literal['auto', 'gpufit', 'scipy', 'torch']
+├── nv
+│   ├── axis: tuple[float, float, float]
+│   └── epsilon: float
 └── logging
-    └── log_level: Literal['TRACE', 'DEBUG', 'INFO', 'SUCCESS', 'WARNING', 'ERROR', 'CRITICAL']
+    ├── log_level: Literal['TRACE', 'DEBUG', 'INFO', 'SUCCESS', 'WARNING', 'ERROR', 'CRITICAL']
+    ├── log_file: str | None
+    ├── enable_structured_logging: bool
+    └── structured_log_dir: str | None
 ```
+
+!!! warning "Unknown keys are rejected"
+    Every settings model uses `extra="forbid"`. A misspelled key
+    (`center_min_ml` for `center_min_mt`) raises a `ValidationError` at load
+    time instead of being silently dropped and leaving the fit running on a
+    default you did not choose.
+
+    The `default_paths`, `odmr`, `model.find_peaks` and `outlier_detection`
+    sections were removed in the 2026-08-30 cleanup -- nothing in the library
+    ever read them. Delete them from any existing `settings.toml`, or loading
+    will now fail.
 
 ### Understanding the Structure
 
@@ -151,16 +150,9 @@ center_max_mt = 7.0
 width_max_mt = 0.7
 center_type = "LOWER_UPPER"
 
-[odmr]
-norm_method = "mean"
-
-[outlier_detection]
-method = "StatisticsPercentile"
-
-[outlier_detection.StatisticsPercentile]
-chi2_percentile = [0, 99.5]
-width_percentile = [0, 99.0]
-contrast_percentile = [1, 100]
+[fit]
+backend = "auto"
+estimator = "MLE"
 ```
 
 Then use:
@@ -340,7 +332,7 @@ print(SETTINGS.logging.log_level)          # DEBUG
 
 # Default values (not specified in TOML)
 print(SETTINGS.fit.tolerance)              # 1e-10 (default)
-print(SETTINGS.odmr.norm_method)           # mean (default)
+print(SETTINGS.fit.backend)                # auto (default)
 ```
 
 ### Example 5: Accessing Constraint Settings

@@ -193,8 +193,24 @@ class TestBinningProcessor:
             processor.process(sample_odmr_data)
 
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 class TestOutlierProcessor:
-    """Test class for OutlierProcessor."""
+    """Test class for OutlierProcessor (deprecated -- see the class docstring)."""
+
+    def test_deprecation_warning(self) -> None:
+        """Constructing OutlierProcessor warns that it masks the resonance."""
+        with pytest.warns(DeprecationWarning, match="deprecated"):
+            OutlierProcessor()
+
+    def test_default_threshold_destroys_the_data(self, sample_odmr_data) -> None:
+        """The shipped default masks essentially everything.
+
+        Documents *why* this processor is deprecated: the resonance dip is the
+        largest deviation along freq_idx, so no threshold separates noise from
+        signal. Retained as executable evidence until removal.
+        """
+        result = OutlierProcessor().process(sample_odmr_data)
+        assert np.isnan(result.data.values).mean() > 0.99
 
     def test_init_default(self) -> None:
         """Test initialization with default parameters."""
@@ -418,12 +434,12 @@ class TestODMRProcessorManager:
         """Test pipeline_config property returns serializable list."""
         manager = ODMRProcessorManager()
         manager.add_processor(NormalizationProcessor())
-        manager.add_processor(OutlierProcessor(z_score_threshold=0.01))
+        manager.add_processor(FluorescenceCorrectionProcessor(correction_factor=0.3))
 
         config = manager.pipeline_config
         assert config == [
             {"type": "NormalizationProcessor", "method": "mean"},
-            {"type": "OutlierProcessor", "z_score_threshold": 0.01},
+            {"type": "FluorescenceCorrectionProcessor", "correction_factor": 0.3},
         ]
 
     def test_from_config_round_trip(self) -> None:
@@ -431,7 +447,7 @@ class TestODMRProcessorManager:
         original = ODMRProcessorManager()
         original.add_processor(NormalizationProcessor())
         original.add_processor(BinningProcessor(bin_factor=2))
-        original.add_processor(OutlierProcessor(z_score_threshold=0.005))
+        original.add_processor(FluorescenceCorrectionProcessor(correction_factor=0.3))
 
         config = original.pipeline_config
         restored = ODMRProcessorManager.from_config(config)
@@ -441,8 +457,8 @@ class TestODMRProcessorManager:
         assert isinstance(restored.processors[0], NormalizationProcessor)
         assert isinstance(restored.processors[1], BinningProcessor)
         assert restored.processors[1].bin_factor == 2
-        assert isinstance(restored.processors[2], OutlierProcessor)
-        assert restored.processors[2].z_score_threshold == 0.005
+        assert isinstance(restored.processors[2], FluorescenceCorrectionProcessor)
+        assert restored.processors[2].correction_factor == 0.3
 
     def test_from_config_metadata_round_trip(self, sample_odmr_data) -> None:
         """Test reconstructing a pipeline from processed_data metadata."""
