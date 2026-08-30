@@ -105,6 +105,7 @@ from qdmpy.result import QDMResult
 # --- Settings ---
 from qdmpy.settings import (
     NvSettings,
+    configure_logging,
     get_settings,
     is_pygpufit_available,
     reset_settings,
@@ -118,9 +119,10 @@ from qdmpy.testing import (
     make_synthetic_qdm_result,
 )
 
-# Logging is configured lazily on the first get_settings() call,
-# not at import time. This avoids filesystem side effects (e.g.
-# creating ~/logs/) for users who only import types.
+# qdmpy never configures logging on its own -- not at import time and not
+# on first get_settings(). configure_logging() calls logger.remove(), which
+# would drop an embedding application's own loguru sinks. Applications
+# (including qdmpy's CLI) call it explicitly if they want qdmpy's sinks.
 
 __all__ = [
     # Entry points
@@ -159,6 +161,7 @@ __all__ = [
     "MagneticMap",
     # Settings
     "NvSettings",
+    "configure_logging",
     "get_settings",
     "is_pygpufit_available",
     "reset_settings",

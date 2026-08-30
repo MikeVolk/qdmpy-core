@@ -50,7 +50,12 @@ class TestFitResult:
             model_name="ESR15N",
         )
 
-        assert result.parameters == sample_parameters
+        # FitResult copies its parameter arrays (it freezes them, and freezing
+        # the caller's arrays in place would be a side effect on data it does
+        # not own), so compare values rather than dict identity.
+        assert result.parameters.keys() == sample_parameters.keys()
+        for name, expected in sample_parameters.items():
+            np.testing.assert_array_equal(result.parameters[name], expected)
         assert result.scan_dimensions == (10, 10)
         assert result.pixel_spacing == 4e-6
         assert result.model_name == "ESR15N"

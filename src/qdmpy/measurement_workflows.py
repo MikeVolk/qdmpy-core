@@ -263,6 +263,48 @@ def fit_measurement_odmr(
     )
 
 
+def _inherit_fit_configuration(
+    fit_result: FitResult,
+    constraints: dict[str, Any] | None,
+    freq_cutoff: dict[str, dict[str, float | None]] | None,
+) -> tuple[dict[str, Any] | None, dict[str, dict[str, float | None]] | None]:
+    """Fall back to the constraints/cutoff the original fit used.
+
+    An explicit argument always wins. When the caller passes nothing, the
+    values recorded on ``FitResult.metadata`` by ``FitManager`` are used, so a
+    refit reproduces the fit it is correcting. Results produced before that
+    metadata existed simply fall through to library defaults.
+
+    Args:
+        fit_result: The result being refit.
+        constraints: Caller-supplied constraints, or None.
+        freq_cutoff: Caller-supplied frequency cutoff, or None.
+
+    Returns:
+        Tuple of (constraints, freq_cutoff) to build the refit FitManager with.
+    """
+    if constraints is None:
+        recorded = fit_result.metadata.get("fit_constraints")
+        if recorded:
+            # FitManager.set_constraints() takes vmin/vmax/constraint_type;
+            # `unit` is descriptive metadata on the Constraint, not a kwarg.
+            constraints = {
+                name: {k: v for k, v in spec.items() if k != "unit"}
+                for name, spec in recorded.items()
+            }
+            logger.debug(
+                "Refit inheriting {} constraint(s) from the original fit", len(constraints)
+            )
+
+    if freq_cutoff is None:
+        recorded_cutoff = fit_result.metadata.get("fit_freq_cutoff")
+        if recorded_cutoff:
+            freq_cutoff = recorded_cutoff
+            logger.debug("Refit inheriting freq_cutoff from the original fit")
+
+    return constraints, freq_cutoff
+
+
 def refit_measurement_result(
     result: QDMResult,
     *,
@@ -282,6 +324,14 @@ def refit_measurement_result(
 
     model_name = result.fit_result.model_name
     is_folded = result.fit_result.metadata.get("folded_fit", False)
+
+    # Default to the configuration the original fit ran under, not to library
+    # defaults: a standalone refit_outliers(result) after a constrained fit
+    # would otherwise silently refit those pixels under different constraints
+    # than the fit it is correcting.
+    constraints, freq_cutoff = _inherit_fit_configuration(
+        result.fit_result, constraints, freq_cutoff
+    )
     if is_folded:
         if folded is None:
             msg = "No folded ODMR data available. Call fold_odmr() first."

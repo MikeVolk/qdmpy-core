@@ -1166,3 +1166,48 @@ class TestBlankSubtractorAlgorithm:
         result = b.process(field)
         np.testing.assert_allclose(result.values, 3.0, atol=1e-12)
         assert result.shape == (h, w)
+
+
+class TestQuadraticBackgroundSubtractorNanSafety:
+    """A NaN pixel must not poison the whole background-subtracted map."""
+
+    @staticmethod
+    def _field(values: np.ndarray) -> xr.DataArray:
+        return xr.DataArray(values, dims=("y", "x"), attrs={"pixel_spacing": 4e-6})
+
+    def test_single_nan_does_not_nan_the_whole_map(self) -> None:
+        """Regression: lstsq propagates one NaN into every coefficient.
+
+        A single dead pixel -- which ``HotPixelFilter(replacement='nan')`` and
+        the fit path both produce -- used to make the entire output NaN.
+        """
+        from qdmpy.field_processing import QuadraticBackgroundSubtractor
+
+        yy, xx = np.mgrid[0:20, 0:20]
+        values = 3.0 + 0.5 * xx - 0.2 * yy
+        values[5, 5] = np.nan
+
+        result = QuadraticBackgroundSubtractor(degree=1).process(self._field(values))
+
+        finite = np.isfinite(result.values)
+        assert finite.sum() == values.size - 1  # only the dead pixel is NaN
+        np.testing.assert_allclose(result.values[finite], 0.0, atol=1e-6)
+
+    def test_too_few_usable_pixels_raises(self) -> None:
+        """An all-NaN map must fail loudly rather than return a NaN surface."""
+        from qdmpy.exceptions import DataShapeError
+        from qdmpy.field_processing import QuadraticBackgroundSubtractor
+
+        with pytest.raises(DataShapeError, match="usable pixel"):
+            QuadraticBackgroundSubtractor(degree=1).process(self._field(np.full((20, 20), np.nan)))
+
+    def test_malformed_mask_rejected_at_construction(self) -> None:
+        """`mask` is unpacked as (rows, cols); anything else must not reach process()."""
+        from pydantic import ValidationError
+
+        from qdmpy.field_processing import QuadraticBackgroundSubtractor
+
+        with pytest.raises(ValidationError):
+            QuadraticBackgroundSubtractor(degree=1, mask=((1, 2),))
+        with pytest.raises(ValidationError):
+            QuadraticBackgroundSubtractor(degree=1, mask=((1, 2), (3,)))

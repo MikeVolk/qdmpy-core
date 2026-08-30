@@ -7,6 +7,84 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-08-30 bugs & tech-debt review, P1 -- correctness)
+
+- **`fastmath=True` was silently disabling every NaN guard in the guessers.**
+  Found while fixing the reported NaN-unsafety: `fastmath` implies LLVM's
+  no-NaN assumption, under which numba folds `np.isnan(...)` to `False`. The
+  worst consequence was `top3_contrast` returning exactly **0.0 contrast** for
+  any pixel holding a single NaN, despite carrying an explicit
+  `if np.isnan(v): continue`. `normalize_pixel`, `top3_contrast`,
+  `cumsum_center`, `argmin_center`, `cumsum_width` and `halfpower_width` no
+  longer use `fastmath`; a test asserts the compile flags so the guards cannot
+  be silently re-broken. Measured cost at 1200x1920: under 1 s per guesser.
+- **NaN-unsafe centre and width estimators.** `normalize_pixel` produced an
+  all-NaN curve from one NaN sample (collapsing `argmin` lookups to index 0),
+  `argmin_center` followed `np.argmin` onto the NaN itself, `halfpower_width`
+  pinned its minimum at index 0 when the first sample was NaN, and
+  `guess_n_peaks` used `np.median` rather than `nanmedian`, letting one dead
+  pixel poison model auto-detection. Centre guesses are now NaN-invariant;
+  width guesses stay finite and physically sensible (they can still shift when
+  a NaN lands on a half-power crossing, which is acceptable for an initial
+  guess). NaN pixels are reachable in production: `NormalizationProcessor`
+  emits them by design for zero-factor pixels.
+- **`halfpower_width` no longer reports zero width** when no half-power
+  crossing is found; it falls back to the window edge, as its docstring
+  always claimed.
+- **`QuadraticBackgroundSubtractor` was NaN-poisoned by a single pixel**
+  (F10, open since 2026-08-22): `lstsq` propagates one NaN into every
+  coefficient, NaN-ing the entire output map. Non-finite samples are now
+  excluded from the fit, and a map with too few usable pixels raises
+  `DataShapeError` instead of returning a NaN surface. `mask` is validated as
+  a `(row_indices, col_indices)` pair at construction.
+- **`get_settings()` no longer destroys the host application's logging.**
+  It called `logger.remove()`, dropping every loguru sink in the process --
+  including an embedding app's. Since `FitManager.__init__` calls
+  `get_settings()`, the first fit in a GUI/server session silently re-routed
+  that app's logging. Reading settings now has no side effects at all (it also
+  no longer creates the config directory).
+- **`FitManager.set_constraints` logged `%s` placeholders to loguru**, which
+  formats with `str.format` -- the message rendered literally and every
+  argument was discarded.
+- **`FitResult` no longer freezes the caller's arrays in place.** It set
+  `flags.writeable = False` on the arrays it was handed, so a caller that kept
+  a reference hit a read-only failure far from the cause. Arrays are copied on
+  ingest; arrays already frozen by a previous `FitResult` are shared, not
+  re-copied.
+- **Spectral folding used the low branch's frequency step for the high
+  branch's index arithmetic**, mis-sampling whenever the two ranges are swept
+  at different resolutions. Each branch now uses its own step, and the
+  duplicated overlap calculation calls `_overlap_range` instead.
+- **`FitResult.linewidths` docstring said Hz**; all frequencies are GHz.
+
+### Added (2026-08-30 bugs & tech-debt review, P1)
+
+- **chi2 provenance.** `FitResult.metadata` records `fit_backend` and
+  `fit_estimator`. chi2 is only comparable within one such pair -- gpufit's
+  MLE estimator returns a Poisson deviance while the scipy and torch backends
+  always return a sum of squared residuals. Since the P0 refit guard compares
+  chi2 *absolutely*, `refit_outliers` now warns when asked to refit a result
+  that was fitted with a different backend or estimator.
+- **Refits inherit the original fit's configuration.**
+  `FitResult.metadata` records `fit_constraints` and `fit_freq_cutoff`, and
+  `refit_outliers` falls back to them. `Measurement.refit_outliers` documented
+  this behaviour but passed `None` straight through to a `FitManager` built on
+  library defaults, so a standalone refit after a constrained fit silently
+  refitted those pixels under different constraints. An explicit argument
+  still wins.
+- `configure_logging()` is now public and exported from `qdmpy`.
+
+### Changed (2026-08-30 bugs & tech-debt review, P1)
+
+- **BREAKING -- `logging.enable_structured_logging` now defaults to `False`.**
+  Importing and using the library no longer creates `~/logs/` or writes
+  rotating JSON logs there unasked. Applications that want qdmpy's sinks call
+  `configure_logging()` explicitly; the CLI does this at entry. Library code
+  never does.
+- `Measurement` no longer allocates `_outliers`, a boolean array the size of
+  the raw 5D data that nothing in the package read -- 460 MB per `Measurement`
+  at the documented target resolution.
+
 ### Fixed (2026-08-30 bugs & tech-debt review, P0 -- silent wrong results)
 
 The four findings from `docs/reviews/2026-08-30-bugs-and-tech-debt-review.md`

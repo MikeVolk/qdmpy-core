@@ -22,6 +22,7 @@ from qdmpy.fitting.guess import (
     _RELATIVE_PROMINENCE,
     _relative_prominence,
     absorption_centroid,
+    argmin_center,
     cumsum_center,
     cumsum_contrast,
     cumsum_width,
@@ -803,3 +804,150 @@ class TestAbsorptionCentroid:
         centers = absorption_centroid(data, freq)
         midpoint = (freq_1d[0] + freq_1d[-1]) / 2.0
         assert abs(centers[0, 0, 0] - midpoint) < freq_1d[1] - freq_1d[0]
+
+
+class TestNanSafety:
+    """The centre/width estimators must not silently emit garbage for NaN input.
+
+    NaN pixels are reachable in production: ``NormalizationProcessor`` emits
+    NaN for zero-factor pixels by design, ``HotPixelFilter(replacement='nan')``
+    exists, and dead/saturated camera pixels occur. The contrast estimators
+    were already NaN-aware; these bring the centre/width ones to the same
+    standard.
+    """
+
+    @staticmethod
+    def _spectra(n_freq: int = 50, n_pixel: int = 4) -> tuple[np.ndarray, np.ndarray]:
+        """Return (data, freq) with one ESR-like dip per pixel."""
+        freq_1d = np.linspace(2.82, 2.92, n_freq)
+        spectrum = 1.0 - 0.05 * np.exp(-((freq_1d - 2.87) ** 2) / 0.002**2)
+        data = np.tile(spectrum, (1, 1, n_pixel, 1))
+        return data, freq_1d.reshape(1, -1)
+
+    def test_normalize_pixel_tolerates_nan(self) -> None:
+        """A NaN sample must not turn the whole normalized curve into NaN."""
+        pixel = np.linspace(1.0, 0.5, 40)
+        pixel[7] = np.nan
+        result = normalize_pixel(pixel)
+        assert np.isfinite(result).all()
+
+    def test_normalize_pixel_all_nan_returns_zeros(self) -> None:
+        """An entirely dead pixel yields zeros, not NaN."""
+        result = normalize_pixel(np.full(40, np.nan))
+        assert np.isfinite(result).all()
+        assert np.allclose(result, 0.0)
+
+    def test_argmin_center_ignores_nan(self) -> None:
+        """np.argmin treats NaN as the minimum; the guess must not follow it.
+
+        Regression: a single dead sample used to pin the centre guess to that
+        arbitrary frequency.
+        """
+        data, freq = self._spectra()
+        clean = argmin_center(data, freq)
+
+        noisy = data.copy()
+        noisy[0, 0, 0, 3] = np.nan  # dead sample far from the dip
+        result = argmin_center(noisy, freq)
+
+        assert np.isfinite(result).all()
+        assert result[0, 0, 0] == pytest.approx(clean[0, 0, 0])
+
+    def test_argmin_center_all_nan_pixel_falls_back_to_midpoint(self) -> None:
+        """A fully dead pixel gets the range midpoint, not index 0."""
+        data, freq = self._spectra()
+        data[0, 0, 1, :] = np.nan
+        result = argmin_center(data, freq)
+        midpoint = (freq[0, 0] + freq[0, -1]) / 2.0
+        assert result[0, 0, 1] == pytest.approx(midpoint)
+
+    def test_halfpower_width_tolerates_nan_first_sample(self) -> None:
+        """A NaN at index 0 used to pin the minimum there and give width 0.
+
+        NaN comparisons are always False, so seeding the search from
+        ``spectrum[0]`` left ``min_val`` NaN and collapsed the width to zero.
+        """
+        data, freq = self._spectra()
+        data[0, 0, 0, 0] = np.nan
+        result = halfpower_width(data, freq)
+        assert np.isfinite(result).all()
+        assert result[0, 0, 0] > 0.0
+
+    def test_cumsum_estimators_finite_with_nan(self) -> None:
+        """cumsum_center / cumsum_width stay finite for NaN-bearing spectra."""
+        data, freq = self._spectra()
+        data[0, 0, 0, 5] = np.nan
+        data[0, 0, 1, :] = np.nan
+        assert np.isfinite(cumsum_center(data, freq)).all()
+        assert np.isfinite(cumsum_width(data, freq, DEFAULT_VMIN, DEFAULT_VMAX)).all()
+
+    def test_guess_n_peaks_survives_a_dead_pixel(self) -> None:
+        """One NaN pixel must not poison the median spectrum used for detection.
+
+        Regression: ``np.median`` (not ``nanmedian``) made the whole median
+        spectrum NaN for that (pol, frange), breaking model auto-detection.
+        """
+        data, _ = self._spectra(n_pixel=8)
+        clean_peaks, _, _ = guess_n_peaks(data)
+
+        data[0, 0, 2, :] = np.nan
+        peaks, _, _ = guess_n_peaks(data)
+        assert peaks == clean_peaks
+
+    def test_relative_prominence_with_nan(self) -> None:
+        """The prominence threshold stays finite for a NaN-bearing spectrum."""
+        spectrum = np.linspace(1.0, 0.9, 50)
+        spectrum[3] = np.nan
+        assert np.isfinite(_relative_prominence(spectrum))
+        assert np.isfinite(_relative_prominence(np.full(50, np.nan)))
+
+    def test_top3_contrast_ignores_nan(self) -> None:
+        """A NaN sample must not collapse the contrast guess to zero.
+
+        Regression: ``top3_contrast`` carried ``fastmath=True``, which implies
+        LLVM's no-NaN assumption -- numba folded its ``if np.isnan(v)`` guard
+        to ``False``, so the min/max trackers absorbed the NaN and the function
+        returned exactly 0.0 contrast for any pixel holding a single NaN.
+        """
+        data, _ = self._spectra()
+        clean = top3_contrast(data)
+
+        noisy = data.copy()
+        noisy[0, 0, 0, 5] = np.nan
+        result = top3_contrast(noisy)
+
+        assert result[0, 0, 0] == pytest.approx(clean[0, 0, 0])
+        assert result[0, 0, 0] > 0.0
+
+    def test_cumsum_contrast_ignores_nan(self) -> None:
+        """cumsum_contrast uses nanmax/nanmin and must stay NaN-invariant."""
+        data, _ = self._spectra()
+        clean = cumsum_contrast(data)
+
+        noisy = data.copy()
+        noisy[0, 0, 0, 5] = np.nan
+
+        assert cumsum_contrast(noisy)[0, 0, 0] == pytest.approx(clean[0, 0, 0])
+
+    def test_nan_guards_are_not_defeated_by_fastmath(self) -> None:
+        """The NaN-sensitive guessers must not be compiled with fastmath.
+
+        ``fastmath=True`` implies the ``nnan`` flag, under which ``np.isnan``
+        is folded to ``False``. Any guesser whose correctness rests on an
+        explicit NaN check must therefore opt out. This asserts the compile
+        flags directly so the guards cannot be silently re-broken by adding
+        ``fastmath=True`` back for speed.
+        """
+        nan_sensitive = (
+            normalize_pixel,
+            top3_contrast,
+            cumsum_center,
+            argmin_center,
+            cumsum_width,
+            halfpower_width,
+        )
+        for fn in nan_sensitive:
+            flags = fn.targetoptions
+            assert not flags.get("fastmath", False), (
+                f"{fn.__name__} is compiled with fastmath=True, which disables its NaN guards"
+            )

@@ -89,10 +89,25 @@ class FitResult(BaseModel):
         logger.info("FitResult initialized with model: {}", self.model_name)
         logger.debug("Available parameters: {}", list(self.parameters.keys()))
 
-        # Protect parameter arrays from external mutation to prevent cache invalidation
-        for param_array in self.parameters.values():
-            if isinstance(param_array, np.ndarray):
+        # Protect parameter arrays from external mutation, which would silently
+        # invalidate the derived B111/delta-resonance caches.
+        #
+        # Copy first: setting `writeable = False` on the caller's own array
+        # would freeze data this object does not own, so a caller that kept a
+        # reference for its own use would hit a read-only failure far from the
+        # cause. The copy is only taken when the array is still writeable, so
+        # arrays already frozen by a previous FitResult are shared, not
+        # duplicated.
+        frozen: dict[str, NDArray] = {}
+        for name, param_array in self.parameters.items():
+            if not isinstance(param_array, np.ndarray):
+                frozen[name] = param_array
+                continue
+            if param_array.flags.writeable:
+                param_array = param_array.copy()  # noqa: PLW2901
                 param_array.flags.writeable = False
+            frozen[name] = param_array
+        object.__setattr__(self, "parameters", frozen)
 
     def __repr__(self: Self) -> str:
         """Return string representation of FitResult."""
@@ -111,7 +126,7 @@ class FitResult(BaseModel):
 
     @property
     def linewidths(self: Self) -> NDArray:
-        """Get ODMR linewidths in Hz.
+        """Get ODMR linewidths in GHz.
 
         For models with multiple lines, returns the primary linewidth.
 

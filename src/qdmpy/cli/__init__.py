@@ -23,7 +23,14 @@ def main() -> int:
     Returns:
         int: Exit code (0 for success, non-zero for errors)
     """
+    from qdmpy.settings import configure_logging
+
     from .qdmpy_cli import create_parser, process_command
+
+    # The CLI *is* the application here, so it owns the process's logging
+    # configuration. Library code never calls this -- configure_logging()
+    # drops every existing loguru sink, including an embedding app's.
+    configure_logging()
 
     # Get QDMpy version -- the distribution is "qdmpy-core" (pyproject.toml),
     # not "QDMpy"; the latter only resolved via a stale dev-only egg-info

@@ -177,7 +177,6 @@ class TestMeasurement:
         assert measurement._fit_model == "auto"
         assert isinstance(measurement.metadata, dict)
         assert len(measurement.metadata) == 0
-        assert measurement._outliers is not None
         assert measurement._folded_odmr is None
 
     def test_init_with_unprocessed_odmr(
@@ -257,12 +256,20 @@ class TestMeasurement:
         measurement.metadata["test_key"] = "test_value"
         assert measurement.metadata["test_key"] == "test_value"
 
-    def test_outliers_property(self, measurement, sample_odmr) -> None:
-        """Test the _outliers attribute."""
-        assert measurement._outliers is not None
-        assert isinstance(measurement._outliers, np.ndarray)
-        assert measurement._outliers.shape == sample_odmr.raw_data.shape
-        assert measurement._outliers.dtype == bool
+    def test_no_full_size_array_allocated(self, measurement, sample_odmr) -> None:
+        """Measurement must not hold an array the size of the raw 5D data.
+
+        Regression: `_outliers` was a bool array of `raw_data.shape`, read
+        nowhere in the package -- 460 MB per Measurement at the documented
+        target resolution (2 pol x 2 frange x 1200 x 1920 x 50).
+        """
+        raw_shape = sample_odmr.raw_data.shape
+        offenders = [
+            name
+            for name, value in vars(measurement).items()
+            if isinstance(value, np.ndarray) and value.shape == raw_shape
+        ]
+        assert not offenders, f"Measurement holds full-size raw-data arrays: {offenders}"
 
     def test_fit_model_attribute(self, sample_odmr, sample_images, temp_output_dir) -> None:
         """Test the _fit_model attribute."""

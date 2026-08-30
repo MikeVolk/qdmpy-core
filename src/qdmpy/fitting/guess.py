@@ -39,7 +39,11 @@ _RELATIVE_PROMINENCE = 0.03
 _DETECTION_CONFIDENCE_THRESHOLD = 0.6
 
 
-@njit(fastmath=True)
+# NOTE: no fastmath here -- fastmath=True implies LLVM's no-NaN assumption,
+# under which numba folds np.isnan(...) to False and the NaN guards below
+# silently stop working. Verified: top3_contrast returned 0.0 contrast for
+# any pixel holding a single NaN while it carried fastmath=True.
+@njit
 def normalize_pixel(pixel: NDArray) -> NDArray:  # pragma: no cover
     """Normalize a pixel's cumulative sum.
 
@@ -50,19 +54,44 @@ def normalize_pixel(pixel: NDArray) -> NDArray:  # pragma: no cover
     slightly above 1.0, causing the old hardcoded subtraction of 1.0 to
     introduce a drift that distorts center and width estimates).
 
+    NaN-safe: NaN samples are excluded from the baseline and treated as zero
+    contribution in the cumulative sum. A plain ``np.mean`` over an edge
+    containing one NaN returns NaN, which made the whole normalized curve NaN
+    and silently collapsed downstream ``argmin`` lookups onto index 0.
+
     Args:
         pixel: 1D array of intensity values for a single pixel.
 
     Returns:
-        The normalized cumulative sum of the pixel data.
+        The normalized cumulative sum of the pixel data. All-NaN input
+        returns an array of zeros.
     """
     n = len(pixel)
     n_edge = max(1, n // 10)
-    baseline = (np.mean(pixel[:n_edge]) + np.mean(pixel[n - n_edge :])) / 2
-    pixel = np.cumsum(pixel - baseline)
-    pixel -= np.min(pixel)
-    max_val = np.max(pixel)
-    return pixel / max_val if max_val > 0 else pixel
+
+    baseline_sum = 0.0
+    baseline_count = 0
+    for i in range(n_edge):
+        if not np.isnan(pixel[i]):
+            baseline_sum += pixel[i]
+            baseline_count += 1
+    for i in range(n - n_edge, n):
+        if not np.isnan(pixel[i]):
+            baseline_sum += pixel[i]
+            baseline_count += 1
+
+    if baseline_count == 0:
+        return np.zeros(n, dtype=pixel.dtype)
+    baseline = baseline_sum / baseline_count
+
+    centred = np.empty(n, dtype=pixel.dtype)
+    for i in range(n):
+        centred[i] = 0.0 if np.isnan(pixel[i]) else pixel[i] - baseline
+
+    result = np.cumsum(centred)
+    result -= np.min(result)
+    max_val = np.max(result)
+    return result / max_val if max_val > 0 else result
 
 
 def validate_array(data: NDArray, expected_dim: int, name: str) -> None:
@@ -87,7 +116,10 @@ def _relative_prominence(spectrum: NDArray) -> float:
     Returns:
         Prominence threshold in the same units as the spectrum.
     """
-    spectral_range = float(np.max(spectrum) - np.min(spectrum))
+    finite = spectrum[np.isfinite(spectrum)]
+    if finite.size == 0:
+        return 1e-6
+    spectral_range = float(finite.max() - finite.min())
     return max(spectral_range * _RELATIVE_PROMINENCE, 1e-6)
 
 
@@ -136,7 +168,9 @@ def guess_n_peaks(data: NDArray) -> tuple[int, bool, list[NDArray]]:
         Tuple of (n_peaks, doubt, peak_indices_list).
     """
     validate_array(data, 4, "data")
-    median_data = np.median(data, axis=2)  # (n_pol, n_frange, n_freq)
+    # nanmedian, not median: a single NaN pixel would otherwise poison the
+    # whole median spectrum for that (pol, frange) and hence model detection.
+    median_data = np.nanmedian(data, axis=2)  # (n_pol, n_frange, n_freq)
     indices = []
     for p, f in np.ndindex(*data.shape[:2]):
         spectrum = median_data[p, f]
@@ -206,7 +240,11 @@ def cumsum_contrast(data: NDArray) -> NDArray:  # pragma: no cover
     return amp
 
 
-@njit(parallel=True, fastmath=True)
+# NOTE: no fastmath here -- fastmath=True implies LLVM's no-NaN assumption,
+# under which numba folds np.isnan(...) to False and the NaN guards below
+# silently stop working. Verified: top3_contrast returned 0.0 contrast for
+# any pixel holding a single NaN while it carried fastmath=True.
+@njit(parallel=True)
 def top3_contrast(data: NDArray) -> NDArray:  # pragma: no cover
     """Estimate contrast from the top-3 and bottom-3 intensity values per pixel.
 
@@ -268,7 +306,11 @@ def top3_contrast(data: NDArray) -> NDArray:  # pragma: no cover
     return amp
 
 
-@njit(parallel=True, fastmath=True)
+# NOTE: no fastmath here -- fastmath=True implies LLVM's no-NaN assumption,
+# under which numba folds np.isnan(...) to False and the NaN guards below
+# silently stop working. Verified: top3_contrast returned 0.0 contrast for
+# any pixel holding a single NaN while it carried fastmath=True.
+@njit(parallel=True)
 def cumsum_center(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
     """Guess the center frequency for each pixel using a single flat parallel loop.
 
@@ -291,12 +333,21 @@ def cumsum_center(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
     return centers
 
 
-@njit(parallel=True, fastmath=True)
+# NOTE: no fastmath here -- fastmath=True implies LLVM's no-NaN assumption,
+# under which numba folds np.isnan(...) to False and the NaN guards below
+# silently stop working. Verified: top3_contrast returned 0.0 contrast for
+# any pixel holding a single NaN while it carried fastmath=True.
+@njit(parallel=True)
 def argmin_center(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
     """Guess center frequency as the frequency of the deepest dip per pixel.
 
     Unlike cumsum_center, this works correctly even when the resonance is
     shifted to the edge of the frequency range (strong B111 fields).
+
+    NaN-safe: ``np.argmin`` treats NaN as the minimum, so a single dead
+    sample used to pin the centre guess to that arbitrary frequency. NaN
+    samples are skipped; an all-NaN spectrum falls back to the midpoint of
+    the frequency range.
 
     Args:
         data: 4D array (n_pol, n_frange, n_pixel, n_freq).
@@ -305,14 +356,27 @@ def argmin_center(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
     Returns:
         3D array (n_pol, n_frange, n_pixel).
     """
-    n_pol, n_frange, n_pixel, _ = data.shape
+    n_pol, n_frange, n_pixel, n_freq = data.shape
     total = n_pol * n_frange * n_pixel
     centers = np.zeros((n_pol, n_frange, n_pixel))
     for idx in prange(total):  # type: ignore[not-iterable]
         px = idx % n_pixel
         r = (idx // n_pixel) % n_frange
         p = idx // (n_pixel * n_frange)
-        centers[p, r, px] = freq[r, np.argmin(data[p, r, px])]
+
+        spectrum = data[p, r, px]
+        min_val = np.inf
+        min_idx = -1
+        for i in range(n_freq):
+            v = spectrum[i]
+            if not np.isnan(v) and v < min_val:
+                min_val = v
+                min_idx = i
+
+        if min_idx < 0:
+            centers[p, r, px] = (freq[r, 0] + freq[r, n_freq - 1]) / 2.0
+        else:
+            centers[p, r, px] = freq[r, min_idx]
     return centers
 
 
@@ -378,7 +442,11 @@ def absorption_centroid(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no 
     return centers
 
 
-@njit(parallel=True, fastmath=True)
+# NOTE: no fastmath here -- fastmath=True implies LLVM's no-NaN assumption,
+# under which numba folds np.isnan(...) to False and the NaN guards below
+# silently stop working. Verified: top3_contrast returned 0.0 contrast for
+# any pixel holding a single NaN while it carried fastmath=True.
+@njit(parallel=True)
 def cumsum_width(
     data: NDArray, freq: NDArray, vmin: float, vmax: float
 ) -> NDArray:  # pragma: no cover
@@ -407,7 +475,55 @@ def cumsum_width(
     return widths
 
 
-@njit(parallel=True, fastmath=True)
+@njit
+def _edge_baseline(spectrum: NDArray, min_idx: int) -> float:  # pragma: no cover
+    """Off-resonance baseline from whichever spectrum edge is farther from the dip.
+
+    The near edge is contaminated by the dip itself when the resonance is
+    shifted towards it (strong B111), so the far edge is preferred. Falls back
+    to the other edge when the preferred one holds no finite samples.
+
+    Args:
+        spectrum: 1D intensity values for one pixel.
+        min_idx: Index of the deepest (finite) sample.
+
+    Returns:
+        The baseline level, or NaN when neither edge has a finite sample.
+    """
+    n_freq = len(spectrum)
+    n_edge = max(1, n_freq // 10)
+
+    left_sum = 0.0
+    left_n = 0
+    for i in range(n_edge):
+        if not np.isnan(spectrum[i]):
+            left_sum += spectrum[i]
+            left_n += 1
+
+    right_sum = 0.0
+    right_n = 0
+    for i in range(n_freq - n_edge, n_freq):
+        if not np.isnan(spectrum[i]):
+            right_sum += spectrum[i]
+            right_n += 1
+
+    prefer_right = min_idx < n_freq // 2
+    if prefer_right and right_n > 0:
+        return right_sum / right_n
+    if not prefer_right and left_n > 0:
+        return left_sum / left_n
+    if right_n > 0:
+        return right_sum / right_n
+    if left_n > 0:
+        return left_sum / left_n
+    return np.nan
+
+
+# NOTE: no fastmath here -- fastmath=True implies LLVM's no-NaN assumption,
+# under which numba folds np.isnan(...) to False and the NaN guards below
+# silently stop working. Verified: top3_contrast returned 0.0 contrast for
+# any pixel holding a single NaN while it carried fastmath=True.
+@njit(parallel=True)
 def halfpower_width(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
     """Estimate envelope HWHM from half-power points of each pixel spectrum.
 
@@ -437,44 +553,43 @@ def halfpower_width(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cove
         p = idx // (n_pixel * n_frange)
         spectrum = data[p, r, px]
 
-        # Find minimum (deepest dip)
-        min_val = spectrum[0]
-        min_idx = 0
-        for i in range(1, n_freq):
-            if spectrum[i] < min_val:
-                min_val = spectrum[i]
+        # Find minimum (deepest dip). NaN comparisons are always False, so
+        # seeding from spectrum[0] pinned the minimum at index 0 whenever the
+        # first sample was NaN; skip NaN explicitly instead.
+        min_val = np.inf
+        min_idx = -1
+        for i in range(n_freq):
+            v = spectrum[i]
+            if not np.isnan(v) and v < min_val:
+                min_val = v
                 min_idx = i
 
-        # Baseline: use the edge farther from the dip to avoid
-        # contamination when the dip is near one edge.
-        n_edge = max(1, n_freq // 10)
-        left_bl = 0.0
-        for i in range(n_edge):
-            left_bl += spectrum[i]
-        left_bl /= n_edge
+        if min_idx < 0:
+            hwhm[p, r, px] = 0.0
+            continue
 
-        right_bl = 0.0
-        for i in range(n_freq - n_edge, n_freq):
-            right_bl += spectrum[i]
-        right_bl /= n_edge
-
-        # Pick the edge farther from the dip
-        baseline = right_bl if min_idx < n_freq // 2 else left_bl
+        baseline = _edge_baseline(spectrum, min_idx)
+        if np.isnan(baseline):
+            hwhm[p, r, px] = 0.0
+            continue
 
         # Half-depth level
         half_depth = (baseline + min_val) / 2.0
 
-        # Search left from minimum for crossing
-        left_idx = min_idx
+        # Search outward from the minimum for the half-depth crossings. A NaN
+        # sample is skipped rather than ending the search. When no crossing is
+        # found the dip runs off that side of the window, so fall back to the
+        # window edge -- collapsing to min_idx would report a zero width, which
+        # is both wrong and outside every sane width constraint.
+        left_idx = 0
         for i in range(min_idx - 1, -1, -1):
-            if spectrum[i] >= half_depth:
+            if not np.isnan(spectrum[i]) and spectrum[i] >= half_depth:
                 left_idx = i
                 break
 
-        # Search right from minimum for crossing
-        right_idx = min_idx
+        right_idx = n_freq - 1
         for i in range(min_idx + 1, n_freq):
-            if spectrum[i] >= half_depth:
+            if not np.isnan(spectrum[i]) and spectrum[i] >= half_depth:
                 right_idx = i
                 break
 

@@ -117,7 +117,12 @@ class LoggingSettings(BaseModel):
         description="Optional file path for persistent log output (supports rotation)",
     )
     enable_structured_logging: bool = Field(
-        default=True, description="Enable structured JSON logging to file"
+        default=False,
+        description=(
+            "Write structured JSON logs to structured_log_dir. Off by default: "
+            "importing a library should not start writing files to the user's "
+            "home directory. Only honoured by configure_logging()."
+        ),
     )
     structured_log_dir: str | None = Field(
         default=None,
@@ -216,13 +221,32 @@ def reset_config() -> None:
     logger.info("Config reset to defaults")
 
 
-def _configure_logging(settings: QDMpySettings) -> None:
-    """Configure loguru with console and optional structured JSON sink."""
+def configure_logging(settings: QDMpySettings | None = None) -> None:
+    """Install qdmpy's loguru sinks, replacing any already configured.
+
+    This is an **explicit, application-level** action, not something importing
+    or using the library does on your behalf. It calls ``logger.remove()``,
+    which drops every loguru handler in the process -- including ones the
+    host application installed. Calling it from ``get_settings()`` meant the
+    first ``FitManager(...)`` in an embedding app (qdmpy-gui, qdmpy-server)
+    silently re-routed that app's logging.
+
+    Library code must never call this. The CLI does, at entry.
+
+    Args:
+        settings: Settings to configure from. Defaults to ``get_settings()``.
+    """
+    resolved = settings if settings is not None else get_settings()
+
     logging.getLogger("matplotlib").setLevel(logging.WARNING)
     logging.getLogger("h5py").setLevel(logging.WARNING)
 
     logger.remove()
+    _add_sinks(resolved)
 
+
+def _add_sinks(settings: QDMpySettings) -> None:
+    """Add qdmpy's console, structured-JSON and legacy file sinks."""
     # Console sink: human-readable, no serialization
     logger.add(sys.stdout, level=settings.logging.log_level)
 
@@ -255,13 +279,15 @@ def _configure_logging(settings: QDMpySettings) -> None:
 def get_settings() -> QDMpySettings:
     """Return the lazily-initialised application settings singleton.
 
+    Reading settings has no side effects: it does not touch the filesystem and
+    does not reconfigure logging. Call :func:`configure_logging` explicitly if
+    you want qdmpy's loguru sinks, and :func:`make_configfile` if you want the
+    config directory created.
+
     The result is cached; call ``reset_settings()`` to force re-initialisation
     (e.g. after writing a new config file or in tests).
     """
-    make_configfile()
-    settings = QDMpySettings()
-    _configure_logging(settings)
-    return settings
+    return QDMpySettings()
 
 
 def reset_settings() -> None:

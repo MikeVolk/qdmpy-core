@@ -51,6 +51,7 @@ ALL_NAMES = [
     ("MagneticMap", "class"),
     # Settings
     ("NvSettings", "class"),
+    ("configure_logging", "callable"),
     ("get_settings", "callable"),
     ("is_pygpufit_available", "callable"),
     ("reset_settings", "callable"),

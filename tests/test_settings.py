@@ -141,15 +141,19 @@ class TestLoggingSettings:
         with pytest.raises(ValueError):
             LoggingSettings(log_level="INVALID")
 
-    def test_structured_logging_enabled_by_default(self) -> None:
-        """Test that structured logging is enabled by default."""
-        settings = LoggingSettings()
-        assert settings.enable_structured_logging is True
+    def test_structured_logging_disabled_by_default(self) -> None:
+        """Structured JSON logging is opt-in.
 
-    def test_structured_logging_can_be_disabled(self) -> None:
-        """Test that structured logging can be disabled."""
-        settings = LoggingSettings(enable_structured_logging=False)
+        Importing a library must not start writing files to the user's home
+        directory; only an explicit configure_logging() call installs sinks.
+        """
+        settings = LoggingSettings()
         assert settings.enable_structured_logging is False
+
+    def test_structured_logging_can_be_enabled(self) -> None:
+        """Test that structured logging can be turned on."""
+        settings = LoggingSettings(enable_structured_logging=True)
+        assert settings.enable_structured_logging is True
 
     def test_structured_log_dir_defaults_to_none(self) -> None:
         """Test that structured log dir defaults to None."""
@@ -300,3 +304,41 @@ class TestGetSettings:
         from qdmpy import get_settings as pkg_get_settings
 
         assert pkg_get_settings is get_settings
+
+
+class TestLoggingIsolation:
+    """get_settings() must not touch the host application's logging."""
+
+    def test_get_settings_does_not_remove_host_sinks(self) -> None:
+        """Reading settings must leave an embedding app's loguru sinks alone.
+
+        Regression: ``get_settings()`` called ``_configure_logging()``, which
+        calls ``logger.remove()`` -- dropping every handler in the process.
+        Since ``FitManager.__init__`` calls ``get_settings()``, the first fit in
+        a GUI/server session silently re-routed that application's logging.
+        """
+        from loguru import logger
+
+        reset_settings()
+        received: list[str] = []
+        sink_id = logger.add(received.append, level="INFO")
+        try:
+            get_settings()
+            logger.info("host sink must still be attached")
+        finally:
+            logger.remove(sink_id)
+
+        assert any("host sink must still be attached" in line for line in received)
+
+    def test_get_settings_creates_no_directories(self, monkeypatch, tmp_path) -> None:
+        """Reading settings must not create the config directory as a side effect."""
+        import qdmpy.settings as settings_module
+
+        config_path = tmp_path / "config" / "QDMpy"
+        monkeypatch.setattr(settings_module, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(settings_module, "CONFIG_FILE", config_path / "settings.toml")
+
+        reset_settings()
+        get_settings()
+
+        assert not config_path.exists()
