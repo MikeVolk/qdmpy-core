@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from importlib.util import find_spec
 from pathlib import Path
 
 import numpy as np
@@ -10,12 +9,24 @@ import pytest
 
 import qdmpy
 
-_HAS_GPUFIT = find_spec("pygpufit.gpufit") is not None
+try:
+    import pygpufit.gpufit as _gf
 
-pytestmark = pytest.mark.skipif(not _HAS_GPUFIT, reason="Requires pygpufit installation")
+    # pygpufit imports fine on any machine with the wheel installed -- it's
+    # a thin Python wrapper around a compiled CUDA library. Actually calling
+    # it without a functional GPU driver raises at fit time, so the import
+    # succeeding is not sufficient to know these tests can run.
+    _HAS_GPUFIT = _gf.cuda_available()
+except (ImportError, OSError):
+    _HAS_GPUFIT = False
+
+pytestmark = pytest.mark.skipif(not _HAS_GPUFIT, reason="Requires a CUDA-capable GPU")
 
 
 def _compute_folded_vs_normal_metrics(data_path: Path, model_name: str) -> dict[str, float]:
+    if not data_path.is_dir():
+        pytest.skip(f"Test data directory not found: {data_path}")
+
     measurement = qdmpy.load(str(data_path), bin_factor=1)
 
     normal = measurement.fit_odmr(model_name=model_name).fit_result

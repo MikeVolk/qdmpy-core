@@ -7,6 +7,120 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (CI)
+
+- `.github/workflows/test.yml`'s `pre-commit` and `test` jobs still installed
+  via Poetry on Python 3.7-3.10, from before this repo switched to `uv` and
+  raised its Python floor to 3.13 -- `poetry install` failed immediately with
+  no `poetry.lock` present, so every push/PR had a permanently red `Test`
+  workflow regardless of code changes. Both jobs now use `uv sync` on Python
+  3.13, matching the pattern already established in `notebooks.yml` and
+  `qdmpy-gui/.github/workflows/ci.yml`.
+- Bumped `actions/checkout@v2` -> `@v4` (deprecated runner) across every
+  workflow file, `actions/setup-python@v2` -> `@v5` in `cookiecutter.yml`,
+  and `peter-evans/create-pull-request@v3` -> `@v7` in `cookiecutter.yml` /
+  `dependencies.yml`, so `actionlint` passes.
+- Replaced a deprecated `::set-output` command in `cookiecutter.yml` with
+  `$GITHUB_OUTPUT`.
+- `dependencies.yml`, `draft_release.yml`, and `release.yml` also still ran
+  Poetry end to end (dependency auto-updates, version bumping, PyPI
+  publish) and would have failed the same way if actually triggered. All
+  three now run on `uv`: `uv lock --dry-run --upgrade` replaces
+  `poetry show -o`, `uv version --bump {major,minor,patch}` (or an explicit
+  version) replaces `poetry version`, and `uv build` / `uv publish` replace
+  `poetry publish`. `kacl-cli` now runs via `uvx --from python-kacl` rather
+  than being a project dependency. The archived `actions/create-release@v1`
+  is replaced with `gh release create`. Removed the now-unused
+  `.github/actions/python-poetry-env` composite action.
+- With `test.yml` finally installing via `uv` instead of failing at
+  `poetry install`, `uv run pytest` ran to completion on a CI runner for the
+  first time and surfaced two test modules that were never actually
+  CI-worthy: `tests/integration/test_folded_real_data_regression.py` hits
+  real data fixtures not present in the repo (now skips cleanly, matching
+  the existing `test_io.py`/`test_data.py` "Test data directory not found"
+  convention), and `tests/integration/test_gpufit_consistency.py` only
+  checked that `pygpufit` *imports*, not that a CUDA-capable GPU is actually
+  present -- it imports fine on any machine with the wheel installed and
+  fails at fit time with "CUDA driver version is insufficient" otherwise.
+  Both now gate on `pygpufit.gpufit.cuda_available()`.
+
+### Added (QEP-073: analytic Jacobians)
+
+- **`Model.jacobian(x, parameters)`** — optional hook returning per-parameter
+  analytic derivatives as a tuple of `(n_fits, n_freq)` columns, or `None`.
+  Columns rather than a stacked array so the implementation stays
+  framework-neutral (numpy and torch) and each backend stacks with its own
+  framework. Defaults to `None`, so custom models keep working unchanged on
+  finite differences.
+- **`qdmpy.fitting.models._lorentzian_dips_jacobian`** plus `esr14n_jacobian`,
+  `esr15n_jacobian`, `esrsingle_jacobian` — one shared derivation for all
+  three ESR models, which differ only in their dip offsets. Cross-checked
+  term by term against gpufit's kernels.
+- `TorchBackend` and `ScipyBackend` use the analytic Jacobian when a model
+  supplies a valid one, resolved once per `fit()` and falling back to finite
+  differences otherwise.
+- `scripts/benchmark_fit_backends.py --width-range {synthetic,realistic}` —
+  the consistency-test width range (0.002-0.005 GHz HWHM) is 3-8x wider than
+  real data (~0.0006 GHz for 15N), which understated the finite-difference
+  error; both regimes are now measurable.
+
+### Fixed (QEP-073: analytic Jacobians)
+
+- **`TorchBackend` fitted `center` significantly less accurately than gpufit.**
+  Its finite-difference step scaled with each parameter's own magnitude, so
+  `center` (~2.87 GHz) was differenced over ~0.99 MHz -- comparable to, and on
+  real 15N data 1.6x larger than, the linewidth that actually sets its
+  sensitivity. ESR15N was worst hit, having no dip at `center` to observe
+  directly. On 100k perturbed synthetic fits, torch now matches gpufit:
+  ESR15N chi2 max 1.31e-3 -> 2.48e-4 and max center error 2.45e-3 -> 1.23e-3
+  GHz; ESR14N 1.43e-4 -> 1.06e-4 and 1.56e-3 -> 1.18e-3. On real data,
+  gpufit-vs-torch B111 correlation on FOV18x (15N) rises from r = 0.52 / 0.80
+  to 0.974 / 0.991, with the map spread now matching gpufit (0.1034 vs 0.1057
+  uT) instead of being 2x too wide; MIL2_FOV1 (14N) improves from 0.993 /
+  0.997 to 0.9997 / 0.9999.
+
+### Changed (QEP-073: analytic Jacobians)
+
+- `TorchBackend` fitting is ~1.8x faster on ESR14N/ESR15N (100k synthetic
+  fits, RTX 3050 Ti) from the analytic Jacobian plus fewer LM iterations
+  (ESR14N mean 8.5 -> 6.5, max 245 -> 63).
+- On real data at the same estimator, `TorchBackend` is now **faster than
+  `GpufitBackend`**: MIL2_FOV1 at bin_factor=4 (576k spectra, LSE pinned on
+  both) fits in 2.91 s against gpufit's 4.28 s, at equal chi2 (median
+  9.9921e-7 vs 9.9930e-7) and 100% convergence on both, with B111 agreement
+  r = 0.99998 / 0.99999 and matching map spread (3.8124 vs 3.8125 uT).
+  Fitting is a small share of that pipeline either way -- loading the same
+  measurement takes 16 s.
+- `tests/integration/test_torch_consistency.py` tolerances tightened by 2-4
+  orders of magnitude (chi2 1e-6 -> 1e-10, center 5e-6 -> 1e-6, width 2e-2 ->
+  1e-4, contrasts 2e-2 -> 1e-3, offset 1e-4 -> 1e-5) to lock the gain in.
+- `TorchBackend._analytic_jacobian` deliberately stacks on dim 0 and permutes
+  rather than stacking on dim -1. Both produce shape `(a, f, p)`, but the
+  downstream `jac.mT @ jac` inherits the memory layout, and the wrong one
+  makes `aten::bmm` ~5x slower (79 ms -> 394 ms of device time) -- enough to
+  make analytic Jacobians slower overall than finite differences. Preserve
+  this layout in both Jacobian paths.
+
+### Known limitations (QEP-073: analytic Jacobians)
+
+- `TorchBackend` still implements only least squares.
+  `QDMpySettings.fit.estimator` defaults to `"MLE"`, so a default-configured
+  torch fit logs a
+  warning and silently runs LSE while `GpufitBackend` runs MLE -- the two
+  backends are therefore not interchangeable on the default configuration.
+  MLE is the correct estimator for photon-shot-noise-limited data. Unrelated
+  to this change (it predates it), but measured and confirmed here; a
+  follow-up QEP should close it.
+- The analytic Jacobian is verified on CUDA and CPU only. The MPS path runs
+  the same code and passes the test suite, but the bmm-layout finding above
+  is a cuBLAS behaviour and has not been re-measured on Apple silicon.
+- At realistic linewidths a small number of fits (order 100 in 100k) still
+  land in local minima on a barely-sampled line -- 50 points across 40 MHz is
+  0.8 MHz spacing against a ~0.6 MHz HWHM. gpufit's float64 Hessian
+  accumulators handle those few better. This is a sampling limit, not a
+  derivative one; the analytic path still beats finite differences there
+  (ESRSINGLE max center error 6.85e-2 -> 2.48e-2 GHz).
+
 ### Added (QEP-070: fit pipeline unification)
 
 - **`qdmpy.fitting.freq_cutoff.FreqCutoff`** — frozen value object replacing

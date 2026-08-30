@@ -10,7 +10,9 @@ system for managing and retrieving models.
 
 from __future__ import annotations
 
+import operator
 from abc import ABC, abstractmethod
+from functools import reduce
 from typing import Any, ClassVar
 
 import numpy as np
@@ -196,6 +198,99 @@ def esrsingle(x: NDArray[np.floating], parameter: NDArray[np.floating]) -> NDArr
     return 1 + offset - dip
 
 
+def _lorentzian_dips_jacobian(
+    x: NDArray[np.floating],
+    parameter: NDArray[np.floating],
+    dip_offsets: tuple[float, ...],
+) -> tuple[NDArray[np.floating], ...]:
+    """Analytic derivatives of a sum-of-Lorentzian-dips model (QEP-073).
+
+    All three ESR models share one functional form -- dips at fixed offsets
+    from a common ``center``, sharing one HWHM ``width`` and one ``offset``::
+
+        f(x) = 1 + offset - sum_i c_i * w^2 / ((x - center - delta_i)^2 + w^2)
+
+    so one derivation covers them all. Writing ``d_i = x - center - delta_i``
+    and ``D_i = d_i^2 + w^2``::
+
+        df/dcenter = -sum_i c_i * 2 w^2 d_i / D_i^2
+        df/dw      = -sum_i c_i * 2 w d_i^2 / D_i^2
+        df/dc_i    = -w^2 / D_i
+        df/doffset = 1
+
+    Cross-checked term by term against gpufit's kernels
+    (``Gpufit/models/esr14N.cuh``), which are the numerical reference.
+
+    Returns a *tuple of columns* rather than a stacked array: stacking would
+    need ``np.stack`` or ``torch.stack`` and break the framework-neutral
+    contract that lets one implementation serve numpy and torch. Callers stack
+    with their own framework.
+
+    Args:
+        x: Frequency values in GHz.
+        parameter: Parameter array, shape (N, 3 + n_dips): center, width, one
+            contrast per dip, then offset.
+        dip_offsets: Dip positions relative to ``center``, in GHz.
+
+    Returns:
+        One (N, len(x)) derivative array per parameter, ordered to match
+        ``parameter_names``.
+    """
+    parameter = _ensure_2d(parameter)
+    center = parameter[:, 0:1]
+    width = parameter[:, 1:2]
+    width_sq = width**2
+
+    center_terms = []
+    width_terms = []
+    contrast_cols = []
+    for i, delta in enumerate(dip_offsets):
+        contrast = parameter[:, 2 + i : 3 + i]
+        d = x - center - delta
+        inv_d = 1 / (d * d + width_sq)
+        # -w^2/D_i: derivative w.r.t. this dip's own contrast.
+        contrast_cols.append(-width_sq * inv_d)
+        center_terms.append(contrast * (2 * width_sq * d) * inv_d * inv_d)
+        width_terms.append(contrast * (2 * width * d * d) * inv_d * inv_d)
+
+    # reduce, not sum(): a 0 seed would make the accumulator a python scalar
+    # for one add and drop the array/tensor type on the way through.
+    d_center = reduce(operator.add, center_terms)
+    d_width = reduce(operator.add, width_terms)
+
+    # d/doffset is identically 1, but must broadcast to (N, len(x)) in whichever
+    # framework the caller uses -- derive it from the inputs rather than np.ones.
+    ones = (x - x) + 1 + 0 * center
+
+    return (-d_center, -d_width, *contrast_cols, ones)
+
+
+def esr14n_jacobian(
+    x: NDArray[np.floating],
+    parameter: NDArray[np.floating],
+    ahyp: float = AHYP_14N,
+) -> tuple[NDArray[np.floating], ...]:
+    """Analytic derivatives of :func:`esr14n`; see :func:`_lorentzian_dips_jacobian`."""
+    return _lorentzian_dips_jacobian(x, parameter, (-ahyp, 0.0, ahyp))
+
+
+def esr15n_jacobian(
+    x: NDArray[np.floating],
+    parameter: NDArray[np.floating],
+    ahyp: float = AHYP_15N,
+) -> tuple[NDArray[np.floating], ...]:
+    """Analytic derivatives of :func:`esr15n`; see :func:`_lorentzian_dips_jacobian`."""
+    return _lorentzian_dips_jacobian(x, parameter, (-ahyp, ahyp))
+
+
+def esrsingle_jacobian(
+    x: NDArray[np.floating],
+    parameter: NDArray[np.floating],
+) -> tuple[NDArray[np.floating], ...]:
+    """Analytic derivatives of :func:`esrsingle`; see :func:`_lorentzian_dips_jacobian`."""
+    return _lorentzian_dips_jacobian(x, parameter, (0.0,))
+
+
 class Model(ABC):
     """Abstract base class for ODMR spectral models.
 
@@ -346,6 +441,32 @@ class Model(ABC):
             parameter sets. Values represent normalized fluorescence intensity.
         """
         raise NotImplementedError
+
+    def jacobian(
+        self: Model,
+        x: NDArray[np.floating],  # noqa: ARG002
+        parameters: NDArray[np.floating],  # noqa: ARG002
+    ) -> tuple[NDArray[np.floating], ...] | None:
+        """Analytic partial derivatives of :meth:`func`, or None (QEP-073).
+
+        Optional. Returning ``None`` -- the default -- makes backends fall back
+        to finite differences, so custom models need not implement this. When
+        implemented, the derivatives must use only framework-neutral arithmetic,
+        like :meth:`func`, so one implementation serves numpy and torch.
+
+        The columns are returned as a tuple rather than a stacked array because
+        stacking would require choosing a framework; each backend stacks with
+        its own.
+
+        Args:
+            x: Array of frequency values in GHz.
+            parameters: Parameter array, shape (N, n_parameters).
+
+        Returns:
+            One (N, len(x)) derivative array per parameter, ordered to match
+            ``parameter_names``, or None if no analytic form is available.
+        """
+        return None
 
     @property
     def n_parameters(self: Model) -> int:
@@ -511,6 +632,14 @@ class ESR14N(Model):
         """Evaluate the 14N triplet Lorentzian model."""
         return esr14n(x, parameters, self.ahyp)
 
+    def jacobian(
+        self: ESR14N,
+        x: NDArray[np.floating],
+        parameters: NDArray[np.floating],
+    ) -> tuple[NDArray[np.floating], ...]:
+        """Analytic derivatives of the 14N triplet model."""
+        return esr14n_jacobian(x, parameters, self.ahyp)
+
 
 @ModelRegistry.register
 class ESR15N(Model):
@@ -552,6 +681,14 @@ class ESR15N(Model):
         """Evaluate the 15N doublet Lorentzian model."""
         return esr15n(x, parameters, self.ahyp)
 
+    def jacobian(
+        self: ESR15N,
+        x: NDArray[np.floating],
+        parameters: NDArray[np.floating],
+    ) -> tuple[NDArray[np.floating], ...]:
+        """Analytic derivatives of the 15N doublet model."""
+        return esr15n_jacobian(x, parameters, self.ahyp)
+
 
 @ModelRegistry.register
 class ESRSINGLE(Model):
@@ -586,6 +723,14 @@ class ESRSINGLE(Model):
     ) -> NDArray[np.floating]:
         """Evaluate the single Lorentzian model."""
         return esrsingle(x, parameters)
+
+    def jacobian(
+        self: ESRSINGLE,
+        x: NDArray[np.floating],
+        parameters: NDArray[np.floating],
+    ) -> tuple[NDArray[np.floating], ...]:
+        """Analytic derivatives of the single-dip model."""
+        return esrsingle_jacobian(x, parameters)
 
 
 def _main_demo() -> None:

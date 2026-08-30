@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import numpy as np
 from loguru import logger
@@ -23,6 +23,9 @@ from pydantic import BaseModel, ConfigDict
 from qdmpy.exceptions import DependencyError, ParameterError
 from qdmpy.fitting.constraints import CONSTRAINT_TYPES
 from qdmpy.fitting.models import Model
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 ESTIMATOR_ID = {"LSE": 0, "MLE": 1}
 
@@ -241,6 +244,10 @@ class ScipyBackend:
         chi2_out = np.empty(n_fits, dtype=np.float32)
         iterations_out = np.empty(n_fits, dtype=np.int32)
 
+        # Resolved once, not per pixel: models without an analytic form fall
+        # back to scipy's own finite differences.
+        jac = _analytic_jacobian_callable(model, freq_ghz, initial) or "2-point"
+
         for i in range(n_fits):
             target = data[i]
 
@@ -253,6 +260,7 @@ class ScipyBackend:
             result = least_squares(
                 residuals,
                 x0,
+                jac=jac,
                 bounds=(lower[i], upper[i]),
                 max_nfev=options.max_number_iterations,
                 xtol=options.tolerance,
@@ -273,6 +281,48 @@ class ScipyBackend:
     ) -> tuple[NDArray, NDArray]:
         """Delegate to the shared :func:`bounds_from_constraints`."""
         return bounds_from_constraints(constraints, constraint_types, n_params)
+
+
+def _analytic_jacobian_callable(
+    model: Model,
+    freq_ghz: NDArray,
+    initial: NDArray,
+) -> Callable[[NDArray], NDArray] | None:
+    """Adapt ``Model.jacobian`` to scipy's ``jac(p) -> (n_freq, n_params)``, or None.
+
+    ``Model.jacobian`` returns framework-neutral columns shaped (1, n_freq) for
+    a single parameter vector (QEP-073); ``least_squares`` wants them stacked
+    the other way round. Probed once here so a model without an analytic form
+    -- or with a malformed one -- silently keeps scipy's finite differences.
+    """
+    n_params = initial.shape[-1]
+    try:
+        cols = model.jacobian(freq_ghz, initial[:1])
+    except Exception as exc:  # any failure here just means "use finite differences"
+        logger.warning(
+            "Model '{}'.jacobian raised {!r}; falling back to finite differences",
+            model.name,
+            exc,
+        )
+        return None
+
+    if cols is None:
+        return None
+    if len(cols) != n_params or any(np.shape(col) != (1, freq_ghz.size) for col in cols):
+        logger.warning(
+            "Model '{}'.jacobian must return {} columns of shape {}; "
+            "falling back to finite differences",
+            model.name,
+            n_params,
+            (1, freq_ghz.size),
+        )
+        return None
+
+    def jacobian(p: NDArray) -> NDArray:
+        columns = model.jacobian(freq_ghz, p[np.newaxis, :])
+        return np.stack([col[0] for col in columns], axis=-1)  # ty: ignore[not-iterable]
+
+    return jacobian
 
 
 def bounds_from_constraints(

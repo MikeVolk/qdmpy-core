@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import importlib.util
 import time
+from functools import partial
 from typing import TYPE_CHECKING, Any, Self, cast
 
 import numpy as np
@@ -29,6 +30,8 @@ from qdmpy.fitting.backends import (
 from qdmpy.fitting.models import Model
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import torch as torch_types  # ty: ignore[unresolved-import]
 
 _LAMBDA_INIT = 1e-3
@@ -46,6 +49,13 @@ _FD_EPS = 3.45e-4  # sqrt(float32 machine epsilon)
 # move. 1e-5 is far below every physical parameter scale in this domain
 # (centers ~2.87 GHz, widths ~2e-3 GHz, contrasts ~0.1, offsets ~1e-2) while
 # guaranteeing a representable model change.
+#
+# Note the *relative* term is the weak part of this scheme, not the floor:
+# `center` differences over 3.45e-4 * 2.87 ~ 1e-3 GHz, which is around one
+# linewidth, because the step scales with the parameter's magnitude rather
+# than with the HWHM that sets its true sensitivity. That is why the built-in
+# ESR models supply analytic Jacobians (QEP-073) and only custom models reach
+# this path.
 _FD_MIN_STEP = 1e-5
 _DIAG_FLOOR = 1e-20
 
@@ -182,6 +192,9 @@ class TorchBackend:
         )
         start = time.perf_counter()
         x_t = torch.from_numpy(freq32).to(device)
+        jacobian_fn = self._resolve_jacobian(
+            torch, model, x_t, torch.from_numpy(initial_2d[:1]).to(device)
+        )
 
         for chunk_start in range(0, n_fits, self._chunk_size):
             sl = slice(chunk_start, min(chunk_start + self._chunk_size, n_fits))
@@ -195,6 +208,7 @@ class TorchBackend:
                 hi=torch.from_numpy(upper32[sl]).to(device),
                 model=model,
                 options=options,
+                jacobian_fn=jacobian_fn,
             )
             params_out[sl] = p.cpu().numpy()
             states_out[sl] = states.cpu().numpy()
@@ -294,6 +308,73 @@ class TorchBackend:
         delta = torch.cholesky_solve(rhs.cpu(), chol)
         return delta.to(a_mat.device), info.to(a_mat.device)
 
+    def _analytic_jacobian(
+        self: Self,
+        torch: Any,  # noqa: ANN401
+        model: Model,
+        x_t: torch_types.Tensor,
+        p_w: torch_types.Tensor,
+    ) -> torch_types.Tensor:
+        """Stack the model's analytic derivative columns into (a, f, p).
+
+        Stacked on dim 0 and permuted, not stacked on dim -1: both give shape
+        (a, f, p), but this one is (p, a, f) in memory, which is what
+        ``_fd_jacobian`` produces and what the downstream ``jac.mT @ jac``
+        wants. Stacking straight to the last dim leaves each fit's matrix
+        column-major for cuBLAS and makes that batched matmul ~5x slower --
+        enough to lose everything the analytic form gains.
+        """
+        cols = model.jacobian(cast(NDArray, x_t), cast(NDArray, p_w))
+        return torch.stack(cast(tuple, cols), dim=0).permute(1, 2, 0)
+
+    def _resolve_jacobian(
+        self: Self,
+        torch: Any,  # noqa: ANN401
+        model: Model,
+        x_t: torch_types.Tensor,
+        p_probe: torch_types.Tensor,
+    ) -> Callable[[torch_types.Tensor], torch_types.Tensor] | None:
+        """Bind the model's analytic Jacobian, or None to use finite differences.
+
+        Probed once per ``fit()`` rather than per LM iteration: the hot loop
+        then has no attribute lookup or exception handling, and a model whose
+        analytic form is malformed degrades to finite differences with one log
+        line instead of failing mid-fit.
+        """
+        n_params = p_probe.shape[-1]
+        try:
+            cols = model.jacobian(cast(NDArray, x_t), cast(NDArray, p_probe))
+        except Exception as exc:  # any failure here just means "use finite differences"
+            logger.warning(
+                "Model '{}'.jacobian raised {!r} on torch tensors; "
+                "falling back to finite differences",
+                model.name,
+                exc,
+            )
+            return None
+
+        if cols is None:
+            logger.debug(
+                "Model '{}' has no analytic Jacobian; using finite differences", model.name
+            )
+            return None
+
+        expected = (int(p_probe.shape[0]), int(x_t.shape[0]))
+        if len(cols) != n_params or not all(
+            isinstance(col, torch.Tensor) and tuple(col.shape) == expected for col in cols
+        ):
+            logger.warning(
+                "Model '{}'.jacobian must return {} columns of shape {}; "
+                "falling back to finite differences",
+                model.name,
+                n_params,
+                expected,
+            )
+            return None
+
+        logger.debug("Using analytic Jacobian for model '{}'", model.name)
+        return partial(self._analytic_jacobian, torch, model, x_t)
+
     def _fd_jacobian(
         self: Self,
         torch: Any,  # noqa: ANN401
@@ -333,6 +414,7 @@ class TorchBackend:
         hi: torch_types.Tensor,
         model: Model,
         options: FitBackendOptions,
+        jacobian_fn: Callable[[torch_types.Tensor], torch_types.Tensor] | None,
     ) -> tuple[torch_types.Tensor, ...]:
         """Run batched LM on one chunk; returns (params, states, chi2, iterations).
 
@@ -385,7 +467,11 @@ class TorchBackend:
                 iters_out.index_add_(0, idx, alive.to(torch.int32))
                 n_active = idx.numel()
 
-                jac = self._fd_jacobian(torch, model, x_t, p_w, f0_w, eye_cols)
+                jac = (
+                    jacobian_fn(p_w)
+                    if jacobian_fn is not None
+                    else self._fd_jacobian(torch, model, x_t, p_w, f0_w, eye_cols)
+                )
 
                 # Active-set reduction for box constraints: a parameter pinned
                 # at a bound whose gradient points out of the box would make

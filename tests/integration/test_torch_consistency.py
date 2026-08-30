@@ -2,8 +2,13 @@
 
 Mirror of ``test_gpufit_consistency.py`` for the torch backend (QEP-069):
 noiseless synthetic spectra from known parameters are fitted and must satisfy
-the same contract (all converged, chi2 < 1e-6, params within rtol=1e-2 /
-atol=1e-5 columnwise-appropriate tolerances).
+the same contract (all converged, chi2 < 1e-10, params within columnwise
+tolerances).
+
+The tolerances were tightened by 2-4 orders of magnitude when the ESR models
+gained analytic Jacobians (QEP-073); they are set roughly 10-50x above what
+the backend actually achieves, so a regression back to a finite-difference
+quality Jacobian fails here rather than passing quietly.
 
 Two variants per model:
 - from the true parameters (pure kernel-consistency, same as the gpufit test);
@@ -106,14 +111,16 @@ def _run_consistency(model_name: str, device: str, *, perturb: bool) -> None:
         f"{model_name}/{device}: some fits did not converge — "
         f"states: {np.unique(out.states, return_counts=True)}"
     )
-    assert np.all(out.chi2 < 1e-6), (
+    assert np.all(out.chi2 < 1e-10), (
         f"{model_name}/{device}: nonzero chi2 — max {out.chi2.max():.2e}"
     )
     recovered = out.parameters
-    assert_allclose(recovered[:, 0], true_params[:, 0], atol=5e-6)  # center (GHz)
-    assert_allclose(recovered[:, 1], true_params[:, 1], rtol=2e-2)  # width
-    assert_allclose(recovered[:, 2:-1], true_params[:, 2:-1], rtol=2e-2)  # contrasts
-    assert_allclose(recovered[:, -1], true_params[:, -1], atol=1e-4)  # offset (~0)
+    # center: recovered exactly (0.0 error) in every case measured; 1e-6 GHz is
+    # ~3 float32 ulp at 2.87 GHz, i.e. as tight as this dtype allows.
+    assert_allclose(recovered[:, 0], true_params[:, 0], atol=1e-6)  # center (GHz)
+    assert_allclose(recovered[:, 1], true_params[:, 1], rtol=1e-4)  # width
+    assert_allclose(recovered[:, 2:-1], true_params[:, 2:-1], rtol=1e-3)  # contrasts
+    assert_allclose(recovered[:, -1], true_params[:, -1], atol=1e-5)  # offset (~0)
 
 
 @pytest.mark.parametrize("model_name", ["ESR14N", "ESR15N", "ESRSINGLE"])
