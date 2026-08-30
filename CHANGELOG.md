@@ -22,6 +22,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `dependencies.yml`, so `actionlint` passes.
 - Replaced a deprecated `::set-output` command in `cookiecutter.yml` with
   `$GITHUB_OUTPUT`.
+- `dependencies.yml`, `draft_release.yml`, and `release.yml` also still ran
+  Poetry end to end (dependency auto-updates, version bumping, PyPI
+  publish) and would have failed the same way if actually triggered. All
+  three now run on `uv`: `uv lock --dry-run --upgrade` replaces
+  `poetry show -o`, `uv version --bump {major,minor,patch}` (or an explicit
+  version) replaces `poetry version`, and `uv build` / `uv publish` replace
+  `poetry publish`. `kacl-cli` now runs via `uvx --from python-kacl` rather
+  than being a project dependency. The archived `actions/create-release@v1`
+  is replaced with `gh release create`. Removed the now-unused
+  `.github/actions/python-poetry-env` composite action.
 
 ### Added (QEP-073: analytic Jacobians)
 

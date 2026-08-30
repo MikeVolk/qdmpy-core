@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'The version number (e.g. 1.2.3) OR one of: patch|minor|major|prepatch|preminor|premajor|prerelease'
+        description: 'The version number (e.g. 1.2.3) OR one of: patch|minor|major'
         required: true
         default: 'patch'
 
@@ -13,40 +13,56 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/python-poetry-env
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync
+
       - name: Update version
         id: updated_version
         shell: bash
         run: |
-          poetry version ${{ github.event.inputs.version }}
-          version=$(poetry version --short)
-          echo ::set-output name="version::$version"
+          input="${{ github.event.inputs.version }}"
+          if [[ "$input" =~ ^(major|minor|patch)$ ]]; then
+            uv version --bump "$input"
+          else
+            uv version "$input"
+          fi
+          uv lock
+          version=$(uv version --short)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Update changelog
         id: changelog
         shell: bash
         run: |
-          poetry run kacl-cli release ${{ steps.updated_version.outputs.version }} --modify --auto-link
+          version="${{ steps.updated_version.outputs.version }}"
+          uvx --from python-kacl kacl-cli release "$version" --modify --auto-link
           echo "" >> CHANGELOG.md
-          body=$(poetry run kacl-cli get ${{ steps.updated_version.outputs.version }})
-          body="${body//'%'/'%25'}"
-          body="${body//$'\n'/'%0A'}"
-          body="${body//$'\r'/'%0D'}"
-          echo ::set-output name="body::$body"
+          body=$(uvx --from python-kacl kacl-cli get "$version")
+          {
+            echo 'body<<CHANGELOG_EOF'
+            echo "$body"
+            echo 'CHANGELOG_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Commit changes
         uses: EndBug/add-and-commit@v7
         with:
-          add: 'CHANGELOG.md pyproject.toml'
+          add: 'CHANGELOG.md pyproject.toml uv.lock'
           message: 'Release ${{ steps.updated_version.outputs.version }}'
+
       - name: Create tag
         run: |
           git tag ${{ steps.updated_version.outputs.version }}
           git push origin ${{ steps.updated_version.outputs.version }}
+
       - name: Create a draft release
-        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.updated_version.outputs.version }}
-          release_name: Release ${{ steps.updated_version.outputs.version }}
-          body: ${{ steps.changelog.outputs.body }}
-          draft: true
+        run: |
+          gh release create ${{ steps.updated_version.outputs.version }} \
+            --title "Release ${{ steps.updated_version.outputs.version }}" \
+            --notes "${{ steps.changelog.outputs.body }}" \
+            --draft
