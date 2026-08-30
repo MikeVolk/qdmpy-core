@@ -33,7 +33,11 @@ findings are separate, tracked on `feature/qep-067-alignment-stitching`):
   `ODMRProcessorManager.to_config()`/`from_config()` by registering itself
   via `@ProcessorRegistry.register`, without editing this module -- closing
   the gap where the `Processor` protocol's own "needs no base class"
-  contract didn't hold for config serialization.
+  contract didn't hold for config serialization. `ProcessorRegistry` and
+  `BaseProcessor` are now exported from the top-level `qdmpy` package
+  (matching `ModelRegistry`'s existing precedent), and
+  `docs/extending.md`'s "Custom ODMR Processor" section gains a "Config
+  round-tripping" subsection showing the pattern.
 - **SRP** -- `odmr/io.py`'s `MatlabLoader.load()` is decomposed into
   `_discover_files`, `_load_single_file`, `_parse_frequencies`, and
   `_assemble_data_array`; `load()` is now a ~15-line orchestrator and no

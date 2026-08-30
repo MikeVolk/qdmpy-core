@@ -92,11 +92,13 @@ from qdmpy.odmr.manager import ODMR
 
 # --- Processing ---
 from qdmpy.odmr.processors import (
+    BaseProcessor,
     BinningProcessor,
     FluorescenceCorrectionProcessor,
     NormalizationProcessor,
     OutlierProcessor,
     Processor,
+    ProcessorRegistry,
 )
 from qdmpy.result import QDMResult
 
@@ -140,11 +142,13 @@ __all__ = [
     "ODMRData",
     "ODMR",
     # Processing
+    "BaseProcessor",
     "BinningProcessor",
     "FluorescenceCorrectionProcessor",
     "NormalizationProcessor",
     "OutlierProcessor",
     "Processor",
+    "ProcessorRegistry",
     # Fitting
     "FitManager",
     "FitResult",
