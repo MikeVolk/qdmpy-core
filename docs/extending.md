@@ -121,6 +121,39 @@ m.odmr.process_data()   # re-run pipeline with the new step
 > **Immutability rule**: `process` receives an `ODMRData` and must return a
 > *new* `ODMRData`. Mutating the input in place will corrupt the pipeline cache.
 
+### Config round-tripping (optional)
+
+The plain `MyProcessor` above works for direct pipeline use, but a
+pipeline's `pipeline_config` (used to save and reload the pipeline, and
+recorded automatically in `ODMRData.metadata['pipeline']` after every
+`process_data()` call) only reconstructs processors that are registered.
+Subclass `BaseProcessor` (a Pydantic model), add a `type: Literal[...]`
+field, and register with `@ProcessorRegistry.register`:
+
+```python
+from typing import Literal
+from qdmpy import BaseProcessor, ProcessorRegistry
+from qdmpy.odmr.data import ODMRData
+
+@ProcessorRegistry.register
+class ScaleProcessor(BaseProcessor):
+    type: Literal['ScaleProcessor'] = 'ScaleProcessor'
+    scale: float = 1.05
+
+    def process(self, data: ODMRData) -> ODMRData:
+        return ODMRData(data=data.data * self.scale, metadata=data.metadata.copy())
+```
+
+```python
+from qdmpy.odmr.processors import ODMRProcessorManager
+
+manager = m.odmr.processor_manager
+manager.add_processor(ScaleProcessor(scale=1.1))
+
+config = manager.pipeline_config              # JSON-serializable list of dicts
+restored = ODMRProcessorManager.from_config(config)  # e.g. after loading config from disk
+```
+
 ---
 
 ## 3. Custom Field Reconstructor

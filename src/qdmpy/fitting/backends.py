@@ -22,7 +22,7 @@ from pydantic import BaseModel, ConfigDict
 
 from qdmpy.exceptions import DependencyError, ParameterError
 from qdmpy.fitting.constraints import CONSTRAINT_TYPES
-from qdmpy.fitting.models import Model
+from qdmpy.fitting.models import Model, resolve_analytic_jacobian_columns
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -71,6 +71,16 @@ class FitBackend(Protocol):
 
     A backend is a swappable seam: FitManager calls only these three
     methods and never imports an optimizer library directly.
+
+    Non-finite input contract: ``fit()`` must never raise because some rows
+    of ``data`` contain NaN/Inf (a dead sensor pixel, a masked outlier, ...).
+    Only the affected row(s) may fail -- report them with a non-zero
+    ``states`` entry (the specific code is backend-defined; e.g.
+    :class:`GpufitBackend` uses its native non-convergence codes,
+    :class:`~qdmpy.fitting.torch_backend.TorchBackend` and
+    :class:`ScipyBackend` use ``2``) and continue fitting every other row
+    normally. A backend that aborts the whole batch on one bad pixel is not
+    a drop-in replacement for one that degrades gracefully.
     """
 
     name: str
@@ -313,26 +323,14 @@ def _analytic_jacobian_callable(
     -- or with a malformed one -- silently keeps scipy's finite differences.
     """
     n_params = initial.shape[-1]
-    try:
-        cols = model.jacobian(freq_ghz, initial[:1])
-    except Exception as exc:  # any failure here just means "use finite differences"
-        logger.warning(
-            "Model '{}'.jacobian raised {!r}; falling back to finite differences",
-            model.name,
-            exc,
-        )
-        return None
-
+    cols = resolve_analytic_jacobian_columns(
+        model,
+        probe=lambda: model.jacobian(freq_ghz, initial[:1]),
+        n_params=n_params,
+        expected_shape=(1, freq_ghz.size),
+        shape_of=np.shape,
+    )
     if cols is None:
-        return None
-    if len(cols) != n_params or any(np.shape(col) != (1, freq_ghz.size) for col in cols):
-        logger.warning(
-            "Model '{}'.jacobian must return {} columns of shape {}; "
-            "falling back to finite differences",
-            model.name,
-            n_params,
-            (1, freq_ghz.size),
-        )
         return None
 
     def jacobian(p: NDArray) -> NDArray:

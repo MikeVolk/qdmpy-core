@@ -454,3 +454,43 @@ class TestODMRProcessorManager:
 
         restored = ODMRProcessorManager.from_config(pipeline_config)
         assert restored.pipeline_config == pipeline_config
+
+    def test_custom_processor_round_trips_via_registry(self) -> None:
+        """A registered custom processor must round-trip through to_config/from_config.
+
+        Regression test for review finding: ProcessorSpec/from_config used
+        to hardcode the four built-in processor types in a discriminated
+        Union, so a custom processor (satisfying the Processor protocol's
+        own documented "needs no base class" contract) worked fine through
+        add_processor()/process() but raised
+        pydantic.ValidationError: Input tag 'CustomScaleProcessor' ... does
+        not match any of the expected tags on from_config(). Adding a new
+        processor type must not require editing this module.
+        """
+        from typing import Literal
+
+        from qdmpy.odmr.processors import BaseProcessor, ProcessorRegistry
+
+        @ProcessorRegistry.register
+        class CustomScaleProcessor(BaseProcessor):
+            type: Literal["CustomScaleProcessor"] = "CustomScaleProcessor"
+            scale: float = 1.05
+
+            def process(self, data):
+                from qdmpy.odmr.data import ODMRData
+
+                return ODMRData(data=data.data * self.scale, metadata=data.metadata.copy())
+
+        try:
+            manager = ODMRProcessorManager()
+            manager.add_processor(CustomScaleProcessor(scale=2.0))
+
+            config = manager.pipeline_config
+            restored = ODMRProcessorManager.from_config(config)
+
+            assert len(restored.processors) == 1
+            assert isinstance(restored.processors[0], CustomScaleProcessor)
+            assert restored.processors[0].scale == 2.0
+            assert restored.pipeline_config == config
+        finally:
+            del ProcessorRegistry._registry["CustomScaleProcessor"]

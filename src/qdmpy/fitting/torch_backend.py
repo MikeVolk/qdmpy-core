@@ -27,7 +27,7 @@ from qdmpy.fitting.backends import (
     FitBackendOptions,
     bounds_from_constraints,
 )
-from qdmpy.fitting.models import Model
+from qdmpy.fitting.models import Model, resolve_analytic_jacobian_columns
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -342,34 +342,19 @@ class TorchBackend:
         line instead of failing mid-fit.
         """
         n_params = p_probe.shape[-1]
-        try:
-            cols = model.jacobian(cast(NDArray, x_t), cast(NDArray, p_probe))
-        except Exception as exc:  # any failure here just means "use finite differences"
-            logger.warning(
-                "Model '{}'.jacobian raised {!r} on torch tensors; "
-                "falling back to finite differences",
-                model.name,
-                exc,
-            )
-            return None
-
-        if cols is None:
-            logger.debug(
-                "Model '{}' has no analytic Jacobian; using finite differences", model.name
-            )
-            return None
-
         expected = (int(p_probe.shape[0]), int(x_t.shape[0]))
-        if len(cols) != n_params or not all(
-            isinstance(col, torch.Tensor) and tuple(col.shape) == expected for col in cols
-        ):
-            logger.warning(
-                "Model '{}'.jacobian must return {} columns of shape {}; "
-                "falling back to finite differences",
-                model.name,
-                n_params,
-                expected,
-            )
+
+        def _shape_of(col: object) -> tuple[int, ...] | None:
+            return tuple(col.shape) if isinstance(col, torch.Tensor) else None
+
+        cols = resolve_analytic_jacobian_columns(
+            model,
+            probe=lambda: model.jacobian(cast(NDArray, x_t), cast(NDArray, p_probe)),
+            n_params=n_params,
+            expected_shape=expected,
+            shape_of=_shape_of,
+        )
+        if cols is None:
             return None
 
         logger.debug("Using analytic Jacobian for model '{}'", model.name)

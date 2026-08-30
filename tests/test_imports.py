@@ -34,11 +34,13 @@ ALL_NAMES = [
     ("ODMRData", "class"),
     ("ODMR", "class"),
     # Processing
+    ("BaseProcessor", "class"),
     ("BinningProcessor", "class"),
     ("FluorescenceCorrectionProcessor", "class"),
     ("NormalizationProcessor", "class"),
     ("OutlierProcessor", "class"),
     ("Processor", "class"),
+    ("ProcessorRegistry", "class"),
     # Fitting
     ("FitManager", "class"),
     ("FitResult", "class"),
