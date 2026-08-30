@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import operator
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from functools import reduce
 from typing import Any, ClassVar
 
@@ -517,6 +518,67 @@ class Model(ABC):
             String describing the model's key properties.
         """
         return f"Model({self.name}, n_parameters: {self.n_parameters}, n_peaks: {self.n_peaks})"
+
+
+def resolve_analytic_jacobian_columns(
+    model: Model,
+    probe: Callable[[], tuple[Any, ...] | None],
+    n_params: int,
+    expected_shape: tuple[int, ...],
+    shape_of: Callable[[Any], tuple[int, ...] | None],
+) -> tuple[Any, ...] | None:
+    """Probe, validate, and return :meth:`Model.jacobian`'s columns, or None.
+
+    Shared by every :class:`~qdmpy.fitting.backends.FitBackend`'s jacobian
+    resolution (QEP-073). Each backend probes ``model.jacobian`` with its own
+    framework's arrays and stacks the result its own way, but the "try the
+    probe, validate the column count/shape, warn and fall back to finite
+    differences on any mismatch" skeleton is identical -- and had drifted
+    between two independent copies (``fitting/backends.py``,
+    ``fitting/torch_backend.py``) before being factored out here.
+
+    Args:
+        model: The model whose ``jacobian()`` is being probed (used only for
+            its name, in log messages).
+        probe: Zero-arg callable that calls ``model.jacobian(...)`` with the
+            backend's own probe arrays and returns its raw result.
+        n_params: Expected number of returned columns.
+        expected_shape: Expected shape of each column.
+        shape_of: Extracts a comparable shape tuple from one column, or
+            ``None`` to reject it outright (e.g. the torch backend rejects
+            anything that isn't a ``torch.Tensor`` before comparing shapes).
+
+    Returns:
+        The validated columns tuple, or ``None`` if ``jacobian()`` returned
+        ``None``, raised, or returned something that doesn't match the
+        contract -- in every case, the caller should fall back to finite
+        differences.
+    """
+    try:
+        cols = probe()
+    except Exception as exc:  # any failure here just means "use finite differences"
+        logger.warning(
+            "Model '{}'.jacobian raised {!r}; falling back to finite differences",
+            model.name,
+            exc,
+        )
+        return None
+
+    if cols is None:
+        logger.debug("Model '{}' has no analytic Jacobian; using finite differences", model.name)
+        return None
+
+    if len(cols) != n_params or any(shape_of(col) != expected_shape for col in cols):
+        logger.warning(
+            "Model '{}'.jacobian must return {} columns of shape {}; "
+            "falling back to finite differences",
+            model.name,
+            n_params,
+            expected_shape,
+        )
+        return None
+
+    return cols
 
 
 class ModelRegistry:

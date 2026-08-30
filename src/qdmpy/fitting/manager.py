@@ -205,9 +205,8 @@ class FitManager:
             if backend is not None:
                 msg = "Pass either 'backend' or the deprecated 'gpu_available', not both"
                 raise ParameterError(msg)
-            from qdmpy.fitting.backends import GpufitBackend
 
-            return with_forced_availability(GpufitBackend(), available=gpu_available)
+            return with_forced_availability(resolve_backend("gpufit"), available=gpu_available)
 
         return resolve_backend(backend if backend is not None else self._settings.fit.backend)
 

@@ -7,12 +7,12 @@ a collection of processor classes and a manager to coordinate them.
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, runtime_checkable
 
 import numpy as np
 import xarray as xr
 from loguru import logger
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from qdmpy.constants import FLUORESCENCE_DELTA_THRESHOLD
 
@@ -51,7 +51,14 @@ class Processor(Protocol):
     Note:
         ``describe()`` is used for logging and pipeline inspection.
         Processors do not need to inherit from any base class — structural
-        subtyping (duck typing) is used.
+        subtyping (duck typing) is used. This is enough for direct pipeline
+        use via ``add_processor()``. A processor that also needs to
+        round-trip through ``ODMRProcessorManager.to_config()`` /
+        ``from_config()`` (e.g. saving and reloading a pipeline) must
+        additionally be a Pydantic ``BaseModel`` with a ``type:
+        Literal[...]`` field, and register itself via
+        :class:`ProcessorRegistry`'s ``@ProcessorRegistry.register``
+        decorator.
     """
 
     def process(self, data: ODMRData) -> ODMRData:
@@ -92,6 +99,67 @@ class BaseProcessor(BaseModel):
         return self.model_dump()
 
 
+class ProcessorRegistry:
+    """Registry mapping a processor's ``type`` tag to its class (Open/Closed).
+
+    A processor used only via ``add_processor()``/``process()`` needs no
+    base class at all -- see the ``Processor`` protocol's custom-processor
+    contract above. A processor that also wants to round-trip through
+    ``ODMRProcessorManager.to_config()`` / ``from_config()`` (e.g. saving and
+    reloading a pipeline) must additionally be a Pydantic ``BaseModel`` with
+    a ``type: Literal[...]`` field, and register itself via
+    ``@ProcessorRegistry.register`` -- mirroring
+    :class:`~qdmpy.fitting.models.ModelRegistry`, this repo's established
+    pattern for extending a closed set of types without editing existing
+    code.
+
+    Example:
+        >>> @ProcessorRegistry.register
+        ... class MyProcessor(BaseProcessor):
+        ...     type: Literal['MyProcessor'] = 'MyProcessor'
+        ...     def process(self, data): ...
+    """
+
+    _registry: ClassVar[dict[str, type[BaseProcessor]]] = {}
+
+    @classmethod
+    def register(
+        cls: type[ProcessorRegistry], processor_cls: type[BaseProcessor]
+    ) -> type[BaseProcessor]:
+        """Register a processor class (usable as a decorator).
+
+        Args:
+            processor_cls: A ``BaseProcessor`` subclass whose ``type``
+                field's default is used as the registry key.
+
+        Returns:
+            The processor class, unchanged.
+        """
+        type_name = processor_cls.model_fields["type"].default
+        cls._registry[type_name] = processor_cls
+        logger.debug("Registered processor type: {}", type_name)
+        return processor_cls
+
+    @classmethod
+    def get(cls: type[ProcessorRegistry], type_name: str) -> type[BaseProcessor]:
+        """Get a registered processor class by its ``type`` tag.
+
+        Raises:
+            KeyError: If the type name is not found in the registry.
+        """
+        if type_name not in cls._registry:
+            available = sorted(cls._registry)
+            msg = f"Unknown processor type: {type_name!r}. Choose from: {available}"
+            raise KeyError(msg)
+        return cls._registry[type_name]
+
+    @classmethod
+    def from_config(cls: type[ProcessorRegistry], step: dict[str, Any]) -> BaseProcessor:
+        """Reconstruct a single processor from a serialized config dict."""
+        return cls.get(step["type"]).model_validate(step)
+
+
+@ProcessorRegistry.register
 class NormalizationProcessor(BaseProcessor):
     """Normalizes ODMR data by dividing each pixel's spectrum by a scalar factor.
 
@@ -160,6 +228,7 @@ class NormalizationProcessor(BaseProcessor):
         return ODMRData(data=normalized, metadata=data.metadata.copy())
 
 
+@ProcessorRegistry.register
 class BinningProcessor(BaseProcessor):
     """Spatial binning of ODMR data using xarray coarsen.
 
@@ -196,6 +265,7 @@ class BinningProcessor(BaseProcessor):
         return ODMRData(data=binned, metadata=data.metadata.copy())
 
 
+@ProcessorRegistry.register
 class OutlierProcessor(BaseProcessor):
     """Masks outlier values in ODMR data using z-scores along the frequency dimension.
 
@@ -219,6 +289,7 @@ class OutlierProcessor(BaseProcessor):
         return ODMRData(data=processed, metadata=data.metadata.copy())
 
 
+@ProcessorRegistry.register
 class FluorescenceCorrectionProcessor(BaseProcessor):
     """Global fluorescence correction for ODMR data.
 
@@ -238,16 +309,6 @@ class FluorescenceCorrectionProcessor(BaseProcessor):
         correction = self.correction_factor * baseline_corrected
         processed = data.data - correction
         return ODMRData(data=processed, metadata=data.metadata.copy())
-
-
-ProcessorSpec = Annotated[
-    NormalizationProcessor | BinningProcessor | OutlierProcessor | FluorescenceCorrectionProcessor,
-    Field(discriminator="type"),
-]
-
-_adapter: TypeAdapter[
-    NormalizationProcessor | BinningProcessor | OutlierProcessor | FluorescenceCorrectionProcessor
-] = TypeAdapter(ProcessorSpec)
 
 
 def analyze_fluorescence_effects(
@@ -359,7 +420,7 @@ class ODMRProcessorManager:
         """Reconstruct a pipeline from a serialized config list."""
         manager = cls()
         for step in config:
-            manager.add_processor(_adapter.validate_python(step))
+            manager.add_processor(ProcessorRegistry.from_config(step))
         return manager
 
     @property

@@ -7,6 +7,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-08-30 correctness review, SOLID findings)
+
+The 5 `develop`-scope SOLID findings from
+`docs/reviews/2026-08-30-correctness-and-solid-review.md` (the alignment-branch
+findings are separate, tracked on `feature/qep-067-alignment-stitching`):
+
+- **LSP** -- `FitBackend` Protocol now documents its non-finite-input
+  contract explicitly: implementations must not raise on NaN/Inf rows in
+  `data`, only mark the affected fit(s) invalid and continue fitting the
+  rest of the batch. Verified `GpufitBackend` already complies (returns a
+  non-zero `states` entry, no exception) before writing the contract down.
+- **DRY** -- the duplicated "probe `Model.jacobian`, validate column
+  count/shape, warn and fall back to finite differences" skeleton in
+  `fitting/backends.py` and `fitting/torch_backend.py` is now one shared
+  `resolve_analytic_jacobian_columns()` helper in `fitting/models.py`,
+  parameterized by each backend's probe call and shape convention.
+- `fitting/manager.py`'s deprecated `gpu_available` path now resolves
+  `GpufitBackend` through `resolve_backend("gpufit")`/`_BACKENDS_BY_NAME`
+  like every other backend-resolution path, instead of constructing it
+  directly.
+- **OCP** -- `odmr/processors.py` gains a `ProcessorRegistry` (mirroring
+  `ModelRegistry`), replacing the hardcoded 4-type discriminated union
+  `ProcessorSpec`/`_adapter`. A custom processor can now round-trip through
+  `ODMRProcessorManager.to_config()`/`from_config()` by registering itself
+  via `@ProcessorRegistry.register`, without editing this module -- closing
+  the gap where the `Processor` protocol's own "needs no base class"
+  contract didn't hold for config serialization.
+- **SRP** -- `odmr/io.py`'s `MatlabLoader.load()` is decomposed into
+  `_discover_files`, `_load_single_file`, `_parse_frequencies`, and
+  `_assemble_data_array`; `load()` is now a ~15-line orchestrator and no
+  longer needs `# noqa: C901, PLR0912, PLR0915`. Pure refactor, no behavior
+  change.
+
 ### Fixed (2026-08-30 correctness review)
 
 Findings from `docs/reviews/2026-08-30-correctness-and-solid-review.md`.
