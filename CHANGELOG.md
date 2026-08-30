@@ -32,6 +32,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   than being a project dependency. The archived `actions/create-release@v1`
   is replaced with `gh release create`. Removed the now-unused
   `.github/actions/python-poetry-env` composite action.
+- With `test.yml` finally installing via `uv` instead of failing at
+  `poetry install`, `uv run pytest` ran to completion on a CI runner for the
+  first time and surfaced two test modules that were never actually
+  CI-worthy: `tests/integration/test_folded_real_data_regression.py` hits
+  real data fixtures not present in the repo (now skips cleanly, matching
+  the existing `test_io.py`/`test_data.py` "Test data directory not found"
+  convention), and `tests/integration/test_gpufit_consistency.py` only
+  checked that `pygpufit` *imports*, not that a CUDA-capable GPU is actually
+  present -- it imports fine on any machine with the wheel installed and
+  fails at fit time with "CUDA driver version is insufficient" otherwise.
+  Both now gate on `pygpufit.gpufit.cuda_available()`.
 
 ### Added (QEP-073: analytic Jacobians)
 
