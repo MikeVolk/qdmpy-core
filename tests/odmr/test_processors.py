@@ -113,6 +113,32 @@ class TestNormalizationProcessor:
         config = processor.to_config()
         assert config == {"type": "NormalizationProcessor", "method": "mean"}
 
+    def test_process_zero_factor_pixel_is_nan_and_warns(self) -> None:
+        """Regression test: a zero mean/max factor (e.g. a dead sensor pixel
+        with an all-zero spectrum) used to divide to NaN with no diagnostic;
+        a spectrum that merely cancels to a zero mean divided to +-inf
+        instead, silently. Both must now be forced to NaN with a warning.
+        """
+        from loguru import logger
+
+        rng = np.random.default_rng(0)
+        data = rng.random((2, 2, 100, 50))
+        data[0, 0, 0, :] = 0.0  # dead pixel: all-zero spectrum
+        scan_dimensions = (10, 10)
+        frequencies = np.linspace(2.87e9, 2.89e9, 50)
+        odmr_data = ODMRData.from_numpy(data, scan_dimensions, frequencies)
+
+        messages: list[str] = []
+        sink_id = logger.add(messages.append, level="WARNING")
+        try:
+            processor = NormalizationProcessor()
+            result = processor.process(odmr_data)
+        finally:
+            logger.remove(sink_id)
+
+        assert np.all(np.isnan(result.data.values[0, 0, 0, 0, :]))
+        assert any("zero" in m.lower() for m in messages)
+
 
 class TestBinningProcessor:
     """Test class for BinningProcessor."""
@@ -152,6 +178,19 @@ class TestBinningProcessor:
         processor = BinningProcessor(bin_factor=4)
         config = processor.to_config()
         assert config == {"type": "BinningProcessor", "bin_factor": 4}
+
+    def test_bin_factor_exceeding_scan_dims_raises(self, sample_odmr_data) -> None:
+        """Regression test: xr.coarsen(..., boundary="trim") used to silently
+        trim to a zero-sized array when bin_factor exceeded the scan
+        dimensions, and ODMRData's validator only checked dim names, not
+        sizes, so the empty array was accepted as valid data.
+        """
+        from qdmpy.exceptions import DataShapeError
+
+        processor = BinningProcessor(bin_factor=20)  # sample_odmr_data is 10x10
+
+        with pytest.raises(DataShapeError, match="bin_factor"):
+            processor.process(sample_odmr_data)
 
 
 class TestOutlierProcessor:

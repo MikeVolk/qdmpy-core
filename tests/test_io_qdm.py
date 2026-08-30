@@ -235,6 +235,23 @@ class TestSaveLoadQdm:
         with pytest.raises(DataLoadError, match="upgrade qdmpy"):
             load_qdm(path)
 
+    def test_version_negotiation_lower_major(self, tmp_path: Path, result_no_images) -> None:
+        """DataLoadError raised when file qdm_version major < code major.
+
+        Regression test: _check_version used to be one-directional (only
+        `major > code_major` was rejected), so a file declaring an older
+        major schema version was silently loaded under the current reader
+        instead of being rejected.
+        """
+        import h5py
+
+        path = tmp_path / "old.qdm"
+        save_qdm(result_no_images, path)
+        with h5py.File(path, "r+") as f:
+            f.attrs["qdm_version"] = "0.1"
+        with pytest.raises(DataLoadError, match="older"):
+            load_qdm(path)
+
     def test_missing_version_raises(self, tmp_path: Path, result_no_images) -> None:
         """DataLoadError raised for HDF5 files without qdm_version attribute."""
         import h5py

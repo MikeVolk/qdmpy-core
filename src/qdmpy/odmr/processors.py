@@ -143,6 +143,19 @@ class NormalizationProcessor(BaseProcessor):
             factors = data.data.max(dim="freq_idx")
         else:
             factors = data.data.mean(dim="freq_idx")
+
+        n_zero = int((factors == 0).sum())
+        if n_zero:
+            # An unguarded zero factor divides to NaN (equal values) or +-inf
+            # (values that cancel to a zero mean) with no diagnostic -- force
+            # NaN explicitly and warn, rather than let inf leak downstream.
+            logger.warning(
+                "NormalizationProcessor: {} pixel(s) have a zero {} factor and will be NaN",
+                n_zero,
+                self.method,
+            )
+        factors = factors.where(factors != 0)
+
         normalized = data.data / factors
         return ODMRData(data=normalized, metadata=data.metadata.copy())
 
@@ -159,12 +172,24 @@ class BinningProcessor(BaseProcessor):
 
     def process(self, data: ODMRData) -> ODMRData:
         """Bin the data spatially by the specified factor."""
+        from qdmpy.exceptions import DataShapeError
         from qdmpy.odmr.data import ODMRData
 
         # Skip binning if factor is 1 (no binning)
         if self.bin_factor == 1:
             logger.debug("Bin factor is 1, skipping binning")
             return data
+
+        n_y, n_x = data.data.sizes["y"], data.data.sizes["x"]
+        if self.bin_factor > min(n_y, n_x):
+            # coarsen(..., boundary="trim") silently trims to a zero-sized
+            # array rather than raising when bin_factor exceeds the scan
+            # dimensions -- fail loudly instead of producing an empty map.
+            msg = (
+                f"bin_factor={self.bin_factor} exceeds the scan dimensions "
+                f"({n_y}, {n_x}); binning would produce an empty array"
+            )
+            raise DataShapeError(msg)
 
         logger.debug("Binning data with factor: {}", self.bin_factor)
         binned = data.data.coarsen(y=self.bin_factor, x=self.bin_factor, boundary="trim").mean()  # type: ignore[attr-defined]

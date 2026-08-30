@@ -483,6 +483,25 @@ class TestFluorescenceCorrectionPlot:
         odmr_data = _make_odmr_data()
         plot_fluorescence_correction(odmr_data, 0.2)
 
+    def test_polarity_labels_match_polarity_coord(self) -> None:
+        """Regression test: the subplot titles used to hardcode
+        {0: "+", 1: "-"}, backwards from the actual polarity coord
+        (index 0 is "neg", index 1 is "pos" -- pol_0/pol_1 convention).
+        """
+        from qdmpy.plotting import plot_fluorescence_correction
+
+        odmr_data = _make_odmr_data()
+        assert list(odmr_data.data.coords["polarity"].values[:2]) == ["neg", "pos"]
+
+        plot_fluorescence_correction(odmr_data, 0.2)
+
+        fig = plt.gcf()
+        titles = [ax.get_title() for ax in fig.axes]
+        neg_titles = [t for t in titles if t.startswith("Polarity: -")]
+        pos_titles = [t for t in titles if t.startswith("Polarity: +")]
+        assert neg_titles, titles
+        assert pos_titles, titles
+
     def test_preview_delegates(self) -> None:
         """preview_fluorescence_correction delegates to plotting module."""
         from qdmpy.odmr.processors import preview_fluorescence_correction

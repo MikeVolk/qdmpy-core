@@ -25,9 +25,12 @@ def main() -> int:
     """
     from .qdmpy_cli import create_parser, process_command
 
-    # Get QDMpy version
+    # Get QDMpy version -- the distribution is "qdmpy-core" (pyproject.toml),
+    # not "QDMpy"; the latter only resolved via a stale dev-only egg-info
+    # left over from before the package rename, so every real install
+    # reported "unknown" here.
     try:
-        qdmpy_version = get_version("QDMpy")
+        qdmpy_version = get_version("qdmpy-core")
     except PackageNotFoundError:
         qdmpy_version = "unknown"
 

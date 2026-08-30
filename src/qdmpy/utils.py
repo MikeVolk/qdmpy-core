@@ -32,10 +32,14 @@ def millify(n: float, sign: int = 1) -> str:
     Returns:
         Human readable string with appropriate unit prefix (e.g., "1.5K" for 1500).
     """
-    # Calculate the appropriate unit index
+    # Calculate the appropriate unit index. MILLNAMES is indexed as
+    # MILLNAMES[millidx + 3], so millidx must be clamped to [-3, len(MILLNAMES) - 1 - 3]
+    # rather than to [0, len(MILLNAMES) - 1].
+    lo = -3
+    hi = len(MILLNAMES) - 1 - 3
     millidx = max(
-        0,
-        min(len(MILLNAMES) - 1, int(np.floor(0 if n == 0 else np.log10(abs(n)) / 3))),
+        lo,
+        min(hi, int(np.floor(0 if n == 0 else np.log10(abs(n)) / 3))),
     )
 
     return f"{n / 10 ** (3 * millidx):.{sign}f}{MILLNAMES[millidx + 3]}"
@@ -156,12 +160,13 @@ def double_norm(data: NDArray, axis: int | None = None) -> NDArray:
     # Create a copy to avoid modifying the input array
     result = data.copy()
 
-    # Calculate min along the specified axis and expand dimensions to match data
-    mn = np.expand_dims(np.min(result, axis=axis), data.ndim - 1)
+    # keepdims broadcasts back against the original axis positions (including
+    # every axis when axis=None), unlike expand_dims at a fixed position
+    mn = np.min(result, axis=axis, keepdims=True)
     result -= mn
 
-    # Calculate max along the specified axis and expand dimensions
-    mx = np.expand_dims(np.max(result, axis=axis), data.ndim - 1)
+    # Calculate max along the specified axis, keeping dims for broadcasting
+    mx = np.max(result, axis=axis, keepdims=True)
 
     # Avoid division by zero
     mx = np.where(mx == 0, 1.0, mx)

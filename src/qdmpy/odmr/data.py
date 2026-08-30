@@ -64,6 +64,11 @@ class ODMRData(BaseModel):
         if "freq_ghz" not in v.coords:
             msg = "ODMR data must have a freq_ghz coordinate"
             raise DataValidationError(msg)
+        # Shared with from_numpy()'s own frequency checks -- from_loader()
+        # used to skip this by constructing ODMRData(data=...) directly,
+        # silently admitting non-finite/non-monotonic frequency axes from
+        # real loaders (e.g. MatlabLoader).
+        validate_frequencies(v.coords["freq_ghz"].values)
         return v
 
     @classmethod

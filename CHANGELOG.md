@@ -7,6 +7,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-08-30 correctness review)
+
+Findings from `docs/reviews/2026-08-30-correctness-and-solid-review.md`.
+
+- **`refit._refit_pass` wrote refit results back unconditionally**, even when
+  the refit landed in a strictly worse local minimum than the pixel's
+  existing fit. Now only accepted when the new chi2 improves on the old one
+  (or the old chi2 was non-finite).
+- **`ScipyBackend` raised and aborted the entire fit batch on a single
+  NaN-containing pixel**, unlike `TorchBackend`, which degrades gracefully
+  per-pixel. `ScipyBackend` now marks that one pixel invalid (`states=2`)
+  and continues fitting the rest, matching `TorchBackend`'s contract.
+- **`utils.double_norm` crashed on its own documented default** (`axis=None`)
+  and on any axis but the last, due to `np.expand_dims` always restoring the
+  reduced dimension at `data.ndim - 1`. Now uses `keepdims=True`.
+- **`utils.millify` raised `IndexError` for `|n| >= 1e15`** and silently
+  collapsed sub-milli values (e.g. `0.0005`) to `"0.0"`, because the unit
+  index was clamped to the wrong bounds before an offset was applied.
+- **`plot_fluorescence_correction` had inverted polarity sign labels** --
+  polarity index 0 (`neg`) was labeled `"+"` and index 1 (`pos`) labeled
+  `"-"`. Now reads the actual `polarity` coordinate.
+- **`ODMRData`'s frequency-axis validation was skipped on the real data path.**
+  `from_loader()` (used by `MatlabLoader` and every real ingestion path)
+  constructed `ODMRData` without checking `freq_ghz` for finiteness/
+  monotonicity, unlike `from_numpy()`. Both paths now share one check.
+- **`BinningProcessor` silently produced a zero-sized array** when
+  `bin_factor` exceeded the scan dimensions (`coarsen(..., boundary="trim")`
+  trims to empty with no error). Now raises `DataShapeError`.
+- **`NormalizationProcessor` divided by an unguarded zero factor**, producing
+  silent NaN (equal values) or `+-inf` (values that cancel to a zero mean)
+  for a dead-pixel spectrum. Now forces NaN explicitly and warns.
+- **`io.qdm._check_version` was one-directional**, rejecting `.qdm` files
+  newer than the code understands but silently loading files declaring an
+  older major schema version. Now rejects both directions.
+- **CLI `--version` always reported `"unknown"`** on a real install --
+  `get_version("QDMpy")` was called against a distribution named
+  `qdmpy-core`, only masked locally by a stale pre-rename `egg-info`.
+- **`MagneticMap.display`'s documented `**imshow_kwargs` passthrough raised
+  `TypeError`** -- it forwarded to `plot_magnetic_component`, which had no
+  `**kwargs` in its signature. Now threaded through to the underlying
+  `ax.imshow` call.
+
 ### Added (QEP-073: analytic Jacobians)
 
 - **`Model.jacobian(x, parameters)`** — optional hook returning per-parameter

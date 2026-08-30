@@ -203,6 +203,31 @@ class TestScipyBackend:
         assert np.all(result.parameters["states"] == 0)
         assert result.parameters["chi2"].mean() < 1e-3
 
+    def test_nan_pixel_is_marked_invalid_not_raised(self) -> None:
+        """A single NaN-containing pixel must not abort the whole batch.
+
+        Regression test: scipy.optimize.least_squares raises ValueError on
+        non-finite residuals at the initial point, which used to propagate
+        uncaught out of ScipyBackend.fit() and abort every pixel in the
+        call -- not just the bad one. TorchBackend already degrades
+        gracefully (states=2/INVALID) for the same input; ScipyBackend
+        should match that contract.
+        """
+        data = make_synthetic_odmr_data(
+            shape=(2, 2), n_freq=30, model_name="ESRSINGLE", noise=0.0, seed=1
+        )
+        nan_values = data.data.values.copy()
+        nan_values[0, 0, 0, 0, :] = np.nan
+        nan_data = data.data.copy(data=nan_values)
+
+        fit = FitManager(model_name="ESRSINGLE", backend="scipy")
+        result = fit.fit(nan_data, data.frequencies)
+
+        assert result.parameters["states"][0, 0, 0, 0] == 2
+        # every other pixel still fit normally
+        other_states = np.delete(result.parameters["states"].ravel(), 0)
+        assert np.all(other_states == 0)
+
     def test_bounds_from_constraints_respects_constraint_type(self) -> None:
         """FREE columns are ignored even if the constraint array has finite values."""
         n_params = 2

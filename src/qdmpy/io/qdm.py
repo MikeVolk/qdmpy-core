@@ -213,11 +213,23 @@ def _check_version(f: h5py_t.File, path: Path) -> None:
     version_str: str = f.attrs["qdm_version"]
     major = int(version_str.split(".", maxsplit=1)[0])
     code_major = int(_QDM_VERSION.split(".", maxsplit=1)[0])
+    # One-directional (major > code_major) only rejected files newer than
+    # this code understands; a file written with an older major schema
+    # version was silently loaded under the current reader instead of being
+    # rejected or migrated.
     if major > code_major:
         msg = (
             f"{path} was written with .qdm format v{version_str}, "
             f"but this qdmpy only understands v{_QDM_VERSION}. "
             "Please upgrade qdmpy."
+        )
+        raise DataLoadError(msg)
+    if major < code_major:
+        msg = (
+            f"{path} was written with .qdm format v{version_str}, an older "
+            f"major version than this qdmpy writes (v{_QDM_VERSION}). "
+            "This file's schema is not read by the current loader; use a "
+            f"qdmpy version matching v{version_str} to read this file."
         )
         raise DataLoadError(msg)
 

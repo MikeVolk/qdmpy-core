@@ -388,13 +388,33 @@ class TestODMRDataValidation:
 
     def test_accepts_valid_data(self) -> None:
         """Test that valid data is accepted."""
+        freq_ghz = np.tile(np.linspace(2.7, 3.0, 50), (3, 1))
         da = xr.DataArray(
             np.ones((2, 3, 10, 10, 50)),
             dims=EXPECTED_DIMS,
-            coords={"freq_ghz": (["freq_range", "freq_idx"], np.ones((3, 50)))},
+            coords={"freq_ghz": (["freq_range", "freq_idx"], freq_ghz)},
         )
         result = ODMRData(data=da)
         assert isinstance(result, ODMRData)
+
+    def test_rejects_non_monotonic_freq_ghz_coord(self) -> None:
+        """Test that a non-finite/non-monotonic freq_ghz coord is rejected.
+
+        Regression test for review finding: ODMRData's validator only
+        checked that freq_ghz was *present*, not that its values were
+        finite/monotonic -- from_loader() (the path every real loader uses)
+        constructed ODMRData(data=...) directly, silently admitting a
+        malformed frequency axis that from_numpy() would have rejected.
+        """
+        freq_ghz = np.tile(np.linspace(2.7, 3.0, 50), (3, 1))
+        freq_ghz[0, 5] = np.nan
+        da = xr.DataArray(
+            np.ones((2, 3, 10, 10, 50)),
+            dims=EXPECTED_DIMS,
+            coords={"freq_ghz": (["freq_range", "freq_idx"], freq_ghz)},
+        )
+        with pytest.raises(DataValidationError, match="non-finite"):
+            ODMRData(data=da)
 
     def test_is_pydantic_basemodel(self, odmr_data) -> None:
         """Test that ODMRData is a Pydantic BaseModel instance."""

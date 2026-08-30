@@ -393,8 +393,13 @@ def plot_fluorescence_correction(
             )
             ax[p, fr].plot(freqs, 1 + corr_vals, "r--", alpha=0.5, label="Correction")
 
-            polarity_label = {0: "+", 1: "-"}.get(p, f"P{p}")
-            frange_label = {0: "Low", 1: "High"}.get(fr, f"F{fr}")
+            # Read the actual coord values rather than assuming positional
+            # order -- polarity index 0 is "neg" (pol_0, negative applied
+            # bias), not "+"; a hardcoded {0: "+", 1: "-"} had this backwards.
+            polarity_name = str(odmr_data.data.coords["polarity"].values[p])
+            polarity_label = {"neg": "-", "pos": "+"}.get(polarity_name, polarity_name)
+            frange_name = str(odmr_data.data.coords["freq_range"].values[fr])
+            frange_label = frange_name.capitalize()
             ax[p, fr].set_title(f"Polarity: {polarity_label}, Frequency Range: {frange_label}")
             ax[p, fr].set_xlabel("Frequency [GHz]")
             ax[p, fr].set_ylabel("ODMR Contrast")

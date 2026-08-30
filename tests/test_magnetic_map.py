@@ -115,6 +115,22 @@ class TestMagneticMap:
         with pytest.raises(AttributeError):
             mm.nv_axis = (1, 0, 0)  # type: ignore[misc]
 
+    def test_display_accepts_documented_imshow_kwargs(self, b111_da) -> None:
+        """Regression test: display()'s documented **imshow_kwargs passthrough
+        used to raise TypeError -- it forwarded to plot_magnetic_component(),
+        whose signature had no **kwargs at all.
+        """
+        import matplotlib.pyplot as plt
+
+        original_show = plt.show
+        plt.show = lambda: None
+        try:
+            mm = MagneticMap.from_b111(b111_da, nv_axis=(0, 0, 1), epsilon=1e-30)
+            mm.display("Bz", cmap="plasma")
+        finally:
+            plt.close("all")
+            plt.show = original_show
+
     def test_save_delegates_to_io_adapter(self, b111_da, tmp_path) -> None:
         """MagneticMap.save() stays a thin wrapper over qdmpy.io."""
         mm = MagneticMap.from_b111(b111_da, nv_axis=(0, 0, 1), epsilon=1e-30)
