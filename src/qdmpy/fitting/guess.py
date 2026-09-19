@@ -22,6 +22,7 @@ from qdmpy.exceptions import (
     DataShapeError,
     DataValidationError,
     ModelNotFoundError,
+    ModelNotResolvedError,
 )
 from qdmpy.fitting.models import ModelRegistry
 
@@ -205,13 +206,37 @@ def plot_model_detection(
 
 
 def get_model_by_peaks(n_peaks: int) -> Model:
-    """Retrieve the model instance based on the number of peaks."""
-    for model_cls in ModelRegistry.all().values():
-        model_instance = model_cls()  # type: ignore[call-arg]
-        if model_instance.n_peaks == n_peaks:
-            return model_instance
-    msg = f"No model found for {n_peaks} peaks."
-    raise ModelNotFoundError(msg)
+    """Retrieve the model instance based on the number of peaks.
+
+    Args:
+        n_peaks: Number of resonance dips detected in the spectrum.
+
+    Returns:
+        An instance of the registered model with that peak count.
+
+    Raises:
+        ModelNotFoundError: If no registered model has that peak count.
+        ModelNotResolvedError: If more than one does -- the registry cannot
+            decide, and silently returning whichever was registered first
+            would make model selection depend on import order.
+    """
+    matches = [
+        model_cls()  # type: ignore[call-arg]
+        for model_cls in ModelRegistry.all().values()
+        if model_cls().n_peaks == n_peaks  # type: ignore[call-arg]
+    ]
+    if not matches:
+        msg = f"No model found for {n_peaks} peaks."
+        raise ModelNotFoundError(msg)
+    if len(matches) > 1:
+        names = sorted(m.name for m in matches)
+        msg = (
+            f"{len(matches)} registered models have {n_peaks} peaks ({names}); "
+            "peak count alone cannot select between them. Pass model_name "
+            "explicitly instead of relying on auto-detection."
+        )
+        raise ModelNotResolvedError(msg)
+    return matches[0]
 
 
 @njit(parallel=True, fastmath=True)

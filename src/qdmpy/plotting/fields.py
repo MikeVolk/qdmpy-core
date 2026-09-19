@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
 
+from qdmpy.exceptions import ParameterError
 from qdmpy.plotting._common import _add_colorbar, _finalize_layout
 
 if TYPE_CHECKING:
@@ -40,7 +41,7 @@ def plot_magnetic_component(
 
     if component_lower not in valid_components:
         msg = f"Component {component!r} not in {valid_components}"
-        raise ValueError(msg)
+        raise ParameterError(msg)
 
     da = getattr(mag_map, component_lower)
     arr = da.values  # (H, W), uT

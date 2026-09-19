@@ -250,6 +250,12 @@ class TestCustomPurePythonModel:
     MODEL_NAME = "_QEP068_CUSTOM_TEST_MODEL"
 
     @classmethod
+    def teardown_class(cls) -> None:
+        # Unregister so the model does not leak into registry-wide lookups
+        # (e.g. auto-detection by peak count) in later test modules.
+        ModelRegistry._registry.pop(cls.MODEL_NAME, None)
+
+    @classmethod
     def setup_class(cls) -> None:
         if cls.MODEL_NAME in ModelRegistry.all():
             return

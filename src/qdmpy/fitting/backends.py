@@ -296,7 +296,9 @@ class ScipyBackend:
             params_out[i] = result.x
             states_out[i] = 0 if result.success else 1
             chi2_out[i] = float(np.sum(result.fun**2))
-            iterations_out[i] = result.nfev
+            # njev counts accepted iterations (one Jacobian each); nfev also
+            # counts rejected trust-region steps. Fall back when unavailable.
+            iterations_out[i] = result.njev if result.njev is not None else result.nfev
 
         return params_out, states_out, chi2_out, iterations_out
 

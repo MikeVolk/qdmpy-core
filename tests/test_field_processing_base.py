@@ -199,14 +199,16 @@ class TestBaseFieldProcessorPixelSpacing:
         ps = proc._pixel_spacing(simple_field_map)
         assert isinstance(ps, float)
 
-    def test_pixel_spacing_raises_value_error_when_missing(
+    def test_pixel_spacing_raises_when_missing(
         self, field_map_no_pixel_spacing: xr.DataArray
     ) -> None:
-        """_pixel_spacing() raises ValueError when pixel_spacing not in attrs."""
+        """_pixel_spacing() raises DataValidationError when pixel_spacing is missing."""
+        from qdmpy.exceptions import DataValidationError
+
         IdentityProcessor = _make_identity_processor_class()
         proc = IdentityProcessor()
 
-        with pytest.raises(ValueError, match="pixel_spacing"):
+        with pytest.raises(DataValidationError, match="pixel_spacing"):
             proc._pixel_spacing(field_map_no_pixel_spacing)
 
     def test_pixel_spacing_is_static_method(self) -> None:

@@ -211,6 +211,26 @@ class TestGuessNPeaks:
 class TestGetModelByPeaks:
     """Test cases for get_model_by_peaks function."""
 
+    def test_ambiguous_peak_count_raises(self) -> None:
+        """Two models with the same peak count must not resolve by insertion order.
+
+        Regression: the lookup returned the first registry match, so a
+        user-registered single-dip model silently shadowed (or was shadowed
+        by) ESRSINGLE depending on import order.
+        """
+        from qdmpy.exceptions import ModelNotResolvedError
+        from qdmpy.fitting.models import ModelRegistry
+
+        class _SecondSingleDip(ESRSINGLE):
+            name = "_SECOND_SINGLE_DIP"
+
+        ModelRegistry._registry["_SECOND_SINGLE_DIP"] = _SecondSingleDip
+        try:
+            with pytest.raises(ModelNotResolvedError, match="peak count alone"):
+                get_model_by_peaks(1)
+        finally:
+            ModelRegistry._registry.pop("_SECOND_SINGLE_DIP", None)
+
     def test_get_model_single_peak(self, model_instances) -> None:
         """Test getting the model for a single peak."""
         model = get_model_by_peaks(1)
