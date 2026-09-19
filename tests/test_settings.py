@@ -213,30 +213,40 @@ class TestQDMpySettings:
             assert settings.fit.estimator == "LSE"
             assert settings.fit.max_number_iterations == 200
 
-    def test_toml_file_loading(self) -> None:
-        """Test loading settings from a TOML file."""
-        # Create a temporary TOML file
-        import tempfile
+    @staticmethod
+    def _write_config(tmp_path: Path, content: str) -> Path:
+        config_path = tmp_path / "settings.toml"
+        config_path.write_text(content)
+        return config_path
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            config_path = Path(tmpdir) / "settings.toml"
-            config_path.write_text('[fit]\nestimator = "LSE"\nmax_number_iterations = 100\n')
+    def test_toml_file_loading(self, tmp_path: Path) -> None:
+        """Values in settings.toml are actually loaded."""
+        config_path = self._write_config(
+            tmp_path, '[fit]\nestimator = "LSE"\nmax_number_iterations = 100\n'
+        )
+        with patch("qdmpy.settings.CONFIG_FILE", config_path):
+            settings = QDMpySettings()
+        assert settings.fit.estimator == "LSE"
+        assert settings.fit.max_number_iterations == 100
 
-            # Mock the config file path
-            with (
-                patch(
-                    "qdmpy.settings.Path.home",
-                    return_value=Path(tmpdir),
-                ),
-                patch(
-                    "qdmpy.settings.QDMpySettings.model_config",
-                    {"toml_file": config_path},
-                    create=True,
-                ),
-            ):
-                settings = QDMpySettings()
-                # Since we're mocking, just verify the settings work
-                assert isinstance(settings, QDMpySettings)
+    def test_toml_unknown_key_rejected(self, tmp_path: Path) -> None:
+        """A typo in settings.toml raises at load time instead of being dropped."""
+        config_path = self._write_config(tmp_path, "[fit]\nestimater = 'LSE'\n")
+        with (
+            patch("qdmpy.settings.CONFIG_FILE", config_path),
+            pytest.raises(ValidationError),
+        ):
+            QDMpySettings()
+
+    def test_env_overrides_toml(self, tmp_path: Path) -> None:
+        """Environment variables take priority over settings.toml."""
+        config_path = self._write_config(tmp_path, "[fit]\nmax_number_iterations = 100\n")
+        with (
+            patch("qdmpy.settings.CONFIG_FILE", config_path),
+            patch.dict("os.environ", {"QDMPY_FIT__MAX_NUMBER_ITERATIONS": "300"}),
+        ):
+            settings = QDMpySettings()
+        assert settings.fit.max_number_iterations == 300
 
     def test_init_settings_priority(self) -> None:
         """Test that init settings have highest priority."""
