@@ -419,3 +419,48 @@ Pick one story and state it in `architecture.md`.
 | 8 | 9 | Record backend/estimator in `FitResult.metadata`; guard cross-backend refit | small |
 | 9 | 10-14 | loguru `%s`, `FitResult` array ownership, Hz docstring, folding step, refit constraint docstring | small each |
 | 10 | Part 2 | Delete dead settings; unify the two processor frameworks; add mean-removal/taper to the Fourier paths | medium |
+
+---
+
+## Part 4 -- Status after the fix branches, and corrections to this review
+
+Fixed on `bugfix/p0-silent-data-loss`, `bugfix/p1-correctness` and
+`feature/p2-tech-debt` (stacked, in that order): findings 1-14, the dead
+settings, `_resolve_spatial_dims` (F6), Fourier padding (F8), and the
+typed-exception items. See `CHANGELOG.md` for measured before/after figures.
+
+Three recommendations in this review were **wrong**, found while fixing:
+
+- **`HotPixelFilter`: "MAD is the robust alternative" -- wrong.** On a
+  synthetic map with a real dipole and 20 injected spikes, global MAD caught
+  every spike but flagged all 337 real-signal pixels (global std caught 0/20
+  spikes). Magnetic maps are mostly flat with sparse strong features, so any
+  *global* statistic fails. The fix uses a local 3x3 median residual.
+- **"~20 bare `ValueError` sites" -- overcounted.** Most sit inside pydantic
+  field validators, which must raise `ValueError`: pydantic only wraps
+  `ValueError`/`AssertionError` into `ValidationError` (verified). 8 sites
+  were genuinely convertible.
+- **"Three stale `# ty: ignore` suppressions" -- not stale.** `torch` is the
+  optional `gpu` extra and CI runs plain `uv sync`; the suppressions are only
+  unused on a dev machine with the extra installed. Left in place.
+
+Found while fixing, not in this review:
+
+- **`fastmath=True` disabled every NaN guard in the numba guessers**
+  (`np.isnan` folds to `False` under the no-NaN assumption). The review's
+  statement that "the contrast estimators handle NaN deliberately" was wrong
+  for `top3_contrast`, which returned exactly 0.0 contrast for a pixel with a
+  single NaN.
+- `UpwardContinuation` left the map mean in before zero-padding (0.71 uT RMS
+  error with a 5 uT offset; 0.0013 after the fix).
+- Three test modules leaked custom models into the global `ModelRegistry`.
+
+Still open, deliberately:
+
+- **`fold_residual` clip to [0, 1]** -- qdmpy-gui renders this map directly,
+  so changing its range needs a coordinated GUI change.
+- **Unifying the two processor frameworks** (registry/config round-trip for
+  `field_processing`) -- design work that merits its own QEP.
+- **qdmpy-gui** must drop `OutlierProcessor` from its pipeline editor
+  (`_pipeline_step_editor.py`); its spinbox cannot express a non-destructive
+  value.

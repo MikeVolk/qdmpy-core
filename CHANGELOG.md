@@ -7,6 +7,56 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-08-30 bugs & tech-debt review, P2 -- technical debt)
+
+Numerical changes below were validated against an analytic point dipole
+before being made; the figures are from those runs.
+
+- **`UpwardContinuation` rang at map edges whenever the map had an offset.**
+  The mean was left in before zero-padding, so the pad boundary was a step of
+  size `mean(data)`. It is now removed before padding and restored afterwards
+  -- exact, since continuation leaves the k=0 term unchanged. With a 5 uT
+  uniform offset: RMS error 0.71 -> 0.0013 uT, edge error 3.4 -> 0.006 uT
+  (20 uT peak). Trade-off: with *no* background the error is marginally
+  higher (<= 0.0015 uT); real B111 maps routinely carry uT-scale offsets.
+  `padding_factor` is now validated `>= 1` (smaller values crashed).
+- **Bxyz reconstruction wrapped around at map edges** (F8, open since
+  2026-08-22): `_reconstruct_bxyz` FFT'd the raw map with no padding. It now
+  removes the mean and zero-pads 0.25x per side. For a dipole truncated by
+  the map edge: RMS Bz error 0.24 -> 0.06 uT (160 uT peak); centred sources
+  are unchanged, and larger pads gave no further gain. **Cost** at 1200x1920:
+  0.26 s / 461 MB -> 0.61 s / 1037 MB peak; `pad_fraction=0` opts out.
+- **`HotPixelFilter` caught none of the hot pixels it exists to catch.** It
+  thresholded on the *global* std, which real magnetic features inflate. On a
+  synthetic map with noise, a dipole and 20 injected 2 uT spikes it caught
+  0/20 while still flagging 49 of 337 real-signal pixels. It now thresholds
+  the residual against a local 3x3 median (robust sigma from MAD): 20/20
+  spikes caught, 30 signal pixels flagged (all at the ~4 px dipole core).
+  Note: the review recommended a global MAD instead -- that was wrong; it
+  catches every spike but flags all 337 signal pixels. Replacement is also no
+  longer order-dependent (windows read the original map and exclude other
+  flagged pixels). **Behaviour change**: results differ from previous
+  releases for any map with real features.
+- **`FitResult` guessed an image shape on a pixel-count mismatch** (F6, open
+  since 2026-08-22), reshaping maps into a plausible-but-wrong geometry. It
+  now raises `DataShapeError`.
+- **Model auto-detection depended on registry insertion order.**
+  `get_model_by_peaks` returned the first registered model with the detected
+  peak count; it now raises `ModelNotResolvedError` when several match. This
+  surfaced real test pollution (three test modules leaked custom single-dip
+  models into the global registry); tests now scope their registrations.
+- `ScipyBackend` reports `njev` (accepted iterations) as `iterations`.
+
+### Changed (2026-08-30 bugs & tech-debt review, P2)
+
+- Typed exceptions (`DataValidationError`, `ConfigurationError`,
+  `ParameterError`, `DataShapeError`) replace bare `ValueError` in
+  `field_processing`, `magnetic_map` and `plotting`. Raises inside pydantic
+  field validators intentionally stay `ValueError` -- pydantic only wraps
+  `ValueError`/`AssertionError` into `ValidationError`.
+- `ODMRProcessorManager.add_processor` is typed with the `Processor`
+  protocol, matching its documented duck-typed contract.
+
 ### Fixed (2026-08-30 bugs & tech-debt review, P1 -- correctness)
 
 - **`fastmath=True` was silently disabling every NaN guard in the guessers.**

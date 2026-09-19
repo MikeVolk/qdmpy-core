@@ -874,18 +874,44 @@ class TestUpwardContinuationAlgorithm:
         assert result.dims == ("y", "x")
 
     def test_large_dz_strong_attenuation(self, synthetic_gaussian_field: xr.DataArray) -> None:
-        """Very large dz produces strongly attenuated output amplitude.
+        """Very large dz flattens the map to its uniform (k=0) component.
 
-        Low frequencies (DC and near-DC) survive; high frequencies are exponentially
-        attenuated. With dz=1e-3 (1 mm) and ps=1e-6 (1 µm), expect ~99% attenuation.
+        Every non-zero wavenumber is attenuated by exp(-dz*k); the k=0 term --
+        the map mean, i.e. a uniform background -- is unchanged (H(0) = 1).
+        The previous version of this test expected the mean to vanish too,
+        which only happened because the unremoved mean was diluted into the
+        zero pad -- the artifact that made continuation ring at map edges.
         """
         from qdmpy.field_processing import UpwardContinuation
 
         u = UpwardContinuation(dz=1e-3)  # huge compared to pixel_spacing=1e-6
         result = u.process(synthetic_gaussian_field)
-        # Check that amplitude is reduced to ~0.5% of input (strong attenuation)
-        # Input Gaussian has peak ~0.01, so output < 0.01 shows strong attenuation
-        assert np.max(np.abs(result.values)) < 0.01
+        mean = float(synthetic_gaussian_field.mean())
+        np.testing.assert_allclose(float(result.mean()), mean, rtol=1e-6)
+        assert float(np.ptp(result.values)) < 0.01 * float(np.ptp(synthetic_gaussian_field.values))
+
+    def test_matches_analytic_dipole_with_uniform_offset(self) -> None:
+        """Continuing a dipole field reproduces the analytic field at the new height.
+
+        Regression: the map mean was left in before zero-padding, so the pad
+        boundary was a step of size mean(data) that rang back into the map.
+        With a 5 uT uniform offset the RMS error was 0.71 uT (edge 3.4 uT)
+        against a 20 uT peak; removing and restoring the mean gives ~0.001 uT.
+        """
+        from qdmpy.field_processing import UpwardContinuation
+
+        n, ps, m_z, h, dz, offset = 128, 2e-6, 1e-13, 5e-6, 5e-6, 5.0
+
+        def bz_at(height: float) -> np.ndarray:
+            c = (np.arange(n) - n / 2) * ps
+            x, y = np.meshgrid(c, c)
+            r = np.sqrt(x**2 + y**2 + height**2)
+            return 1e-7 * (3 * height * m_z * height / r**5 - m_z / r**3) * 1e6  # uT
+
+        field = xr.DataArray(bz_at(h) + offset, dims=("y", "x"), attrs={"pixel_spacing": ps})
+        result = UpwardContinuation(dz=dz).process(field).values
+        rms = float(np.sqrt(np.mean((result - (bz_at(h + dz) + offset)) ** 2)))
+        assert rms < 0.01
 
     def test_small_image_with_padding(self) -> None:
         """A 5×5 image with default padding_factor works without error."""
@@ -1211,3 +1237,41 @@ class TestQuadraticBackgroundSubtractorNanSafety:
             QuadraticBackgroundSubtractor(degree=1, mask=((1, 2),))
         with pytest.raises(ValidationError):
             QuadraticBackgroundSubtractor(degree=1, mask=((1, 2), (3,)))
+
+
+def test_upward_continuation_rejects_padding_factor_below_one() -> None:
+    """padding_factor < 1 made the pad offset negative and crashed in process()."""
+    from pydantic import ValidationError
+
+    from qdmpy.field_processing import UpwardContinuation
+
+    with pytest.raises(ValidationError):
+        UpwardContinuation(dz=1e-6, padding_factor=0.5)
+
+
+def test_hot_pixel_filter_catches_spikes_without_eating_a_real_source() -> None:
+    """Spikes are caught while a smooth magnetic source is left largely intact.
+
+    Regression: the global-std detector caught 0 of 20 injected 2 uT spikes on
+    this map -- the dipole inflated the std -- while still flagging 49 of the
+    337 pixels carrying real signal. A global MAD would catch every spike but
+    flag every signal pixel. The local 3x3 residual separates the two.
+    """
+    from qdmpy.field_processing import HotPixelFilter
+
+    rng = np.random.default_rng(0)
+    n, ps, h = 200, 2e-6, 8e-6
+    c = (np.arange(n) - n / 2) * ps
+    x, y = np.meshgrid(c, c)
+    r = np.sqrt(x**2 + y**2 + h**2)
+    feature = 1e-7 * (3 * h * 1e-13 * h / r**5 - 1e-13 / r**3) * 1e6
+    hot = np.zeros((n, n))
+    hot[rng.integers(0, n, 20), rng.integers(0, n, 20)] = rng.choice([-1, 1], 20) * 2.0
+    values = feature + rng.normal(0, 0.05, (n, n)) + hot
+    field = xr.DataArray(values, dims=("y", "x"), attrs={"pixel_spacing": ps})
+
+    flagged = np.isnan(HotPixelFilter(replacement="nan").process(field).values)
+
+    is_hot, is_feature = hot != 0, np.abs(feature) > 0.5
+    assert (flagged & is_hot).sum() == is_hot.sum()
+    assert (flagged & is_feature).sum() < 0.15 * is_feature.sum()
