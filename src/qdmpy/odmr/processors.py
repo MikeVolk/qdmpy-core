@@ -131,9 +131,7 @@ class ProcessorRegistry:
     _registry: ClassVar[dict[str, type[BaseProcessor]]] = {}
 
     @classmethod
-    def register(
-        cls: type[ProcessorRegistry], processor_cls: type[BaseProcessor]
-    ) -> type[BaseProcessor]:
+    def register[P: type[BaseProcessor]](cls: type[ProcessorRegistry], processor_cls: P) -> P:
         """Register a processor class (usable as a decorator).
 
         Args:
@@ -269,7 +267,7 @@ class BinningProcessor(BaseProcessor):
             raise DataShapeError(msg)
 
         logger.debug("Binning data with factor: {}", self.bin_factor)
-        binned = data.data.coarsen(y=self.bin_factor, x=self.bin_factor, boundary="trim").mean()  # type: ignore[attr-defined]
+        binned = data.data.coarsen(y=self.bin_factor, x=self.bin_factor, boundary="trim").mean()  # ty: ignore[unresolved-attribute]
         return ODMRData(data=binned, metadata=data.metadata.copy())
 
 

@@ -57,7 +57,7 @@ def idx2rc(idx: ArrayLike, shape: tuple[int, ...]) -> tuple[NDArray, NDArray]:
     """
     idx = np.atleast_1d(idx)
     idx = np.array(idx).astype(int)
-    return np.unravel_index(idx, shape)  # type: ignore[return-value]
+    return np.unravel_index(idx, shape)  # ty: ignore[invalid-return-type]
 
 
 def rc2idx(rc: ArrayLike, shape: tuple[int, ...]) -> NDArray:
@@ -71,13 +71,14 @@ def rc2idx(rc: ArrayLike, shape: tuple[int, ...]) -> NDArray:
         Array of linear indices corresponding to the input row-column coordinates.
     """
     rc = np.array(rc).astype(int)
-    return np.ravel_multi_index(rc, shape)  # type: ignore[call-overload]
+    return np.ravel_multi_index(rc, shape)  # ty: ignore[invalid-return-type]
 
 
 def polyfit2d(
     x: NDArray,
     y: NDArray,
     z: NDArray,
+    *,
     kx: int = 3,
     ky: int = 3,
     order: int | None = None,

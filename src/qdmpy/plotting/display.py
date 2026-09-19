@@ -53,6 +53,7 @@ def _draw_fit_curve(
     ax: MplAxes,
     fit_result: FitResult,
     freq: NDArray,
+    *,
     i_pol: int,
     i_frange: int,
     flat_idx: int,
@@ -92,6 +93,7 @@ def _draw_pixel_spectra(
     fit_result: FitResult,
     freq_ghz: NDArray,
     data_values: NDArray,
+    *,
     y_idx: int,
     x_idx: int,
     flat_idx: int,
@@ -130,7 +132,17 @@ def _draw_pixel_spectra(
                 label=f"pol={i_pol} fr={i_frange}",
             )
             if model is not None:
-                _draw_fit_curve(ax, fit_result, freq, i_pol, i_frange, flat_idx, model, color, ls)
+                _draw_fit_curve(
+                    ax,
+                    fit_result,
+                    freq,
+                    i_pol=i_pol,
+                    i_frange=i_frange,
+                    flat_idx=flat_idx,
+                    model=model,
+                    color=color,
+                    ls=ls,
+                )
 
     ax.set_title(f"Pixel ({y_idx}, {x_idx})")
     ax.set_xlabel("Frequency (GHz)")
@@ -140,6 +152,7 @@ def _draw_pixel_spectra(
 
 def _plot_display_pixel_spectra(
     axes: NDArray,
+    *,
     start_row: int,
     n_sample_pixels: int,
     fit_result: FitResult,
@@ -195,10 +208,10 @@ def _plot_display_pixel_spectra(
             fit_result,
             freq_ghz,
             data_values,
-            y_idx,
-            x_idx,
-            flat_idx,
-            model,
+            y_idx=y_idx,
+            x_idx=x_idx,
+            flat_idx=flat_idx,
+            model=model,
         )
 
     for i_pixel in range(len(flat_indices), n_sample_pixels):
@@ -438,7 +451,12 @@ def plot_qdm_display(
         axes[row, 2].set_visible(False)
         if measurement is not None:
             _plot_display_pixel_spectra(
-                axes, row + 1, n_sample_pixels, fit_result, measurement, n_cols
+                axes,
+                start_row=row + 1,
+                n_sample_pixels=n_sample_pixels,
+                fit_result=fit_result,
+                measurement=measurement,
+                n_cols=n_cols,
             )
 
     fig.suptitle(f"QDM Result Overview ({fit_result.model_name})", fontsize=14)

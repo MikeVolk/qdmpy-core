@@ -6,7 +6,7 @@ import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
 from loguru import logger
@@ -24,7 +24,22 @@ if TYPE_CHECKING:
     from qdmpy.odmr.manager import ODMR
     from qdmpy.result import QDMResult
     from qdmpy.settings import QDMpySettings
-type FluorescenceCorrectionArg = float | None | object
+
+
+class _Unset:
+    """Sentinel type for "caller passed nothing".
+
+    Distinguishes ``fluorescence_correction=None`` (meaning "skip the
+    correction") from the argument being omitted (meaning "use the default").
+    A dedicated type rather than a bare ``object()`` so the sentinel can appear
+    in the signature's annotation instead of needing a type: ignore.
+    """
+
+    def __repr__(self) -> str:
+        return "<unset>"
+
+
+_UNSET = _Unset()
 
 
 class FoldedODMRFolder(Protocol):
@@ -49,6 +64,7 @@ class MeasurementFolderData:
 def _load_image_or_zeros(
     folder: Path,
     folder_files: list[str],
+    *,
     kinds: tuple[str, ...],
     scan_dimensions: tuple[int, int],
     image_label: str,
@@ -74,8 +90,7 @@ def load_measurement_folder_data(
     model: str | None,
     pixel_spacing: float | None,
     normalize: bool | None,
-    fluorescence_correction: FluorescenceCorrectionArg,
-    unset_sentinel: object,
+    fluorescence_correction: float | _Unset | None,
     listdir: Callable[[Path], list[str]],
     image_loader: Callable[[Path, list[str]], NDArray],
 ) -> MeasurementFolderData:
@@ -107,8 +122,8 @@ def load_measurement_folder_data(
         normalize if normalize is not None else bool(acquisition.get("normalize", True))
     )
 
-    if fluorescence_correction is not unset_sentinel:
-        resolved_fluorescence_correction = cast(float | None, fluorescence_correction)
+    if not isinstance(fluorescence_correction, _Unset):
+        resolved_fluorescence_correction = fluorescence_correction
     else:
         fc_value = acquisition.get("fluorescence_correction", 0.2)
         resolved_fluorescence_correction = float(fc_value) if fc_value is not None else None
@@ -129,16 +144,16 @@ def load_measurement_folder_data(
     light_image = _load_image_or_zeros(
         folder,
         folder_files,
-        ("light", "led"),
-        scan_dimensions,
+        kinds=("light", "led"),
+        scan_dimensions=scan_dimensions,
         image_label="light/led",
         image_loader=image_loader,
     )
     laser_image = _load_image_or_zeros(
         folder,
         folder_files,
-        ("laser",),
-        scan_dimensions,
+        kinds=("laser",),
+        scan_dimensions=scan_dimensions,
         image_label="laser",
         image_loader=image_loader,
     )

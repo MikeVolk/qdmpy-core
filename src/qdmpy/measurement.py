@@ -26,6 +26,8 @@ from numpy.typing import NDArray
 from qdmpy.exceptions import DataNotLoadedError
 from qdmpy.io import get_image
 from qdmpy.measurement_workflows import (
+    _UNSET,
+    _Unset,
     fit_folded_measurement_odmr,
     fit_measurement_odmr,
     fold_measurement_odmr,
@@ -36,22 +38,6 @@ from qdmpy.measurement_workflows import (
 from qdmpy.odmr.folding import FoldedODMR, FoldingSettings, SpectralFolder
 from qdmpy.odmr.manager import ODMR
 from qdmpy.settings import QDMpySettings
-
-
-class _Unset:
-    """Sentinel type for "caller passed nothing".
-
-    Distinguishes ``fluorescence_correction=None`` (meaning "skip the
-    correction") from the argument being omitted (meaning "use the default").
-    A dedicated type rather than a bare ``object()`` so the sentinel can appear
-    in the signature's annotation instead of needing a type: ignore.
-    """
-
-    def __repr__(self) -> str:
-        return "<unset>"
-
-
-_UNSET = _Unset()
 
 if TYPE_CHECKING:
     from os import PathLike
@@ -90,6 +76,7 @@ class Measurement:
         light_image: NDArray,
         laser_image: NDArray,
         output_directory: str | Path | PathLike,
+        *,
         pixel_spacing: float = 4e-6,
         fit_model: str = "auto",
         metadata: dict[str, Any] | None = None,
@@ -163,7 +150,7 @@ class Measurement:
         model: str | None = None,
         pixel_spacing: float | None = None,
         normalize: bool | None = None,
-        fluorescence_correction: float | None | _Unset = _UNSET,
+        fluorescence_correction: float | _Unset | None = _UNSET,
         output_directory: str | PathLike | None = None,
     ) -> Measurement:
         """Load ODMR data from a folder and return a ready-to-fit Measurement.
@@ -203,7 +190,7 @@ class Measurement:
             Measurement configured and ready for fit_odmr(). All metadata.toml
             contents are available on ``measurement.metadata``.
 
-        Example:
+        Examples:
             >>> m = Measurement.from_folder('/data/FOV18x')
             >>> m.metadata["measurement"]["sample"]
             'MIL2'
@@ -220,7 +207,6 @@ class Measurement:
             pixel_spacing=pixel_spacing,
             normalize=normalize,
             fluorescence_correction=fluorescence_correction,
-            unset_sentinel=_UNSET,
             listdir=os.listdir,
             image_loader=get_image,
         )

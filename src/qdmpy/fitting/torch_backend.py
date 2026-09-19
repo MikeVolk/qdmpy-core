@@ -32,7 +32,7 @@ from qdmpy.fitting.models import Model, resolve_analytic_jacobian_columns
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    import torch as torch_types  # ty: ignore[unresolved-import]
+    import torch as torch_types
 
 _LAMBDA_INIT = 1e-3
 _LAMBDA_UP = 10.0
@@ -83,7 +83,7 @@ def torch_gpu_device_available() -> bool:
     """
     if importlib.util.find_spec("torch") is None:
         return False
-    import torch  # ty: ignore[unresolved-import]
+    import torch
 
     return torch.cuda.is_available() or torch.backends.mps.is_available()
 
@@ -142,6 +142,7 @@ class TorchBackend:
         self: Self,
         data: NDArray,
         freq_ghz: NDArray,
+        *,
         initial_parameters: NDArray,
         constraints: NDArray,
         constraint_types: NDArray,
@@ -227,7 +228,7 @@ class TorchBackend:
     def _import_torch() -> Any:  # noqa: ANN401
         """Import torch lazily, raising DependencyError with the install hint."""
         try:
-            import torch  # ty: ignore[unresolved-import]
+            import torch
         except ImportError as exc:
             msg = f"torch is required for the 'torch' backend but is not installed. {_INSTALL_HINT}"
             raise DependencyError(msg) from exc
@@ -366,6 +367,7 @@ class TorchBackend:
         model: Model,
         x_t: torch_types.Tensor,
         p_w: torch_types.Tensor,
+        *,
         f0_w: torch_types.Tensor,
         eye_cols: torch_types.Tensor,
     ) -> torch_types.Tensor:
@@ -455,7 +457,7 @@ class TorchBackend:
                 jac = (
                     jacobian_fn(p_w)
                     if jacobian_fn is not None
-                    else self._fd_jacobian(torch, model, x_t, p_w, f0_w, eye_cols)
+                    else self._fd_jacobian(torch, model, x_t, p_w, f0_w=f0_w, eye_cols=eye_cols)
                 )
 
                 # Active-set reduction for box constraints: a parameter pinned

@@ -97,6 +97,7 @@ class FitBackend(Protocol):
         self,
         data: NDArray,
         freq_ghz: NDArray,
+        *,
         initial_parameters: NDArray,
         constraints: NDArray,
         constraint_types: NDArray,
@@ -135,6 +136,7 @@ class GpufitBackend:
         self: GpufitBackend,
         data: NDArray,
         freq_ghz: NDArray,
+        *,
         initial_parameters: NDArray,
         constraints: NDArray,
         constraint_types: NDArray,
@@ -206,6 +208,7 @@ class ScipyBackend:
         self: ScipyBackend,
         data: NDArray,
         freq_ghz: NDArray,
+        *,
         initial_parameters: NDArray,
         constraints: NDArray,
         constraint_types: NDArray,
@@ -231,7 +234,13 @@ class ScipyBackend:
 
         start = time.perf_counter()
         params, states, chi2, iterations = self._fit_all_pixels(
-            model, freq_ghz_1d, data_reshaped, initial_reshaped, lower, upper, options
+            model,
+            freq_ghz_1d,
+            data_reshaped,
+            initial=initial_reshaped,
+            lower=lower,
+            upper=upper,
+            options=options,
         )
         return BackendFitOutput(
             parameters=params,
@@ -246,6 +255,7 @@ class ScipyBackend:
         model: Model,
         freq_ghz: NDArray,
         data: NDArray,
+        *,
         initial: NDArray,
         lower: NDArray,
         upper: NDArray,
@@ -390,6 +400,7 @@ class _ForcedAvailability:
         self: _ForcedAvailability,
         data: NDArray,
         freq_ghz: NDArray,
+        *,
         initial_parameters: NDArray,
         constraints: NDArray,
         constraint_types: NDArray,
@@ -397,7 +408,13 @@ class _ForcedAvailability:
         options: FitBackendOptions,
     ) -> BackendFitOutput:
         return self._backend.fit(
-            data, freq_ghz, initial_parameters, constraints, constraint_types, model, options
+            data,
+            freq_ghz,
+            initial_parameters=initial_parameters,
+            constraints=constraints,
+            constraint_types=constraint_types,
+            model=model,
+            options=options,
         )
 
 
@@ -464,6 +481,7 @@ class AutoBackend:
         self: AutoBackend,
         data: NDArray,
         freq_ghz: NDArray,
+        *,
         initial_parameters: NDArray,
         constraints: NDArray,
         constraint_types: NDArray,
@@ -476,7 +494,13 @@ class AutoBackend:
             raise DependencyError(self.install_hint)
         logger.debug("Auto backend delegating to '{}'", delegate.name)
         return delegate.fit(
-            data, freq_ghz, initial_parameters, constraints, constraint_types, model, options
+            data,
+            freq_ghz,
+            initial_parameters=initial_parameters,
+            constraints=constraints,
+            constraint_types=constraint_types,
+            model=model,
+            options=options,
         )
 
 

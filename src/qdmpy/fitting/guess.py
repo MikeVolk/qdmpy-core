@@ -221,9 +221,9 @@ def get_model_by_peaks(n_peaks: int) -> Model:
             would make model selection depend on import order.
     """
     matches = [
-        model_cls()  # type: ignore[call-arg]
+        model_cls()  # ty: ignore[missing-argument]  # QEP-FIT-005
         for model_cls in ModelRegistry.all().values()
-        if model_cls().n_peaks == n_peaks  # type: ignore[call-arg]
+        if model_cls().n_peaks == n_peaks  # ty: ignore[missing-argument]  # QEP-FIT-005
     ]
     if not matches:
         msg = f"No model found for {n_peaks} peaks."
@@ -255,7 +255,7 @@ def cumsum_contrast(data: NDArray) -> NDArray:  # pragma: no cover
     n_pol, n_frange, n_pixel, _ = data.shape
     total = n_pol * n_frange * n_pixel
     amp = np.zeros((n_pol, n_frange, n_pixel))
-    for idx in prange(total):  # type: ignore[not-iterable]
+    for idx in prange(total):  # ty: ignore[not-iterable]
         px = idx % n_pixel
         r = (idx // n_pixel) % n_frange
         p = idx // (n_pixel * n_frange)
@@ -286,7 +286,7 @@ def top3_contrast(data: NDArray) -> NDArray:  # pragma: no cover
 
     amp = np.zeros((n_pol, n_frange, n_pixel))
 
-    for idx in prange(total):  # type: ignore[not-iterable]
+    for idx in prange(total):  # ty: ignore[not-iterable]
         px = idx % n_pixel
         r = (idx // n_pixel) % n_frange
         p = idx // (n_pixel * n_frange)
@@ -349,7 +349,7 @@ def cumsum_center(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
     n_pol, n_frange, n_pixel, _ = data.shape
     total = n_pol * n_frange * n_pixel
     centers = np.zeros((n_pol, n_frange, n_pixel))
-    for idx in prange(total):  # type: ignore[not-iterable]
+    for idx in prange(total):  # ty: ignore[not-iterable]
         px = idx % n_pixel
         r = (idx // n_pixel) % n_frange
         p = idx // (n_pixel * n_frange)
@@ -384,7 +384,7 @@ def argmin_center(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cover
     n_pol, n_frange, n_pixel, n_freq = data.shape
     total = n_pol * n_frange * n_pixel
     centers = np.zeros((n_pol, n_frange, n_pixel))
-    for idx in prange(total):  # type: ignore[not-iterable]
+    for idx in prange(total):  # ty: ignore[not-iterable]
         px = idx % n_pixel
         r = (idx // n_pixel) % n_frange
         p = idx // (n_pixel * n_frange)
@@ -434,7 +434,7 @@ def absorption_centroid(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no 
     n_pol, n_frange, n_pixel, n_freq = data.shape
     total = n_pol * n_frange * n_pixel
     centers = np.zeros((n_pol, n_frange, n_pixel))
-    for idx in prange(total):  # type: ignore[not-iterable]
+    for idx in prange(total):  # ty: ignore[not-iterable]
         px = idx % n_pixel
         r = (idx // n_pixel) % n_frange
         p = idx // (n_pixel * n_frange)
@@ -489,7 +489,7 @@ def cumsum_width(
     n_pol, n_frange, n_pixel, _ = data.shape
     total = n_pol * n_frange * n_pixel
     widths = np.zeros((n_pol, n_frange, n_pixel))
-    for idx in prange(total):  # type: ignore[not-iterable]
+    for idx in prange(total):  # ty: ignore[not-iterable]
         px = idx % n_pixel
         r = (idx // n_pixel) % n_frange
         p = idx // (n_pixel * n_frange)
@@ -572,7 +572,7 @@ def halfpower_width(data: NDArray, freq: NDArray) -> NDArray:  # pragma: no cove
     n_pol, n_frange, n_pixel, n_freq = data.shape
     total = n_pol * n_frange * n_pixel
     hwhm = np.zeros((n_pol, n_frange, n_pixel))
-    for idx in prange(total):  # type: ignore[not-iterable]
+    for idx in prange(total):  # ty: ignore[not-iterable]
         px = idx % n_pixel
         r = (idx // n_pixel) % n_frange
         p = idx // (n_pixel * n_frange)
