@@ -12,9 +12,12 @@ from typing import Literal
 import numpy as np
 import xarray as xr
 from loguru import logger
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from qdmpy.exceptions import DataShapeError
+
+# A background-fit mask is a (row_indices, col_indices) pair.
+_MASK_TUPLE_LEN = 2
 
 
 class BaseFieldProcessor(BaseModel):
@@ -190,6 +193,30 @@ class QuadraticBackgroundSubtractor(BaseFieldProcessor):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
+    @field_validator("mask")
+    @classmethod
+    def validate_mask(
+        cls, v: tuple[tuple[int, ...], ...] | None
+    ) -> tuple[tuple[int, ...], ...] | None:
+        """Require exactly two index sequences of equal length.
+
+        The field type permits any number of sequences, but ``process()``
+        unpacks it as ``(row_indices, col_indices)`` -- anything else raised a
+        bare unpack error deep inside the fit.
+        """
+        if v is None:
+            return v
+        if len(v) != _MASK_TUPLE_LEN:
+            msg = f"mask must be a (row_indices, col_indices) pair, got {len(v)} sequence(s)"
+            raise ValueError(msg)
+        if len(v[0]) != len(v[1]):
+            msg = (
+                f"mask row_indices and col_indices must be the same length, "
+                f"got {len(v[0])} and {len(v[1])}"
+            )
+            raise ValueError(msg)
+        return v
+
     def process(self, field_map: xr.DataArray) -> xr.DataArray:
         """Remove polynomial background.
 
@@ -238,18 +265,36 @@ class QuadraticBackgroundSubtractor(BaseFieldProcessor):
         else:
             raise ValueError(f"degree must be 0, 1, or 2; got {self.degree}")
 
-        # Determine which pixels to use for fit
-        if self.mask is None:
-            active = np.ones(h * w, dtype=bool)
-        else:
-            active = np.ones(h * w, dtype=bool)
+        # Determine which pixels to use for fit. Non-finite samples are
+        # excluded: lstsq propagates a single NaN into every coefficient, so
+        # one dead pixel used to NaN the entire background-subtracted map.
+        flat = data.ravel()
+        active = np.isfinite(flat)
+        n_nonfinite = int((~active).sum())
+        if n_nonfinite:
+            logger.warning(
+                "Excluding {} non-finite pixel(s) from the degree-{} background fit",
+                n_nonfinite,
+                self.degree,
+            )
+
+        if self.mask is not None:
             mask_rows, mask_cols = self.mask
             for r, c in zip(mask_rows, mask_cols, strict=True):
                 if 0 <= r < h and 0 <= c < w:
                     active[r * w + c] = False
 
+        n_coeffs = features.shape[1]
+        if int(active.sum()) < n_coeffs:
+            msg = (
+                f"Only {int(active.sum())} usable pixel(s) remain after excluding "
+                f"non-finite and masked values; a degree-{self.degree} fit needs at "
+                f"least {n_coeffs}"
+            )
+            raise DataShapeError(msg)
+
         # Fit: lstsq on active pixels only
-        coeffs = np.linalg.lstsq(features[active], data.ravel()[active], rcond=None)[0]
+        coeffs = np.linalg.lstsq(features[active], flat[active], rcond=None)[0]
 
         # Evaluate surface at all pixels
         surface = features @ coeffs

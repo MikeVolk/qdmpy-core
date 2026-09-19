@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 import xarray as xr
+from loguru import logger
 
 from qdmpy.fitting.manager import FOLDED_CONSTRAINT_OVERRIDES, FitManager
 from qdmpy.fitting.refit import (
@@ -1191,3 +1192,121 @@ class TestMeasurementRefit:
             m.fit_folded_odmr(mock_folded, refit_outliers=True, freq_cutoff=cutoff)
 
         assert captured_kwargs.get("freq_cutoff") == cutoff
+
+
+class TestChi2Provenance:
+    """chi2 is only comparable within one (backend, estimator) pair."""
+
+    def test_fit_records_backend_and_estimator(self) -> None:
+        """FitManager stamps chi2 provenance onto every result."""
+        from qdmpy.fitting.manager import FitManager
+        from qdmpy.testing import make_synthetic_odmr_data
+
+        data = make_synthetic_odmr_data(shape=(4, 4), n_freq=50)
+        result = FitManager(model_name="ESR14N", backend="scipy").fit(data.data, data.frequencies)
+
+        assert result.metadata["fit_backend"] == "scipy"
+        assert result.metadata["fit_estimator"] in ("LSE", "MLE")
+
+    def test_cross_backend_refit_warns(self, caplog) -> None:
+        """Refitting with a different backend must warn about the chi2 mismatch.
+
+        ``_accept_improved_refits`` compares chi2 absolutely, but gpufit's MLE
+        estimator returns a Poisson deviance while scipy/torch return a sum of
+        squared residuals -- so a cross-backend refit accepts and rejects on
+        mismatched units.
+        """
+        from qdmpy.fitting.refit import _warn_on_chi2_scale_mismatch
+
+        fit_result = MagicMock()
+        fit_result.metadata = {"fit_backend": "gpufit", "fit_estimator": "MLE"}
+        fit_manager = MagicMock()
+        fit_manager.backend_name = "scipy"
+        fit_manager.estimator = "MLE"
+
+        messages: list[str] = []
+        handler_id = logger.add(messages.append, level="WARNING")
+        try:
+            _warn_on_chi2_scale_mismatch(fit_result, fit_manager)
+        finally:
+            logger.remove(handler_id)
+
+        assert any("not comparable" in m for m in messages)
+
+    def test_same_backend_refit_does_not_warn(self) -> None:
+        """A like-for-like refit is silent."""
+        from qdmpy.fitting.refit import _warn_on_chi2_scale_mismatch
+
+        fit_result = MagicMock()
+        fit_result.metadata = {"fit_backend": "scipy", "fit_estimator": "LSE"}
+        fit_manager = MagicMock()
+        fit_manager.backend_name = "scipy"
+        fit_manager.estimator = "LSE"
+
+        messages: list[str] = []
+        handler_id = logger.add(messages.append, level="WARNING")
+        try:
+            _warn_on_chi2_scale_mismatch(fit_result, fit_manager)
+        finally:
+            logger.remove(handler_id)
+
+        assert not messages
+
+
+class TestRefitInheritsFitConfiguration:
+    """A refit reproduces the fit it is correcting, not library defaults."""
+
+    def test_constraints_and_cutoff_inherited(self) -> None:
+        """Regression: a standalone refit silently used default constraints.
+
+        `Measurement.refit_outliers` documented that constraints default to
+        those of the original fit, but passed None straight through to a fresh
+        FitManager built on library defaults.
+        """
+        from qdmpy.fitting.manager import FitManager
+        from qdmpy.measurement_workflows import _inherit_fit_configuration
+        from qdmpy.testing import make_synthetic_odmr_data
+
+        data = make_synthetic_odmr_data(shape=(4, 4), n_freq=50)
+        custom = {"center": {"vmin": 2.80, "vmax": 2.95, "constraint_type": "LOWER_UPPER"}}
+        cutoff = {"low": {"min": 2.835}, "high": {"max": 2.905}}
+        result = FitManager(
+            model_name="ESR14N", backend="scipy", constraints=custom, freq_cutoff=cutoff
+        ).fit(data.data, data.frequencies)
+
+        constraints, freq_cutoff = _inherit_fit_configuration(result, None, None)
+
+        assert constraints["center"]["vmin"] == pytest.approx(2.80)
+        assert constraints["center"]["vmax"] == pytest.approx(2.95)
+        assert freq_cutoff["low"]["min"] == pytest.approx(2.835)
+        # The inherited payload must be valid FitManager input
+        rebuilt = FitManager(
+            model_name="ESR14N",
+            backend="scipy",
+            constraints=constraints,
+            freq_cutoff=freq_cutoff,
+        )
+        assert rebuilt.constraints["center"].vmin == pytest.approx(2.80)
+
+    def test_explicit_argument_wins_over_inherited(self) -> None:
+        """An explicit constraint always overrides the recorded one."""
+        from qdmpy.measurement_workflows import _inherit_fit_configuration
+
+        fit_result = MagicMock()
+        fit_result.metadata = {
+            "fit_constraints": {"center": {"vmin": 1.0, "vmax": 2.0, "constraint_type": "FREE"}},
+            "fit_freq_cutoff": {"low": {"min": 2.0, "max": None}},
+        }
+        explicit = {"center": {"vmin": 9.0}}
+
+        constraints, _ = _inherit_fit_configuration(fit_result, explicit, None)
+        assert constraints == explicit
+
+    def test_result_without_provenance_falls_through(self) -> None:
+        """Results predating the provenance metadata keep library defaults."""
+        from qdmpy.measurement_workflows import _inherit_fit_configuration
+
+        fit_result = MagicMock()
+        fit_result.metadata = {}
+
+        assert _inherit_fit_configuration(fit_result, None, None) == (None, None)

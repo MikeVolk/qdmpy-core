@@ -10,6 +10,7 @@ guesses are managed by dedicated modules (constraints.py and guesser.py).
 
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import warnings
 from dataclasses import dataclass
@@ -439,8 +440,8 @@ class FitManager:
             exec_times=tuple(exec_times),
         )
 
-    @staticmethod
     def _assemble_result(
+        self: Self,
         raw: _RangeFitOutputs,
         model: Model,
         prepared: _PreparedFitInputs,
@@ -491,6 +492,23 @@ class FitManager:
             # be refit or replotted against its own x-axis. JSON-safe nested
             # list, always GHz.
             "frequencies_ghz": prepared.freq_ghz.tolist(),
+            # chi2 provenance. gpufit's MLE estimator returns a Poisson
+            # deviance while ScipyBackend/TorchBackend always return a plain
+            # sum of squared residuals, so chi2 values are only comparable
+            # within one (backend, estimator) pair. refit's accept-if-improved
+            # guard compares chi2 absolutely and relies on this.
+            "fit_backend": self._backend.name,
+            "fit_estimator": self._backend_options.estimator,
+            # Constraint/cutoff configuration, so a later refit of this result
+            # can reproduce the fit it is correcting instead of silently
+            # falling back to library defaults.
+            "fit_constraints": {
+                name: dataclasses.asdict(constraint)
+                for name, constraint in self.constraints.items()
+            },
+            "fit_freq_cutoff": (
+                self._freq_cutoff.model_dump() if self._freq_cutoff is not None else None
+            ),
             **(extra_metadata or {}),
         }
 
@@ -697,6 +715,25 @@ class FitManager:
         return self._model.name if self._model is not None else "auto"
 
     @property
+    def backend_name(self: Self) -> str:
+        """Name of the resolved fit backend ('gpufit', 'scipy', 'torch').
+
+        Recorded on every FitResult as ``metadata['fit_backend']``: chi2 is
+        only comparable within one (backend, estimator) pair.
+        """
+        return self._backend.name
+
+    @property
+    def estimator(self: Self) -> str:
+        """Estimator this manager fits with ('LSE' or 'MLE').
+
+        Note that only ``GpufitBackend`` honours 'MLE'; the scipy and torch
+        backends always minimise a sum of squared residuals and warn when
+        asked for anything else.
+        """
+        return self._backend_options.estimator
+
+    @property
     def parameter_names(self: Self) -> list[str]:
         """Get unique model parameter names.
 
@@ -767,7 +804,7 @@ class FitManager:
                 self._constraint_manager.set_constraint(contrast_param, vmin, vmax, constraint_type)
         else:
             logger.debug(
-                "Setting constraints for %s: vmin=%s, vmax=%s, type=%s",
+                "Setting constraints for {}: vmin={}, vmax={}, type={}",
                 param,
                 vmin,
                 vmax,

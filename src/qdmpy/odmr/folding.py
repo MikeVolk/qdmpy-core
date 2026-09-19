@@ -517,7 +517,12 @@ class SpectralFolder:
         freq_ghz = coarse_data.coords["freq_ghz"].values  # (2, n_freq)
         f_low = freq_ghz[0]
         f_high = freq_ghz[1]
+        # Each branch gets its own step: reusing the low branch's spacing for
+        # the high branch's index arithmetic silently mis-samples whenever the
+        # two ranges are swept at different resolutions. `step` (low) still
+        # sets the shared df axis, which both branches are interpolated onto.
         step = float(np.median(np.diff(f_low)))
+        step_high = float(np.median(np.diff(f_high)))
 
         d_candidates = np.linspace(
             settings.d_zfs_initial - settings.search_range,
@@ -553,8 +558,10 @@ class SpectralFolder:
             any_valid = False
 
             for j, d in enumerate(d_candidates):
-                df_inner = max(d - f_low[-1], f_high[0] - d)
-                df_outer = min(d - f_low[0], f_high[-1] - d)
+                try:
+                    df_inner, df_outer = _overlap_range(f_low, f_high, d)
+                except FoldingOverlapError:
+                    continue
 
                 if df_outer - df_inner < settings.min_overlap_points * step:
                     continue
@@ -562,9 +569,10 @@ class SpectralFolder:
                 any_valid = True
                 delta_f = np.arange(df_inner, df_outer, step)
 
-                # Fractional indices for all df points (same for every pixel)
+                # Fractional indices for all df points (same for every pixel),
+                # each branch against its own frequency spacing.
                 idx_l = (d - delta_f - f_low[0]) / step
-                idx_h = (d + delta_f - f_high[0]) / step
+                idx_h = (d + delta_f - f_high[0]) / step_high
                 idx_lo_l = np.clip(np.floor(idx_l).astype(np.intp), 0, len(f_low) - 2)
                 idx_lo_h = np.clip(np.floor(idx_h).astype(np.intp), 0, len(f_high) - 2)
                 frac_l = np.clip(idx_l - idx_lo_l, 0.0, 1.0)

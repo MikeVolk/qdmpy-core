@@ -20,7 +20,6 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
-import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 
@@ -69,7 +68,6 @@ class Measurement:
         laser_image (NDArray): Laser image array with shape (height, width).
         output_directory (Path): Path to the output directory.
         pixel_spacing (float): Spacing between pixels in meters.
-        _outliers (Optional[NDArray]): Boolean mask for outlier pixels.
         _fit_model (str): Name of the model used for fitting ODMR spectra.
         metadata (Dict[str, Any]): Additional metadata for the measurement.
     """
@@ -132,10 +130,6 @@ class Measurement:
             )
 
         logger.debug("ODMR frequencies shape: {}", self.odmr.raw_data.frequencies.shape)
-
-        # Initialize outlier mask
-        logger.debug("Initializing outlier mask.")
-        self._outliers: NDArray | None = np.ones(self.odmr.raw_data.shape, dtype=bool)
 
         # Store light and laser images
         logger.debug("Storing light and laser images.")
@@ -364,9 +358,12 @@ class Measurement:
             refit_settings: Outlier detection and refitting configuration.
                 Defaults to RefitSettings().
             constraints: Optional parameter constraints to apply when refitting.
-                Defaults to the same constraints used in the original fit.
+                Defaults to the constraints recorded on the original fit
+                (``FitResult.metadata['fit_constraints']``), so a refit
+                reproduces the fit it is correcting.
             freq_cutoff: Optional per-frange frequency cutoff in GHz. Uses the
-                same schema as fit_odmr()/fit_folded_odmr().
+                same schema as fit_odmr()/fit_folded_odmr(). Defaults to the
+                cutoff recorded on the original fit.
             settings: Optional explicit settings object forwarded to FitManager
                 for the refit.
             backend: Optional FitBackend instance, or a backend name. See

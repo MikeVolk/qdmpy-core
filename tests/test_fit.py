@@ -532,7 +532,8 @@ class TestPipelineStages:
             freq_ghz=np.zeros((n_frange, 10)),
             scan_dimensions=(2, 2),
         )
-        result = FitManager._assemble_result(raw, model, prepared, pixel_spacing=4e-6)
+        manager = FitManager(model_name="ESRSINGLE", backend="scipy")
+        result = manager._assemble_result(raw, model, prepared, pixel_spacing=4e-6)
         assert result.metadata["quality_metrics"]["total_fit_time"] == pytest.approx(0.5)
         assert result.metadata["quality_metrics"]["convergence_rate"] == pytest.approx(1.0)
         assert result.scan_dimensions == (2, 2)
@@ -554,7 +555,8 @@ class TestPipelineStages:
             freq_ghz=np.zeros((n_frange, 10)),
             scan_dimensions=(2, 2),
         )
-        result = FitManager._assemble_result(
+        manager = FitManager(model_name="ESRSINGLE", backend="scipy")
+        result = manager._assemble_result(
             raw, model, prepared, pixel_spacing=4e-6, extra_metadata={"folded_fit": True}
         )
         assert result.metadata["folded_fit"] is True

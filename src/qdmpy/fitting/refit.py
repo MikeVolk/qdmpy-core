@@ -240,6 +240,38 @@ def _accept_improved_refits(
     return int(np.sum(improved))
 
 
+def _warn_on_chi2_scale_mismatch(fit_result: FitResult, fit_manager: FitManager) -> None:
+    """Warn when the refit's chi2 is not on the same scale as the original fit's.
+
+    ``_accept_improved_refits`` compares the new chi2 against the pixel's
+    existing one *absolutely*. That is only meaningful within a single
+    (backend, estimator) pair: gpufit's MLE estimator returns a Poisson
+    deviance while ScipyBackend/TorchBackend always return a sum of squared
+    residuals. Refitting with a different backend than the original fit used
+    therefore makes every accept/reject decision on mismatched units.
+    """
+    original_backend = fit_result.metadata.get("fit_backend")
+    original_estimator = fit_result.metadata.get("fit_estimator")
+    if original_backend is None:
+        return  # pre-provenance result; nothing to compare against
+
+    new_backend = fit_manager.backend_name
+    new_estimator = fit_manager.estimator
+    if original_backend == new_backend and original_estimator == new_estimator:
+        return
+
+    logger.warning(
+        "Refitting with backend={!r}/estimator={!r} but the original fit used "
+        "{!r}/{!r}. chi2 is not comparable across these, so the "
+        "accept-only-if-improved guard may keep worse fits and reject better "
+        "ones. Refit with the original backend for a like-for-like comparison.",
+        new_backend,
+        new_estimator,
+        original_backend,
+        original_estimator,
+    )
+
+
 def _refit_pass(
     fit_result: FitResult,
     data: xr.DataArray,
@@ -458,6 +490,8 @@ def refit_outliers(
     """
     if settings is None:
         settings = RefitSettings()
+
+    _warn_on_chi2_scale_mismatch(fit_result, fit_manager)
 
     current = fit_result
     for iteration in range(settings.max_iterations):
