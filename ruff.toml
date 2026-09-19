@@ -1,6 +1,11 @@
 line-length = 100
 extend-exclude = ["docs/tutorials/.archive"]  # archived notebooks are not maintained
 
+[format]
+# ruff 0.16 formats Markdown code blocks by default; docs, proposals and reviews
+# quote code as written, so keep the formatter on Python and notebooks.
+exclude = ["*.md"]
+
 [lint]
 select = [
     "E",    # pycodestyle errors
