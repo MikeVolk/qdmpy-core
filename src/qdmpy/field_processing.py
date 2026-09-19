@@ -23,9 +23,12 @@ class BaseFieldProcessor(BaseModel):
     Processors are Pydantic frozen models: all configuration lives in fields
     set at construction; ``process()`` is a pure function of its argument.
     ``pixel_spacing`` (in metres) must be present in ``field_map.attrs``.
+
+    ``extra='forbid'``: an unknown keyword is a typo, and silently dropping
+    it means the processor runs with a default the caller did not intend.
     """
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     @abstractmethod
     def process(self, field_map: xr.DataArray) -> xr.DataArray:
@@ -115,7 +118,7 @@ class HotPixelFilter(BaseFieldProcessor):
         default=None, description="Absolute threshold: filter |field| > this first"
     )
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     def process(self, field_map: xr.DataArray) -> xr.DataArray:
         """Detect and replace outlier pixels.
@@ -185,7 +188,7 @@ class QuadraticBackgroundSubtractor(BaseFieldProcessor):
         description="Tuple of (row_indices, col_indices) to EXCLUDE from fit",
     )
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     def process(self, field_map: xr.DataArray) -> xr.DataArray:
         """Remove polynomial background.
@@ -271,7 +274,7 @@ class UpwardContinuation(BaseFieldProcessor):
     padding_factor: float = Field(default=3.0, description="Padding multiplier")
     oversampling: int = Field(default=2, description="FFT oversampling factor")
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     def process(self, field_map: xr.DataArray) -> xr.DataArray:
         """Apply upward/downward continuation.
@@ -341,7 +344,7 @@ class BlankSubtractor(BaseFieldProcessor):
         description="Blank map as nested tuple (must match field shape)"
     )
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     def process(self, field_map: xr.DataArray) -> xr.DataArray:
         """Subtract blank from field.

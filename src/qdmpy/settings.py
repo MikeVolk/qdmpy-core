@@ -26,26 +26,6 @@ CONFIG_PATH: Path = Path.home() / ".config" / "QDMpy"
 CONFIG_FILE: Path = CONFIG_PATH / "settings.toml"
 
 
-class DefaultPathsSettings(BaseModel):
-    """Settings for default paths."""
-
-    data_path: str = Field(default="", description="Default data path")
-
-
-class OdmrSettings(BaseModel):
-    """Settings for ODMR processing."""
-
-    norm_method: Literal["mean"] = Field(
-        default="mean", description="Normalization method for ODMR data"
-    )
-
-
-class ModelFindPeaksSettings(BaseModel):
-    """Settings for model peak finding."""
-
-    prominence: float = Field(default=0.0004, description="Prominence threshold")
-
-
 class ModelConstraintsSettings(BaseModel):
     """Settings for model fitting constraints.
 
@@ -94,21 +74,17 @@ class ModelConstraintsSettings(BaseModel):
         default="FREE", description="Offset constraint type"
     )
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
 
 class ModelSettings(BaseModel):
     """Settings for model configuration."""
 
-    find_peaks: ModelFindPeaksSettings = Field(
-        default_factory=ModelFindPeaksSettings,
-        description="Peak finding settings",
-    )
     constraints: ModelConstraintsSettings = Field(
         default_factory=ModelConstraintsSettings, description="Fitting constraints"
     )
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
 
 class FitSettings(BaseModel):
@@ -127,52 +103,7 @@ class FitSettings(BaseModel):
         ),
     )
 
-    model_config = ConfigDict(extra="ignore")
-
-
-class StatisticsPercentileSettings(BaseModel):
-    """Settings for StatisticsPercentile outlier detection."""
-
-    chi2_percentile: list[float] = Field(
-        default=[0, 99.9], description="Chi-squared percentile bounds"
-    )
-    width_percentile: list[float] = Field(default=[0, 99.0], description="Width percentile bounds")
-    contrast_percentile: list[float] = Field(
-        default=[1, 100], description="Contrast percentile bounds"
-    )
-
-    model_config = ConfigDict(extra="ignore")
-
-
-class LocalOutlierFactorSettings(BaseModel):
-    """Settings for LocalOutlierFactor outlier detection."""
-
-    n_neighbors: int = Field(default=20, description="Number of neighbors")
-    algorithm: str = Field(default="auto", description="Algorithm type")
-    leaf_size: int = Field(default=30, description="Leaf size")
-    metric: str = Field(default="minkowski", description="Distance metric")
-    p: int = Field(default=2, description="Minkowski p parameter")
-    contamination: str | float = Field(default="auto", description="Expected outlier fraction")
-
-    model_config = ConfigDict(extra="ignore")
-
-
-class OutlierDetectionSettings(BaseModel):
-    """Settings for outlier detection."""
-
-    method: Literal["LocalOutlierFactor", "StatisticsPercentile"] = Field(
-        default="LocalOutlierFactor", description="Outlier detection method"
-    )
-    statistics_percentile: StatisticsPercentileSettings = Field(
-        default_factory=StatisticsPercentileSettings,
-        description="StatisticsPercentile settings",
-    )
-    local_outlier_factor: LocalOutlierFactorSettings = Field(
-        default_factory=LocalOutlierFactorSettings,
-        description="LocalOutlierFactor settings",
-    )
-
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
 
 class LoggingSettings(BaseModel):
@@ -193,7 +124,7 @@ class LoggingSettings(BaseModel):
         description="Directory for structured JSON logs (defaults to ~/logs)",
     )
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
 
 class NvSettings(BaseModel):
@@ -211,22 +142,21 @@ class NvSettings(BaseModel):
         description="Regularisation term added to wavenumbers to avoid k=0 singularity.",
     )
 
-    model_config = ConfigDict(frozen=True, extra="ignore")
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
 
 class QDMpySettings(BaseSettings):
-    """Main QDMpy settings class."""
+    """Main QDMpy settings class.
 
-    default_paths: DefaultPathsSettings = Field(
-        default_factory=DefaultPathsSettings, description="Default paths"
-    )
-    odmr: OdmrSettings = Field(default_factory=OdmrSettings, description="ODMR settings")
+    ``extra='forbid'`` throughout the tree: a typo in ``settings.toml``
+    (``center_min_ml``) used to be dropped in silence, so the fit ran under a
+    default constraint the user never chose and never found out. Unknown keys
+    now raise at load time. Stray ``QDMPY_*`` environment variables are
+    unaffected -- pydantic-settings only maps env vars onto declared fields.
+    """
+
     model: ModelSettings = Field(default_factory=ModelSettings, description="Model settings")
     fit: FitSettings = Field(default_factory=FitSettings, description="Fitting settings")
-    outlier_detection: OutlierDetectionSettings = Field(
-        default_factory=OutlierDetectionSettings,
-        description="Outlier detection settings",
-    )
     logging: LoggingSettings = Field(
         default_factory=LoggingSettings, description="Logging settings"
     )
@@ -235,7 +165,7 @@ class QDMpySettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="QDMPY_",
         env_nested_delimiter="__",
-        extra="ignore",
+        extra="forbid",
     )
 
     @classmethod

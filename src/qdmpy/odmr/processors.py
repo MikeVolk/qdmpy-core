@@ -19,6 +19,10 @@ from qdmpy.constants import FLUORESCENCE_DELTA_THRESHOLD
 if TYPE_CHECKING:
     from qdmpy.odmr.data import ODMRData
 
+# Masking more than this fraction of the data means the processor ate the
+# resonance rather than any outlier; worth a loud runtime warning.
+_OUTLIER_MASK_ALARM_FRACTION = 0.5
+
 
 @runtime_checkable
 class Processor(Protocol):
@@ -82,9 +86,13 @@ class Processor(Protocol):
 
 
 class BaseProcessor(BaseModel):
-    """Abstract base class for ODMR processors."""
+    """Abstract base class for ODMR processors.
 
-    model_config = ConfigDict(frozen=True)
+    ``extra='forbid'``: an unknown keyword is a typo, and silently dropping
+    it means the processor runs with a default the caller did not intend.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     @abstractmethod
     def process(self, data: ODMRData) -> ODMRData:
@@ -267,7 +275,26 @@ class BinningProcessor(BaseProcessor):
 
 @ProcessorRegistry.register
 class OutlierProcessor(BaseProcessor):
-    """Masks outlier values in ODMR data using z-scores along the frequency dimension.
+    """DEPRECATED -- masks ODMR values by z-score along the frequency dimension.
+
+    This processor cannot do what its name says, at any setting. It scores
+    each point against its own pixel's spectral mean and standard deviation
+    along ``freq_idx`` -- but the ODMR resonance dip *is* the largest
+    deviation in that distribution, so it is always the first thing masked.
+    Measured on a clean ESR14N spectrum, the dip's z-score is the maximum
+    anywhere in the spectrum (~1.9), which leaves no usable threshold:
+
+    - ``>= 2.0`` masks nothing at all (a no-op),
+    - ``< 2.0`` starts by masking the resonance, i.e. the signal,
+    - ``0.003`` (the default this class shipped with) masks ~99.9% of the data.
+
+    Use :class:`qdmpy.field_processing.HotPixelFilter` for the spatial
+    outlier-rejection job this was presumably meant to do -- it scores pixels
+    against their spatial neighbourhood, where an outlier really is anomalous.
+
+    Deprecated since 2026-08-30; scheduled for removal in the next minor
+    release. Still registered and functional so existing saved pipeline
+    configs continue to load.
 
     Attributes:
         z_score_threshold: The z-score threshold above which a value is considered an outlier.
@@ -275,6 +302,22 @@ class OutlierProcessor(BaseProcessor):
 
     type: Literal["OutlierProcessor"] = "OutlierProcessor"
     z_score_threshold: float = Field(default=0.003, gt=0)
+
+    def model_post_init(self, __context: object) -> None:
+        """Warn that this processor masks the resonance rather than outliers."""
+        import warnings
+
+        warnings.warn(
+            "OutlierProcessor is deprecated and will be removed in the next "
+            "minor release. It z-scores along the frequency axis, where the "
+            "ODMR resonance dip is the largest deviation, so every threshold "
+            "either masks nothing (>= ~2.0) or masks the signal first "
+            "(< ~2.0); the default 0.003 masks ~99.9% of the data. Use "
+            "qdmpy.field_processing.HotPixelFilter for spatial outlier "
+            "rejection instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     def process(self, data: ODMRData) -> ODMRData:
         """Apply an outlier mask based on the z-score threshold."""
@@ -285,6 +328,14 @@ class OutlierProcessor(BaseProcessor):
         data_std = data.data.std(dim="freq_idx")
         z_scores = np.abs((data.data - data_mean) / (data_std + 1e-10))
         mask = z_scores > self.z_score_threshold
+        masked_fraction = float(mask.mean())
+        if masked_fraction > _OUTLIER_MASK_ALARM_FRACTION:
+            logger.warning(
+                "OutlierProcessor masked {:.1%} of the data at z_score_threshold={} "
+                "-- this destroys the resonance, not outliers. See the class docstring.",
+                masked_fraction,
+                self.z_score_threshold,
+            )
         processed = data.data.where(~mask)
         return ODMRData(data=processed, metadata=data.metadata.copy())
 

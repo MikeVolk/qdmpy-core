@@ -71,6 +71,12 @@ _QDM_VERSION = "1.0"
 _QDM_MAGIC_EXT = ".qdm"
 _FIELD_SOURCE_ADAPTER = TypeAdapter(FieldSourceType)
 
+# FitResult.metadata key holding the fit's frequency axis (GHz). Stored on
+# disk as the fit/frequencies dataset instead of inside the JSON metadata
+# attribute, so it is excluded from that attribute on write and restored
+# into metadata on read.
+_FREQ_METADATA_KEY = "frequencies_ghz"
+
 
 # ---------------------------------------------------------------------------
 # Internal save helpers
@@ -103,15 +109,9 @@ def _write_fit(
     fit_result: FitResult,
     compression: str | None,
 ) -> None:
-    """Write fit/ group (parameters and frequencies)."""
+    """Write fit/ group (parameters and the frequency axis)."""
     fit_grp = f.create_group("fit")
     for param_name, param_array in fit_result.parameters.items():
-        if param_name == "frequencies":
-            ds = fit_grp.create_dataset(
-                "frequencies", data=param_array.astype(np.float64), compression=compression
-            )
-            ds.attrs["units"] = "GHz"
-            continue
         if param_name == "states":
             continue  # stored separately as fit_states
         ds = fit_grp.create_dataset(
@@ -128,6 +128,16 @@ def _write_fit(
             data=fit_result.parameters["states"].astype(np.int32),
             compression=compression,
         )
+
+    # The frequency axis rides in metadata (FitManager records it there), but
+    # belongs on disk as a real float64 dataset rather than JSON text in an
+    # attribute -- it is numeric data, not provenance.
+    frequencies = fit_result.metadata.get(_FREQ_METADATA_KEY)
+    if frequencies is not None:
+        ds = fit_grp.create_dataset(
+            "frequencies", data=np.asarray(frequencies, dtype=np.float64), compression=compression
+        )
+        ds.attrs["units"] = "GHz"
 
 
 def _write_b_field(
@@ -235,16 +245,33 @@ def _check_version(f: h5py_t.File, path: Path) -> None:
 
 
 def _read_fit_parameters(f: h5py_t.File) -> dict[str, Any]:
-    """Read fit/ group datasets into a parameters dict."""
+    """Read fit/ group datasets into a parameters dict.
+
+    ``states`` is stored on disk under the name ``fit_states`` (see
+    :func:`_write_fit`) and is restored to its in-memory name here. Skipping
+    it silently reported every pixel as converged after a round-trip, which
+    also disabled ``refit_outliers(include_non_converged=True)`` and dropped
+    ``convergence_rate`` from ``get_fit_quality_metrics()``.
+    """
     parameters: dict[str, Any] = {}
     if "fit" not in f:
         return parameters
     fit_grp = f["fit"]
     for key in fit_grp:
         if key == "fit_states":
+            parameters["states"] = np.array(fit_grp[key])
             continue
+        if key == "frequencies":
+            continue  # not a per-pixel parameter; restored into metadata
         parameters[key] = np.array(fit_grp[key])
     return parameters
+
+
+def _read_frequencies(f: h5py_t.File) -> list[list[float]] | None:
+    """Return the fit/frequencies axis as a JSON-safe nested list, or None."""
+    if "fit" not in f or "frequencies" not in f["fit"]:
+        return None
+    return np.array(f["fit"]["frequencies"], dtype=np.float64).tolist()
 
 
 def _read_b111_caches(
@@ -349,7 +376,9 @@ def save_qdm(
         f.attrs["pixel_spacing"] = fit_result.pixel_spacing
         f.attrs["scan_dimensions"] = np.array(list(fit_result.scan_dimensions), dtype=np.int32)
         f.attrs["created_at"] = datetime.now(UTC).isoformat()
-        f.attrs["metadata"] = json.dumps(fit_result.metadata)
+        f.attrs["metadata"] = json.dumps(
+            {k: v for k, v in fit_result.metadata.items() if k != _FREQ_METADATA_KEY}
+        )
         if result.nv_axis is not None:
             f.attrs["nv_axis"] = np.array(result.nv_axis, dtype=np.float64)
 
@@ -411,6 +440,9 @@ def load_qdm(path: str | PathLike) -> QDMResult:
                 nv_axis = (_nv[0], _nv[1], _nv[2])
 
             parameters = _read_fit_parameters(f)
+            frequencies = _read_frequencies(f)
+            if frequencies is not None:
+                metadata[_FREQ_METADATA_KEY] = frequencies
             b111_remanent, b111_induced = _read_b111_caches(f)
             light_image, laser_image = _read_images(f)
             field_sources = _read_field_sources(f)

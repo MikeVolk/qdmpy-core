@@ -486,6 +486,11 @@ class FitManager:
         metadata = {
             "fit_timestamp": datetime.datetime.now().isoformat(),
             "quality_metrics": quality_metrics,
+            # The frequency axis the fit was run against, so a persisted
+            # FitResult is self-describing: without it a saved result cannot
+            # be refit or replotted against its own x-axis. JSON-safe nested
+            # list, always GHz.
+            "frequencies_ghz": prepared.freq_ghz.tolist(),
             **(extra_metadata or {}),
         }
 

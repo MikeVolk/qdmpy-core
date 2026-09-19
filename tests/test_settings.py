@@ -6,55 +6,17 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 from qdmpy.settings import (
-    DefaultPathsSettings,
     FitSettings,
-    LocalOutlierFactorSettings,
     LoggingSettings,
     ModelConstraintsSettings,
-    ModelFindPeaksSettings,
     ModelSettings,
-    OdmrSettings,
-    OutlierDetectionSettings,
     QDMpySettings,
-    StatisticsPercentileSettings,
     get_settings,
     reset_settings,
 )
-
-
-class TestDefaultPathsSettings:
-    """Tests for DefaultPathsSettings."""
-
-    def test_default_values(self) -> None:
-        """Test default values."""
-        settings = DefaultPathsSettings()
-        assert settings.data_path == ""
-
-    def test_custom_values(self) -> None:
-        """Test custom values."""
-        settings = DefaultPathsSettings(data_path="/home/data")
-        assert settings.data_path == "/home/data"
-
-
-class TestOdmrSettings:
-    """Tests for OdmrSettings."""
-
-    def test_default_norm_method(self) -> None:
-        """Test default normalization method."""
-        settings = OdmrSettings()
-        assert settings.norm_method == "mean"
-
-    def test_mean_norm_method(self) -> None:
-        """Test that 'mean' is accepted as the normalization method."""
-        settings = OdmrSettings(norm_method="mean")
-        assert settings.norm_method == "mean"
-
-    def test_invalid_norm_method(self) -> None:
-        """Test invalid normalization method raises error."""
-        with pytest.raises(ValueError):
-            OdmrSettings(norm_method="invalid")
 
 
 class TestModelConstraintsSettings:
@@ -118,9 +80,7 @@ class TestModelSettings:
     def test_default_model_settings(self) -> None:
         """Test default model settings."""
         settings = ModelSettings()
-        assert isinstance(settings.find_peaks, ModelFindPeaksSettings)
         assert isinstance(settings.constraints, ModelConstraintsSettings)
-        assert settings.find_peaks.prominence == 0.0004
 
     def test_custom_model_settings(self) -> None:
         """Test custom model settings."""
@@ -160,32 +120,6 @@ class TestFitSettings:
         """Test invalid estimator raises error."""
         with pytest.raises(ValueError):
             FitSettings(estimator="INVALID")
-
-
-class TestOutlierDetectionSettings:
-    """Tests for OutlierDetectionSettings."""
-
-    def test_default_outlier_settings(self) -> None:
-        """Test default outlier detection settings."""
-        settings = OutlierDetectionSettings()
-        assert settings.method == "LocalOutlierFactor"
-        assert isinstance(settings.local_outlier_factor, LocalOutlierFactorSettings)
-        assert isinstance(settings.statistics_percentile, StatisticsPercentileSettings)
-
-    def test_statistics_percentile_method(self) -> None:
-        """Test StatisticsPercentile method settings."""
-        settings = OutlierDetectionSettings(method="StatisticsPercentile")
-        assert settings.method == "StatisticsPercentile"
-
-    def test_local_outlier_factor_defaults(self) -> None:
-        """Test LocalOutlierFactor default settings."""
-        settings = OutlierDetectionSettings()
-        assert settings.local_outlier_factor.n_neighbors == 20
-        assert settings.local_outlier_factor.algorithm == "auto"
-        assert settings.local_outlier_factor.leaf_size == 30
-        assert settings.local_outlier_factor.metric == "minkowski"
-        assert settings.local_outlier_factor.p == 2
-        assert settings.local_outlier_factor.contamination == "auto"
 
 
 class TestLoggingSettings:
@@ -241,11 +175,8 @@ class TestQDMpySettings:
     def test_default_settings(self) -> None:
         """Test that default settings are created correctly."""
         settings = QDMpySettings()
-        assert isinstance(settings.default_paths, DefaultPathsSettings)
-        assert isinstance(settings.odmr, OdmrSettings)
         assert isinstance(settings.model, ModelSettings)
         assert isinstance(settings.fit, FitSettings)
-        assert isinstance(settings.outlier_detection, OutlierDetectionSettings)
         assert isinstance(settings.logging, LoggingSettings)
 
     def test_custom_fit_settings(self) -> None:
@@ -312,11 +243,30 @@ class TestQDMpySettings:
         assert settings.fit.estimator == "LSE"
         assert settings.logging.log_level == "DEBUG"
 
-    def test_extra_fields_ignored(self) -> None:
-        """Test that extra fields are ignored (extra='ignore')."""
-        # This should not raise an error
-        settings = QDMpySettings(extra_field="should_be_ignored")
-        assert isinstance(settings, QDMpySettings)
+    def test_unknown_top_level_field_rejected(self) -> None:
+        """An unknown top-level key is a typo, not something to swallow."""
+        with pytest.raises(ValidationError):
+            QDMpySettings(extra_field="should_not_be_ignored")
+
+    def test_unknown_nested_field_rejected(self) -> None:
+        """A typo in a nested section must raise, not silently use the default.
+
+        Regression: `center_min_ml` (a typo for `center_min_mt`) used to be
+        dropped in silence, so the fit ran under a constraint the user never
+        chose and had no way to notice.
+        """
+        with pytest.raises(ValidationError):
+            QDMpySettings(model={"constraints": {"center_min_ml": 0.5}})
+
+    def test_unknown_prefixed_env_var_is_not_rejected(self, monkeypatch) -> None:
+        """A stray QDMPY_* env var must not break settings construction.
+
+        pydantic-settings only maps env vars onto declared fields, so
+        `extra='forbid'` catches config typos without making unrelated
+        environment variables fatal.
+        """
+        monkeypatch.setenv("QDMPY_TOTALLY_UNRELATED", "x")
+        assert isinstance(QDMpySettings(), QDMpySettings)
 
 
 class TestGetSettings:

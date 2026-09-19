@@ -751,6 +751,88 @@ class TestRefitOutliers:
         assert result.parameters["center"][0, 0, 3, 3] == pytest.approx(original_center)
         assert result.parameters["chi2"][0, 0, 3, 3] == pytest.approx(original_chi2)
 
+    def test_all_refits_rejected_stops_after_one_pass(self) -> None:
+        """When nothing improves, the loop converges instead of redoing the work.
+
+        Regression: `_refit_pass` counted *attempted* refits, so it always
+        returned a new FitResult and `refit_outliers`' `nxt is current` check
+        never fired. Every remaining pass then repeated the same deterministic
+        fit and discarded it -- measured at 4 passes / 112 pixel-fits / 0
+        parameters changed on a clean fit.
+        """
+        h, w = 6, 6
+        fr = self._make_simple_fit_result(h=h, w=w, bad_pixel=(3, 3))
+
+        def _fit_frange_worse(
+            data: np.ndarray,
+            freq: np.ndarray,
+            initial_params: np.ndarray,
+            *,
+            irange: int,
+            n_frange: int,
+            constraint_overrides: object = None,
+        ) -> list:
+            n_data = data.shape[0] * data.shape[1]
+            return [
+                np.full((n_data, 1), 3.37, dtype=np.float32),
+                np.zeros(n_data, dtype=np.int32),
+                np.full(n_data, 999.0, dtype=np.float32),
+                np.ones(n_data, dtype=np.int32) * 10,
+                0.01,
+            ]
+
+        fm = MagicMock()
+        fm.parameter_names = ["center"]
+        fm.n_parameter = 1
+        fm.fit_frange.side_effect = _fit_frange_worse
+        data = _make_data_array(n_pol=1, n_frange=1, h=h, w=w)
+        freq = np.linspace(2.84, 2.90, 20).reshape(1, 20)
+        settings = RefitSettings(chi2_percentile=90.0, min_good_neighbors=1, max_iterations=5)
+
+        result = refit_outliers(fr, data, freq, fm, settings)
+
+        # One pass attempted, then converged -- not five.
+        assert fm.fit_frange.call_count == 1
+        assert result is fr
+
+    def test_refit_info_reports_accepted_count(self) -> None:
+        """refit_info distinguishes fits attempted from fits kept."""
+        h, w = 6, 6
+        fr = self._make_simple_fit_result(h=h, w=w, bad_pixel=(3, 3))
+
+        def _fit_frange_better(
+            data: np.ndarray,
+            freq: np.ndarray,
+            initial_params: np.ndarray,
+            *,
+            irange: int,
+            n_frange: int,
+            constraint_overrides: object = None,
+        ) -> list:
+            n_data = data.shape[0] * data.shape[1]
+            return [
+                np.full((n_data, 1), 2.87, dtype=np.float32),
+                np.zeros(n_data, dtype=np.int32),
+                np.full(n_data, 1e-6, dtype=np.float32),  # better than any original
+                np.ones(n_data, dtype=np.int32) * 10,
+                0.01,
+            ]
+
+        fm = MagicMock()
+        fm.parameter_names = ["center"]
+        fm.n_parameter = 1
+        fm.fit_frange.side_effect = _fit_frange_better
+        data = _make_data_array(n_pol=1, n_frange=1, h=h, w=w)
+        freq = np.linspace(2.84, 2.90, 20).reshape(1, 20)
+        settings = RefitSettings(chi2_percentile=90.0, min_good_neighbors=1)
+
+        result = refit_outliers(fr, data, freq, fm, settings)
+
+        info = result.metadata["refit_info"]
+        assert info["n_accepted"] > 0
+        assert info["n_accepted"] <= info["n_refitted"]
+        assert all("n_accepted" in v for v in info["per_frange"].values())
+
 
 # ---------------------------------------------------------------------------
 # Measurement.refit_outliers and fit_odmr(refit_outliers=True)

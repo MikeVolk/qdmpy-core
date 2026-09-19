@@ -251,9 +251,10 @@ def _refit_pass(
 
     Detects outlier pixels in ``fit_result``, computes neighbor-based initial
     guesses, and refits those pixels via the GPU. Returns the input ``fit_result``
-    unchanged (same object) when no outliers are detected or when all detected
-    outliers are interior cluster pixels with no good neighbors. Otherwise returns
-    a new FitResult with updated parameters.
+    unchanged (same object) when no outliers are detected, when all detected
+    outliers are interior cluster pixels with no good neighbors, or when every
+    refit was rejected as worse than the existing fit. Otherwise returns a new
+    FitResult with updated parameters.
 
     Args:
         fit_result: Current FitResult (may already be an output from a previous pass).
@@ -318,6 +319,7 @@ def _refit_pass(
         per_frange_info[f"frange_{irange}"] = {
             "n_outlier": n_outlier_frange,
             "n_refitted": n_refit,
+            "n_accepted": 0,
         }
 
         if n_refit == 0:
@@ -365,27 +367,46 @@ def _refit_pass(
             new_states_arr=new_states_arr,
             new_chi2_arr=new_chi2_arr,
         )
+        per_frange_info[f"frange_{irange}"]["n_accepted"] = n_accepted
 
+        # Counts are per (polarity, pixel) -- fit_frange fits every polarity of
+        # a pixel jointly, so n_refit pixels produce n_pol * n_refit fits.
+        n_attempted_fits = int(new_chi2_arr.size)
         logger.info(
-            "frange {}: refitted {} of {} outlier pixels ({} accepted, {} rejected as worse)",
+            "frange {}: attempted {} fits over {} of {} outlier pixels "
+            "({} accepted, {} rejected as worse)",
             irange,
+            n_attempted_fits,
             n_refit,
             n_outlier_frange,
             n_accepted,
-            new_chi2_arr.size - n_accepted,
+            n_attempted_fits - n_accepted,
         )
 
     n_total_refitted = sum(v["n_refitted"] for v in per_frange_info.values())
+    n_total_accepted = sum(v["n_accepted"] for v in per_frange_info.values())
 
     if n_total_refitted == 0:
         # All detected outliers were interior cluster pixels with no good neighbors
         logger.debug("refit pass: {} outlier pixels detected but none refittable", n_outliers)
         return fit_result
 
+    if n_total_accepted == 0:
+        # Every refit landed on a worse chi2 and was rejected, so no parameter
+        # changed. Returning the input unchanged lets refit_outliers() detect
+        # convergence instead of spending every remaining pass redoing this
+        # identical, deterministic work.
+        logger.info(
+            "refit pass: {} fits attempted, none improved on the existing chi2 -- converged",
+            n_total_refitted,
+        )
+        return fit_result
+
     refit_info: dict[str, object] = {
         "chi2_percentile": settings.chi2_percentile,
         "n_outliers_detected": n_outliers,
         "n_refitted": n_total_refitted,
+        "n_accepted": n_total_accepted,
         "per_frange": per_frange_info,
     }
     return type(fit_result)(
@@ -442,8 +463,10 @@ def refit_outliers(
     for iteration in range(settings.max_iterations):
         nxt = _refit_pass(current, data, frequencies, fit_manager, settings)
         if nxt is current:
+            # _refit_pass logs *why* it made no change (no outliers, none
+            # refittable, or none accepted); don't second-guess it here.
             if iteration == 0:
-                logger.info("refit_outliers: no outlier pixels detected, returning original")
+                logger.info("refit_outliers: no pixels improved, returning the original result")
             else:
                 logger.info(
                     "refit_outliers: converged after {} pass(es)",
