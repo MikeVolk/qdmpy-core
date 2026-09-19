@@ -12,6 +12,8 @@ import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numpy.typing import NDArray
 
+from qdmpy.exceptions import DataShapeError
+
 if TYPE_CHECKING:
     from matplotlib.axes import Axes as MplAxes
 
@@ -117,7 +119,7 @@ def resolve_pixel_indices(
     if isinstance(x, list) and isinstance(y, list):
         if len(x_list) != len(y_list):
             msg = f"x and y lists must have the same length, got {len(x_list)} vs {len(y_list)}"
-            raise ValueError(msg)
+            raise DataShapeError(msg)
         return list(zip(y_list, x_list, strict=True))
 
     # Both scalars or one-element case

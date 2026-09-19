@@ -388,24 +388,23 @@ class TestResolveSpatialDims:
         result = self._make_result((10, 10))
         assert result._resolve_spatial_dims(100) == (10, 10)
 
-    def test_mismatched_square(self) -> None:
-        result = self._make_result((10, 10))
-        h, w = result._resolve_spatial_dims(36)
-        assert h * w == 36
-        assert h == 6
-        assert w == 6
+    def test_mismatched_pixel_count_raises(self) -> None:
+        """A pixel-count mismatch must fail, not guess a plausible geometry.
 
-    def test_rectangular_aspect_ratio(self) -> None:
-        result = self._make_result((10, 20))
-        h, w = result._resolve_spatial_dims(50)
-        assert h * w == 50
-        assert w / h >= 1.0
-
-    def test_prime_pixel_count(self) -> None:
+        This used to search factor pairs of the pixel count for the one closest
+        to the recorded aspect ratio and continue with a debug log -- silently
+        reshaping field maps into a wrong geometry whenever the parameters and
+        scan_dimensions disagreed.
+        """
         result = self._make_result((10, 10))
-        h, w = result._resolve_spatial_dims(17)
-        assert h * w == 17
-        assert (h, w) == (1, 17) or (h, w) == (17, 1)
+        with pytest.raises(DataShapeError, match="scan_dimensions"):
+            result._resolve_spatial_dims(36)
+
+    def test_prime_pixel_count_raises(self) -> None:
+        """A count with no sensible factorisation raises rather than degrading."""
+        result = self._make_result((10, 10))
+        with pytest.raises(DataShapeError):
+            result._resolve_spatial_dims(17)
 
 
 class TestNormalizeResonanceShape:

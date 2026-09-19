@@ -14,7 +14,7 @@ import xarray as xr
 from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from qdmpy.exceptions import DataShapeError
+from qdmpy.exceptions import DataShapeError, DataValidationError, ParameterError
 
 # A background-fit mask is a (row_indices, col_indices) pair.
 _MASK_TUPLE_LEN = 2
@@ -57,10 +57,11 @@ class BaseFieldProcessor(BaseModel):
             Pixel spacing in metres.
 
         Raises:
-            ValueError: If pixel_spacing not in attrs.
+            DataValidationError: If pixel_spacing not in attrs.
         """
         if "pixel_spacing" not in field_map.attrs:
-            raise ValueError("field_map.attrs must contain 'pixel_spacing' (metres)")
+            msg = "field_map.attrs must contain 'pixel_spacing' (metres)"
+            raise DataValidationError(msg)
         return float(field_map.attrs["pixel_spacing"])
 
 
@@ -263,7 +264,8 @@ class QuadraticBackgroundSubtractor(BaseFieldProcessor):
                 ]
             )
         else:
-            raise ValueError(f"degree must be 0, 1, or 2; got {self.degree}")
+            msg = f"degree must be 0, 1, or 2; got {self.degree}"
+            raise ParameterError(msg)
 
         # Determine which pixels to use for fit. Non-finite samples are
         # excluded: lstsq propagates a single NaN into every coefficient, so

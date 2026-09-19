@@ -247,43 +247,33 @@ class FitResult(BaseModel):
         return self._delta_resonance_cache
 
     def _resolve_spatial_dims(self: Self, n_pixels: int) -> tuple[int, int]:
-        """Resolve spatial dimensions from pixel count.
-
-        If n_pixels matches scan_dimensions, returns them directly.
-        Otherwise finds the factor pair closest to the original aspect ratio.
+        """Return the scan dimensions, checking they match the data.
 
         Args:
             n_pixels: Total number of pixels in the data.
 
         Returns:
             Tuple of (height, width) for spatial reshaping.
+
+        Raises:
+            DataShapeError: If ``n_pixels`` does not match ``scan_dimensions``.
         """
         height, width = self.scan_dimensions
         if n_pixels == height * width:
             return height, width
 
-        aspect_ratio = width / height
-        factors = []
-        for i in range(1, int(np.sqrt(n_pixels)) + 1):
-            if n_pixels % i == 0:
-                factors.append((i, n_pixels // i))
-
-        if factors:
-            best_height, best_width = min(factors, key=lambda f: abs(f[1] / f[0] - aspect_ratio))
-        else:
-            best_height = int(np.sqrt(n_pixels))
-            best_width = n_pixels // best_height
-            if best_height * best_width != n_pixels:
-                best_height, best_width = n_pixels, 1
-
-        logger.debug(
-            "Pixel count mismatch: data has {} pixels, scan_dims suggest {}. Using ({}, {})",
-            n_pixels,
-            height * width,
-            best_height,
-            best_width,
+        # This used to guess: it searched factor pairs of n_pixels for the one
+        # closest to the recorded aspect ratio and carried on with a debug log.
+        # A mismatch here means the parameter arrays and scan_dimensions
+        # disagree, and any guessed pair silently reshapes the field maps into
+        # a plausible-looking but wrong geometry.
+        msg = (
+            f"Parameter data has {n_pixels} pixels but scan_dimensions "
+            f"{self.scan_dimensions} implies {height * width}. The fitted "
+            "parameters and scan_dimensions disagree; reshaping would produce "
+            "a silently wrong spatial map."
         )
-        return best_height, best_width
+        raise DataShapeError(msg)
 
     def _normalize_resonance_shape(self: Self, resonance: NDArray) -> tuple[NDArray, int, int, int]:
         """Normalize resonance array to 3D (n_pol, n_frange, n_pixels).

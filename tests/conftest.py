@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from qdmpy.fitting.models import ModelRegistry
 from qdmpy.fitting.result import FitResult
 from qdmpy.settings import (
     FitSettings,
@@ -189,3 +190,18 @@ def sample_fit_result(sample_parameters: dict[str, np.ndarray]) -> FitResult:
         model_name="ESR15N",
         metadata={"test": True, "quality_metrics": {"mean_chi2": 1.0}},
     )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_model_registry():
+    """Restore the global ModelRegistry after every test.
+
+    Several tests register custom models (e.g. extension and backend tests).
+    Without cleanup they leak into every later test, and registry-wide lookups
+    such as ``get_model_by_peaks`` then see models that only existed for one
+    test -- the old first-match lookup hid this by depending on insertion order.
+    """
+    snapshot = dict(ModelRegistry._registry)
+    yield
+    ModelRegistry._registry.clear()
+    ModelRegistry._registry.update(snapshot)

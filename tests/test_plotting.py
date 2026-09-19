@@ -641,7 +641,9 @@ class TestMagneticComponentPlot:
             btotal=_da("Btotal"),
             nv_axis=(0.0, 0.0, 1.0),
         )
-        with pytest.raises(ValueError, match="not in"):
+        from qdmpy.exceptions import ParameterError
+
+        with pytest.raises(ParameterError, match="not in"):
             plot_magnetic_component(mag, "invalid")
 
 

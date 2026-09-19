@@ -58,7 +58,6 @@ def b111_da() -> xr.DataArray:
 # ---------------------------------------------------------------------------
 
 
-@ModelRegistry.register
 class _TestSingleLorentz(Model):
     """Minimal single-Lorentzian model for testing extension point."""
 
@@ -88,6 +87,19 @@ class _TestSingleLorentz(Model):
         offset = parameters[:, 3:4]
         dip = contrast * width_sq / ((x - center) ** 2 + width_sq)
         return 1 + offset - dip
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _register_test_model():
+    """Register the custom model for this module only.
+
+    Registering at import time leaked it into every other test module, where
+    registry-wide lookups (e.g. auto-detection by peak count) then found two
+    single-dip models.
+    """
+    ModelRegistry.register(_TestSingleLorentz)
+    yield
+    ModelRegistry._registry.pop("_TESTLORENTZ", None)
 
 
 class TestCustomModel:

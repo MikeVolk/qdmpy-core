@@ -442,10 +442,18 @@ class ODMRProcessorManager:
 
     def __init__(self) -> None:
         """Initialize an empty processing pipeline."""
-        self.processors: list[BaseProcessor] = []
+        # Typed as the Processor protocol, not BaseProcessor: the protocol's
+        # documented contract is that a custom processor needs no base class.
+        self.processors: list[Processor] = []
 
-    def add_processor(self, processor: BaseProcessor) -> None:
-        """Add a processor to the processing pipeline."""
+    def add_processor(self, processor: Processor) -> None:
+        """Add a processor to the processing pipeline.
+
+        Args:
+            processor: Anything satisfying the :class:`Processor` protocol.
+                Inheriting :class:`BaseProcessor` is only required to
+                round-trip through ``to_config()``/``from_config()``.
+        """
         logger.debug("Adding processor: {}", processor.__class__.__name__)
         self.processors.append(processor)
 
@@ -454,10 +462,7 @@ class ODMRProcessorManager:
         from qdmpy.odmr.data import ODMRData as _ODMRData
 
         logger.info("Starting processing pipeline.")
-        pipeline_config = [
-            p.to_config() if hasattr(p, "to_config") else {"describe": p.describe()}
-            for p in self.processors
-        ]
+        pipeline_config = self.pipeline_config
         for processor in self.processors:
             logger.debug("Applying processor: {}", processor.__class__.__name__)
             data = processor.process(data)
@@ -478,7 +483,7 @@ class ODMRProcessorManager:
     def pipeline_config(self) -> list[dict[str, Any]]:
         """Current pipeline as a list of serializable config dicts."""
         return [
-            p.to_config() if hasattr(p, "to_config") else {"describe": p.describe()}
+            p.to_config() if isinstance(p, BaseProcessor) else {"describe": p.describe()}
             for p in self.processors
         ]
 

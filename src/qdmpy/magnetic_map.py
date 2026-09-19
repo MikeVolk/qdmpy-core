@@ -13,6 +13,8 @@ import numpy as np
 import xarray as xr
 from loguru import logger
 
+from qdmpy.exceptions import ConfigurationError, DataValidationError
+
 if TYPE_CHECKING:
     from qdmpy.settings import QDMpySettings
 
@@ -169,10 +171,12 @@ class MagneticMap:
             MagneticMap with b111, bx, by, bz, btotal.
 
         Raises:
-            ValueError: If pixel_spacing not in b111.attrs.
+            DataValidationError: If pixel_spacing not in b111.attrs.
+            ConfigurationError: If nv_axis/epsilon are unavailable.
         """
         if "pixel_spacing" not in b111.attrs:
-            raise ValueError("b111.attrs must contain 'pixel_spacing' (metres)")
+            msg = "b111.attrs must contain 'pixel_spacing' (metres)"
+            raise DataValidationError(msg)
 
         logger.info("Reconstructing 3D magnetic field from B111 map")
         resolved_settings = settings
@@ -183,7 +187,7 @@ class MagneticMap:
         nv = nv_axis or (resolved_settings.nv.axis if resolved_settings is not None else None)
         if nv is None:
             msg = "nv_axis must be provided when settings are unavailable"
-            raise ValueError(msg)
+            raise ConfigurationError(msg)
 
         def _da(arr: np.ndarray, name: str) -> xr.DataArray:
             return xr.DataArray(
@@ -214,7 +218,7 @@ class MagneticMap:
         )
         if eps is None:
             msg = "epsilon must be provided when settings are unavailable"
-            raise ValueError(msg)
+            raise ConfigurationError(msg)
         ps = float(b111.attrs["pixel_spacing"])
 
         bx_arr, by_arr, bz_arr = _reconstruct_bxyz(b111.values, ps, nv, eps)

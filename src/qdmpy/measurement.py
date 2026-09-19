@@ -37,9 +37,21 @@ from qdmpy.odmr.folding import FoldedODMR, FoldingSettings, SpectralFolder
 from qdmpy.odmr.manager import ODMR
 from qdmpy.settings import QDMpySettings
 
-# Sentinel for parameters not explicitly set by the caller, used to distinguish
-# "user passed None (meaning: skip)" from "user passed nothing (meaning: use default)".
-_UNSET: object = object()
+
+class _Unset:
+    """Sentinel type for "caller passed nothing".
+
+    Distinguishes ``fluorescence_correction=None`` (meaning "skip the
+    correction") from the argument being omitted (meaning "use the default").
+    A dedicated type rather than a bare ``object()`` so the sentinel can appear
+    in the signature's annotation instead of needing a type: ignore.
+    """
+
+    def __repr__(self) -> str:
+        return "<unset>"
+
+
+_UNSET = _Unset()
 
 if TYPE_CHECKING:
     from os import PathLike
@@ -151,7 +163,7 @@ class Measurement:
         model: str | None = None,
         pixel_spacing: float | None = None,
         normalize: bool | None = None,
-        fluorescence_correction: float | None = _UNSET,  # type: ignore[assignment]
+        fluorescence_correction: float | None | _Unset = _UNSET,
         output_directory: str | PathLike | None = None,
     ) -> Measurement:
         """Load ODMR data from a folder and return a ready-to-fit Measurement.

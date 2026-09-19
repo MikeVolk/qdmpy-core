@@ -79,8 +79,10 @@ class TestMagneticMap:
             assert var in ds
 
     def test_missing_pixel_spacing_raises(self) -> None:
+        from qdmpy.exceptions import DataValidationError
+
         da = xr.DataArray(np.ones((4, 4)), dims=("y", "x"))
-        with pytest.raises(ValueError, match="pixel_spacing"):
+        with pytest.raises(DataValidationError, match="pixel_spacing"):
             MagneticMap.from_b111(da, nv_axis=(0, 0, 1))
 
     def test_custom_reconstructor(self, b111_da) -> None:

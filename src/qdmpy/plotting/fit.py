@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
 
-from qdmpy.exceptions import DataShapeError
+from qdmpy.exceptions import DataShapeError, ParameterError
 from qdmpy.plotting._common import _add_colorbar, _finalize_layout, _label_spatial_axes
 
 if TYPE_CHECKING:
@@ -254,7 +254,7 @@ def plot_b111_map(
     valid = {"remanent", "induced"}
     if component not in valid:
         msg = f"component must be one of {valid!r}, got {component!r}"
-        raise ValueError(msg)
+        raise ParameterError(msg)
 
     b_map = result.b111[component].values  # (H, W), uT
 
