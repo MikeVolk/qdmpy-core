@@ -7,6 +7,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Removed (2026-09-19 breaking cleanup) -- BREAKING
+
+- **`gpu_available=`** removed from `FitManager`, `Measurement.fit_odmr`,
+  `fit_folded_odmr`, `refit_outliers` and the workflow helpers (deprecated
+  since QEP-068). Use `backend='gpufit' | 'scipy' | 'torch' | 'auto'` or a
+  `FitBackend` instance. Passing it now raises `TypeError`.
+- **`OutlierProcessor`** removed (deprecated 2026-08-30). It z-scored along
+  the frequency axis, where the resonance dip is the largest deviation, so it
+  masked either nothing or the signal. Use
+  `qdmpy.field_processing.HotPixelFilter` post-fit. A saved pipeline config
+  naming it now raises `ConfigurationError` with that explanation;
+  `ProcessorRegistry.removed` lists removed types so front ends can strip
+  them before loading.
+
+### Changed (2026-09-19 breaking cleanup) -- BREAKING
+
+- **`FoldedODMR.fold_residual` is no longer clipped to [0, 1].** The clip
+  saturated every pixel whose antisymmetric power exceeded its folded
+  variance at exactly 1.0, erasing the ranking among the pixels that most
+  need inspection. Values are now `>= 0` and unbounded; `plot_folding_overview`
+  scales the map to its 99th percentile. Anything thresholding the map on the
+  old [0, 1] scale must be revisited (qdmpy-gui updated alongside).
+
 ### Changed (2026-09-19 dependency upgrade) -- BREAKING
 
 - **Dependencies upgraded** and floors raised: numpy 2.5, scipy 1.18,

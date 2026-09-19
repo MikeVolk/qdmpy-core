@@ -192,6 +192,25 @@ class TestFoldResidual:
         # Mean residual across all pixels should be near zero
         assert float(result.fold_residual.mean()) < 0.01
 
+    def test_fold_residual_not_saturated_for_bad_pixels(self) -> None:
+        """Badly asymmetric pixels stay distinguishable instead of all reading 1.0.
+
+        Regression: the ratio was clipped to [0, 1], so every pixel worse than
+        "antisymmetric power equals folded variance" saturated at exactly 1.0.
+        """
+        folder = SpectralFolder(_make_odmr_data(shape=(4, 4), noise=0.0), FoldingSettings())
+        dims = ("polarity", "y", "x", "freq_idx")
+        coords = {"polarity": ["neg"]}
+        folded_vals = np.broadcast_to(np.tile([0.0, 1.0], 4), (1, 1, 3, 8)).copy()
+        anti_vals = np.ones((1, 1, 3, 8)) * np.array([0.25, 1.0, 2.0])[None, None, :, None]
+        residual = folder._compute_fold_residual(
+            xr.DataArray(anti_vals, dims=dims, coords=coords),
+            xr.DataArray(folded_vals, dims=dims, coords=coords),
+        ).values[0, 0]
+
+        # folded variance is 0.25, so the ratios are 0.25, 4 and 16.
+        np.testing.assert_allclose(residual, [0.25, 4.0, 16.0], rtol=1e-6)
+
     def test_antisymmetric_near_zero(self) -> None:
         """Symmetric input → antisymmetric component < noise floor."""
         odmr = _make_odmr_data(shape=(8, 8), noise=0.0)

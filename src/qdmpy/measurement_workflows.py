@@ -182,7 +182,6 @@ def _backend_needs_gpufit_preflight(backend: FitBackend | str | None) -> bool:
 def validate_processed_odmr(
     odmr: ODMR,
     *,
-    gpu_available: bool | None = None,
     backend: FitBackend | str | None = None,
 ) -> ODMRData:
     """Return processed ODMR data after dependency validation."""
@@ -192,15 +191,12 @@ def validate_processed_odmr(
         msg = "ODMR data must be processed before fitting. Call odmr.process_data() first."
         raise DataNotLoadedError(msg) from exc
 
-    if gpu_available is None and not _backend_needs_gpufit_preflight(backend):
+    if not _backend_needs_gpufit_preflight(backend):
         return processed_data
 
-    resolved_gpu_available = gpu_available
-    if resolved_gpu_available is None:
-        from qdmpy.settings import is_pygpufit_available
+    from qdmpy.settings import is_pygpufit_available
 
-        resolved_gpu_available = is_pygpufit_available()
-    if not resolved_gpu_available:
+    if not is_pygpufit_available():
         msg = (
             "pyGpufit is required for fitting but not available. "
             "Please install pyGpufit to enable fitting functionality."
@@ -216,7 +212,6 @@ def build_fit_manager(
     freq_cutoff: dict[str, dict[str, float | None]] | None,
     settings: QDMpySettings | None = None,
     backend: FitBackend | str | None = None,
-    gpu_available: bool | None = None,
 ) -> FitManager:
     """Build the concrete FitManager used by Measurement workflows."""
     from qdmpy.fitting.manager import FitManager
@@ -227,7 +222,6 @@ def build_fit_manager(
         freq_cutoff=freq_cutoff,
         settings=settings,
         backend=backend,
-        gpu_available=gpu_available,
     )
 
 
@@ -255,7 +249,6 @@ def fit_measurement_odmr(
     laser_image: NDArray,
     settings: QDMpySettings | None = None,
     backend: FitBackend | str | None = None,
-    gpu_available: bool | None = None,
 ) -> QDMResult:
     """Fit processed ODMR data and wrap the public result."""
     fit_manager = build_fit_manager(
@@ -264,7 +257,6 @@ def fit_measurement_odmr(
         freq_cutoff=freq_cutoff,
         settings=settings,
         backend=backend,
-        gpu_available=gpu_available,
     )
     fit_result = fit_manager.fit(
         processed_data.data,
@@ -332,7 +324,6 @@ def refit_measurement_result(
     freq_cutoff: dict[str, dict[str, float | None]] | None,
     fit_settings: QDMpySettings | None = None,
     backend: FitBackend | str | None = None,
-    gpu_available: bool | None = None,
 ) -> QDMResult:
     """Refit outlier pixels for either regular or folded measurement results."""
     from qdmpy.fitting.refit import refit_outliers as _refit_outliers
@@ -365,7 +356,6 @@ def refit_measurement_result(
         freq_cutoff=freq_cutoff,
         settings=fit_settings,
         backend=backend,
-        gpu_available=gpu_available,
     )
     new_fit_result = _refit_outliers(
         result.fit_result,
@@ -410,23 +400,14 @@ def fit_folded_measurement_odmr(
     laser_image: NDArray,
     fit_settings: QDMpySettings | None = None,
     backend: FitBackend | str | None = None,
-    gpu_available: bool | None = None,
 ) -> QDMResult:
     """Fit folded ODMR data and wrap the public result."""
-    if gpu_available is False:
-        msg = (
-            "pyGpufit is required for fitting but not available. "
-            "Please install pyGpufit to enable fitting functionality."
-        )
-        raise DependencyError(msg)
-
     fit_manager = build_fit_manager(
         model_name=model_name,
         constraints=constraints,
         freq_cutoff=freq_cutoff,
         settings=fit_settings,
         backend=backend,
-        gpu_available=gpu_available,
     )
     fit_result = fit_manager.fit_folded(folded, pixel_spacing=pixel_spacing)
     return build_qdm_result(

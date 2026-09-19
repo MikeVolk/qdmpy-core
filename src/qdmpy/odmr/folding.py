@@ -164,7 +164,8 @@ class FoldedODMR(BaseModel):
         antisymmetric_spectrum: Same dims. Antisymmetric component S_low-S_high
             (quality diagnostic -- should be near zero for symmetric data).
         d_zfs_map: (polarity, y, x) per-pixel fold centre in GHz.
-        fold_residual: (polarity, y, x) normalised [0, 1]; low = symmetric = good.
+        fold_residual: (polarity, y, x) antisymmetric power / folded variance,
+            >= 0 and unbounded; low = symmetric = good, > 1 = asymmetry dominates.
         settings: The FoldingSettings used to produce this result.
         d_candidates: 1D array of D search grid values in GHz (n_steps,).
         search_residual: (polarity, n_steps) mean residual per D candidate,
@@ -722,10 +723,13 @@ class SpectralFolder:
         """Compute normalised fold residual map.
 
         residual = mean(anti^2, axis=freq) / (var(folded, axis=freq) + eps)
-        clipped to [0, 1].
+
+        Deliberately not clipped: a [0, 1] clip saturated every pixel whose
+        asymmetry exceeded its folded variance at exactly 1.0, erasing the
+        ranking among exactly the pixels a user needs to inspect.
 
         Returns:
-            xr.DataArray of shape (polarity, y, x) in [0, 1].
+            xr.DataArray of shape (polarity, y, x), >= 0 and unbounded.
             Low values indicate good spectral symmetry.
         """
         eps = 1e-12
@@ -734,7 +738,7 @@ class SpectralFolder:
 
         numerator = np.mean(anti**2, axis=-1)  # (n_pol, ny, nx)
         denominator = np.var(fold, axis=-1) + eps  # (n_pol, ny, nx)
-        residual = np.clip(numerator / denominator, 0.0, 1.0)
+        residual = numerator / denominator
 
         pol_labels = list(antisymmetric.coords["polarity"].values)
         return xr.DataArray(

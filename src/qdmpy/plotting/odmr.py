@@ -288,7 +288,7 @@ def plot_folding_overview(folded: FoldedODMR) -> None:
         origin="upper",
         aspect="equal",
         vmin=0,
-        vmax=1,
+        vmax=float(np.nanpercentile(res_mean, 99)),
     )
     axes[1, 1].set_title("Fold residual (0=good)")
     _add_colorbar(im1, axes[1, 1], label="residual")

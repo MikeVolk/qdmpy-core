@@ -48,7 +48,7 @@ print(result.model_name)   # e.g. 'ESR14N'
 
 If you need deterministic behavior in tests or batch jobs, keep the returned
 `Measurement` object and pass explicit overrides through `fit_odmr()`, such as
-`settings=my_settings` or `gpu_available=False`.
+`settings=my_settings` or `backend='scipy'`.
 
 ### Explicit selection
 
@@ -221,11 +221,11 @@ the wrapper's runtime decision directly:
 ```python
 meas = qdmpy.load('/data/FOV18x')
 
-# Use an explicit dependency result at the Measurement boundary
-result = meas.fit_odmr(gpu_available=False)
+# Pin the fit backend instead of relying on auto-detection
+result = meas.fit_odmr(backend="scipy")
 
 # Or inject a custom settings object into FitManager construction
-result = meas.fit_odmr(settings=my_settings, gpu_available=True)
+result = meas.fit_odmr(settings=my_settings, backend="gpufit")
 ```
 
 Use these overrides when you need deterministic behavior. For normal user

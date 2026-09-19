@@ -407,18 +407,18 @@ class TestFitODMR:
             _, kwargs = mock_fm_cls.call_args
             assert kwargs["model_name"] == "ESR14N"
 
-    def test_explicit_settings_and_gpu_override_are_forwarded(self, measurement) -> None:
-        """fit_odmr() can run with explicit settings and GPU override."""
+    def test_explicit_settings_and_backend_are_forwarded(self, measurement) -> None:
+        """fit_odmr() forwards explicit settings and backend to FitManager."""
         with patch("qdmpy.fitting.manager.FitManager") as mock_fm_cls:
             mock_fm = mock_fm_cls.return_value
             mock_fm.fit.return_value = _make_fit_result("ESR15N")
 
             with patch("qdmpy.settings.is_pygpufit_available", return_value=False):
-                result = measurement.fit_odmr(settings=MOCK_SETTINGS, gpu_available=True)
+                result = measurement.fit_odmr(settings=MOCK_SETTINGS, backend="scipy")
 
             _, kwargs = mock_fm_cls.call_args
             assert kwargs["settings"] is MOCK_SETTINGS
-            assert kwargs["gpu_available"] is True
+            assert kwargs["backend"] == "scipy"
             assert isinstance(result, QDMResult)
 
 
@@ -456,11 +456,11 @@ class TestValidateFitPrerequisites:
         ):
             measurement._validate_fit_prerequisites(backend="gpufit")
 
-    def test_explicit_gpu_override_skips_global_lookup(self, measurement) -> None:
+    def test_non_gpufit_backend_skips_pygpufit_lookup(self, measurement) -> None:
         with patch(
             "qdmpy.settings.is_pygpufit_available", side_effect=AssertionError("used global")
         ):
-            processed = measurement._validate_fit_prerequisites(gpu_available=True)
+            processed = measurement._validate_fit_prerequisites(backend="scipy")
 
         assert processed is measurement.odmr.processed_data
 
@@ -647,7 +647,7 @@ class TestFitFoldedODMR:
             assert kwargs.get("freq_cutoff") == cutoff
 
     def test_explicit_settings_and_gpu_override_are_forwarded(self, measurement) -> None:
-        """fit_folded_odmr() can run with explicit settings and GPU override."""
+        """fit_folded_odmr() forwards explicit settings and backend to FitManager."""
         measurement._folded_odmr = _make_folded_odmr()
 
         with patch("qdmpy.fitting.manager.FitManager") as mock_fm_cls:
@@ -655,11 +655,11 @@ class TestFitFoldedODMR:
             mock_fm.fit_folded.return_value = _make_fit_result("ESR15N")
 
             with patch("qdmpy.settings.is_pygpufit_available", return_value=False):
-                result = measurement.fit_folded_odmr(settings=MOCK_SETTINGS, gpu_available=True)
+                result = measurement.fit_folded_odmr(settings=MOCK_SETTINGS, backend="scipy")
 
             _, kwargs = mock_fm_cls.call_args
             assert kwargs["settings"] is MOCK_SETTINGS
-            assert kwargs["gpu_available"] is True
+            assert kwargs["backend"] == "scipy"
             assert isinstance(result, QDMResult)
 
 

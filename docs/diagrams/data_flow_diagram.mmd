@@ -20,19 +20,16 @@ flowchart TD
     E --> F[Processing Pipeline]
     F --> F1[BinningProcessor<br/>bin_factor: 2<br/>Reduces spatial resolution<br/>36000 → 9000 pixels]
     F --> F2[NormalizationProcessor<br/>method: 'max'<br/>Normalizes spectra to max value]
-    F --> F3[OutlierProcessor<br/>threshold: float<br/>Masks statistical outliers]
     F --> F4[FluorescenceCorrectionProcessor<br/>correction_factor: float<br/>Corrects background fluorescence]
 
     %% Data Processing
     F1 --> G[Processed ODMRData<br/>Shape: 2 × 2 × 9000 × 51<br/>Spatial binning applied]
     F2 --> H[Normalized Data<br/>All spectra scaled 0-1<br/>Consistent contrast]
-    F3 --> I[Outlier-filtered Data<br/>Anomalous points → NaN<br/>Improved data quality]
     F4 --> J[Fluorescence-corrected Data<br/>Background compensation<br/>Enhanced contrast]
 
     %% Sequential Processing
     G --> H
-    H --> I
-    I --> J
+    H --> J
 
     %% Model Selection
     K[ModelRegistry] --> L[ESR14N Model<br/>3 dips: mI = -1, 0, +1<br/>6 parameters]
@@ -89,8 +86,8 @@ flowchart TD
     classDef resultClass fill:#fff3e0,stroke:#e65100,stroke-width:2px
     classDef integrationClass fill:#fce4ec,stroke:#880e4f,stroke-width:2px
 
-    class A,A1,C,D,G,H,I,J dataClass
-    class B,B1,E,F,F1,F2,F3,F4,O,P,R,S processClass
+    class A,A1,C,D,G,H,J dataClass
+    class B,B1,E,F,F1,F2,F4,O,P,R,S processClass
     class K,L,M,N,Q modelClass
     class T,V,BB resultClass
     class W,X,Y,Z,AA integrationClass

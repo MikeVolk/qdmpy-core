@@ -95,9 +95,7 @@ def _run_consistency(model_name: str, true_params: np.ndarray) -> None:
     model = ModelRegistry.get(model_name)
     spectra = model.func(FREQ, true_params).astype(np.float32)  # (N, n_freq)
 
-    fm = FitManager(
-        model_name=model_name, settings=_GPUFIT_CONSISTENCY_SETTINGS, gpu_available=True
-    )
+    fm = FitManager(model_name=model_name, settings=_GPUFIT_CONSISTENCY_SETTINGS, backend="gpufit")
     data = spectra[np.newaxis]  # (1, N, n_freq)
     init = true_params[np.newaxis]  # (1, N, n_params)
 

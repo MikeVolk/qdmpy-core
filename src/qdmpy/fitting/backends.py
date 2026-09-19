@@ -380,9 +380,8 @@ def bounds_from_constraints(
 class _ForcedAvailability:
     """Wraps a backend, pinning ``is_available()`` to a fixed value.
 
-    Backs the deprecated ``FitManager(gpu_available=...)`` override: it lets
-    callers force the availability decision without touching the real
-    dependency check, exactly like the boolean flag it replaces.
+    Lets tests exercise both sides of the availability decision without
+    touching the real dependency check.
     """
 
     def __init__(self: _ForcedAvailability, backend: FitBackend, available: bool) -> None:
@@ -421,8 +420,7 @@ class _ForcedAvailability:
 def with_forced_availability(backend: FitBackend, *, available: bool) -> FitBackend:
     """Wrap ``backend`` so ``is_available()`` always returns ``available``.
 
-    Backs the deprecated ``FitManager(gpu_available=...)`` override without
-    exposing the wrapper class itself.
+    Intended for tests; the wrapper class itself stays private.
     """
     return _ForcedAvailability(backend, available)
 

@@ -7,6 +7,7 @@ import pytest
 import xarray as xr
 from pydantic import ValidationError
 
+from qdmpy.exceptions import ConfigurationError
 from qdmpy.odmr.data import ODMRData
 from qdmpy.odmr.processors import (
     BaseProcessor,
@@ -14,7 +15,7 @@ from qdmpy.odmr.processors import (
     FluorescenceCorrectionProcessor,
     NormalizationProcessor,
     ODMRProcessorManager,
-    OutlierProcessor,
+    ProcessorRegistry,
     analyze_fluorescence_effects,
 )
 
@@ -193,65 +194,26 @@ class TestBinningProcessor:
             processor.process(sample_odmr_data)
 
 
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
-class TestOutlierProcessor:
-    """Test class for OutlierProcessor (deprecated -- see the class docstring)."""
+class TestRemovedOutlierProcessor:
+    """OutlierProcessor was removed; saved configs naming it must say why."""
 
-    def test_deprecation_warning(self) -> None:
-        """Constructing OutlierProcessor warns that it masks the resonance."""
-        with pytest.warns(DeprecationWarning, match="deprecated"):
-            OutlierProcessor()
+    def test_not_importable(self) -> None:
+        import qdmpy
+        from qdmpy.odmr import processors
 
-    def test_default_threshold_destroys_the_data(self, sample_odmr_data) -> None:
-        """The shipped default masks essentially everything.
+        assert not hasattr(processors, "OutlierProcessor")
+        assert not hasattr(qdmpy, "OutlierProcessor")
 
-        Documents *why* this processor is deprecated: the resonance dip is the
-        largest deviation along freq_idx, so no threshold separates noise from
-        signal. Retained as executable evidence until removal.
-        """
-        result = OutlierProcessor().process(sample_odmr_data)
-        assert np.isnan(result.data.values).mean() > 0.99
+    def test_saved_config_raises_with_reason(self) -> None:
+        config = [
+            {"type": "NormalizationProcessor", "method": "mean"},
+            {"type": "OutlierProcessor", "z_score_threshold": 0.003},
+        ]
+        with pytest.raises(ConfigurationError, match="HotPixelFilter"):
+            ODMRProcessorManager.from_config(config)
 
-    def test_init_default(self) -> None:
-        """Test initialization with default parameters."""
-        processor = OutlierProcessor()
-        assert processor.z_score_threshold == 0.003
-
-    def test_init_custom(self) -> None:
-        """Test initialization with custom parameters."""
-        processor = OutlierProcessor(z_score_threshold=0.01)
-        assert processor.z_score_threshold == 0.01
-
-    def test_init_invalid(self) -> None:
-        """Test that non-positive threshold raises ValidationError."""
-        with pytest.raises(ValidationError):
-            OutlierProcessor(z_score_threshold=0.0)
-
-        with pytest.raises(ValidationError):
-            OutlierProcessor(z_score_threshold=-1.0)
-
-    def test_type_field(self) -> None:
-        """Test that type discriminator field is correct."""
-        processor = OutlierProcessor()
-        assert processor.type == "OutlierProcessor"
-
-    def test_process(self, sample_odmr_data) -> None:
-        """Test process method masks outlier values as NaN."""
-        sample_odmr_data.data.values[0, 0, 0, 0, 0] = 1000.0
-
-        processor = OutlierProcessor(z_score_threshold=0.1)
-        result = processor.process(sample_odmr_data)
-
-        assert result is not sample_odmr_data
-        assert isinstance(result, ODMRData)
-        assert isinstance(result.data, xr.DataArray)
-        assert np.isnan(result.data.values[0, 0, 0, 0, 0])
-
-    def test_to_config(self) -> None:
-        """Test serialization to config dict."""
-        processor = OutlierProcessor(z_score_threshold=0.01)
-        config = processor.to_config()
-        assert config == {"type": "OutlierProcessor", "z_score_threshold": 0.01}
+    def test_listed_as_removed(self) -> None:
+        assert "OutlierProcessor" in ProcessorRegistry.removed
 
 
 class TestFluorescenceCorrectionProcessor:
