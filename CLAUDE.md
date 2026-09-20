@@ -101,6 +101,28 @@ dimension: `[:, 0]` = negatively-signed dB, `[:, 1]` = positively-signed dB. Ext
 - Run single test: `uv run pytest tests/test_file.py::test_function -v`
 - Run with coverage: `uv run pytest --cov=qdmpy --cov-report=term-missing`
 
+### Markers
+Every test module declares a module-level `pytestmark`. `--strict-markers` is on,
+so an unregistered marker is a collection error, and `tests/test_markers.py`
+fails if a registered marker has no users or a used marker has no registration.
+
+| Marker | Selects |
+|---|---|
+| `unit` / `integration` | exactly one per module; `integration` means needs a real GPU or real dataset |
+| `fitting`, `processing`, `data_loading`, `magnetic_fields` | subject area |
+| `binning` | class-level, inside the processor tests |
+| `slow` | slow once its gate opens (only the integration modules) |
+| `requires_real_data` | needs `tests/data/`, which is gitignored and machine-local |
+
+```sh
+uv run pytest -m fitting             # iterate on the fitter
+uv run pytest -m "not integration"   # what CI effectively runs
+```
+
+Build test DataArrays with `tests/helpers.py` (`make_xr_data`, `make_odmr_xr`);
+they source coordinate labels from `qdmpy.constants` so fixtures cannot drift
+from the canonical `neg`/`pos` and `low`/`high` (QEP-TEST-001).
+
 ## Linting
 - Run all checks: `pre-commit run --all-files`
 - Run ruff: `uv run ruff check .`
@@ -134,7 +156,9 @@ Each top-level directory has a single, unambiguous purpose.
   Think "copy-paste starting point". No notebooks here.
 - `scripts/` — Developer-only tooling: benchmarks, profilers, reference data
   generators. Not for library users.
-- `reference_data/` — NPZ regression fixtures used by the test suite.
+- `reference_data/` — NPZ fixtures from the retired old-vs-new comparison
+  harness (see QEP-031). **No test reads them**; they are kept as reference
+  values cited by QEPs. Do not describe them as part of the test suite.
 - `proposals/` — QEP design documents. One file per feature/change.
 - `memory/` — Claude AI session memory files. See Memory Files section.
 - `site/` — Build artifact from `mkdocs build`. Never commit. Delete with
@@ -148,7 +172,7 @@ Each top-level directory has a single, unambiguous purpose.
 | **Interactive hands-on notebook** (published) | `docs/tutorials/` | `docs/tutorials/01-quickstart.ipynb`, `docs/tutorials/02-exploration.ipynb` |
 | **Experimental/scratch notebook** | `notebooks/experiments/` | `notebooks/experiments/fluorescence-correction-auto-alpha.ipynb` |
 | **User-facing copy-paste script** | `examples/` | `examples/fit_15n_sample.py` |
-| **Developer/maintenance script** | `scripts/` | `scripts/generate_reference_data.py` |
+| **Developer/maintenance script** | `scripts/` | `scripts/benchmark_fit_backends.py` |
 
 **Notebook naming convention** (for published tutorials):
 - Numbered sequentially: `01-quickstart.ipynb`, `02-exploration.ipynb`, etc.
