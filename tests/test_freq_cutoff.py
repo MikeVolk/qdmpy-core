@@ -12,6 +12,8 @@ import pytest
 from qdmpy.exceptions import DataValidationError
 from qdmpy.fitting.freq_cutoff import FreqCutoff, FreqCutoffBounds
 
+pytestmark = [pytest.mark.unit, pytest.mark.fitting]
+
 
 class TestFromRaw:
     """FreqCutoff.from_raw() schema/type/range validation and normalization."""

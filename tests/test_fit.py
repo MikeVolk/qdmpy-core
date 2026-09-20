@@ -31,6 +31,9 @@ from qdmpy.settings import (
     QDMpySettings,
 )
 from qdmpy.testing import FakeFitBackend, RecordingFitBackend
+from tests.helpers import make_xr_data
+
+pytestmark = [pytest.mark.unit, pytest.mark.fitting]
 
 # Mock settings for tests (center/width values in GHz, matching default settings convention)
 MOCK_SETTINGS = QDMpySettings(
@@ -59,29 +62,6 @@ MOCK_SETTINGS = QDMpySettings(
 )
 
 
-def _make_xr_data(numpy_4d: np.ndarray) -> xr.DataArray:
-    """Convert 4D numpy (n_pol, n_frange, n_pixel, n_freq) to 5D xr.DataArray.
-
-    Assumes pixels can be arranged as a square grid.
-    """
-    n_pol, n_frange, n_pixel, n_freq = numpy_4d.shape
-    side = int(np.sqrt(n_pixel))
-    assert side * side == n_pixel, f"n_pixel={n_pixel} is not a perfect square"
-
-    data_5d = numpy_4d.reshape(n_pol, n_frange, side, side, n_freq)
-    freq_ghz = np.tile(np.linspace(2.87, 2.88, n_freq), (n_frange, 1))
-
-    return xr.DataArray(
-        data_5d,
-        dims=("polarity", "freq_range", "y", "x", "freq_idx"),
-        coords={
-            "polarity": [f"pol_{i}" for i in range(n_pol)],
-            "freq_range": [f"frange_{i}" for i in range(n_frange)],
-            "freq_ghz": (["freq_range", "freq_idx"], freq_ghz),
-        },
-    )
-
-
 @pytest.fixture
 def sample_numpy_data():
     """Create sample 4D numpy data (n_pol, n_frange, n_pixel, n_freq)."""
@@ -102,7 +82,7 @@ def sample_numpy_data():
 @pytest.fixture
 def sample_data(sample_numpy_data):
     """Create sample xr.DataArray for testing the FitManager."""
-    return _make_xr_data(sample_numpy_data)
+    return make_xr_data(sample_numpy_data)
 
 
 @pytest.fixture
@@ -574,7 +554,7 @@ class TestReshapeFrangeResultsPixelCounts:
     @pytest.mark.parametrize(("n_pol", "n_pixel"), [(1, 4), (1, 1), (2, 1), (2, 4)])
     def test_fit_handles_pixel_count(self, n_pol: int, n_pixel: int) -> None:
         numpy_4d = np.ones((n_pol, 1, n_pixel, 10))
-        data = _make_xr_data(numpy_4d)
+        data = make_xr_data(numpy_4d)
         freqs = np.linspace(2.87, 2.88, 10)
 
         mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
@@ -972,7 +952,7 @@ def test_get_initial_parameter_via_guesser(sample_data, sample_frequencies) -> N
 def test_get_initial_parameter_edge_cases(sample_frequencies) -> None:
     """Test ParameterGuesser with zero data (edge case)."""
     zero_data_4d = np.zeros((2, 1, 4, 10))
-    zero_data_xr = _make_xr_data(zero_data_4d)
+    zero_data_xr = make_xr_data(zero_data_4d)
     model = ModelRegistry.get("ESRSINGLE")
     guesser = ParameterGuesser(model, np.atleast_2d(sample_frequencies))
     values = zero_data_xr.values

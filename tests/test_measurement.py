@@ -24,6 +24,8 @@ from qdmpy.odmr.processors import BinningProcessor
 from qdmpy.result import QDMResult
 from qdmpy.settings import FitSettings, ModelConstraintsSettings, ModelSettings, QDMpySettings
 
+pytestmark = [pytest.mark.unit]
+
 MOCK_SETTINGS = QDMpySettings(
     fit=FitSettings(
         estimator="LSE",

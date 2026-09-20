@@ -7,6 +7,51 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-09-20 test foundation, QEP-TEST-001)
+
+- **Test fixtures used pre-QEP-025 coordinate labels.** `tests/test_fit.py`
+  built its DataArrays with `pol_0`/`pol_1` and `frange_0`/`frange_1`. Those
+  tests passed only because `FitManager` indexes positionally; the data could
+  not reach `odmr/analysis.py`, `odmr/folding.py` or `fitting/result.py` at all,
+  so the fixtures were structurally incapable of catching a label bug. Three
+  duplicate builders are replaced by `tests/helpers.py`, which sources labels
+  from `qdmpy.constants`, with `test_constants.py` locking the literal values so
+  a rename still fails loudly.
+- **`test_keys_missing_exception` was a tautology.** It re-implemented
+  `odmr/io.py`'s try/except inside its own body and asserted its own raise,
+  never calling `MatlabLoader` -- it would have passed had the production error
+  handling been deleted. Replaced by synthetic-`.mat` tests that drive `load()`
+  end to end, including the y-axis flip and the Hz->GHz conversion, verified by
+  mutation rather than coverage alone.
+- **`MatlabLoader.load()` had no CI coverage.** `tests/data/` is gitignored, so
+  every real-data test skips on CI; the synthetic fixtures now cover the loader
+  everywhere. `odmr/io.py` 88% -> 97%.
+
+### Added (2026-09-20 test foundation, QEP-TEST-001)
+
+- `tests/test_testing.py` -- the seven public helpers in `qdmpy.testing` had no
+  direct test despite being documented API used by four tutorial notebooks;
+  `make_synthetic_fit_result` had none at all. Coverage 93% -> 100%. The B111
+  assertions pin the sign convention and units for QEP-FIT-004.
+- `tests/test_b111_parity.py` -- characterisation test pinning agreement between
+  the two duplicated B111 implementations (`fitting/result.py` and
+  `odmr/analysis.py`), so QEP-FIT-004's deduplication is verifiable. Tolerance
+  is derived from the frequency-grid quantisation, not tuned.
+- `tests/test_markers.py` and `--strict-markers` -- all 11 pytest markers were
+  registered and applied to zero tests, so every documented `-m` command
+  selected nothing. Markers are now applied module-wide; `validation` and
+  `performance` were dropped as unapplicable, and `requires_reference_data`
+  renamed `requires_real_data`.
+
+### Changed (2026-09-20 test foundation, QEP-TEST-001)
+
+- `tests/conftest.py` 207 -> 35 lines. Every fixture but the autouse
+  `_isolate_model_registry` was shadowed and never resolved; three incompatible
+  fixtures were all named `sample_data`.
+- `tests/integration/README.md` rewritten. It had documented six fixtures, five
+  test files and a generator script that do not exist. `CLAUDE.md` no longer
+  claims `reference_data/` is used by the test suite -- no test reads it.
+
 ---
 
 ## [0.1.0] - 2026-09-20

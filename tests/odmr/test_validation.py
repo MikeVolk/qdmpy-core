@@ -8,6 +8,8 @@ import pytest
 from qdmpy.exceptions import DataValidationError
 from qdmpy.odmr._validators import NV_FREQ_MAX_GHZ, NV_FREQ_MIN_GHZ, validate_frequencies
 
+pytestmark = [pytest.mark.unit, pytest.mark.processing]
+
 
 class TestValidateFrequencies:
     """Tests for validate_frequencies utility."""

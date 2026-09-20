@@ -13,6 +13,9 @@ import qdmpy
 from qdmpy.measurement import Measurement
 from qdmpy.odmr.data import ODMRData
 from qdmpy.odmr.manager import ODMR
+from tests.helpers import make_odmr_xr
+
+pytestmark = [pytest.mark.unit, pytest.mark.data_loading]
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
@@ -23,18 +26,7 @@ N_POL, N_FRANGE, H, W, N_FREQ = 2, 2, 8, 8, 20
 
 def _make_xr_data() -> xr.DataArray:
     """Minimal xr.DataArray with correct dims for ODMRData."""
-    rng = np.random.default_rng(42)
-    arr = rng.random((N_POL, N_FRANGE, H, W, N_FREQ))
-    freq_ghz = np.linspace(2.82, 2.92, N_FREQ)
-    return xr.DataArray(
-        arr,
-        dims=("polarity", "freq_range", "y", "x", "freq_idx"),
-        coords={
-            "polarity": ["neg", "pos"],
-            "freq_range": ["low", "high"],
-            "freq_ghz": (["freq_range", "freq_idx"], np.stack([freq_ghz, freq_ghz])),
-        },
-    )
+    return make_odmr_xr(n_pol=N_POL, n_frange=N_FRANGE, height=H, width=W, n_freq=N_FREQ)
 
 
 @pytest.fixture

@@ -30,6 +30,8 @@ from hypothesis import settings as hyp_settings
 from hypothesis import strategies as st
 from pydantic import ValidationError
 
+pytestmark = [pytest.mark.unit, pytest.mark.magnetic_fields]
+
 # ---------------------------------------------------------------------------
 # Shared test helpers
 # ---------------------------------------------------------------------------

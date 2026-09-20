@@ -31,7 +31,12 @@ except (ImportError, OSError):
     gf = None
     _HAS_GPUFIT = False
 
-pytestmark = pytest.mark.skipif(not _HAS_GPUFIT, reason="Requires a CUDA-capable GPU")
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.slow,
+    pytest.mark.fitting,
+    pytest.mark.skipif(not _HAS_GPUFIT, reason="Requires a CUDA-capable GPU"),
+]
 
 N = 64
 N_FREQ = 50

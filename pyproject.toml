@@ -81,24 +81,31 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
-addopts = "-ra -v --cov=qdmpy --cov-report=term-missing --no-cov-on-fail"
+addopts = "-ra -v --strict-markers --cov=qdmpy --cov-report=term-missing --no-cov-on-fail"
 # pytest's defaults are replaced, not extended, so they are restated here.
 norecursedirs = [
     "*.egg", ".*", "_darcs", "build", "CVS", "dist", "node_modules", "venv", "{arch}",
     "output",
 ]
+# Every marker here is applied to at least one test, and tests/test_markers.py
+# asserts that stays true in both directions. Until QEP-TEST-001 all eleven were
+# registered and none was ever applied, so every documented `-m` command
+# silently selected zero tests.
+#
+# Two were dropped rather than applied: `validation` described comparison
+# against the pre-overhaul codebase, a migration that finished (see QEP-031),
+# and `performance` described benchmarks, which live in scripts/ and are outside
+# testpaths. Neither could ever select a test.
 markers = [
-    "slow: marks tests as slow running (integration tests, heavy computations)",
-    "validation: marks tests that validate against reference implementations",
-    "performance: marks tests that benchmark performance characteristics",
-    "integration: marks tests that test multiple components together",
-    "unit: marks tests that test individual components in isolation",
-    "data_loading: marks tests that test data loading functionality",
-    "processing: marks tests that test ODMR data processing",
-    "fitting: marks tests that test spectral fitting functionality",
-    "magnetic_fields: marks tests that test magnetic field calculations",
-    "binning: marks tests that test pixel binning operations",
-    "requires_reference_data: marks tests that require pre-generated reference data",
+    "unit: isolated test of one component; the default for everything outside tests/integration/",
+    "integration: needs a real GPU or a real dataset, so it is gated and skips by default",
+    "slow: slow once its GPU/real-data gate opens -- nothing in the unit suite is slow",
+    "data_loading: MATLAB/NPZ/QDM loading and the ODMRData container",
+    "processing: the ODMR processor pipeline, folding and validation",
+    "fitting: models, guessing, constraints, backends and FitResult",
+    "magnetic_fields: B111, field processing, reconstruction and source fitting",
+    "binning: pixel binning specifically (class-level, inside the processor tests)",
+    "requires_real_data: needs data under tests/data/, which is gitignored and machine-local",
 ]
 
 [tool.coverage.report]

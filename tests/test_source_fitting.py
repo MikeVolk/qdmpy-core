@@ -15,10 +15,13 @@ import numpy as np
 import pypole.convert
 import pypole.dipole
 import pypole.maps
+import pytest
 
 from qdmpy.field_source import FieldSource, MagneticModel, MagneticSource
 from qdmpy.source_fitting import FitSourceResult, compute_field, fit_source, fit_sources
 from qdmpy.testing import make_synthetic_qdm_result
+
+pytestmark = [pytest.mark.unit, pytest.mark.magnetic_fields]
 
 # ---------------------------------------------------------------------------
 # Shared constants

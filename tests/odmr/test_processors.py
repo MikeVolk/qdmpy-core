@@ -19,6 +19,8 @@ from qdmpy.odmr.processors import (
     analyze_fluorescence_effects,
 )
 
+pytestmark = [pytest.mark.unit, pytest.mark.processing]
+
 
 @pytest.fixture
 def sample_odmr_data():
@@ -141,6 +143,7 @@ class TestNormalizationProcessor:
         assert any("zero" in m.lower() for m in messages)
 
 
+@pytest.mark.binning
 class TestBinningProcessor:
     """Test class for BinningProcessor."""
 

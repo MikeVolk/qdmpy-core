@@ -20,7 +20,13 @@ try:
 except (ImportError, OSError):
     _HAS_GPUFIT = False
 
-pytestmark = pytest.mark.skipif(not _HAS_GPUFIT, reason="Requires a CUDA-capable GPU")
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.slow,
+    pytest.mark.requires_real_data,
+    pytest.mark.fitting,
+    pytest.mark.skipif(not _HAS_GPUFIT, reason="Requires a CUDA-capable GPU"),
+]
 
 
 def _compute_folded_vs_normal_metrics(data_path: Path, model_name: str) -> dict[str, float]:

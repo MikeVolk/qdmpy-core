@@ -10,6 +10,8 @@ from qdmpy.constants import GAMMA_NV
 from qdmpy.exceptions import DataValidationError
 from qdmpy.odmr.analysis import b111_from_dip_positions
 
+pytestmark = [pytest.mark.unit, pytest.mark.magnetic_fields]
+
 
 def _make_odmr_data(
     dip_low_neg: float,
