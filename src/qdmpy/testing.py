@@ -51,6 +51,7 @@ class FakeFitBackend:
         self: FakeFitBackend,
         data: NDArray,
         freq_ghz: NDArray,  # noqa: ARG002
+        *,
         initial_parameters: NDArray,
         constraints: NDArray,  # noqa: ARG002
         constraint_types: NDArray,  # noqa: ARG002
@@ -100,6 +101,7 @@ class RecordingFitBackend(FakeFitBackend):
         self: RecordingFitBackend,
         data: NDArray,
         freq_ghz: NDArray,
+        *,
         initial_parameters: NDArray,
         constraints: NDArray,
         constraint_types: NDArray,
@@ -111,7 +113,13 @@ class RecordingFitBackend(FakeFitBackend):
         self.constraints_calls.append(np.asarray(constraints))
         self.constraint_types_calls.append(np.asarray(constraint_types))
         return super().fit(
-            data, freq_ghz, initial_parameters, constraints, constraint_types, model, options
+            data,
+            freq_ghz,
+            initial_parameters=initial_parameters,
+            constraints=constraints,
+            constraint_types=constraint_types,
+            model=model,
+            options=options,
         )
 
 
@@ -125,6 +133,7 @@ def _dipole_field(shape: tuple[int, int], amplitude: float = 50.0) -> NDArray:
 
 def make_synthetic_odmr_data(
     shape: tuple[int, int] = (16, 16),
+    *,
     n_freq: int = 50,
     model_name: str = "ESR14N",
     noise: float = 0.002,

@@ -23,4 +23,4 @@ The `ConstraintManager` class manages constraints on fit parameters, providing a
 ## Constants and Types
 
 ::: qdmpy.fitting.CONSTRAINT_TYPES
-::: qdmpy.fitting.manager.ESTIMATOR_ID
+::: qdmpy.fitting.backends.ESTIMATOR_ID

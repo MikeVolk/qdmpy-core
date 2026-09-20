@@ -493,7 +493,7 @@ class SpectralFolder:
     def _coarsen_data(self) -> xr.DataArray:
         """Coarsen ODMR data spatially by bin_factor for high-SNR D_ZFS search."""
         bf = self._settings.bin_factor
-        return self._odmr_data.data.coarsen(y=bf, x=bf, boundary="trim").mean()  # type: ignore[attr-defined]
+        return self._odmr_data.data.coarsen(y=bf, x=bf, boundary="trim").mean()  # ty: ignore[unresolved-attribute]
 
     def _find_d_zfs_coarse(self, coarse_data: xr.DataArray) -> tuple[NDArray, NDArray, NDArray]:
         """Brute-force D_ZFS search at coarse resolution.

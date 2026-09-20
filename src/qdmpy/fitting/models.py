@@ -596,7 +596,7 @@ class ModelRegistry:
     _registry: ClassVar[dict[str, type[Model]]] = {}
 
     @classmethod
-    def register(cls: type[ModelRegistry], model_cls: type[Model]) -> type[Model]:
+    def register[M: type[Model]](cls: type[ModelRegistry], model_cls: M) -> M:
         """Register a model class (usable as a decorator).
 
         Args:
@@ -606,7 +606,7 @@ class ModelRegistry:
         Returns:
             The model class, unchanged.
         """
-        model_name: str = model_cls.name  # type: ignore[attr-defined]
+        model_name: str = model_cls.name  # ty: ignore[unresolved-attribute]  # QEP-FIT-005
         cls._registry[model_name] = model_cls
         logger.info("Registered model: {}", model_name)
         return model_cls
@@ -628,7 +628,7 @@ class ModelRegistry:
             error_msg = f"Model '{name}' not found in registry"
             raise KeyError(error_msg)
         logger.debug("Instantiating model: {}", name)
-        return cls._registry[name]()  # type: ignore[call-arg]
+        return cls._registry[name]()  # ty: ignore[missing-argument]  # QEP-FIT-005
 
     @classmethod
     def all(cls: type[ModelRegistry]) -> dict[str, type[Model]]:

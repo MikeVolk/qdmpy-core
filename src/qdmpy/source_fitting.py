@@ -247,4 +247,14 @@ def compute_field(
         roi_w,
         standoff_m,
     )
-    return pypole.fit.dipole_field(x_grid, y_grid, 0.0, 0.0, standoff_m, mx, my, mz)
+    # pypole annotates the source position as NDArray; the numba kernel takes scalars.
+    return pypole.fit.dipole_field(
+        x_grid,
+        y_grid,
+        0.0,  # ty: ignore[invalid-argument-type]
+        0.0,  # ty: ignore[invalid-argument-type]
+        standoff_m,  # ty: ignore[invalid-argument-type]
+        mx,
+        my,
+        mz,
+    )

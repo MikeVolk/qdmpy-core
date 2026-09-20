@@ -104,7 +104,13 @@ def _run_consistency(model_name: str, device: str, *, perturb: bool) -> None:
 
     constraints, constraint_types = _constraints_for(model)
     out = TorchBackend(device=device).fit(
-        spectra, FREQ, init, constraints, constraint_types, model, _OPTIONS
+        spectra,
+        FREQ,
+        initial_parameters=init,
+        constraints=constraints,
+        constraint_types=constraint_types,
+        model=model,
+        options=_OPTIONS,
     )
 
     assert np.all(out.states == 0), (

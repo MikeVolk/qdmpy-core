@@ -94,7 +94,15 @@ class TestWithoutTorch:
             patch.dict(sys.modules, {"torch": None}),
             pytest.raises(DependencyError, match="--extra gpu"),
         ):
-            TorchBackend().fit(y, x, x0, constraints, ctypes, model, FitBackendOptions())
+            TorchBackend().fit(
+                y,
+                x,
+                initial_parameters=x0,
+                constraints=constraints,
+                constraint_types=ctypes,
+                model=model,
+                options=FitBackendOptions(),
+            )
 
 
 @pytest.mark.skipif(not _HAS_TORCH, reason="Requires torch (gpu extra)")
@@ -144,7 +152,13 @@ class TestLevenbergMarquardt:
         model, x, y, true, x0 = _synthetic_esrsingle(64)
         constraints, ctypes = _free_constraints(64, 4)
         out = TorchBackend(device="cpu").fit(
-            y, x, x0, constraints, ctypes, model, FitBackendOptions(estimator="LSE")
+            y,
+            x,
+            initial_parameters=x0,
+            constraints=constraints,
+            constraint_types=ctypes,
+            model=model,
+            options=FitBackendOptions(estimator="LSE"),
         )
         assert np.all(out.states == 0)
         assert np.all(out.chi2 < 1e-6)
@@ -166,7 +180,13 @@ class TestLevenbergMarquardt:
         # contrast LOWER_UPPER; offset FREE
         ctypes = np.array([3, 0, 3, 0], dtype=np.int32)
         out = TorchBackend(device="cpu").fit(
-            y, x, x0, constraints, ctypes, model, FitBackendOptions(estimator="LSE")
+            y,
+            x,
+            initial_parameters=x0,
+            constraints=constraints,
+            constraint_types=ctypes,
+            model=model,
+            options=FitBackendOptions(estimator="LSE"),
         )
         centers = out.parameters[:, 0]
         assert np.all(centers >= 2.8455 - 1e-6)
@@ -182,7 +202,13 @@ class TestLevenbergMarquardt:
         )
         ctypes = np.array([3, 3, 3, 3], dtype=np.int32)
         out = TorchBackend(device="cpu").fit(
-            y, x, x0, constraints, ctypes, model, FitBackendOptions(estimator="LSE")
+            y,
+            x,
+            initial_parameters=x0,
+            constraints=constraints,
+            constraint_types=ctypes,
+            model=model,
+            options=FitBackendOptions(estimator="LSE"),
         )
         assert np.all(out.parameters[:, 0] <= 2.86 + 1e-6)
 
@@ -191,10 +217,22 @@ class TestLevenbergMarquardt:
         constraints, ctypes = _free_constraints(23, 4)
         opts = FitBackendOptions(estimator="LSE")
         out_small = TorchBackend(device="cpu", chunk_size=7).fit(
-            y, x, x0, constraints, ctypes, model, opts
+            y,
+            x,
+            initial_parameters=x0,
+            constraints=constraints,
+            constraint_types=ctypes,
+            model=model,
+            options=opts,
         )
         out_big = TorchBackend(device="cpu", chunk_size=10**6).fit(
-            y, x, x0, constraints, ctypes, model, opts
+            y,
+            x,
+            initial_parameters=x0,
+            constraints=constraints,
+            constraint_types=ctypes,
+            model=model,
+            options=opts,
         )
         np.testing.assert_array_equal(out_small.parameters, out_big.parameters)
         np.testing.assert_array_equal(out_small.states, out_big.states)
@@ -204,7 +242,13 @@ class TestLevenbergMarquardt:
         y[1] = np.nan
         constraints, ctypes = _free_constraints(4, 4)
         out = TorchBackend(device="cpu").fit(
-            y, x, x0, constraints, ctypes, model, FitBackendOptions(estimator="LSE")
+            y,
+            x,
+            initial_parameters=x0,
+            constraints=constraints,
+            constraint_types=ctypes,
+            model=model,
+            options=FitBackendOptions(estimator="LSE"),
         )
         assert out.states[1] == 2
         assert np.all(out.states[[0, 2, 3]] == 0)
@@ -213,7 +257,13 @@ class TestLevenbergMarquardt:
         model, x, y, _true, x0 = _synthetic_esrsingle(6)
         constraints, ctypes = _free_constraints(6, 4)
         out = TorchBackend(device="cpu").fit(
-            y, x, x0, constraints, ctypes, model, FitBackendOptions(estimator="LSE")
+            y,
+            x,
+            initial_parameters=x0,
+            constraints=constraints,
+            constraint_types=ctypes,
+            model=model,
+            options=FitBackendOptions(estimator="LSE"),
         )
         assert out.parameters.dtype == np.float32
         assert out.parameters.shape == (6, 4)
@@ -227,7 +277,13 @@ class TestLevenbergMarquardt:
         model, x, y, true, x0 = _synthetic_esrsingle(4)
         constraints, ctypes = _free_constraints(4, 4)
         out = TorchBackend(device="cpu").fit(
-            y, x, x0, constraints, ctypes, model, FitBackendOptions(estimator="MLE")
+            y,
+            x,
+            initial_parameters=x0,
+            constraints=constraints,
+            constraint_types=ctypes,
+            model=model,
+            options=FitBackendOptions(estimator="MLE"),
         )
         assert np.all(out.states == 0)
         np.testing.assert_allclose(out.parameters, true, rtol=1e-2, atol=1e-5)
@@ -313,7 +369,13 @@ class TestFrameworkNeutralContract:
         constraints, ctypes = _free_constraints(2, 4)
         with pytest.raises(DependencyError, match="scipy"):
             TorchBackend(device="cpu").fit(
-                y, x, x0, constraints, ctypes, model, FitBackendOptions(estimator="LSE")
+                y,
+                x,
+                initial_parameters=x0,
+                constraints=constraints,
+                constraint_types=ctypes,
+                model=model,
+                options=FitBackendOptions(estimator="LSE"),
             )
 
 

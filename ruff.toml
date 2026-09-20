@@ -1,6 +1,11 @@
 line-length = 100
 extend-exclude = ["docs/tutorials/.archive"]  # archived notebooks are not maintained
 
+[format]
+# ruff 0.16 formats Markdown code blocks by default; docs, proposals and reviews
+# quote code as written, so keep the formatter on Python and notebooks.
+exclude = ["*.md"]
+
 [lint]
 select = [
     "E",    # pycodestyle errors
@@ -77,6 +82,7 @@ ignore = [
     "E501",     # long lines - test messages can be verbose
     "F841",     # unused variable
     "PT006",    # pytest parametrize wrong type
+    "PLR0917",  # helpers and fixtures; pytest injects fixtures by name anyway
 ]
 "**/__init__.py" = ["F401", "E402", "RUF022"]  # Ignore unused imports, import order, and unsorted __all__ (grouped by category)
 "scripts/**" = [

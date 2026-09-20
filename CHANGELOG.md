@@ -7,6 +7,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-09-19 dependency upgrade) -- BREAKING
+
+- **Dependencies upgraded** and floors raised: numpy 2.5, scipy 1.18,
+  xarray 2026.7, numba 0.67, matplotlib 3.11, h5py 3.16, pydantic-settings
+  2.15; torch (gpu extra) 2.14; dev tools ruff 0.16.8 and ty 0.0.82. Full
+  suite, including the NPZ regression fixtures, passes unchanged.
+- **Keyword-only arguments** (ruff PLR0917 adopted). Arguments that were
+  easy to swap silently are now keyword-only:
+  - `FitBackend.fit(data, freq_ghz, *, initial_parameters, constraints,
+    constraint_types, model, options)` on every backend, including custom
+    ones implementing the protocol. `constraints` and `constraint_types` are
+    adjacent `NDArray`s; swapping them fitted with nonsense bounds and no error.
+  - `Measurement(odmr, light_image, laser_image, output_directory, *,
+    pixel_spacing, fit_model, metadata)`.
+  - `polyfit2d(x, y, z, *, kx, ky, order)`,
+    `make_synthetic_odmr_data(shape, *, ...)`, and internal plotting helpers.
+- `ModelRegistry.register` and `ProcessorRegistry.register` are generic and
+  return the decorated class's own type, so type checkers no longer see every
+  registered model/processor as the base class.
+- torch is declared an allowed-unresolved import for ty instead of inline
+  ignores, so `ty check` passes with and without the `gpu` extra.
+
+### Fixed (2026-09-19 dependency upgrade)
+
+- `mkdocs build --strict` failed on develop: the API page referenced
+  `qdmpy.fitting.manager.ESTIMATOR_ID` (moved to `fitting.backends`), and a
+  `Measurement.from_folder` docstring used `Example:` instead of `Examples:`.
+
 ### Changed (2026-09-19 housekeeping)
 
 - **One pytest config.** `pytest.ini` silently overrode
