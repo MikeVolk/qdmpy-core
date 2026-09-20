@@ -1,4 +1,5 @@
 line-length = 100
+extend-exclude = ["docs/tutorials/.archive"]  # archived notebooks are not maintained
 
 [lint]
 select = [
@@ -107,8 +108,14 @@ ignore = [
 "src/qdmpy/fitting/guess.py" = ["N806"]
 "src/qdmpy/fitting/guesser.py" = ["N806"]
 "src/qdmpy/testing.py" = ["N806"]  # H, W, B_BIAS_T are physics/image dimension variables
-"tutorial.ipynb" = ["ALL"]   # Ignore all errors in notebooks
-"test.ipynb" = ["ALL"]       # Ignore all errors in notebooks
+"*.ipynb" = [
+    "T201",    # print is how notebooks show results
+    "E402",    # imports follow explanatory markdown cells
+    "ERA001",  # commented-out alternatives are teaching material
+    "D100", "D101", "D102", "D103", "D107",  # docstrings optional in notebooks
+    "N816",    # mixed-case globals mirror physics notation
+    "F404", "I002",  # no `from __future__` convention in notebooks
+]
 
 [lint.pydocstyle]
 convention = "google"

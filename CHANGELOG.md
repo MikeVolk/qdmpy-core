@@ -7,6 +7,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-09-19 housekeeping)
+
+- **One pytest config.** `pytest.ini` silently overrode
+  `[tool.pytest.ini_options]` in `pyproject.toml`; the two are merged into
+  `pyproject.toml` and `pytest.ini` is deleted. `norecursedirs` now restates
+  pytest's defaults (it replaced them, which made hypothesis warn about
+  `.hypothesis/`). Coverage is measured on `qdmpy` only, no longer on `tests/`.
+- Removed dead config: `[tool.mypy]` (ty is the type checker), `setup.cfg`
+  (flake8 only), `package-lock.json`, and the unused Linux
+  `pyGpufit-1.2.0` wheel (the lock resolves 1.3.0).
+- Tutorial and experiment notebooks are now lint- and format-clean under
+  `ruff check .` / `ruff format --check .`, with notebook-appropriate
+  per-file ignores. `docs/tutorials/.archive/` is excluded.
+
+### Fixed (2026-09-19 housekeeping)
+
+- `test_toml_file_loading` tested nothing: it patched `Path.home` after
+  `CONFIG_FILE` was already computed, and asserted only `isinstance`. It now
+  loads a real TOML file; new tests cover unknown TOML keys raising and env
+  vars overriding TOML.
+
 ### Fixed (2026-08-30 bugs & tech-debt review, P2 -- technical debt)
 
 Numerical changes below were validated against an analytic point dipole

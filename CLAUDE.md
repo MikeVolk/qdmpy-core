@@ -107,7 +107,7 @@ dimension: `[:, 0]` = negatively-signed dB, `[:, 1]` = positively-signed dB. Ext
 - Run ty: `uv run ty src/qdmpy`
 
 ## Code Style
-- Python >=3.12
+- Python >=3.13
 - 100 char line length (strict PEP8)
 - Google style docstrings
 - Type annotations required for all functions
