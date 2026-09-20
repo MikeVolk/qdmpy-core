@@ -3,7 +3,8 @@
 **Status:** Draft
 **Created:** 2026-02-22
 **Severity:** CRITICAL (C-1) + HIGH (H-6)
-**Module:** `fitting/result.py`
+**Module:** `fitting/result.py`, `odmr/data.py`, `odmr/folding.py`
+**Revised:** 2026-09-19 -- drift update; scope extended to one immutability rule for FitResult, ODMRData and FoldedODMR; section 4 superseded
 
 ---
 
@@ -27,13 +28,38 @@ Two issues create correctness risks:
    `FitResult` does not know its polarity/frange counts — it guesses from
    array shapes.
 
+3. **Immutability is enforced three incompatible ways** (added 2026-09-19,
+   from the 2026-08-30 bugs & tech-debt review):
+   - `FitResult`: arrays are read-only, but fields can be reassigned (no
+     `frozen=True`).
+   - `ODMRData` (`odmr/data.py:46`) and `FoldedODMR` (`odmr/folding.py:174`):
+     `frozen=True`, but the wrapped `xr.DataArray` / `NDArray` buffers stay
+     writeable, so "frozen" means only that fields can't be reassigned.
+   - `FoldingSettings`, `RefitSettings`, processors: frozen pydantic configs
+     with no arrays, the one place where frozen means what it says.
+
+### Status (2026-09-19)
+
+Items 1 and 2 are still open: `result.py:57` has no `frozen=True`, and
+`_normalize_resonance_shape` still guesses `n_pol = 2` (`result.py:300`).
+Since 2026-08-30 `model_post_init` *copies* a writeable parameter array
+before marking it read-only (it used to freeze the caller's array in place),
+which makes the original section 4 below obsolete.
+
 ## GUI Integration Requirements
 
-1. List the exact core API/data contract touchpoints used by `qdmpy-gui` (view-model calls, settings keys, map/result fields).
-2. Define GUI state/settings migration behavior for any changed defaults, renamed keys, or persisted session/config data.
-3. Specify expected user-facing behavior in the GUI for progress, warnings, and errors introduced by this QEP.
-4. Include explicit GUI acceptance checks for this QEP scope: `load -> run action -> inspect outputs -> save/reload`, and verify no GUI-only workaround is required.
-5. If impact is expected to be none, state the rationale and include a smoke check confirming no `qdmpy-gui` regression.
+1. **Touchpoints.** `app/measurement_vm.py` reads `FitResult` parameter maps,
+   `b111_*`, `chi2` and `metadata`, and `FoldedODMR.fold_residual` /
+   `folded_spectrum`; `widgets/fold_diagnostics.py` reads the `FoldedODMR`
+   arrays. All of these are reads.
+2. **Persisted data.** `.qdm` files do not change format: `n_pol`/`n_frange`
+   are derived from the saved array shapes on load.
+3. **User-facing behaviour.** None expected. Any GUI code that writes into a
+   result array (for example to mask pixels for display) now raises
+   `ValueError: assignment destination is read-only`, and must copy first.
+   Audit `measurement_vm.py` for in-place writes before implementing.
+4. **Acceptance.** Load -> fit -> fold -> refit -> save `.qdm` -> reload ->
+   all maps render identically, and GUI tests pass.
 
 ## Current Code
 
@@ -104,7 +130,12 @@ def _normalize_resonance_shape(self, resonance: NDArray) -> tuple[NDArray, int]:
     return resonance.reshape(self.n_pol, self.n_frange, n_pixels), n_pixels
 ```
 
-### 4. Remove `model_post_init` mutation
+### 4. Remove `model_post_init` mutation (superseded 2026-09-19)
+
+*Superseded:* the validator below freezes the **caller's** arrays in place,
+which is the bug fixed on 2026-08-30. Keep the current copy-then-freeze in
+`model_post_init`; with `frozen=True` it must assign through
+`object.__setattr__`, as it already does. Original text:
 
 The `flags.writeable = False` loop mutates parameter arrays in-place during
 construction. With `frozen=True`, this becomes a Pydantic validation step
@@ -120,6 +151,31 @@ def freeze_arrays(cls, v: dict[str, NDArray]) -> dict[str, NDArray]:
     return v
 ```
 
+### 5. One immutability rule (decided 2026-09-19)
+
+All three result containers follow one rule, stated in
+`memory/architecture.md` and in each class docstring:
+
+> Fields cannot be reassigned (`frozen=True`), and no array reachable from
+> the object is writeable through it.
+
+How each class meets it depends on who owns the arrays and how large they
+are:
+
+| Class | Arrays | How they are made read-only | Cost |
+|---|---|---|---|
+| `FitResult` | parameter maps, ~50-440 MB | copy if writeable, then read-only (current behaviour) | one copy per new result |
+| `ODMRData` | raw stack, 1.9-3.8 GB at 1200x1920x51 | read-only **view** of the caller's buffer, no copy | none |
+| `FoldedODMR` | folded/antisymmetric spectra, ~0.9-1.8 GB | read-only view; `SpectralFolder` owns the buffers it creates | none |
+
+For `ODMRData`, a validator replaces `data` with
+`data.copy(deep=False)` whose `.values` view has `flags.writeable = False`.
+qdmpy cannot then mutate a stack through an `ODMRData`, but a caller that
+kept its own reference to the original numpy array still can, and that is
+documented. A deep copy was considered and rejected: 1.9-3.8 GB extra peak
+memory at load and after every processor step, for protection the processors
+do not need (they already return new arrays).
+
 ## Migration
 
 - `FitManager.fit()` must pass `n_pol` and `n_frange` (trivial — already
@@ -128,6 +184,13 @@ def freeze_arrays(cls, v: dict[str, NDArray]) -> dict[str, NDArray]:
   parameter shapes or save them explicitly in the NPZ.
 - `testing.py` helpers (`make_synthetic_fit_result`) must pass the new fields.
 - Tests that construct `FitResult` directly need the two new required fields.
+- `FitResult` construction sites to update: `fitting/manager.py`
+  (`_assemble_result`), `io/qdm.py:454` (`.qdm` load, where `n_pol`/`n_frange`
+  come from the saved array shapes), `testing.py:316`, and `load_results`
+  (`result.py:753`).
+- Any code or test that writes into `odmr_data.data.values[...]` or a
+  `FoldedODMR` array must copy first. Known case:
+  `tests/odmr/test_processors.py` writes into `sample_odmr_data` in place.
 
 ## Alternatives Considered
 
@@ -143,3 +206,8 @@ def freeze_arrays(cls, v: dict[str, NDArray]) -> dict[str, NDArray]:
 - [ ] Test single-polarity data produces correct `delta_resonance`
 - [ ] Verify `load_results` round-trips `n_pol`/`n_frange`
 - [ ] Verify all existing tests still pass with new required fields
+- [ ] Verify `ODMRData(...).data.values` and every `FoldedODMR` array are
+      read-only, and that constructing `ODMRData` does not copy the buffer
+      (`np.shares_memory` with the input)
+- [ ] Verify `FitResult` does not freeze the caller's arrays (regression for
+      2026-08-30)
