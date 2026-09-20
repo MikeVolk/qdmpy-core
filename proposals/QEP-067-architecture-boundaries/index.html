@@ -1,0 +1,1501 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Quantum Diamond Microscopy Data Analysis in Python">
+      
+      
+        <meta name="author" content="Michael Volk">
+      
+      
+      
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
+    
+    
+      
+        <title>QEP-067: Re-establish architectural boundaries around workflows, results, persistence, and configuration - QDMpy</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.84d31ad4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#qep-067-re-establish-architectural-boundaries-around-workflows-results-persistence-and-configuration" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="QDMpy" class="md-header__button md-logo" aria-label="QDMpy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            QDMpy
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              QEP-067: Re-establish architectural boundaries around workflows, results, persistence, and configuration
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MikeVolk/qdmpy-core" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="QDMpy" class="md-nav__button md-logo" aria-label="QDMpy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    QDMpy
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MikeVolk/qdmpy-core" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quickstart
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tutorials/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    Tutorials
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/01-quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    qdmpy Quickstart
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/02-exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    qdmpy Data Exploration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/03-extending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    qdmpy Developer Guide: Extending the Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/04-spectral-folding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Spectral Folding for ODMR Data
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/05-plotting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plotting Tutorial
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/06-source-fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    06 · Source Fitting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guides
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/processors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Processors
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ESR Models
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Fitting Quality
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/spectral-folding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Spectral Folding
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/settings_configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extending
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Migration Guide
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Changelog
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Summary
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      Current state
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#motivation-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      Motivation / problem statement
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#goals-non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      Goals / non-goals
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Goals / non-goals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      Goals
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      Non-goals
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proposed-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      Proposed design
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decisions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#decision-1-keep-compatibility-wrappers-during-migration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decision 1: Keep compatibility wrappers during migration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decision-2-treat-persistence-and-plotting-as-edge-adapters-not-domain-responsibilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decision 2: Treat persistence and plotting as edge adapters, not domain responsibilities
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decision-3-make-configuration-explicit-in-core-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decision 3: Make configuration explicit in core services
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decision-4-preserve-field-source-subtype-fidelity-across-persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decision 4: Preserve field-source subtype fidelity across persistence
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-considered" class="md-nav__link">
+    <span class="md-ellipsis">
+      Alternatives considered
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Alternatives considered">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#minimal-bug-fix-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      Minimal bug-fix only
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#full-rewrite-into-strict-clean-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Full rewrite into strict clean architecture
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#immediate-api-narrowing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Immediate API narrowing
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation steps
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-repair-the-persistence-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 1: Repair the persistence boundary
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-extract-plotting-adapters-behind-existing-convenience-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 2: Extract plotting adapters behind existing convenience methods
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-extract-persistence-adapters-behind-existing-convenience-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 3: Extract persistence adapters behind existing convenience methods
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-move-configuration-resolution-outward" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 4: Move configuration resolution outward
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-decompose-workflow-orchestration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 5: Decompose workflow orchestration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#risks-and-tradeoffs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Risks and tradeoffs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-rollout-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      Migration / rollout plan
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-testing-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validation / testing plan
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acceptance-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      Acceptance criteria
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Acceptance criteria">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#observable-behavior-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Observable behavior changes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tests-and-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tests and validation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#done-looks-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      Done looks like
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-fit-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation-fit checklist
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Open questions
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="qep-067-re-establish-architectural-boundaries-around-workflows-results-persistence-and-configuration">QEP-067: Re-establish architectural boundaries around workflows, results, persistence, and configuration<a class="headerlink" href="#qep-067-re-establish-architectural-boundaries-around-workflows-results-persistence-and-configuration" title="Permanent link">&para;</a></h1>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Status</td>
+<td>Draft</td>
+</tr>
+<tr>
+<td>Author</td>
+<td>OpenCode</td>
+</tr>
+<tr>
+<td>Date</td>
+<td>2026-03-22</td>
+</tr>
+<tr>
+<td>Revised</td>
+<td>2026-03-22 - narrowed scope after code audit; QDMResult already aligned, remaining work focused on FitResult, MagneticMap, Measurement, settings flow, and <code>.qdm</code> subtype loading; 2026-03-22 - implemented remaining scope, recorded plotting extraction as already complete, moved MagneticMap persistence behind qdmpy.io, added explicit settings seams, and extracted concrete Measurement workflow helpers</td>
+</tr>
+<tr>
+<td>Scope</td>
+<td>Large</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Architecture / phased refactor</td>
+</tr>
+</tbody>
+</table>
+<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
+<p>The repository claims a layered, immutable design, but several important boundaries still do not hold in practice. The remaining issues are concentrated in workflow orchestration, plotting and persistence on selected result objects, hidden configuration access, and <code>.qdm</code> persistence losing field-source subtype information.</p>
+<p>This proposal restores the intended dependency direction incrementally: edge concerns move toward explicit adapters and services, domain and result types stay stable, and the current public API remains available through thin compatibility wrappers during migration. <code>QDMResult</code> is already mostly aligned with that target and is not the main focus of the remaining work.</p>
+<h2 id="current-state">Current state<a class="headerlink" href="#current-state" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>Measurement</code> is the dominant orchestration object in <code>src/qdmpy/measurement.py</code>. It handles folder loading, metadata resolution, image fallback, processor assembly, fitting, refitting, folding, and display.</li>
+<li><code>QDMResult</code> is already largely aligned with the intended boundary: it documents itself as a pure data container and keeps only thin <code>save()</code> / <code>load()</code> wrappers over <code>qdmpy.io</code>.</li>
+<li><code>FitResult</code>, <code>MagneticMap</code>, and <code>Measurement</code> plotting methods are already thin delegates into <code>src/qdmpy/plotting/*</code>; plotting extraction is no longer a remaining migration step.</li>
+<li><code>MagneticMap</code> persistence now delegates through <code>src/qdmpy/io/magnetic_map.py</code>, keeping <code>src/qdmpy/magnetic_map.py</code> as a thin wrapper.</li>
+<li><code>Measurement</code> remains the main public workflow object, but its folder-loading, fit/refit, and folding orchestration now delegate through <code>src/qdmpy/measurement_workflows.py</code> instead of owning all implementation details directly.</li>
+<li>Core algorithms depend on global settings and environment-derived state:</li>
+<li><code>src/qdmpy/fitting/manager.py</code></li>
+<li><code>src/qdmpy/magnetic_map.py</code></li>
+<li><code>src/qdmpy/settings.py</code></li>
+<li><code>Measurement.fit_odmr()</code>, <code>Measurement.fit_folded_odmr()</code>, <code>Measurement.refit_outliers()</code>, and <code>MagneticMap.from_b111()</code> now accept explicit settings/dependency inputs so tests and callers can avoid ambient global state on the identified seams.</li>
+<li>The <code>.qdm</code> persistence layer serializes field-source kind information, but deserializes everything as the base <code>FieldSource</code> in <code>src/qdmpy/io/qdm.py</code>.</li>
+<li>The top-level API in <code>src/qdmpy/__init__.py</code> is broad and treated as a compatibility contract by <code>tests/test_imports.py</code>, so boundary cleanup must preserve compatibility wrappers.</li>
+</ul>
+<h2 id="motivation-problem-statement">Motivation / problem statement<a class="headerlink" href="#motivation-problem-statement" title="Permanent link">&para;</a></h2>
+<p>The current structure contradicts the repo's own architectural claims in <code>docs/migration.md</code> and prior cleanup work referenced in <code>CHANGELOG.md</code> for QEP-036, QEP-038, QEP-041, and QEP-042.</p>
+<p>The main risks are structural rather than stylistic:</p>
+<ul>
+<li>selected result and workflow objects are still coupled to plotting and file formats</li>
+<li>configuration is pulled implicitly into core operations</li>
+<li>persistence does not preserve domain subtype semantics</li>
+<li>broad orchestration hubs keep attracting unrelated responsibilities</li>
+</ul>
+<p>If this continues, local changes to plotting, persistence, settings, or workflow UX will keep forcing edits across core modules and blocking cleaner reuse. The main remaining hotspots are <code>Measurement</code>, <code>FitResult</code>, <code>MagneticMap</code>, and <code>.qdm</code> deserialization.</p>
+<h2 id="goals-non-goals">Goals / non-goals<a class="headerlink" href="#goals-non-goals" title="Permanent link">&para;</a></h2>
+<h3 id="goals">Goals<a class="headerlink" href="#goals" title="Permanent link">&para;</a></h3>
+<ul>
+<li>restore one-way dependency direction from edges toward core logic</li>
+<li>preserve current public behavior initially through thin wrappers</li>
+<li>fix the broken field-source persistence seam</li>
+<li>make configuration dependencies explicit in core services</li>
+<li>reduce coordination pressure on <code>Measurement</code> and <code>FitManager</code></li>
+</ul>
+<h3 id="non-goals">Non-goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h3>
+<ul>
+<li>no big-bang rewrite</li>
+<li>no immediate removal of convenience methods from public objects</li>
+<li>no immediate contraction of the top-level <code>qdmpy</code> API</li>
+<li>no redesign of fitting physics, processor semantics, or file formats beyond boundary cleanup</li>
+</ul>
+<h2 id="proposed-design">Proposed design<a class="headerlink" href="#proposed-design" title="Permanent link">&para;</a></h2>
+<p>Introduce an explicit service and adapter layer for workflow and edge concerns while retaining current convenience methods as delegating wrappers.</p>
+<p>Keep domain and result types focused on validated data and domain transformations:</p>
+<ul>
+<li><code>ODMRData</code></li>
+<li><code>FitResult</code></li>
+<li><code>QDMResult</code></li>
+<li><code>MagneticMap</code></li>
+<li>field-source models</li>
+</ul>
+<p><code>QDMResult</code> already follows this direction closely and should be treated as the reference boundary for result-container behavior: no plotting methods, and only thin persistence wrappers.</p>
+<p>Shift edge concerns into explicit modules:</p>
+<ul>
+<li>workflow services for load/process/fit/fold orchestration</li>
+<li>persistence adapters for <code>.qdm</code> and <code>.npz</code></li>
+<li>plotting adapters for result and measurement views</li>
+<li>configuration resolution at the application boundary rather than inside core algorithms</li>
+</ul>
+<p>Preserve <code>qdmpy.load()</code>, <code>QDMResult.save()</code>, <code>QDMResult.load()</code>, <code>MagneticMap.display()</code>, and similar conveniences as thin wrappers during the transition. Where a wrapper already exists and is thin, keep it; where a method still owns real edge logic, move that logic out first and keep the method as a delegate.</p>
+<p>Fix <code>.qdm</code> deserialization to reconstruct the discriminated <code>FieldSourceType</code> union instead of the base <code>FieldSource</code>.</p>
+<h2 id="decisions">Decisions<a class="headerlink" href="#decisions" title="Permanent link">&para;</a></h2>
+<h3 id="decision-1-keep-compatibility-wrappers-during-migration">Decision 1: Keep compatibility wrappers during migration<a class="headerlink" href="#decision-1-keep-compatibility-wrappers-during-migration" title="Permanent link">&para;</a></h3>
+<p><strong>Context</strong></p>
+<p>The current public API is broad and explicitly tested.</p>
+<p><strong>Decision</strong></p>
+<p>Maintain convenience methods and top-level exports in the near term, but reimplement them as thin delegates to adapter and service modules.</p>
+<p><strong>Consequences</strong></p>
+<ul>
+<li>users keep the current ergonomics</li>
+<li>internal architecture can improve without an immediate breaking change</li>
+</ul>
+<p><strong>Rejected alternatives</strong></p>
+<ul>
+<li>immediate API removal</li>
+<li>keeping the current direct coupling indefinitely</li>
+</ul>
+<h3 id="decision-2-treat-persistence-and-plotting-as-edge-adapters-not-domain-responsibilities">Decision 2: Treat persistence and plotting as edge adapters, not domain responsibilities<a class="headerlink" href="#decision-2-treat-persistence-and-plotting-as-edge-adapters-not-domain-responsibilities" title="Permanent link">&para;</a></h3>
+<p><strong>Context</strong></p>
+<p><code>QDMResult</code>, <code>FitResult</code>, <code>MagneticMap</code>, and <code>Measurement</code> are not all in the same state. <code>QDMResult</code> already behaves mostly as intended, while <code>FitResult</code>, <code>MagneticMap</code>, and <code>Measurement</code> still own substantive plotting or persistence behavior.</p>
+<p><strong>Decision</strong></p>
+<p>Move substantive save, load, and display logic into dedicated modules. Object methods remain thin delegation points only. Existing thin wrappers on <code>QDMResult</code> are kept, not reworked.</p>
+<p><strong>Consequences</strong></p>
+<ul>
+<li>core modules stop owning file-format and visualization behavior where they still do today</li>
+<li>testing becomes more boundary-specific</li>
+</ul>
+<p><strong>Rejected alternatives</strong></p>
+<ul>
+<li>keeping all convenience logic embedded in result objects</li>
+<li>removing all convenience methods at once</li>
+</ul>
+<h3 id="decision-3-make-configuration-explicit-in-core-services">Decision 3: Make configuration explicit in core services<a class="headerlink" href="#decision-3-make-configuration-explicit-in-core-services" title="Permanent link">&para;</a></h3>
+<p><strong>Context</strong></p>
+<p><code>FitManager</code> and <code>MagneticMap</code> currently read process-global settings internally.</p>
+<p><strong>Decision</strong></p>
+<p>Core paths should accept resolved settings or concrete parameters from callers. <code>get_settings()</code> remains an edge concern used by CLI, top-level helpers, and wrappers.</p>
+<p><strong>Consequences</strong></p>
+<ul>
+<li>less hidden state</li>
+<li>easier testing</li>
+<li>fewer filesystem side effects in core code</li>
+</ul>
+<p><strong>Rejected alternatives</strong></p>
+<ul>
+<li>keeping global singleton access in core algorithms</li>
+<li>passing raw environment and config concerns deep into domain code</li>
+</ul>
+<h3 id="decision-4-preserve-field-source-subtype-fidelity-across-persistence">Decision 4: Preserve field-source subtype fidelity across persistence<a class="headerlink" href="#decision-4-preserve-field-source-subtype-fidelity-across-persistence" title="Permanent link">&para;</a></h3>
+<p><strong>Context</strong></p>
+<p><code>.qdm</code> stores subtype data but discards it on load.</p>
+<p><strong>Decision</strong></p>
+<p><code>.qdm</code> load must reconstruct the discriminated union defined in <code>src/qdmpy/field_source.py</code>.</p>
+<p><strong>Consequences</strong></p>
+<ul>
+<li>source fitting and downstream behavior remain valid after round-trip persistence</li>
+</ul>
+<p><strong>Rejected alternatives</strong></p>
+<ul>
+<li>normalizing all sources to a base type</li>
+<li>leaving subtype reconstruction to callers</li>
+</ul>
+<h2 id="alternatives-considered">Alternatives considered<a class="headerlink" href="#alternatives-considered" title="Permanent link">&para;</a></h2>
+<h3 id="minimal-bug-fix-only">Minimal bug-fix only<a class="headerlink" href="#minimal-bug-fix-only" title="Permanent link">&para;</a></h3>
+<p>Fix <code>.qdm</code> subtype loading and leave broader architecture alone.</p>
+<p>Rejected because it addresses one correctness issue but leaves the main boundary drift untouched.</p>
+<h3 id="full-rewrite-into-strict-clean-architecture">Full rewrite into strict clean architecture<a class="headerlink" href="#full-rewrite-into-strict-clean-architecture" title="Permanent link">&para;</a></h3>
+<p>Rejected because the repo already has functioning workflows and a strong public API contract. A rewrite adds migration risk without proportional benefit.</p>
+<h3 id="immediate-api-narrowing">Immediate API narrowing<a class="headerlink" href="#immediate-api-narrowing" title="Permanent link">&para;</a></h3>
+<p>Rejected because it would break established imports and tests before the internal seams are ready.</p>
+<h2 id="implementation-steps">Implementation steps<a class="headerlink" href="#implementation-steps" title="Permanent link">&para;</a></h2>
+<h3 id="step-1-repair-the-persistence-boundary">Step 1: Repair the persistence boundary<a class="headerlink" href="#step-1-repair-the-persistence-boundary" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Goal: preserve <code>FieldSourceType</code> round trips for <code>.qdm</code></li>
+<li>Affected files: <code>src/qdmpy/io/qdm.py</code>, <code>src/qdmpy/field_source.py</code>, targeted persistence tests</li>
+<li>Dependencies: none</li>
+<li>Validation: <code>.qdm</code> round-trip tests for <code>MagneticSource</code> and <code>UpwardContinuedSource</code> in addition to the existing generic <code>FieldSource</code> coverage</li>
+<li>Status: completed on 2026-03-22</li>
+</ul>
+<h3 id="step-2-extract-plotting-adapters-behind-existing-convenience-methods">Step 2: Extract plotting adapters behind existing convenience methods<a class="headerlink" href="#step-2-extract-plotting-adapters-behind-existing-convenience-methods" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Goal: keep methods like <code>display()</code> and <code>plot()</code> public, but move real behavior out of core and result modules that still own it</li>
+<li>Affected files: <code>src/qdmpy/fitting/result.py</code>, <code>src/qdmpy/magnetic_map.py</code>, <code>src/qdmpy/measurement.py</code>, <code>src/qdmpy/plotting/*</code></li>
+<li>Dependencies: independent of step 1</li>
+<li>Validation: no behavioral change in plotting smoke tests; convenience methods still work; <code>QDMResult</code> remains free of plotting methods</li>
+<li>Status: already complete before implementation; proposal drift confirmed during audit on 2026-03-22</li>
+</ul>
+<h3 id="step-3-extract-persistence-adapters-behind-existing-convenience-methods">Step 3: Extract persistence adapters behind existing convenience methods<a class="headerlink" href="#step-3-extract-persistence-adapters-behind-existing-convenience-methods" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Goal: complete persistence boundary cleanup for objects that still own direct file-format behavior</li>
+<li>Affected files: <code>src/qdmpy/magnetic_map.py</code>, <code>src/qdmpy/io/*.py</code></li>
+<li>Dependencies: none, but aligns with step 2</li>
+<li>Validation: existing NPZ and QDM round-trip tests still pass; <code>QDMResult.save()</code> / <code>load()</code> remain thin wrappers</li>
+<li>Status: completed on 2026-03-22 by moving <code>MagneticMap.save()</code> behind <code>qdmpy.io.save_magnetic_map()</code></li>
+</ul>
+<h3 id="step-4-move-configuration-resolution-outward">Step 4: Move configuration resolution outward<a class="headerlink" href="#step-4-move-configuration-resolution-outward" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Goal: stop core algorithm paths from pulling <code>get_settings()</code> implicitly where practical</li>
+<li>Affected files: <code>src/qdmpy/fitting/manager.py</code>, <code>src/qdmpy/magnetic_map.py</code>, <code>src/qdmpy/settings.py</code>, top-level wrappers and CLI paths</li>
+<li>Dependencies: steps 2 and 3 make this easier</li>
+<li>Validation: tests can inject explicit settings and parameters without touching global process state</li>
+<li>Status: completed on 2026-03-22 for the identified seams by threading explicit settings and GPU availability through <code>Measurement</code> wrappers and <code>MagneticMap.from_b111()</code> while preserving compatible defaults</li>
+</ul>
+<h3 id="step-5-decompose-workflow-orchestration">Step 5: Decompose workflow orchestration<a class="headerlink" href="#step-5-decompose-workflow-orchestration" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Goal: reduce <code>Measurement</code> responsibility by extracting loading, fitting, and folding orchestration services</li>
+<li>Affected files: <code>src/qdmpy/measurement.py</code>, possible new workflow modules, related tests and docs</li>
+<li>Dependencies: steps 2 through 4</li>
+<li>Validation: <code>qdmpy.load()</code> and <code>Measurement.from_folder()</code>, <code>fit_odmr()</code>, and <code>fit_folded_odmr()</code> preserve current observable behavior</li>
+<li>Status: completed on 2026-03-22 by extracting concrete helpers into <code>src/qdmpy/measurement_workflows.py</code> while keeping <code>Measurement</code> methods as thin public wrappers</li>
+</ul>
+<h2 id="risks-and-tradeoffs">Risks and tradeoffs<a class="headerlink" href="#risks-and-tradeoffs" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Keeping thin wrappers means some coupling remains temporarily by design.</li>
+<li>The top-level API contract slows aggressive cleanup. That is acceptable because stability matters more here.</li>
+<li>Refactoring settings flow can expose hidden assumptions in tests and wrappers.</li>
+<li>Splitting orchestration too aggressively would create service sprawl, so extraction should follow concrete seams only.</li>
+</ul>
+<h2 id="migration-rollout-plan">Migration / rollout plan<a class="headerlink" href="#migration-rollout-plan" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Phase 1: correctness-first boundary repairs with no public API change</li>
+<li>Phase 2: adapter extraction behind existing object methods</li>
+<li>Phase 3: explicit configuration injection for core paths</li>
+<li>Phase 4: workflow-service decomposition and optional later proposal for API narrowing</li>
+</ul>
+<p>Any public deprecations should be deferred until wrappers have been stable for at least one release cycle.</p>
+<h2 id="validation-testing-plan">Validation / testing plan<a class="headerlink" href="#validation-testing-plan" title="Permanent link">&para;</a></h2>
+<p>Preserve existing regression coverage for imports, CLI, persistence, and result behavior:</p>
+<ul>
+<li><code>tests/test_imports.py</code></li>
+<li><code>tests/test_cli.py</code></li>
+<li><code>tests/test_qdm_result.py</code></li>
+<li><code>tests/test_io_qdm.py</code></li>
+</ul>
+<p>Add new tests for:</p>
+<ul>
+<li><code>.qdm</code> subtype round-tripping of <code>MagneticSource</code> and <code>UpwardContinuedSource</code></li>
+<li>convenience methods delegating through adapter boundaries</li>
+<li>explicit-settings execution paths that avoid global singleton dependence</li>
+</ul>
+<p>Done should include unchanged overall suite health, plus new targeted coverage on the repaired seams.</p>
+<h2 id="acceptance-criteria">Acceptance criteria<a class="headerlink" href="#acceptance-criteria" title="Permanent link">&para;</a></h2>
+<h3 id="observable-behavior-changes">Observable behavior changes<a class="headerlink" href="#observable-behavior-changes" title="Permanent link">&para;</a></h3>
+<ul>
+<li>users can still call the current convenience API without regressions</li>
+<li><code>.qdm</code> files preserve concrete field-source types on load</li>
+<li>plotting and persistence still work through public wrappers</li>
+<li>core execution paths can be exercised with explicit settings and parameters in tests</li>
+</ul>
+<h3 id="tests-and-validation">Tests and validation<a class="headerlink" href="#tests-and-validation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>existing import, CLI, result, and persistence tests pass</li>
+<li>new round-trip tests for <code>FieldSourceType</code> persistence pass</li>
+<li>existing tests that enforce <code>QDMResult</code> as a no-plot, thin-wrapper boundary still pass</li>
+<li>new tests verify wrappers delegate correctly without re-embedding edge logic</li>
+</ul>
+<h3 id="done-looks-like">Done looks like<a class="headerlink" href="#done-looks-like" title="Permanent link">&para;</a></h3>
+<ul>
+<li>substantive plotting and persistence logic no longer lives directly in <code>FitResult</code>, <code>MagneticMap</code>, and <code>Measurement</code></li>
+<li>configuration access is pushed outward on the identified core paths</li>
+<li><code>Measurement</code> no longer owns every workflow concern directly</li>
+<li>no unnecessary new abstraction layer exists beyond concrete adapter and service seams</li>
+</ul>
+<h2 id="implementation-fit-checklist">Implementation-fit checklist<a class="headerlink" href="#implementation-fit-checklist" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The implementation preserves current public wrappers while moving real work behind them.</li>
+<li>The <code>.qdm</code> loader reconstructs discriminated field-source subtypes correctly.</li>
+<li>Core modules do not gain new plotting, persistence, or framework responsibilities.</li>
+<li>Settings resolution is more explicit after the change, not more ambient.</li>
+<li><code>Measurement</code> and <code>FitManager</code> are smaller in responsibility, not just split into more indirection.</li>
+<li>Any deferred API cleanup is documented explicitly rather than smuggled into this refactor.</li>
+</ul>
+<h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Whether a later follow-up QEP should narrow the top-level <code>qdmpy</code> API after the internal seams are stable.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/mikevolk/QDMpy" target="_blank" rel="noopener" title="QDMpy on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.indexes", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

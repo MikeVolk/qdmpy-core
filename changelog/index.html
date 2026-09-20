@@ -1,0 +1,4255 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Quantum Diamond Microscopy Data Analysis in Python">
+      
+      
+        <meta name="author" content="Michael Volk">
+      
+      
+      
+        <link rel="prev" href="../migration/">
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
+    
+    
+      
+        <title>Changelog - QDMpy</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.84d31ad4.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#changelog" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="QDMpy" class="md-header__button md-logo" aria-label="QDMpy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            QDMpy
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Changelog
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MikeVolk/qdmpy-core" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="QDMpy" class="md-nav__button md-logo" aria-label="QDMpy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    QDMpy
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MikeVolk/qdmpy-core" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quickstart
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../tutorials/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    Tutorials
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/01-quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    qdmpy Quickstart
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/02-exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    qdmpy Data Exploration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/03-extending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    qdmpy Developer Guide: Extending the Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/04-spectral-folding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Spectral Folding for ODMR Data
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/05-plotting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plotting Tutorial
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/06-source-fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    06 · Source Fitting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guides
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/processors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Processors
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ESR Models
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Fitting Quality
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/spectral-folding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Spectral Folding
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/settings_configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../extending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extending
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Migration Guide
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Changelog
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Changelog
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      [Unreleased]
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#010-2026-09-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      [0.1.0] - 2026-09-20
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.0] - 2026-09-20">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#packaging-2026-09-20-release-prep" class="md-nav__link">
+    <span class="md-ellipsis">
+      Packaging (2026-09-20 release prep)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed-2026-09-19-breaking-cleanup-breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed (2026-09-19 breaking cleanup) -- BREAKING
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-2026-09-19-breaking-cleanup-breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (2026-09-19 breaking cleanup) -- BREAKING
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-2026-09-19-dependency-upgrade-breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (2026-09-19 dependency upgrade) -- BREAKING
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-2026-09-19-dependency-upgrade" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (2026-09-19 dependency upgrade)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-2026-09-19-housekeeping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (2026-09-19 housekeeping)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-2026-09-19-housekeeping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (2026-09-19 housekeeping)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-2026-08-30-bugs-tech-debt-review-p2-technical-debt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (2026-08-30 bugs &amp; tech-debt review, P2 -- technical debt)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-2026-08-30-bugs-tech-debt-review-p2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (2026-08-30 bugs &amp; tech-debt review, P2)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-2026-08-30-bugs-tech-debt-review-p1-correctness" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (2026-08-30 bugs &amp; tech-debt review, P1 -- correctness)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-2026-08-30-bugs-tech-debt-review-p1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (2026-08-30 bugs &amp; tech-debt review, P1)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-2026-08-30-bugs-tech-debt-review-p1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (2026-08-30 bugs &amp; tech-debt review, P1)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-2026-08-30-bugs-tech-debt-review-p0-silent-wrong-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (2026-08-30 bugs &amp; tech-debt review, P0 -- silent wrong results)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-2026-08-30-bugs-tech-debt-review-p0" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (2026-08-30 bugs &amp; tech-debt review, P0)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deprecated-2026-08-30-bugs-tech-debt-review-p0" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deprecated (2026-08-30 bugs &amp; tech-debt review, P0)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#documentation-2026-08-30-bugs-tech-debt-review-p0" class="md-nav__link">
+    <span class="md-ellipsis">
+      Documentation (2026-08-30 bugs &amp; tech-debt review, P0)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-2026-08-30-correctness-review-solid-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (2026-08-30 correctness review, SOLID findings)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-2026-08-30-correctness-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (2026-08-30 correctness review)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (CI)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-073-analytic-jacobians" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-073: analytic Jacobians)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-qep-073-analytic-jacobians" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (QEP-073: analytic Jacobians)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-073-analytic-jacobians" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-073: analytic Jacobians)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#known-limitations-qep-073-analytic-jacobians" class="md-nav__link">
+    <span class="md-ellipsis">
+      Known limitations (QEP-073: analytic Jacobians)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-070-fit-pipeline-unification" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-070: fit pipeline unification)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-qep-070-fit-pipeline-unification" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (QEP-070: fit pipeline unification)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-070-fit-pipeline-unification" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-070: fit pipeline unification)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-qep-071-refit-pipeline-consistency" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (QEP-071: refit pipeline consistency)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (examples)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-069-torch-fit-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-069: torch fit backend)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-069-torch-fit-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-069: torch fit backend)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-068-fit-backend-seam" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-068: fit backend seam)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-068-fit-backend-seam" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-068: fit backend seam)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-qep-068-fit-backend-seam" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (QEP-068: fit backend seam)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-067-architecture-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-067: architecture boundaries)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (docs)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-architecture-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (architecture cleanup)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed-architecture-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed (architecture cleanup)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-architecture-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (architecture cleanup)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-052-fit-frequency-cutoff" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-052: fit frequency cutoff)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-066-diamond-specific-constraints-groundwork" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-066: diamond-specific constraints groundwork)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-012-plotting-layout-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-012: plotting layout cleanup)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-core-001-safe-serialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-CORE-001: safe serialization)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-059-unified-constraint-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-059: Unified Constraint Interface)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed-qep-059" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed (QEP-059)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-docs-full-rewrite" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (docs full rewrite)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-047-measurement-metadata-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-047 — measurement metadata file)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-source-fitting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (source fitting)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-050" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-050)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-008" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-008)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-008" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-008)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (docs)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-02-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      2026-02-19
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2026-02-19">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-02-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      2026-02-18
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2026-02-18">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-02-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      2026-02-17
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2026-02-17">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-02-16" class="md-nav__link">
+    <span class="md-ellipsis">
+      2026-02-16
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2026-02-16">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-02-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      2026-02-15
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2026-02-15">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2025-06-08" class="md-nav__link">
+    <span class="md-ellipsis">
+      2025-06-08
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2025-06-08">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2025-06-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      2025-06-07
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2025-06-07">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2025-03-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      2025-03-30
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2025-03-30">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      [Unreleased]
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#010-2026-09-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      [0.1.0] - 2026-09-20
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.0] - 2026-09-20">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#packaging-2026-09-20-release-prep" class="md-nav__link">
+    <span class="md-ellipsis">
+      Packaging (2026-09-20 release prep)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed-2026-09-19-breaking-cleanup-breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed (2026-09-19 breaking cleanup) -- BREAKING
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-2026-09-19-breaking-cleanup-breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (2026-09-19 breaking cleanup) -- BREAKING
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-2026-09-19-dependency-upgrade-breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (2026-09-19 dependency upgrade) -- BREAKING
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-2026-09-19-dependency-upgrade" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (2026-09-19 dependency upgrade)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-2026-09-19-housekeeping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (2026-09-19 housekeeping)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-2026-09-19-housekeeping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (2026-09-19 housekeeping)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-2026-08-30-bugs-tech-debt-review-p2-technical-debt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (2026-08-30 bugs &amp; tech-debt review, P2 -- technical debt)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-2026-08-30-bugs-tech-debt-review-p2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (2026-08-30 bugs &amp; tech-debt review, P2)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-2026-08-30-bugs-tech-debt-review-p1-correctness" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (2026-08-30 bugs &amp; tech-debt review, P1 -- correctness)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-2026-08-30-bugs-tech-debt-review-p1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (2026-08-30 bugs &amp; tech-debt review, P1)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-2026-08-30-bugs-tech-debt-review-p1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (2026-08-30 bugs &amp; tech-debt review, P1)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-2026-08-30-bugs-tech-debt-review-p0-silent-wrong-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (2026-08-30 bugs &amp; tech-debt review, P0 -- silent wrong results)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-2026-08-30-bugs-tech-debt-review-p0" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (2026-08-30 bugs &amp; tech-debt review, P0)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deprecated-2026-08-30-bugs-tech-debt-review-p0" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deprecated (2026-08-30 bugs &amp; tech-debt review, P0)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#documentation-2026-08-30-bugs-tech-debt-review-p0" class="md-nav__link">
+    <span class="md-ellipsis">
+      Documentation (2026-08-30 bugs &amp; tech-debt review, P0)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-2026-08-30-correctness-review-solid-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (2026-08-30 correctness review, SOLID findings)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-2026-08-30-correctness-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (2026-08-30 correctness review)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (CI)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-073-analytic-jacobians" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-073: analytic Jacobians)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-qep-073-analytic-jacobians" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (QEP-073: analytic Jacobians)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-073-analytic-jacobians" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-073: analytic Jacobians)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#known-limitations-qep-073-analytic-jacobians" class="md-nav__link">
+    <span class="md-ellipsis">
+      Known limitations (QEP-073: analytic Jacobians)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-070-fit-pipeline-unification" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-070: fit pipeline unification)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-qep-070-fit-pipeline-unification" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (QEP-070: fit pipeline unification)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-070-fit-pipeline-unification" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-070: fit pipeline unification)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-qep-071-refit-pipeline-consistency" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (QEP-071: refit pipeline consistency)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (examples)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-069-torch-fit-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-069: torch fit backend)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-069-torch-fit-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-069: torch fit backend)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-068-fit-backend-seam" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-068: fit backend seam)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-068-fit-backend-seam" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-068: fit backend seam)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-qep-068-fit-backend-seam" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed (QEP-068: fit backend seam)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-067-architecture-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-067: architecture boundaries)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (docs)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-architecture-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (architecture cleanup)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed-architecture-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed (architecture cleanup)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-architecture-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (architecture cleanup)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-052-fit-frequency-cutoff" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-052: fit frequency cutoff)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-066-diamond-specific-constraints-groundwork" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-066: diamond-specific constraints groundwork)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-012-plotting-layout-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-012: plotting layout cleanup)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-core-001-safe-serialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-CORE-001: safe serialization)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-059-unified-constraint-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-059: Unified Constraint Interface)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed-qep-059" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed (QEP-059)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-docs-full-rewrite" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (docs full rewrite)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-047-measurement-metadata-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-047 — measurement metadata file)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-source-fitting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (source fitting)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-050" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-050)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-qep-008" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (QEP-008)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-qep-008" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed (QEP-008)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added (docs)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-02-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      2026-02-19
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2026-02-19">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-02-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      2026-02-18
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2026-02-18">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-02-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      2026-02-17
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2026-02-17">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-02-16" class="md-nav__link">
+    <span class="md-ellipsis">
+      2026-02-16
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2026-02-16">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-02-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      2026-02-15
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2026-02-15">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2025-06-08" class="md-nav__link">
+    <span class="md-ellipsis">
+      2025-06-08
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2025-06-08">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2025-06-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      2025-06-07
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2025-06-07">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2025-03-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      2025-03-30
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2025-03-30">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Added
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
+<p>All notable changes to QDMpy are documented here.
+Format follows <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>.</p>
+<hr />
+<h2 id="unreleased">[Unreleased]<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<hr />
+<h2 id="010-2026-09-20">[0.1.0] - 2026-09-20<a class="headerlink" href="#010-2026-09-20" title="Permanent link">&para;</a></h2>
+<p>First tagged release. Everything below is the accumulated history of the
+architectural overhaul; it is listed here because no prior version was ever
+tagged, not because it all landed on this date.</p>
+<h3 id="packaging-2026-09-20-release-prep">Packaging (2026-09-20 release prep)<a class="headerlink" href="#packaging-2026-09-20-release-prep" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>pygpufit</code> moved from a required dependency to the <code>gpufit</code> extra.</strong> It was
+  declared mandatory, but it is not published on PyPI and was resolved from
+  wheels vendored under <code>src/pyGpufit/</code> via uv-only <code>[tool.uv.sources]</code> config.
+  That config is stripped from built metadata, so any install that was not an
+  editable uv install from a checkout failed to resolve. Every <code>import pygpufit</code>
+  in the package was already guarded, so this changes packaging only, not
+  behaviour. Install with <code>uv sync --extra gpufit</code> from a clone.</li>
+<li><strong><code>__version__</code> now reads from installed package metadata</strong> instead of a
+  hardcoded literal, which had drifted to <code>0.1.0a</code> while <code>pyproject.toml</code> said
+  <code>0.0.1</code>.</li>
+<li><strong>qdmpy-core is not published to PyPI.</strong> README and docs now document
+  cloning or <code>pip install git+https://...</code> instead of <code>pip install qdmpy-core</code>.</li>
+</ul>
+<h3 id="removed-2026-09-19-breaking-cleanup-breaking">Removed (2026-09-19 breaking cleanup) -- BREAKING<a class="headerlink" href="#removed-2026-09-19-breaking-cleanup-breaking" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>gpu_available=</code></strong> removed from <code>FitManager</code>, <code>Measurement.fit_odmr</code>,
+  <code>fit_folded_odmr</code>, <code>refit_outliers</code> and the workflow helpers (deprecated
+  since QEP-068). Use <code>backend='gpufit' | 'scipy' | 'torch' | 'auto'</code> or a
+  <code>FitBackend</code> instance. Passing it now raises <code>TypeError</code>.</li>
+<li><strong><code>OutlierProcessor</code></strong> removed (deprecated 2026-08-30). It z-scored along
+  the frequency axis, where the resonance dip is the largest deviation, so it
+  masked either nothing or the signal. Use
+  <code>qdmpy.field_processing.HotPixelFilter</code> post-fit. A saved pipeline config
+  naming it now raises <code>ConfigurationError</code> with that explanation;
+  <code>ProcessorRegistry.removed</code> lists removed types so front ends can strip
+  them before loading.</li>
+</ul>
+<h3 id="changed-2026-09-19-breaking-cleanup-breaking">Changed (2026-09-19 breaking cleanup) -- BREAKING<a class="headerlink" href="#changed-2026-09-19-breaking-cleanup-breaking" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>FoldedODMR.fold_residual</code> is no longer clipped to [0, 1].</strong> The clip
+  saturated every pixel whose antisymmetric power exceeded its folded
+  variance at exactly 1.0, erasing the ranking among the pixels that most
+  need inspection. Values are now <code>&gt;= 0</code> and unbounded; <code>plot_folding_overview</code>
+  scales the map to its 99th percentile. Anything thresholding the map on the
+  old [0, 1] scale must be revisited (qdmpy-gui updated alongside).</li>
+</ul>
+<h3 id="changed-2026-09-19-dependency-upgrade-breaking">Changed (2026-09-19 dependency upgrade) -- BREAKING<a class="headerlink" href="#changed-2026-09-19-dependency-upgrade-breaking" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Dependencies upgraded</strong> and floors raised: numpy 2.5, scipy 1.18,
+  xarray 2026.7, numba 0.67, matplotlib 3.11, h5py 3.16, pydantic-settings
+  2.15; torch (gpu extra) 2.14; dev tools ruff 0.16.8 and ty 0.0.82. Full
+  suite, including the NPZ regression fixtures, passes unchanged.</li>
+<li><strong>Keyword-only arguments</strong> (ruff PLR0917 adopted). Arguments that were
+  easy to swap silently are now keyword-only:</li>
+<li><code>FitBackend.fit(data, freq_ghz, *, initial_parameters, constraints,
+    constraint_types, model, options)</code> on every backend, including custom
+    ones implementing the protocol. <code>constraints</code> and <code>constraint_types</code> are
+    adjacent <code>NDArray</code>s; swapping them fitted with nonsense bounds and no error.</li>
+<li><code>Measurement(odmr, light_image, laser_image, output_directory, *,
+    pixel_spacing, fit_model, metadata)</code>.</li>
+<li><code>polyfit2d(x, y, z, *, kx, ky, order)</code>,
+    <code>make_synthetic_odmr_data(shape, *, ...)</code>, and internal plotting helpers.</li>
+<li><code>ModelRegistry.register</code> and <code>ProcessorRegistry.register</code> are generic and
+  return the decorated class's own type, so type checkers no longer see every
+  registered model/processor as the base class.</li>
+<li>torch is declared an allowed-unresolved import for ty instead of inline
+  ignores, so <code>ty check</code> passes with and without the <code>gpu</code> extra.</li>
+</ul>
+<h3 id="fixed-2026-09-19-dependency-upgrade">Fixed (2026-09-19 dependency upgrade)<a class="headerlink" href="#fixed-2026-09-19-dependency-upgrade" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>mkdocs build --strict</code> failed on develop: the API page referenced
+  <code>qdmpy.fitting.manager.ESTIMATOR_ID</code> (moved to <code>fitting.backends</code>), and a
+  <code>Measurement.from_folder</code> docstring used <code>Example:</code> instead of <code>Examples:</code>.</li>
+</ul>
+<h3 id="changed-2026-09-19-housekeeping">Changed (2026-09-19 housekeeping)<a class="headerlink" href="#changed-2026-09-19-housekeeping" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>One pytest config.</strong> <code>pytest.ini</code> silently overrode
+  <code>[tool.pytest.ini_options]</code> in <code>pyproject.toml</code>; the two are merged into
+  <code>pyproject.toml</code> and <code>pytest.ini</code> is deleted. <code>norecursedirs</code> now restates
+  pytest's defaults (it replaced them, which made hypothesis warn about
+  <code>.hypothesis/</code>). Coverage is measured on <code>qdmpy</code> only, no longer on <code>tests/</code>.</li>
+<li>Removed dead config: <code>[tool.mypy]</code> (ty is the type checker), <code>setup.cfg</code>
+  (flake8 only), <code>package-lock.json</code>, and the unused Linux
+  <code>pyGpufit-1.2.0</code> wheel (the lock resolves 1.3.0).</li>
+<li>Tutorial and experiment notebooks are now lint- and format-clean under
+  <code>ruff check .</code> / <code>ruff format --check .</code>, with notebook-appropriate
+  per-file ignores. <code>docs/tutorials/.archive/</code> is excluded.</li>
+</ul>
+<h3 id="fixed-2026-09-19-housekeeping">Fixed (2026-09-19 housekeeping)<a class="headerlink" href="#fixed-2026-09-19-housekeeping" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>test_toml_file_loading</code> tested nothing: it patched <code>Path.home</code> after
+  <code>CONFIG_FILE</code> was already computed, and asserted only <code>isinstance</code>. It now
+  loads a real TOML file; new tests cover unknown TOML keys raising and env
+  vars overriding TOML.</li>
+</ul>
+<h3 id="fixed-2026-08-30-bugs-tech-debt-review-p2-technical-debt">Fixed (2026-08-30 bugs &amp; tech-debt review, P2 -- technical debt)<a class="headerlink" href="#fixed-2026-08-30-bugs-tech-debt-review-p2-technical-debt" title="Permanent link">&para;</a></h3>
+<p>Numerical changes below were validated against an analytic point dipole
+before being made; the figures are from those runs.</p>
+<ul>
+<li><strong><code>UpwardContinuation</code> rang at map edges whenever the map had an offset.</strong>
+  The mean was left in before zero-padding, so the pad boundary was a step of
+  size <code>mean(data)</code>. It is now removed before padding and restored afterwards
+  -- exact, since continuation leaves the k=0 term unchanged. With a 5 uT
+  uniform offset: RMS error 0.71 -&gt; 0.0013 uT, edge error 3.4 -&gt; 0.006 uT
+  (20 uT peak). Trade-off: with <em>no</em> background the error is marginally
+  higher (&lt;= 0.0015 uT); real B111 maps routinely carry uT-scale offsets.
+  <code>padding_factor</code> is now validated <code>&gt;= 1</code> (smaller values crashed).</li>
+<li><strong>Bxyz reconstruction wrapped around at map edges</strong> (F8, open since
+  2026-08-22): <code>_reconstruct_bxyz</code> FFT'd the raw map with no padding. It now
+  removes the mean and zero-pads 0.25x per side. For a dipole truncated by
+  the map edge: RMS Bz error 0.24 -&gt; 0.06 uT (160 uT peak); centred sources
+  are unchanged, and larger pads gave no further gain. <strong>Cost</strong> at 1200x1920:
+  0.26 s / 461 MB -&gt; 0.61 s / 1037 MB peak; <code>pad_fraction=0</code> opts out.</li>
+<li><strong><code>HotPixelFilter</code> caught none of the hot pixels it exists to catch.</strong> It
+  thresholded on the <em>global</em> std, which real magnetic features inflate. On a
+  synthetic map with noise, a dipole and 20 injected 2 uT spikes it caught
+  0/20 while still flagging 49 of 337 real-signal pixels. It now thresholds
+  the residual against a local 3x3 median (robust sigma from MAD): 20/20
+  spikes caught, 30 signal pixels flagged (all at the ~4 px dipole core).
+  Note: the review recommended a global MAD instead -- that was wrong; it
+  catches every spike but flags all 337 signal pixels. Replacement is also no
+  longer order-dependent (windows read the original map and exclude other
+  flagged pixels). <strong>Behaviour change</strong>: results differ from previous
+  releases for any map with real features.</li>
+<li><strong><code>FitResult</code> guessed an image shape on a pixel-count mismatch</strong> (F6, open
+  since 2026-08-22), reshaping maps into a plausible-but-wrong geometry. It
+  now raises <code>DataShapeError</code>.</li>
+<li><strong>Model auto-detection depended on registry insertion order.</strong>
+  <code>get_model_by_peaks</code> returned the first registered model with the detected
+  peak count; it now raises <code>ModelNotResolvedError</code> when several match. This
+  surfaced real test pollution (three test modules leaked custom single-dip
+  models into the global registry); tests now scope their registrations.</li>
+<li><code>ScipyBackend</code> reports <code>njev</code> (accepted iterations) as <code>iterations</code>.</li>
+</ul>
+<h3 id="changed-2026-08-30-bugs-tech-debt-review-p2">Changed (2026-08-30 bugs &amp; tech-debt review, P2)<a class="headerlink" href="#changed-2026-08-30-bugs-tech-debt-review-p2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Typed exceptions (<code>DataValidationError</code>, <code>ConfigurationError</code>,
+  <code>ParameterError</code>, <code>DataShapeError</code>) replace bare <code>ValueError</code> in
+  <code>field_processing</code>, <code>magnetic_map</code> and <code>plotting</code>. Raises inside pydantic
+  field validators intentionally stay <code>ValueError</code> -- pydantic only wraps
+  <code>ValueError</code>/<code>AssertionError</code> into <code>ValidationError</code>.</li>
+<li><code>ODMRProcessorManager.add_processor</code> is typed with the <code>Processor</code>
+  protocol, matching its documented duck-typed contract.</li>
+</ul>
+<h3 id="fixed-2026-08-30-bugs-tech-debt-review-p1-correctness">Fixed (2026-08-30 bugs &amp; tech-debt review, P1 -- correctness)<a class="headerlink" href="#fixed-2026-08-30-bugs-tech-debt-review-p1-correctness" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>fastmath=True</code> was silently disabling every NaN guard in the guessers.</strong>
+  Found while fixing the reported NaN-unsafety: <code>fastmath</code> implies LLVM's
+  no-NaN assumption, under which numba folds <code>np.isnan(...)</code> to <code>False</code>. The
+  worst consequence was <code>top3_contrast</code> returning exactly <strong>0.0 contrast</strong> for
+  any pixel holding a single NaN, despite carrying an explicit
+  <code>if np.isnan(v): continue</code>. <code>normalize_pixel</code>, <code>top3_contrast</code>,
+  <code>cumsum_center</code>, <code>argmin_center</code>, <code>cumsum_width</code> and <code>halfpower_width</code> no
+  longer use <code>fastmath</code>; a test asserts the compile flags so the guards cannot
+  be silently re-broken. Measured cost at 1200x1920: under 1 s per guesser.</li>
+<li><strong>NaN-unsafe centre and width estimators.</strong> <code>normalize_pixel</code> produced an
+  all-NaN curve from one NaN sample (collapsing <code>argmin</code> lookups to index 0),
+  <code>argmin_center</code> followed <code>np.argmin</code> onto the NaN itself, <code>halfpower_width</code>
+  pinned its minimum at index 0 when the first sample was NaN, and
+  <code>guess_n_peaks</code> used <code>np.median</code> rather than <code>nanmedian</code>, letting one dead
+  pixel poison model auto-detection. Centre guesses are now NaN-invariant;
+  width guesses stay finite and physically sensible (they can still shift when
+  a NaN lands on a half-power crossing, which is acceptable for an initial
+  guess). NaN pixels are reachable in production: <code>NormalizationProcessor</code>
+  emits them by design for zero-factor pixels.</li>
+<li><strong><code>halfpower_width</code> no longer reports zero width</strong> when no half-power
+  crossing is found; it falls back to the window edge, as its docstring
+  always claimed.</li>
+<li><strong><code>QuadraticBackgroundSubtractor</code> was NaN-poisoned by a single pixel</strong>
+  (F10, open since 2026-08-22): <code>lstsq</code> propagates one NaN into every
+  coefficient, NaN-ing the entire output map. Non-finite samples are now
+  excluded from the fit, and a map with too few usable pixels raises
+  <code>DataShapeError</code> instead of returning a NaN surface. <code>mask</code> is validated as
+  a <code>(row_indices, col_indices)</code> pair at construction.</li>
+<li><strong><code>get_settings()</code> no longer destroys the host application's logging.</strong>
+  It called <code>logger.remove()</code>, dropping every loguru sink in the process --
+  including an embedding app's. Since <code>FitManager.__init__</code> calls
+  <code>get_settings()</code>, the first fit in a GUI/server session silently re-routed
+  that app's logging. Reading settings now has no side effects at all (it also
+  no longer creates the config directory).</li>
+<li><strong><code>FitManager.set_constraints</code> logged <code>%s</code> placeholders to loguru</strong>, which
+  formats with <code>str.format</code> -- the message rendered literally and every
+  argument was discarded.</li>
+<li><strong><code>FitResult</code> no longer freezes the caller's arrays in place.</strong> It set
+  <code>flags.writeable = False</code> on the arrays it was handed, so a caller that kept
+  a reference hit a read-only failure far from the cause. Arrays are copied on
+  ingest; arrays already frozen by a previous <code>FitResult</code> are shared, not
+  re-copied.</li>
+<li><strong>Spectral folding used the low branch's frequency step for the high
+  branch's index arithmetic</strong>, mis-sampling whenever the two ranges are swept
+  at different resolutions. Each branch now uses its own step, and the
+  duplicated overlap calculation calls <code>_overlap_range</code> instead.</li>
+<li><strong><code>FitResult.linewidths</code> docstring said Hz</strong>; all frequencies are GHz.</li>
+</ul>
+<h3 id="added-2026-08-30-bugs-tech-debt-review-p1">Added (2026-08-30 bugs &amp; tech-debt review, P1)<a class="headerlink" href="#added-2026-08-30-bugs-tech-debt-review-p1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>chi2 provenance.</strong> <code>FitResult.metadata</code> records <code>fit_backend</code> and
+  <code>fit_estimator</code>. chi2 is only comparable within one such pair -- gpufit's
+  MLE estimator returns a Poisson deviance while the scipy and torch backends
+  always return a sum of squared residuals. Since the P0 refit guard compares
+  chi2 <em>absolutely</em>, <code>refit_outliers</code> now warns when asked to refit a result
+  that was fitted with a different backend or estimator.</li>
+<li><strong>Refits inherit the original fit's configuration.</strong>
+  <code>FitResult.metadata</code> records <code>fit_constraints</code> and <code>fit_freq_cutoff</code>, and
+  <code>refit_outliers</code> falls back to them. <code>Measurement.refit_outliers</code> documented
+  this behaviour but passed <code>None</code> straight through to a <code>FitManager</code> built on
+  library defaults, so a standalone refit after a constrained fit silently
+  refitted those pixels under different constraints. An explicit argument
+  still wins.</li>
+<li><code>configure_logging()</code> is now public and exported from <code>qdmpy</code>.</li>
+</ul>
+<h3 id="changed-2026-08-30-bugs-tech-debt-review-p1">Changed (2026-08-30 bugs &amp; tech-debt review, P1)<a class="headerlink" href="#changed-2026-08-30-bugs-tech-debt-review-p1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>BREAKING -- <code>logging.enable_structured_logging</code> now defaults to <code>False</code>.</strong>
+  Importing and using the library no longer creates <code>~/logs/</code> or writes
+  rotating JSON logs there unasked. Applications that want qdmpy's sinks call
+  <code>configure_logging()</code> explicitly; the CLI does this at entry. Library code
+  never does.</li>
+<li><code>Measurement</code> no longer allocates <code>_outliers</code>, a boolean array the size of
+  the raw 5D data that nothing in the package read -- 460 MB per <code>Measurement</code>
+  at the documented target resolution.</li>
+</ul>
+<h3 id="fixed-2026-08-30-bugs-tech-debt-review-p0-silent-wrong-results">Fixed (2026-08-30 bugs &amp; tech-debt review, P0 -- silent wrong results)<a class="headerlink" href="#fixed-2026-08-30-bugs-tech-debt-review-p0-silent-wrong-results" title="Permanent link">&para;</a></h3>
+<p>The four findings from <code>docs/reviews/2026-08-30-bugs-and-tech-debt-review.md</code>
+where the library returned plausible-looking wrong data rather than failing.</p>
+<ul>
+<li><strong><code>.qdm</code> round-trip silently lost every fit state.</strong> <code>states</code> was written
+  to disk as <code>fit_states</code> and then skipped on read, so every loaded result
+  reported 100% convergence, <code>get_fit_quality_metrics()</code> dropped
+  <code>convergence_rate</code>/<code>n_converged</code>, and
+  <code>refit_outliers(include_non_converged=True)</code> became a no-op on loaded
+  results. Measured before the fix: 45 non-converged pixels -&gt; 0.</li>
+<li><strong><code>.qdm</code> files now carry the frequency axis they were fitted against.</strong>
+  The format's documented <code>fit/frequencies</code> dataset was never actually
+  written, so a saved result could not be refit or replotted against its own
+  x-axis. <code>FitManager</code> now records <code>metadata["frequencies_ghz"]</code> and
+  <code>save_qdm</code> persists it as a float64 dataset.</li>
+<li><strong>Refit no longer reports work it discarded, and converges when it should.</strong>
+  <code>refit_info["n_refitted"]</code> counted <em>attempted</em> refits, so <code>_refit_pass</code>
+  always returned a new <code>FitResult</code> and <code>refit_outliers</code>' early-stop never
+  fired -- measured at 4 passes / 112 pixel-fits / 0 parameters changed on a
+  clean fit. <code>refit_info</code> now reports <code>n_accepted</code> alongside <code>n_refitted</code>,
+  per-frange as well, and a pass where nothing improved ends the loop. The
+  per-frange log line no longer mixes per-pixel and per-(polarity, pixel)
+  counts.</li>
+</ul>
+<h3 id="changed-2026-08-30-bugs-tech-debt-review-p0">Changed (2026-08-30 bugs &amp; tech-debt review, P0)<a class="headerlink" href="#changed-2026-08-30-bugs-tech-debt-review-p0" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>BREAKING -- unknown fields are rejected everywhere.</strong> <code>BaseProcessor</code>,
+  <code>BaseFieldProcessor</code>, their concrete subclasses, and the whole settings
+  tree now use <code>extra="forbid"</code>. Previously a typo was silently dropped and
+  the object ran on a default the caller never chose: <code>settings.toml</code> with
+  <code>center_min_ml</code> (for <code>center_min_mt</code>) fitted under the wrong constraint
+  with no diagnostic, and the published tutorial's
+  <code>OutlierProcessor(threshold=3.0)</code> constructed with the destructive default.
+  Stray <code>QDMPY_*</code> environment variables are unaffected -- pydantic-settings
+  only maps env vars onto declared fields.</li>
+<li><strong>BREAKING -- dead settings sections removed.</strong> <code>default_paths</code>, <code>odmr</code>,
+  <code>model.find_peaks</code> and the entire <code>outlier_detection</code> tree
+  (<code>OutlierDetectionSettings</code>, <code>LocalOutlierFactorSettings</code>,
+  <code>StatisticsPercentileSettings</code>) are gone. Nothing in the library ever read
+  them, but they were documented and user-settable. Combined with
+  <code>extra="forbid"</code> above, an existing <code>settings.toml</code> containing them will
+  now fail to load -- delete those sections. <code>model.find_peaks.prominence</code> in
+  particular advertised a tunable peak-detection threshold on the
+  model-detection path while <code>guess.py</code> used its own adaptive
+  <code>_relative_prominence</code>; the adaptive version is kept.</li>
+</ul>
+<h3 id="deprecated-2026-08-30-bugs-tech-debt-review-p0">Deprecated (2026-08-30 bugs &amp; tech-debt review, P0)<a class="headerlink" href="#deprecated-2026-08-30-bugs-tech-debt-review-p0" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>OutlierProcessor</code> is deprecated and will be removed in the next minor
+  release.</strong> It cannot work at any setting: it z-scores along <code>freq_idx</code>,
+  where the ODMR resonance dip is by definition the largest deviation.
+  Measured on a clean ESR14N spectrum the dip's z-score (~1.9) is the maximum
+  anywhere, so <code>&gt;= 2.0</code> masks nothing, <code>&lt; 2.0</code> masks the resonance first, and
+  the shipped default <code>0.003</code> masks ~99.9% of the data. Construction now
+  warns, and <code>process()</code> warns again if it masked more than half the data.
+  Use <code>qdmpy.field_processing.HotPixelFilter</code> for spatial outlier rejection.
+  (Open as F1 since the 2026-08-22 review.)</li>
+</ul>
+<h3 id="documentation-2026-08-30-bugs-tech-debt-review-p0">Documentation (2026-08-30 bugs &amp; tech-debt review, P0)<a class="headerlink" href="#documentation-2026-08-30-bugs-tech-debt-review-p0" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>docs/tutorials/processors.md</code> no longer instructs users to call
+  <code>OutlierProcessor(threshold=3.0)</code> (no such field -- it silently produced
+  the 99.9%-masking default), <code>FluorescenceCorrectionProcessor(factor=0.2)</code>
+  (the field is <code>correction_factor</code>), or <code>NormalizationProcessor(method='max')</code>
+  ahead of fluorescence correction, which the code itself warns against.</li>
+<li><code>docs/migration.md</code> no longer recommends <code>OutlierProcessor</code> as the port
+  target for the old <code>LocalOutlierFactor</code>/<code>IsolationForest</code> detectors; it
+  points at <code>HotPixelFilter</code>.</li>
+<li><code>docs/tutorials/settings_configuration.md</code> updated for the removed
+  sections and the new <code>extra="forbid"</code> behaviour.</li>
+</ul>
+<h3 id="changed-2026-08-30-correctness-review-solid-findings">Changed (2026-08-30 correctness review, SOLID findings)<a class="headerlink" href="#changed-2026-08-30-correctness-review-solid-findings" title="Permanent link">&para;</a></h3>
+<p>The 5 <code>develop</code>-scope SOLID findings from
+<code>docs/reviews/2026-08-30-correctness-and-solid-review.md</code> (the alignment-branch
+findings are separate, tracked on <code>feature/qep-067-alignment-stitching</code>):</p>
+<ul>
+<li><strong>LSP</strong> -- <code>FitBackend</code> Protocol now documents its non-finite-input
+  contract explicitly: implementations must not raise on NaN/Inf rows in
+  <code>data</code>, only mark the affected fit(s) invalid and continue fitting the
+  rest of the batch. Verified <code>GpufitBackend</code> already complies (returns a
+  non-zero <code>states</code> entry, no exception) before writing the contract down.</li>
+<li><strong>DRY</strong> -- the duplicated "probe <code>Model.jacobian</code>, validate column
+  count/shape, warn and fall back to finite differences" skeleton in
+  <code>fitting/backends.py</code> and <code>fitting/torch_backend.py</code> is now one shared
+  <code>resolve_analytic_jacobian_columns()</code> helper in <code>fitting/models.py</code>,
+  parameterized by each backend's probe call and shape convention.</li>
+<li><code>fitting/manager.py</code>'s deprecated <code>gpu_available</code> path now resolves
+  <code>GpufitBackend</code> through <code>resolve_backend("gpufit")</code>/<code>_BACKENDS_BY_NAME</code>
+  like every other backend-resolution path, instead of constructing it
+  directly.</li>
+<li><strong>OCP</strong> -- <code>odmr/processors.py</code> gains a <code>ProcessorRegistry</code> (mirroring
+  <code>ModelRegistry</code>), replacing the hardcoded 4-type discriminated union
+  <code>ProcessorSpec</code>/<code>_adapter</code>. A custom processor can now round-trip through
+  <code>ODMRProcessorManager.to_config()</code>/<code>from_config()</code> by registering itself
+  via <code>@ProcessorRegistry.register</code>, without editing this module -- closing
+  the gap where the <code>Processor</code> protocol's own "needs no base class"
+  contract didn't hold for config serialization. <code>ProcessorRegistry</code> and
+  <code>BaseProcessor</code> are now exported from the top-level <code>qdmpy</code> package
+  (matching <code>ModelRegistry</code>'s existing precedent), and
+  <code>docs/extending.md</code>'s "Custom ODMR Processor" section gains a "Config
+  round-tripping" subsection showing the pattern.</li>
+<li><strong>SRP</strong> -- <code>odmr/io.py</code>'s <code>MatlabLoader.load()</code> is decomposed into
+  <code>_discover_files</code>, <code>_load_single_file</code>, <code>_parse_frequencies</code>, and
+  <code>_assemble_data_array</code>; <code>load()</code> is now a ~15-line orchestrator and no
+  longer needs <code># noqa: C901, PLR0912, PLR0915</code>. Pure refactor, no behavior
+  change.</li>
+</ul>
+<h3 id="fixed-2026-08-30-correctness-review">Fixed (2026-08-30 correctness review)<a class="headerlink" href="#fixed-2026-08-30-correctness-review" title="Permanent link">&para;</a></h3>
+<p>Findings from <code>docs/reviews/2026-08-30-correctness-and-solid-review.md</code>.</p>
+<ul>
+<li><strong><code>refit._refit_pass</code> wrote refit results back unconditionally</strong>, even when
+  the refit landed in a strictly worse local minimum than the pixel's
+  existing fit. Now only accepted when the new chi2 improves on the old one
+  (or the old chi2 was non-finite).</li>
+<li><strong><code>ScipyBackend</code> raised and aborted the entire fit batch on a single
+  NaN-containing pixel</strong>, unlike <code>TorchBackend</code>, which degrades gracefully
+  per-pixel. <code>ScipyBackend</code> now marks that one pixel invalid (<code>states=2</code>)
+  and continues fitting the rest, matching <code>TorchBackend</code>'s contract.</li>
+<li><strong><code>utils.double_norm</code> crashed on its own documented default</strong> (<code>axis=None</code>)
+  and on any axis but the last, due to <code>np.expand_dims</code> always restoring the
+  reduced dimension at <code>data.ndim - 1</code>. Now uses <code>keepdims=True</code>.</li>
+<li><strong><code>utils.millify</code> raised <code>IndexError</code> for <code>|n| &gt;= 1e15</code></strong> and silently
+  collapsed sub-milli values (e.g. <code>0.0005</code>) to <code>"0.0"</code>, because the unit
+  index was clamped to the wrong bounds before an offset was applied.</li>
+<li><strong><code>plot_fluorescence_correction</code> had inverted polarity sign labels</strong> --
+  polarity index 0 (<code>neg</code>) was labeled <code>"+"</code> and index 1 (<code>pos</code>) labeled
+  <code>"-"</code>. Now reads the actual <code>polarity</code> coordinate.</li>
+<li><strong><code>ODMRData</code>'s frequency-axis validation was skipped on the real data path.</strong>
+  <code>from_loader()</code> (used by <code>MatlabLoader</code> and every real ingestion path)
+  constructed <code>ODMRData</code> without checking <code>freq_ghz</code> for finiteness/
+  monotonicity, unlike <code>from_numpy()</code>. Both paths now share one check.</li>
+<li><strong><code>BinningProcessor</code> silently produced a zero-sized array</strong> when
+  <code>bin_factor</code> exceeded the scan dimensions (<code>coarsen(..., boundary="trim")</code>
+  trims to empty with no error). Now raises <code>DataShapeError</code>.</li>
+<li><strong><code>NormalizationProcessor</code> divided by an unguarded zero factor</strong>, producing
+  silent NaN (equal values) or <code>+-inf</code> (values that cancel to a zero mean)
+  for a dead-pixel spectrum. Now forces NaN explicitly and warns.</li>
+<li><strong><code>io.qdm._check_version</code> was one-directional</strong>, rejecting <code>.qdm</code> files
+  newer than the code understands but silently loading files declaring an
+  older major schema version. Now rejects both directions.</li>
+<li><strong>CLI <code>--version</code> always reported <code>"unknown"</code></strong> on a real install --
+  <code>get_version("QDMpy")</code> was called against a distribution named
+  <code>qdmpy-core</code>, only masked locally by a stale pre-rename <code>egg-info</code>.</li>
+<li><strong><code>MagneticMap.display</code>'s documented <code>**imshow_kwargs</code> passthrough raised
+  <code>TypeError</code></strong> -- it forwarded to <code>plot_magnetic_component</code>, which had no
+  <code>**kwargs</code> in its signature. Now threaded through to the underlying
+  <code>ax.imshow</code> call.</li>
+</ul>
+<h3 id="fixed-ci">Fixed (CI)<a class="headerlink" href="#fixed-ci" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>.github/workflows/test.yml</code>'s <code>pre-commit</code> and <code>test</code> jobs still installed
+  via Poetry on Python 3.7-3.10, from before this repo switched to <code>uv</code> and
+  raised its Python floor to 3.13 -- <code>poetry install</code> failed immediately with
+  no <code>poetry.lock</code> present, so every push/PR had a permanently red <code>Test</code>
+  workflow regardless of code changes. Both jobs now use <code>uv sync</code> on Python
+  3.13, matching the pattern already established in <code>notebooks.yml</code> and
+  <code>qdmpy-gui/.github/workflows/ci.yml</code>.</li>
+<li>Bumped <code>actions/checkout@v2</code> -&gt; <code>@v4</code> (deprecated runner) across every
+  workflow file, <code>actions/setup-python@v2</code> -&gt; <code>@v5</code> in <code>cookiecutter.yml</code>,
+  and <code>peter-evans/create-pull-request@v3</code> -&gt; <code>@v7</code> in <code>cookiecutter.yml</code> /
+  <code>dependencies.yml</code>, so <code>actionlint</code> passes.</li>
+<li>Replaced a deprecated <code>::set-output</code> command in <code>cookiecutter.yml</code> with
+  <code>$GITHUB_OUTPUT</code>.</li>
+<li><code>dependencies.yml</code>, <code>draft_release.yml</code>, and <code>release.yml</code> also still ran
+  Poetry end to end (dependency auto-updates, version bumping, PyPI
+  publish) and would have failed the same way if actually triggered. All
+  three now run on <code>uv</code>: <code>uv lock --dry-run --upgrade</code> replaces
+  <code>poetry show -o</code>, <code>uv version --bump {major,minor,patch}</code> (or an explicit
+  version) replaces <code>poetry version</code>, and <code>uv build</code> / <code>uv publish</code> replace
+  <code>poetry publish</code>. <code>kacl-cli</code> now runs via <code>uvx --from python-kacl</code> rather
+  than being a project dependency. The archived <code>actions/create-release@v1</code>
+  is replaced with <code>gh release create</code>. Removed the now-unused
+  <code>.github/actions/python-poetry-env</code> composite action.</li>
+<li>With <code>test.yml</code> finally installing via <code>uv</code> instead of failing at
+  <code>poetry install</code>, <code>uv run pytest</code> ran to completion on a CI runner for the
+  first time and surfaced two test modules that were never actually
+  CI-worthy: <code>tests/integration/test_folded_real_data_regression.py</code> hits
+  real data fixtures not present in the repo (now skips cleanly, matching
+  the existing <code>test_io.py</code>/<code>test_data.py</code> "Test data directory not found"
+  convention), and <code>tests/integration/test_gpufit_consistency.py</code> only
+  checked that <code>pygpufit</code> <em>imports</em>, not that a CUDA-capable GPU is actually
+  present -- it imports fine on any machine with the wheel installed and
+  fails at fit time with "CUDA driver version is insufficient" otherwise.
+  Both now gate on <code>pygpufit.gpufit.cuda_available()</code>.</li>
+</ul>
+<h3 id="added-qep-073-analytic-jacobians">Added (QEP-073: analytic Jacobians)<a class="headerlink" href="#added-qep-073-analytic-jacobians" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>Model.jacobian(x, parameters)</code></strong> — optional hook returning per-parameter
+  analytic derivatives as a tuple of <code>(n_fits, n_freq)</code> columns, or <code>None</code>.
+  Columns rather than a stacked array so the implementation stays
+  framework-neutral (numpy and torch) and each backend stacks with its own
+  framework. Defaults to <code>None</code>, so custom models keep working unchanged on
+  finite differences.</li>
+<li><strong><code>qdmpy.fitting.models._lorentzian_dips_jacobian</code></strong> plus <code>esr14n_jacobian</code>,
+  <code>esr15n_jacobian</code>, <code>esrsingle_jacobian</code> — one shared derivation for all
+  three ESR models, which differ only in their dip offsets. Cross-checked
+  term by term against gpufit's kernels.</li>
+<li><code>TorchBackend</code> and <code>ScipyBackend</code> use the analytic Jacobian when a model
+  supplies a valid one, resolved once per <code>fit()</code> and falling back to finite
+  differences otherwise.</li>
+<li><code>scripts/benchmark_fit_backends.py --width-range {synthetic,realistic}</code> —
+  the consistency-test width range (0.002-0.005 GHz HWHM) is 3-8x wider than
+  real data (~0.0006 GHz for 15N), which understated the finite-difference
+  error; both regimes are now measurable.</li>
+</ul>
+<h3 id="fixed-qep-073-analytic-jacobians">Fixed (QEP-073: analytic Jacobians)<a class="headerlink" href="#fixed-qep-073-analytic-jacobians" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>TorchBackend</code> fitted <code>center</code> significantly less accurately than gpufit.</strong>
+  Its finite-difference step scaled with each parameter's own magnitude, so
+  <code>center</code> (~2.87 GHz) was differenced over ~0.99 MHz -- comparable to, and on
+  real 15N data 1.6x larger than, the linewidth that actually sets its
+  sensitivity. ESR15N was worst hit, having no dip at <code>center</code> to observe
+  directly. On 100k perturbed synthetic fits, torch now matches gpufit:
+  ESR15N chi2 max 1.31e-3 -&gt; 2.48e-4 and max center error 2.45e-3 -&gt; 1.23e-3
+  GHz; ESR14N 1.43e-4 -&gt; 1.06e-4 and 1.56e-3 -&gt; 1.18e-3. On real data,
+  gpufit-vs-torch B111 correlation on FOV18x (15N) rises from r = 0.52 / 0.80
+  to 0.974 / 0.991, with the map spread now matching gpufit (0.1034 vs 0.1057
+  uT) instead of being 2x too wide; MIL2_FOV1 (14N) improves from 0.993 /
+  0.997 to 0.9997 / 0.9999.</li>
+</ul>
+<h3 id="changed-qep-073-analytic-jacobians">Changed (QEP-073: analytic Jacobians)<a class="headerlink" href="#changed-qep-073-analytic-jacobians" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>TorchBackend</code> fitting is ~1.8x faster on ESR14N/ESR15N (100k synthetic
+  fits, RTX 3050 Ti) from the analytic Jacobian plus fewer LM iterations
+  (ESR14N mean 8.5 -&gt; 6.5, max 245 -&gt; 63).</li>
+<li>On real data at the same estimator, <code>TorchBackend</code> is now <strong>faster than
+  <code>GpufitBackend</code></strong>: MIL2_FOV1 at bin_factor=4 (576k spectra, LSE pinned on
+  both) fits in 2.91 s against gpufit's 4.28 s, at equal chi2 (median
+  9.9921e-7 vs 9.9930e-7) and 100% convergence on both, with B111 agreement
+  r = 0.99998 / 0.99999 and matching map spread (3.8124 vs 3.8125 uT).
+  Fitting is a small share of that pipeline either way -- loading the same
+  measurement takes 16 s.</li>
+<li><code>tests/integration/test_torch_consistency.py</code> tolerances tightened by 2-4
+  orders of magnitude (chi2 1e-6 -&gt; 1e-10, center 5e-6 -&gt; 1e-6, width 2e-2 -&gt;
+  1e-4, contrasts 2e-2 -&gt; 1e-3, offset 1e-4 -&gt; 1e-5) to lock the gain in.</li>
+<li><code>TorchBackend._analytic_jacobian</code> deliberately stacks on dim 0 and permutes
+  rather than stacking on dim -1. Both produce shape <code>(a, f, p)</code>, but the
+  downstream <code>jac.mT @ jac</code> inherits the memory layout, and the wrong one
+  makes <code>aten::bmm</code> ~5x slower (79 ms -&gt; 394 ms of device time) -- enough to
+  make analytic Jacobians slower overall than finite differences. Preserve
+  this layout in both Jacobian paths.</li>
+</ul>
+<h3 id="known-limitations-qep-073-analytic-jacobians">Known limitations (QEP-073: analytic Jacobians)<a class="headerlink" href="#known-limitations-qep-073-analytic-jacobians" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>TorchBackend</code> still implements only least squares.
+  <code>QDMpySettings.fit.estimator</code> defaults to <code>"MLE"</code>, so a default-configured
+  torch fit logs a
+  warning and silently runs LSE while <code>GpufitBackend</code> runs MLE -- the two
+  backends are therefore not interchangeable on the default configuration.
+  MLE is the correct estimator for photon-shot-noise-limited data. Unrelated
+  to this change (it predates it), but measured and confirmed here; a
+  follow-up QEP should close it.</li>
+<li>The analytic Jacobian is verified on CUDA and CPU only. The MPS path runs
+  the same code and passes the test suite, but the bmm-layout finding above
+  is a cuBLAS behaviour and has not been re-measured on Apple silicon.</li>
+<li>At realistic linewidths a small number of fits (order 100 in 100k) still
+  land in local minima on a barely-sampled line -- 50 points across 40 MHz is
+  0.8 MHz spacing against a ~0.6 MHz HWHM. gpufit's float64 Hessian
+  accumulators handle those few better. This is a sampling limit, not a
+  derivative one; the analytic path still beats finite differences there
+  (ESRSINGLE max center error 6.85e-2 -&gt; 2.48e-2 GHz).</li>
+</ul>
+<h3 id="added-qep-070-fit-pipeline-unification">Added (QEP-070: fit pipeline unification)<a class="headerlink" href="#added-qep-070-fit-pipeline-unification" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>qdmpy.fitting.freq_cutoff.FreqCutoff</code></strong> — frozen value object replacing
+  ~110 lines of inline <code>freq_cutoff</code> dict parsing in <code>FitManager</code>, with its
+  own independently-tested schema/range validation.</li>
+<li><strong><code>qdmpy.fitting.constraints.constraints_to_array</code> /
+  <code>constraint_type_indices</code></strong> — pure module-level projections extracted from
+  <code>ConstraintManager.to_array</code>/<code>.get_constraint_types</code>.</li>
+<li><strong><code>qdmpy.fitting.constraints.ConstraintOverride</code></strong> — frozen value object for
+  per-parameter-type constraint overrides, used by <code>fit_folded()</code>'s
+  contrast/offset bounds instead of constructing a second <code>FitManager</code>.</li>
+<li><code>FitManager.fit()</code> decomposed into independently unit-tested stages
+  (<code>_prepare_data</code>, <code>_resolve_model</code>, <code>_guess_parameters</code>, <code>_fit_all_franges</code>,
+  <code>_assemble_result</code>) composed through a shared <code>_fit_prepared()</code> internal
+  execution path also used by <code>fit_folded()</code>.</li>
+<li><code>tests/test_fit_pipeline_parity.py</code>, <code>tests/test_freq_cutoff.py</code> — parity,
+  characterization, and unit test coverage for the above.</li>
+</ul>
+<h3 id="fixed-qep-070-fit-pipeline-unification">Fixed (QEP-070: fit pipeline unification)<a class="headerlink" href="#fixed-qep-070-fit-pipeline-unification" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>FitManager.fit()</code> no longer mutates the shared <code>ConstraintManager</code> mid-fit
+  when applying per-frange mT center-window bounds — the last frange's window
+  used to leak into the manager's stored constraints, contradicting the
+  documented "stateless between calls" contract. Per-range constraints are
+  now computed fresh and layered via <code>Constraint.with_updates()</code> without
+  writing back to shared state.</li>
+<li><code>fit_folded()</code> no longer hand-rebuilds the folded-to-fit-inputs conversion
+  or constructs a second <code>FitManager</code>; it now calls
+  <code>FoldedODMR.to_fit_inputs()</code> (the same conversion the refit path already
+  used) and delegates to the shared <code>_fit_prepared()</code> path.</li>
+</ul>
+<h3 id="changed-qep-070-fit-pipeline-unification">Changed (QEP-070: fit pipeline unification)<a class="headerlink" href="#changed-qep-070-fit-pipeline-unification" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>FitManager._param_idx()</code>'s undocumented <code>"resonance"</code>/<code>"mean_contrast"</code>
+  parameter aliases now raise <code>DeprecationWarning</code> before remapping to
+  <code>"center"</code>/<code>"contrast"</code>.</li>
+</ul>
+<p>Supersedes QEP-FIT-003 and QEP-060 — see
+<code>proposals/QEP-070-fit-pipeline-unification.md</code>.</p>
+<h3 id="fixed-qep-071-refit-pipeline-consistency">Fixed (QEP-071: refit pipeline consistency)<a class="headerlink" href="#fixed-qep-071-refit-pipeline-consistency" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>FitManager.fit_frange()</code> now applies <code>freq_cutoff</code> trimming and per-range
+  constraint overrides (mT center window, folded-fit contrast/offset bounds)
+  before delegating to the backend, matching the preprocessing <code>fit()</code>/
+  <code>fit_folded()</code> already apply. Previously <code>fitting.refit</code>'s outlier-refit
+  path called <code>fit_frange()</code> with the manager's plain, unmodified
+  constraints and the full uncut frequency axis, so refit pixels were fit
+  inconsistently with the rest of the map whenever <code>freq_cutoff</code> was
+  configured or the original fit was folded. <code>fit_frange()</code>'s signature
+  changed to require <code>irange</code>/<code>n_frange</code> (no default) and accept an optional
+  <code>constraint_overrides</code> — this reverses a scope boundary QEP-070 explicitly
+  left in place; see <code>proposals/QEP-071-refit-pipeline-consistency.md</code>.</li>
+</ul>
+<h3 id="fixed-examples">Fixed (examples)<a class="headerlink" href="#fixed-examples" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>examples/example_data.py</code> and <code>examples/fit_15n_sample.py</code> no longer
+  import from <code>qdmpy.models</code>/<code>qdmpy.odmr.odmr</code>, modules removed by the
+  pre-QEP-070 <code>fitting/</code>/<code>odmr/</code> subpackage restructure — both were broken
+  (<code>ModuleNotFoundError</code>) and unrelated to QEP-070/071. Rewritten against the
+  current top-level <code>qdmpy</code> API (<code>qdmpy.load()</code> and the manual
+  <code>MatlabLoader</code>/<code>ODMR</code>/<code>FitManager</code> pipeline, matching
+  <code>docs/tutorials/02-exploration.ipynb</code>); both now actually run a real fit
+  (<code>fit_15n_sample.py</code> previously skipped fitting entirely) and were verified
+  end-to-end against <code>tests/data/FOV18x</code>.</li>
+</ul>
+<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>FitManager.fit()</code>/<code>fit_folded()</code> no longer crash on a single-pixel scan
+  (<code>ny=nx=1</code>) with more than one polarity. <code>_reshape_frange_results()</code> used a
+  bare <code>np.squeeze()</code>, which dropped the pixel axis along with the intended
+  trailing singleton, breaking the per-frange buffer assignment; it now drops
+  only the trailing axis.</li>
+<li><code>tests/integration/test_torch_consistency.py</code> seeded synthetic parameters
+  with <code>hash(model_name)</code>, which is randomized per-process
+  (<code>PYTHONHASHSEED</code>) — made <code>test_recovers_truth_from_perturbed_start</code>
+  intermittently fail depending on run. Seeds now derive from <code>zlib.crc32</code>,
+  which is stable across processes.</li>
+</ul>
+<h3 id="added-qep-069-torch-fit-backend">Added (QEP-069: torch fit backend)<a class="headerlink" href="#added-qep-069-torch-fit-backend" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>qdmpy.fitting.torch_backend.TorchBackend</code></strong> — architecture-independent
+  GPU fitting via a batched Levenberg-Marquardt engine in PyTorch, one code
+  path for CUDA, Apple-silicon MPS, and CPU. All fits in a chunk advance in
+  parallel (stacked finite-difference Jacobians, batched Cholesky
+  normal-equation solves, active-set handling of box constraints, working-set
+  compaction). On an Apple-silicon MPS device: ~31,000 fits/s on synthetic
+  ESR14N frames (~5 min for a full 1200x1920 x 2-pol x 2-range frame) with
+  100% convergence — versus hours for the per-pixel ScipyBackend.</li>
+<li><strong><code>gpu</code> optional extra</strong> — <code>uv sync --extra gpu</code> / <code>pip install
+  'qdmpy[gpu]'</code> installs torch (&gt;=2.4). torch is imported lazily inside the
+  backend only; <code>import qdmpy</code> never pays the torch import cost (guarded by a
+  subprocess test).</li>
+<li><strong>Framework-neutral models</strong> — the built-in model functions now use
+  <code>_ensure_2d</code> instead of <code>np.atleast_2d</code>, so the <em>same</em> physics code
+  evaluates numpy arrays and torch tensors (no duplicated kernels). Custom
+  models written with pure arithmetic/broadcasting are GPU-fittable
+  automatically; numpy-only models get a clear error naming
+  <code>backend='scipy'</code>.</li>
+<li><strong><code>fit.backend</code> gains <code>'torch'</code></strong>; <code>TorchBackend(device=..., chunk_size=...)</code>
+  exposes device override (cuda/mps/cpu/auto) and GPU-memory chunking.</li>
+<li><strong><code>tests/test_fitting_torch_backend.py</code></strong> and
+  <strong><code>tests/integration/test_torch_consistency.py</code></strong> — LM unit tests (bounds,
+  clamping, chunk-invariance, NaN handling, device resolution, custom
+  models) plus the same recovery contract as the gpufit consistency suite,
+  from true and perturbed starts, parametrized over every locally available
+  device (cpu always; mps/cuda when present).</li>
+</ul>
+<h3 id="changed-qep-069-torch-fit-backend">Changed (QEP-069: torch fit backend)<a class="headerlink" href="#changed-qep-069-torch-fit-backend" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>backend='auto'</code> resolution</strong> — now gpufit if available, <strong>else torch
+  when a real GPU device (cuda/mps) exists</strong>, else a DependencyError listing
+  all remedies. Machines where fitting previously failed outright (e.g.
+  Apple silicon) now work with zero configuration once the <code>gpu</code> extra is
+  installed; CUDA/gpufit machines are unaffected. CPU fitting (torch-CPU,
+  scipy) remains an explicit opt-in — never a silent fallback.</li>
+<li>The workflow-level pygpufit preflight now applies only to an explicit
+  <code>backend='gpufit'</code> request; <code>'auto'</code> defers to
+  <code>FitManager._require_backend_available()</code>, whose error now includes the
+  backend's install hint.</li>
+</ul>
+<h3 id="added-qep-068-fit-backend-seam">Added (QEP-068: fit backend seam)<a class="headerlink" href="#added-qep-068-fit-backend-seam" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>qdmpy.fitting.backends</code></strong> — new module defining the <code>FitBackend</code>
+  protocol and its adapters: <code>GpufitBackend</code> (GPU, extracted from
+  <code>FitManager.fit_frange</code>), <code>ScipyBackend</code> (CPU fitting via
+  <code>scipy.optimize.least_squares</code>, supports any model including pure-Python
+  custom models with <code>model_id=-1</code>), and <code>resolve_backend()</code> /
+  <code>with_forced_availability()</code> for name/instance resolution. This module is
+  now the <em>only</em> place <code>pygpufit</code> is imported in the codebase.</li>
+<li><strong><code>FitManager(backend=...)</code></strong> — <code>FitManager</code>, <code>Measurement.fit_odmr()</code>,
+  <code>Measurement.fit_folded_odmr()</code>, and <code>Measurement.refit_outliers()</code> accept
+  an explicit <code>backend</code> (a name — <code>'auto'</code>/<code>'gpufit'</code>/<code>'scipy'</code> — or a
+  <code>FitBackend</code> instance). <code>'auto'</code> never silently falls back to a slower CPU
+  fit: a missing gpufit install raises <code>DependencyError</code> naming the explicit
+  <code>backend='scipy'</code> opt-in.</li>
+<li><strong><code>FitSettings.backend</code></strong> — new settings field (default <code>'auto'</code>) selecting
+  the default backend when no explicit <code>backend=</code> is passed.</li>
+<li><strong><code>qdmpy.testing.FakeFitBackend</code></strong> — deterministic, dependency-free fit
+  backend (echoes back initial parameters, always converged) for tests that
+  exercise the real <code>FitManager</code>/<code>Measurement</code> fit pipeline without a GPU.</li>
+<li><strong><code>tests/test_fitting_backends.py</code></strong> — new test suite covering backend
+  resolution, <code>GpufitBackend.supports()</code>/<code>ScipyBackend</code> behavior, the
+  <code>gpu_available</code> deprecation path, and an end-to-end pure-Python custom
+  model fit via <code>backend='scipy'</code> (previously impossible — the documented
+  <code>model_id=-1</code> contract had no CPU path to fulfil it).</li>
+</ul>
+<h3 id="changed-qep-068-fit-backend-seam">Changed (QEP-068: fit backend seam)<a class="headerlink" href="#changed-qep-068-fit-backend-seam" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>FitManager(gpu_available=...)</code> deprecated</strong> — still works (emits
+  <code>DeprecationWarning</code>) but is superseded by <code>backend=</code>. Passing both raises
+  <code>ParameterError</code>.</li>
+<li><strong><code>tests/test_fit.py</code>, <code>tests/test_folded_fit.py</code></strong> — migrated off
+  <code>@patch("pygpufit.gpufit.fit_constrained")</code> to the injectable
+  <code>FakeFitBackend</code>/recording-backend pattern; no longer require a real
+  (or even importable) pyGpufit install to run.</li>
+</ul>
+<h3 id="fixed-qep-068-fit-backend-seam">Fixed (QEP-068: fit backend seam)<a class="headerlink" href="#fixed-qep-068-fit-backend-seam" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>is_pygpufit_available()</code> crashed instead of returning <code>False</code></strong> when
+  pyGpufit was installed but its native library failed to load (e.g. a Linux
+  wheel's <code>.so</code> on macOS) — it only caught <code>ImportError</code>, not the <code>OSError</code>
+  <code>ctypes.cdll.LoadLibrary</code> actually raises. Now caught in
+  <code>qdmpy.settings.is_pygpufit_available()</code> and the equivalent guard in
+  <code>tests/integration/test_gpufit_consistency.py</code>.</li>
+<li><strong><code>fitting/models.py</code> imported <code>pygpufit.gpufit</code> at module level</strong> purely
+  to read three integer <code>ModelID</code> constants — meaning <code>import qdmpy</code> (and the
+  entire test suite) crashed on any machine where pyGpufit's native library
+  can't load, before any dependency check ever ran. Replaced with local
+  integer constants; <code>pygpufit</code> is no longer imported anywhere outside
+  <code>fitting/backends.py</code>.</li>
+<li><strong><code>FitManager.fit_folded()</code> duplicated folded fit-input construction</strong>
+  instead of reusing <code>FoldedODMR.to_fit_inputs()</code>; the internally-constructed
+  <code>FitManager</code> now forwards the already-resolved <code>backend</code> instance instead
+  of re-deriving GPU availability from a boolean.</li>
+</ul>
+<h3 id="changed-qep-067-architecture-boundaries">Changed (QEP-067: architecture boundaries)<a class="headerlink" href="#changed-qep-067-architecture-boundaries" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>.qdm</code> field-source round-tripping</strong> — <code>qdmpy.io.load_qdm()</code> now restores
+  concrete <code>FieldSource</code> subtypes (<code>MagneticSource</code>,
+  <code>UpwardContinuedSource</code>) instead of collapsing them back to the generic base
+  model on load.</li>
+<li><strong><code>MagneticMap.save()</code> boundary cleanup</strong> — NetCDF persistence now delegates
+  through <code>qdmpy.io.save_magnetic_map()</code>, keeping <code>MagneticMap</code> as a thin
+  convenience wrapper rather than owning I/O details directly.</li>
+<li><strong>Explicit fitting/reconstruction seams</strong> — <code>Measurement.fit_odmr()</code>,
+  <code>Measurement.fit_folded_odmr()</code>, <code>Measurement.refit_outliers()</code>, and
+  <code>MagneticMap.from_b111()</code> now accept explicit settings/dependency overrides
+  for deterministic tests and embedded/batch use, while preserving the existing
+  default user workflow.</li>
+<li><strong><code>Measurement</code> workflow extraction</strong> — folder loading, fit/refit, and folded
+  fit orchestration now live in concrete helpers under
+  <code>qdmpy.measurement_workflows</code>, reducing cross-layer logic inside the public
+  <code>Measurement</code> wrapper.</li>
+</ul>
+<h3 id="changed-docs">Changed (docs)<a class="headerlink" href="#changed-docs" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Updated quickstart/tutorial/extending docs to mention the new explicit
+  <code>settings=</code> / <code>gpu_available=</code> advanced hooks and the
+  <code>MagneticMap.from_b111(..., settings=...)</code> seam.</li>
+</ul>
+<h3 id="changed-architecture-cleanup">Changed (architecture cleanup)<a class="headerlink" href="#changed-architecture-cleanup" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>ModelNotResolvedError</code> exception</strong> — replaced 12 bare <code>RuntimeError</code> raises
+  in <code>FitManager</code> with a new domain exception <code>ModelNotResolvedError</code> for
+  auto-mode guards, so callers can catch them specifically.</li>
+<li><strong><code>Constraint</code> dataclass</strong> — replaced <code>dict[str, list[Any]]</code> in
+  <code>ConstraintManager</code> with a frozen <code>Constraint</code> dataclass with named fields
+  (<code>vmin</code>, <code>vmax</code>, <code>constraint_type</code>, <code>unit</code>), eliminating error-prone
+  positional indexing.</li>
+<li><strong><code>FitResult.inject_b111_cache()</code></strong> — added public method to inject
+  pre-computed B111 arrays; <code>io/qdm.py</code> no longer writes to a <code>PrivateAttr</code>.</li>
+<li><strong><code>FoldedODMR.to_fit_inputs()</code></strong> — added helper to build the 5D DataArray
+  and absolute-GHz frequency array from folded spectra; removes
+  folding-internal logic from <code>Measurement.refit_outliers()</code>.</li>
+<li><strong>Deferred <code>get_settings()</code> at import</strong> — <code>import qdmpy</code> no longer triggers
+  filesystem side effects (logging config, <code>~/logs/</code> creation).</li>
+</ul>
+<h3 id="removed-architecture-cleanup">Removed (architecture cleanup)<a class="headerlink" href="#removed-architecture-cleanup" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Deleted stale <code>.ipynb_checkpoints</code> directories from <code>src/qdmpy/</code> and
+  <code>src/qdmpy/odmr/</code>.</li>
+</ul>
+<h3 id="added-architecture-cleanup">Added (architecture cleanup)<a class="headerlink" href="#added-architecture-cleanup" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Test files for previously untested modules: <code>test_constraints.py</code>,
+  <code>test_magnetic_map.py</code>, <code>test_analysis.py</code>.</li>
+</ul>
+<h3 id="added-qep-052-fit-frequency-cutoff">Added (QEP-052: fit frequency cutoff)<a class="headerlink" href="#added-qep-052-fit-frequency-cutoff" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Per-frange frequency masking for fitting</strong> — added optional <code>freq_cutoff</code>
+  pass-through on <code>Measurement.fit_odmr()</code> and <code>Measurement.fit_folded_odmr()</code>
+  to restrict the GHz window used for fitting without changing raw data.</li>
+<li><strong>FitManager cutoff validation + enforcement</strong> — <code>FitManager</code> now validates
+  <code>freq_cutoff</code> schema (<code>low/high</code> + <code>min/max</code>), rejects invalid bounds, and
+  enforces the minimum retained frequency count after masking.</li>
+<li><strong>Refit consistency</strong> — <code>Measurement.refit_outliers()</code> now accepts
+  <code>freq_cutoff</code> so bad-pixel refits use the same frequency window as the
+  initial fit when requested.</li>
+</ul>
+<h3 id="changed-qep-066-diamond-specific-constraints-groundwork">Changed (QEP-066: diamond-specific constraints groundwork)<a class="headerlink" href="#changed-qep-066-diamond-specific-constraints-groundwork" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Tighter global mT defaults for <code>*N</code> fits</strong> — updated <code>ModelConstraintsSettings</code>
+  defaults to <code>center_max_mt=1.1</code>, <code>width_min_mt=0.017</code>, and <code>width_max_mt=0.08</code>
+  to reduce over-broad search space and avoid systematically too-narrow width
+  solutions under the prior global bounds.</li>
+</ul>
+<h3 id="changed-qep-012-plotting-layout-cleanup">Changed (QEP-012: plotting layout cleanup)<a class="headerlink" href="#changed-qep-012-plotting-layout-cleanup" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Colorbar/axes alignment hardening</strong> — added a shared final layout pass in
+  <code>qdmpy.plotting._common</code> to synchronize appended colorbar heights with their
+  parent image axes after layout.</li>
+<li><strong>Consistent figure layout strategy</strong> — map and overview plots now use a
+  shared layout finalizer with reserved suptitle margin to reduce clipping and
+  overlap across <code>fit</code>, <code>display</code>, <code>fields</code>, and folding/ODMR diagnostics.</li>
+<li><strong>Label consistency fixes</strong> — fit parameter map labels now use GHz for
+  center/linewidth quantities and standardized <code>x [µm]</code> / <code>y [µm]</code> axis text.</li>
+<li><strong>Regression tests</strong> — expanded plotting tests to assert colorbar-height
+  alignment and suptitle/top-row separation in representative layouts.</li>
+</ul>
+<h3 id="changed-qep-core-001-safe-serialization">Changed (QEP-CORE-001: safe serialization)<a class="headerlink" href="#changed-qep-core-001-safe-serialization" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Legacy NPZ migration window</strong> — <code>FitResult.load_results()</code> and <code>qdmpy.io.load_npz()</code> now
+  detect legacy pickle-format result files by key layout, emit <code>DeprecationWarning</code> + log warning,
+  and load them to support one-release migration.</li>
+<li><strong>Legacy parsing hardening</strong> — legacy readers now validate required keys and scalar payload shape
+  and raise <code>DataLoadError</code> with actionable messages for malformed files.</li>
+<li><strong>Regression coverage</strong> — added tests for legacy <code>FitResult</code>/<code>QDMResult</code> NPZ loading paths and
+  warning behavior, while preserving pickle-free save/load roundtrips.</li>
+</ul>
+<h3 id="changed-qep-059-unified-constraint-interface">Changed (QEP-059: Unified Constraint Interface)<a class="headerlink" href="#changed-qep-059-unified-constraint-interface" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>ModelConstraintsSettings</code></strong> — new <code>constraint_units</code> field (<code>'mt'</code> default, <code>'absolute_ghz'</code>
+  for power users). Users specify center/width bounds in millitesla; converted to absolute GHz
+  internally. New fields: <code>center_max_mt</code>, <code>center_min_mt</code>, <code>width_max_mt</code>, <code>width_min_mt</code>.</li>
+<li><strong><code>ConstraintManager</code></strong> — resolves <code>constraint_units</code> mode on init, converting mT bounds to
+  absolute-GHz bounds via D_ZFS and GAMMA_NV. Both folded and non-folded paths use the same
+  constraint conversion.</li>
+<li><strong><code>FitManager.fit_folded()</code></strong> — shifts folded delta_f frequency axis to absolute GHz
+  (<code>D_ZFS + delta_f</code>) before fitting. Returns standard <code>FitResult</code> (not <code>FoldedFitResult</code>).
+  Fitted centers are absolute GHz (~2.87 + shift), same as non-folded fits.</li>
+<li><strong><code>Measurement.refit_outliers()</code></strong> — detects folded fits via <code>metadata['folded_fit']</code> instead
+  of <code>isinstance(result, FoldedFitResult)</code>.</li>
+</ul>
+<h3 id="removed-qep-059">Removed (QEP-059)<a class="headerlink" href="#removed-qep-059" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>FoldedFitResult</code></strong> class — deleted. All fitting paths now return standard <code>FitResult</code>.
+  <strong>Breaking change:</strong> code importing <code>FoldedFitResult</code> or using <code>isinstance</code> checks must
+  migrate to <code>FitResult</code> with <code>metadata.get('folded_fit')</code> for detection.</li>
+<li><strong><code>_FOLDED_*</code> constants</strong> — hardcoded folded-domain constraint bounds removed from
+  <code>fitting/manager.py</code>. Constraints are now settings-driven.</li>
+<li><strong><code>FitManager.for_folded()</code></strong> classmethod — removed. <code>fit_folded()</code> handles everything
+  internally with settings-driven constraints.</li>
+</ul>
+<h3 id="changed-docs-full-rewrite">Changed (docs full rewrite)<a class="headerlink" href="#changed-docs-full-rewrite" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>README.md</code></strong> — full rewrite: three-persona "Choose your path" table (Fry / Lila / Professor),
+  corrected import name (<code>qdmpy</code> not <code>QDMpy</code>), updated API examples (<code>save_qdm</code>/<code>load_qdm</code>,
+  <code>is_pygpufit_available</code>), correct notebook paths, development instructions updated to <code>ty</code>.</li>
+<li><strong><code>docs/index.md</code></strong> — mirrors README with docs-site relative links.</li>
+<li><strong><code>docs/installation.md</code></strong> — rewritten: uv as primary install, pip as secondary, removed
+  hardcoded wheel paths (<code>src/pyGpufit/win/</code>), GPU fitting via PyPI <code>pyGpufit</code>, fixed verification
+  command, added development install section.</li>
+<li><strong><code>docs/quickstart.md</code></strong> — full rewrite for Fry persona with universal tutorial structure
+  (Audience / Time / Prerequisites / What you'll learn / Key takeaways / What's next).</li>
+<li><strong><code>docs/tutorials/index.md</code></strong> — full rewrite with persona-based navigation cards (Fry / Lila /
+  Professor), ordered tutorial paths with time estimates, removed all references to archived
+  notebooks.</li>
+<li><strong><code>docs/tutorials/fitting.md</code></strong> — full rewrite as "Fitting Quality &amp; Optimization" guide for
+  Lila: model selection table, constraint types and syntax, chi2 / fit_states interpretation
+  tables, GPU vs CPU section.</li>
+<li><strong><code>docs/tutorials/processors.md</code></strong> — full rewrite: added CRITICAL processor order callout,
+  diagnostics section, updated code examples to current API.</li>
+<li><strong><code>docs/tutorials/spectral-folding.md</code></strong> — expanded: added universal tutorial header,
+  quick-path code (<code>fold_odmr()</code> / <code>fit_folded_odmr()</code>), when-to-use decision table,
+  <code>FoldingSettings</code> parameters reference table.</li>
+<li><strong><code>mkdocs.yml</code></strong> — nav restructured: removed <code>basic.md</code> and <code>processor_tutorial.ipynb</code>,
+  added <code>06-source-fitting.ipynb</code>, separated Tutorials from Guides sections.</li>
+</ul>
+<h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>docs/tutorials/06-source-fitting.ipynb</code></strong> — new notebook for source fitting (QEP-050 follow-up):
+  covers <code>MagneticSource</code> definition, <code>fit_sources()</code>, <code>compute_field()</code>, residual visualisation,
+  and multi-source fitting; all synthetic data, CI-compatible.</li>
+</ul>
+<h3 id="removed">Removed<a class="headerlink" href="#removed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>docs/tutorials/basic.md</code></strong> — content superseded by <code>02-exploration.ipynb</code> and
+  the rewritten <code>fitting.md</code>.</li>
+</ul>
+<h3 id="added-qep-047-measurement-metadata-file">Added (QEP-047 — measurement metadata file)<a class="headerlink" href="#added-qep-047-measurement-metadata-file" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>[measurement]</code> schema</strong> — <code>metadata.toml</code> now has a defined <code>[measurement]</code>
+  section with standard fields: <code>date</code>, <code>sample</code>, <code>subsample</code>, <code>fov</code>, <code>operator</code>,
+  <code>notes</code>. Values are stored verbatim in <code>measurement.metadata["measurement"]</code>.</li>
+<li><strong><code>[acquisition]</code> fallback in <code>from_folder()</code></strong> — <code>pixel_spacing</code>, <code>bin_factor</code>,
+  <code>model</code>, <code>normalize</code>, and <code>fluorescence_correction</code> now fall back to values
+  from <code>[acquisition]</code> in <code>metadata.toml</code> when not supplied as keyword arguments.
+  Priority: explicit kwarg &gt; <code>[acquisition]</code> &gt; code default.</li>
+<li><strong><code>examples/metadata.toml</code></strong> — annotated reference file documenting all
+  recognised fields with their defaults.</li>
+<li><strong>8 new tests</strong> in <code>TestAcquisitionFallbacks</code> covering pixel_spacing/model
+  overrides, explicit-kwarg priority, fluorescence_correction sentinel,
+  and metadata persistence.</li>
+</ul>
+<h3 id="added-source-fitting">Added (source fitting)<a class="headerlink" href="#added-source-fitting" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>FitSourceResult</code></strong> — frozen dataclass wrapping an updated <code>MagneticSource</code>
+  and the raw <code>scipy.optimize.OptimizeResult</code> for convergence diagnostics.</li>
+<li><strong><code>fit_source(bz_map_T, source, standoff_m)</code></strong> — fits a single <code>MagneticSource</code>
+  ROI to a magnetic dipole using <code>pypole.fit.fit_dipole</code> (TRF, Huber loss).</li>
+<li><strong><code>fit_sources(result, standoff_m)</code></strong> — convenience wrapper that extracts
+  <code>result.magnetic_map.bz</code> (µT -&gt; T) and calls <code>fit_source</code> for every
+  <code>MagneticSource</code> in <code>result.field_sources</code>.</li>
+<li><strong><code>compute_field(source, standoff_m)</code></strong> — evaluates the analytical dipole
+  forward model over the source ROI using <code>pypole.fit.dipole_field</code>. Returns
+  predicted Bz in Tesla; subtract from the measured ROI to obtain a residual.</li>
+<li><code>FitSourceResult</code>, <code>compute_field</code>, and <code>fit_sources</code> exported from <code>qdmpy</code>
+  top-level <code>__init__</code>.</li>
+<li><code>pypole 0.2.0</code> added as a PyPI runtime dependency.</li>
+<li><code>tests/test_source_fitting.py</code> — 11 tests covering round-trip moment recovery
+  (within 10%), return-type invariants, field_sources filtering, zero-field
+  robustness, forward model shape/values, and post-fit residual quality.</li>
+</ul>
+<h3 id="added-qep-050">Added (QEP-050)<a class="headerlink" href="#added-qep-050" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>MagneticModel</code></strong> — Pydantic model for a three-parameter magnetic dipole
+  source (inclination, declination, magnetic_moment) with range validators.
+  Declination uses the pypole convention (dec=0 -&gt; -Y, counterclockwise).</li>
+<li><strong><code>MagneticSource</code></strong> — concrete <code>FieldSource</code> subclass for spatially
+  localised grains/inclusions. Carries <code>center</code>, <code>half_extent</code>,
+  <code>pixel_spacing</code>, and a <code>MagneticModel</code>. Convenience properties:
+  <code>center_um</code>, <code>half_extent_um</code>, <code>roi_pixels</code>.</li>
+<li><strong><code>UpwardContinuedSource</code></strong> — <code>FieldSource</code> subclass representing the same
+  source as seen at a different sensor height. Holds its own <code>MagneticModel</code>
+  (effective parameters at the continued height) and delegates all spatial
+  properties to <code>parent: MagneticSource</code>.</li>
+<li><strong><code>FieldSourceType</code></strong> discriminated union — <code>Annotated[MagneticSource |
+  UpwardContinuedSource | FieldSource, Field(discriminator="kind")]</code>.
+  <code>QDMResult.field_sources</code> now uses this type for automatic Pydantic
+  subclass selection on deserialisation.</li>
+<li><code>MagneticSource</code>, <code>UpwardContinuedSource</code>, <code>MagneticModel</code> exported from
+  <code>qdmpy</code> top-level <code>__init__.py</code>.</li>
+<li><code>tests/test_field_source.py</code> — 21 tests covering construction, unit
+  conversions, ROI slices, validation errors, JSON round-trips, and
+  discriminated-union dispatch.</li>
+</ul>
+<h3 id="added-qep-008">Added (QEP-008)<a class="headerlink" href="#added-qep-008" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>FieldSource</code></strong> base class (<code>src/qdmpy/field_source.py</code>) — Pydantic model
+  with <code>kind</code>, <code>name</code>, and optional <code>field_map</code> NDArray. Extended by QEP-050.</li>
+<li><strong><code>io/</code> package</strong> — <code>src/qdmpy/io.py</code> promoted to a package:</li>
+<li><code>io/images.py</code> — moved image/metadata loading (unchanged logic).</li>
+<li><code>io/npz.py</code> — <code>save_npz()</code> / <code>load_npz()</code> free functions (NPZ checkpoint,
+    fit data only; logic moved from <code>QDMResult.save()</code> / <code>.load()</code>).</li>
+<li><code>io/qdm.py</code> — <code>save_qdm()</code> / <code>load_qdm()</code> for the new HDF5 <code>.qdm</code> archive
+    format (v1.0): images, fit parameters, B111, optional Bxyz, field sources,
+    scan metadata, version negotiation, overwrite protection.</li>
+<li><code>io/__init__.py</code> — re-exports all public symbols so <code>from qdmpy.io import
+    get_image</code> and <code>from qdmpy.io import save_qdm</code> both work.</li>
+<li><code>h5py&gt;=3.10</code> runtime dependency (required for <code>.qdm</code> I/O).</li>
+<li><code>tests/test_io_qdm.py</code> — 24 new tests covering round-trip, images, field
+  sources, version negotiation, overwrite protection, and public API contract.</li>
+</ul>
+<h3 id="changed-qep-008">Changed (QEP-008)<a class="headerlink" href="#changed-qep-008" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>QDMResult</code></strong> is now a <strong>pure data container</strong>:</li>
+<li>Added <code>light_image</code>, <code>laser_image</code>, <code>field_sources</code>, <code>has_cached_magnetic_map</code>.</li>
+<li>Removed <code>plot()</code>, <code>show()</code>, <code>display()</code>, <code>save()</code>, <code>load()</code> methods.
+    Use <code>qdmpy.plotting.plot_qdm_display(result)</code> and <code>qdmpy.io.save_qdm(result, path)</code>.</li>
+<li><strong><code>Measurement.fit_odmr()</code></strong> and <strong><code>fit_folded_odmr()</code></strong> now pass
+  <code>light_image</code> and <code>laser_image</code> to <code>QDMResult</code> automatically.</li>
+<li><strong><code>plot_qdm_display()</code></strong> uses <code>result.light_image</code> / <code>result.laser_image</code>
+  first, falling back to <code>measurement.light_image</code> / <code>measurement.laser_image</code>.</li>
+<li><code>qdmpy.__init__</code> exports <code>FieldSource</code>, <code>save_qdm</code>, <code>load_qdm</code>, <code>save_npz</code>,
+  <code>load_npz</code> at the top-level package.</li>
+</ul>
+<h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Converted all <code>logger</code> calls from eager f-string formatting to loguru's lazy
+  <code>{}</code> placeholder syntax across 14 source files (~55 call sites). Lazy
+  formatting avoids string interpolation when the log level is suppressed,
+  improving performance in production (INFO+) log levels.</li>
+<li>Added ~25 missing log calls per the logging rule: INFO logs for
+  field-processing pipeline steps, magnetic-map reconstruction, and
+  <code>plot_qdm_display</code>; WARNING logs for 6 silent exception handlers in
+  <code>plotting.py</code>; DEBUG logs for 13 plotting entry points; INFO for the
+  brute-force D_ZFS search in <code>odmr/folding.py</code>.</li>
+</ul>
+<h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>argmin_center(data, freq)</code> in <code>fitting/guess.py</code> — new <code>@njit(parallel=True)</code>
+  center estimator that uses the frequency of the deepest dip per pixel. Replaces
+  <code>cumsum_center</code> which produced catastrophically wrong guesses (~10 MHz error)
+  for pixels with strong B111 shifts where the resonance sits near the frequency
+  range edge.</li>
+<li><code>halfpower_width(data, freq)</code> in <code>fitting/guess.py</code> — new <code>@njit(parallel=True)</code>
+  estimator that measures envelope HWHM directly from half-power points of each
+  pixel spectrum, with one-sided baseline selection to handle edge-shifted dips.
+  Replaces <code>cumsum_width</code> for initial width guesses.</li>
+<li><code>scripts/benchmark_guesses.py</code> — benchmark script that evaluates guess quality
+  via model residuals on real ODMR data, with baseline save/compare workflow.</li>
+<li>
+<p><code>scripts/plot_guess_comparison.py</code> — visual comparison of old vs new parameter
+  guesses overlaid on raw ODMR spectra for sample pixels.</p>
+</li>
+<li>
+<p><code>plot_b111_map(result, component)</code> in <code>plotting.py</code> — dedicated B111 component
+  map with symmetric <code>RdBu_r</code> colormap and 99th-percentile color limits.</p>
+</li>
+<li><code>plot_measurement_images(measurement)</code> in <code>plotting.py</code> — side-by-side display
+  of light and laser optical images.</li>
+<li><code>plot_qdm_display(result, measurement=None, n_sample_pixels=3)</code> in <code>plotting.py</code>
+  — comprehensive overview: B111 remanent/induced, chi-squared, centre/contrast/
+  linewidth maps; optionally optical images and representative pixel ODMR spectra
+  with fitted model curves overlaid.</li>
+<li><code>Measurement.plot()</code> — shorthand for <code>plot_measurement_images(self)</code>.</li>
+<li><code>Measurement.display(result)</code> — shorthand for <code>plot_qdm_display(result, self)</code>.</li>
+<li><code>QDMResult.display(measurement=None)</code> — shorthand for
+  <code>plot_qdm_display(self, measurement)</code>.</li>
+<li>
+<p><code>FitResult.plot('b111_remanent')</code> and <code>FitResult.plot('b111_induced')</code> now
+  delegate to <code>plot_b111_map</code> rather than raising <code>ParameterError</code>.</p>
+</li>
+<li>
+<p><code>plot_fit_result_field_map</code> and <code>plot_fit_result_overview</code> in <code>plotting.py</code> now
+  use <code>result.b111_remanent</code> (µT, diverging colormap) for multi-range models
+  (ESR14N, ESR15N) instead of <code>calculate_b_field()</code>, which raised <code>ParameterError</code>
+  for those models. Single-range fits fall back to the legacy T-unit display.</p>
+</li>
+</ul>
+<h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>FitResult.get_parameter_map()</code> now correctly handles multi-dimensional
+  parameters (e.g. shape <code>(n_pol, n_frange, n_pixel)</code>) by averaging over
+  leading dimensions instead of flat-reshaping, which raised <code>ValueError</code>.</li>
+<li><code>QDMResult</code> now delegates <code>parameters</code> and <code>calculate_b_field()</code> so that
+  plotting functions accepting <code>FitResult | QDMResult</code> work with both types.</li>
+</ul>
+<h3 id="added-docs">Added (docs)<a class="headerlink" href="#added-docs" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>docs/tutorials/05-plotting.ipynb</code> — comprehensive plotting tutorial
+  demonstrating every public function in <code>qdmpy.plotting</code> with real data.</li>
+</ul>
+<h3 id="fixed_2">Fixed<a class="headerlink" href="#fixed_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Center guess catastrophically wrong for shifted pixels</strong> — <code>cumsum_center</code>
+  produced ~10 MHz errors for pixels with strong B111 fields where the resonance
+  shifts to the edge of the frequency range. The cumsum normalization S-curve
+  saturates and the 0.5 crossing lands on the wrong side. Replaced with
+  <code>argmin_center</code> (simple <code>freq[argmin(spectrum)]</code>) which is robust to shifts
+  and 4x faster.</li>
+<li>
+<p><strong>Width measured envelope span, not Lorentzian HWHM</strong> — replaced <code>cumsum_width</code>
+  with <code>halfpower_width</code> (direct half-power point measurement) and added model-aware
+  AHYP correction: <code>individual_HWHM = envelope_HWHM - AHYP</code>, floored at 0.3 MHz.
+  This produces width guesses ~2-5x closer to true values for multi-peak models.</p>
+</li>
+<li>
+<p><strong>QEP-048 (root-cause H1)</strong> — <code>normalize_pixel</code> in <code>fitting/guess.py</code> previously
+  subtracted the hardcoded value <code>1.0</code> before computing the cumulative sum used for
+  center and width initial guesses. This implicitly assumed max-normalization (which
+  guarantees off-resonance = 1.0) and produced systematically drifted cumsum profiles
+  for mean-normalized data (off-resonance ≈ 1.03–1.10), degrading fit quality. The
+  function now estimates the actual baseline from the mean of the first and last 10%
+  of frequency points, making the initial guesses correct and normalization-independent.</p>
+</li>
+</ul>
+<h3 id="changed_1">Changed<a class="headerlink" href="#changed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p><strong>QEP-048 (investigation)</strong> — <code>NormalizationProcessor</code> reinstates <code>method='max'</code> as a
+  <strong>deprecated</strong> option (raises <code>DeprecationWarning</code> at construction, not <code>ValueError</code>)
+  to allow direct A/B comparison between max-norm and mean-norm pipelines. Max-norm
+  remains physically incorrect for fluorescence correction and will be removed in a
+  future release. Use <code>method='mean'</code>.</p>
+</li>
+<li>
+<p><strong>QEP-048 (partial)</strong> — <code>NormalizationProcessor</code> now uses mean-normalization exclusively:</p>
+</li>
+<li>Default <code>method</code> changed from <code>'max'</code> to <code>'mean'</code></li>
+<li><code>method='max'</code> raises <code>ValueError</code> at construction with a migration message explaining why max-normalization is physically invalid (it destroys per-pixel baseline variation needed for fluorescence correction)</li>
+<li><code>OdmrSettings.norm_method</code> Literal narrowed to <code>"mean"</code> only</li>
+<li>Updated all examples, scripts, and integration tests to use <code>method='mean'</code></li>
+</ul>
+<h3 id="added_2">Added<a class="headerlink" href="#added_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Metadata TOML support</strong> in <code>Measurement.from_folder()</code>:</li>
+<li>New <code>load_metadata_toml()</code> function in <code>io.py</code> for loading TOML configuration files</li>
+<li><code>Measurement.__init__</code> now accepts optional <code>metadata</code> parameter for initialization</li>
+<li><code>from_folder()</code> automatically loads <code>metadata.toml</code> from measurement folder if present</li>
+<li>Graceful error handling: missing files return empty dict, malformed TOML is skipped with warning</li>
+<li>
+<p>Enables users to annotate experiments (sample name, temperature, operator, notes, etc.) without programmatic configuration</p>
+</li>
+<li>
+<p>Consolidated all plotting into <code>plotting.py</code>:</p>
+</li>
+<li><code>plot_odmr_spectra()</code> -- plot all ODMR spectra for a pixel (moved from <code>odmr/manager.py</code>)</li>
+<li><code>plot_fluorescence_correction()</code> -- preview fluorescence correction (moved from <code>odmr/processors.py</code>)</li>
+<li><code>plot_model_detection()</code> -- visualize auto-model detection (moved from <code>fitting/guess.py</code>)</li>
+<li><code>plot_magnetic_component()</code> -- display MagneticMap component (moved from <code>magnetic_map.py</code>)</li>
+<li>Original call sites now delegate to <code>plotting.py</code>; no API changes</li>
+<li>
+<p>Removed all direct matplotlib imports from non-plotting modules (except <code>io.py</code> for <code>mpimg.imread</code>)</p>
+</li>
+<li>
+<p><strong>QEP-011</strong> -- Spectral folding diagnostic plots:</p>
+</li>
+<li><code>FoldedODMR.d_candidates</code> and <code>search_residual</code> fields store brute-force D_ZFS search landscape</li>
+<li><code>FoldedODMR.plot()</code> convenience method for quick diagnostic overview</li>
+<li><code>plot_folding_search_landscape()</code> -- D candidate vs mean residual per polarity</li>
+<li><code>plot_folding_mean_spectrum()</code> -- spatially-averaged folded and antisymmetric spectra</li>
+<li><code>plot_folding_overview()</code> -- 2x2 panel combining search landscape, D_ZFS map, and fold residual map</li>
+<li>
+<p>5 new tests for search diagnostics, 5 smoke tests for plot functions</p>
+</li>
+<li>
+<p><strong>QEP-011</strong> -- Spectral folding orchestration in Measurement:</p>
+</li>
+<li><code>Measurement.fold_odmr(settings=None)</code> -- creates <code>SpectralFolder</code>, runs fold, caches result</li>
+<li><code>Measurement.folded_odmr</code> property -- returns cached <code>FoldedODMR</code> or raises <code>DataNotLoadedError</code></li>
+<li><code>Measurement.fit_folded_odmr()</code> now uses cached folded data when called without arguments; explicit <code>folded=</code> arg still works for backward compat</li>
+<li><code>fit_folded_odmr()</code> now calls <code>_validate_fit_prerequisites()</code> (GPU check was missing)</li>
+<li>Both <code>fit_odmr()</code> and <code>fit_folded_odmr()</code> now use <code>_fit_model</code> as the default model name</li>
+<li><code>FoldedODMR</code>, <code>FoldingSettings</code>, <code>SpectralFolder</code> imported at module level in <code>measurement.py</code></li>
+<li>Updated <code>notebooks/04-spectral-folding.ipynb</code> to use <code>m.fold_odmr()</code> / <code>m.fit_folded_odmr()</code> API</li>
+<li>Fixed broken mock paths in <code>tests/test_measurement.py</code> (<code>QDMpy.*</code> -&gt; <code>qdmpy_core.*</code>)</li>
+<li>
+<p>Added 12 new tests covering fold_odmr, folded_odmr property, fit_folded_odmr cached/explicit, GPU validation, and _fit_model wiring</p>
+</li>
+<li>
+<p><strong>QEP-046</strong> — Notebook tutorials for three user types:</p>
+</li>
+<li><code>src/QDMpy/testing.py</code> — three public helpers for tutorials and tests: <code>make_synthetic_odmr_data()</code>, <code>make_synthetic_fit_result()</code>, <code>make_synthetic_qdm_result()</code>; all exported from top-level <code>QDMpy</code></li>
+<li><code>notebooks/01-quickstart.ipynb</code> — User 1 ("fit and be done"): <code>QDMpy.load()</code> → <code>fit_odmr()</code> → B111 maps → <code>magnetic_map</code> → save/load</li>
+<li><code>notebooks/02-exploration.ipynb</code> — User 2 ("explore the data"): raw data inspection, processing pipeline, spectrum plots, parameter maps, B111 xarray, binning iteration, export</li>
+<li><code>notebooks/03-extending.ipynb</code> — User 3 ("develop my own algorithms"): custom <code>Model</code>, custom <code>Processor</code>, custom <code>FieldReconstructor</code>, standalone <code>FitManager</code></li>
+<li><code>.github/workflows/notebooks.yml</code> — CI notebook execution on pushes to <code>claude</code> branch with <code>notebooks/**</code> or <code>src/**</code> path filter</li>
+<li>
+<p><code>README.md</code> Quick Start updated to the new one-line <code>QDMpy.load()</code> API; Notebooks table added</p>
+</li>
+<li>
+<p><strong>QEP-045</strong> — Developer extension points:</p>
+</li>
+<li><code>Model</code> ABC docstring enhanced with full custom-model contract and copy-paste example</li>
+<li><code>ModelRegistry.available_models()</code> — returns sorted list of all registered model names</li>
+<li><code>Processor</code> protocol (<code>typing.Protocol</code>, <code>@runtime_checkable</code>) added to <code>odmr/processors.py</code> and exported from top-level <code>QDMpy</code>; <code>BaseProcessor.describe()</code> added so all built-in processors satisfy the protocol</li>
+<li><code>FieldReconstructor</code> protocol added to <code>magnetic_map.py</code> and exported from top-level <code>QDMpy</code>; <code>MagneticMap.from_b111()</code> accepts optional <code>reconstructor: FieldReconstructor | None = None</code> parameter to bypass the default Fourier inversion</li>
+<li><code>QDMResult.reconstructor</code> field — passed through to <code>MagneticMap.from_b111()</code> during lazy <code>magnetic_map</code> build</li>
+<li><code>docs/extending.md</code> — developer guide covering all three extension points with runnable code examples</li>
+<li>
+<p><code>tests/test_extensions.py</code> (16 tests) covering custom model registration, protocol conformance for <code>Processor</code> and <code>FieldReconstructor</code>, custom reconstructor round-trip through <code>QDMResult</code>, and <code>available_models()</code> listing</p>
+</li>
+<li>
+<p><strong>QEP-044</strong> — Convenience methods for exploration:</p>
+</li>
+<li><code>ODMR.spectrum(y, x, polarity='neg', freq_range='low', *, processed=True)</code> → <code>(freq_ghz, intensity)</code> tuple for quick single-pixel inspection</li>
+<li><code>ODMR.plot_spectra(y, x)</code> — 2×2 matplotlib grid of all (polarity × freq_range) spectra at a pixel</li>
+<li><code>FitResult.plot(param='center', **kwargs)</code> — thin wrapper over <code>plot_fit_result_parameter_map</code></li>
+<li><code>FitResult.show(**kwargs)</code> — thin wrapper over <code>plot_fit_result_overview</code></li>
+<li><code>QDMResult.plot()</code> / <code>QDMResult.show()</code> — delegate to <code>fit_result</code></li>
+<li><code>tests/test_convenience.py</code> (19 tests) covering spectrum shape/values, subplot grid, and plot delegation</li>
+<li><strong>QEP-043</strong> — <code>QDMpy.load()</code> entry-point function:</li>
+<li><code>Measurement.from_folder(path, *, bin_factor, model, pixel_spacing, normalize, fluorescence_correction, output_directory)</code> classmethod — full pipeline in one call</li>
+<li><code>QDMpy.load(path, **kwargs)</code> top-level convenience function delegating to <code>from_folder()</code>; added to <code>__all__</code></li>
+<li><code>fluorescence_correction: float | None = 0.2</code> — applies <code>FluorescenceCorrectionProcessor</code>; <code>None</code> skips it</li>
+<li>Missing light/laser images fall back to <code>np.zeros(scan_dimensions)</code> with a warning instead of raising</li>
+<li>Image files discovered via <code>os.listdir</code> filtered by <code>'light'</code>/<code>'laser'</code> in filename</li>
+<li><code>tests/test_load.py</code> (18 tests) covering processor pipeline composition, image fallback, file filtering, and config pass-through</li>
+<li><strong>QEP-042</strong> — Fixed top-level API surface (<code>QDMpy/__init__.py</code>):</li>
+<li>Added user-facing entry points: <code>Measurement</code>, <code>QDMResult</code></li>
+<li>Added data loading: <code>MatlabLoader</code>, <code>ODMRData</code>, <code>ODMR</code></li>
+<li>Added processing: <code>BinningProcessor</code>, <code>NormalizationProcessor</code>, <code>FluorescenceCorrectionProcessor</code>, <code>OutlierProcessor</code></li>
+<li>Added fitting: <code>FitManager</code>, <code>FitResult</code>, <code>Model</code>, <code>ModelRegistry</code></li>
+<li>Explicit <code>__all__</code> now enumerates all 26 public names in usage-frequency order</li>
+<li><code>tests/test_imports.py</code> (25 parametrised tests) — smoke tests asserting every <code>__all__</code> entry is importable and the correct kind (class / callable)</li>
+<li><strong>QEP-041</strong> — <code>QDMResult</code> top-level result container:</li>
+<li>New <code>src/QDMpy/result.py</code> module with <code>QDMResult</code> Pydantic model</li>
+<li><code>Measurement.fit_odmr()</code> now returns <code>QDMResult</code> instead of bare <code>FitResult</code></li>
+<li>All <code>FitResult</code> properties delegated directly (<code>b111_remanent</code>, <code>b111_induced</code>, <code>b111</code>, <code>centers</code>, <code>chi2</code>, <code>scan_dimensions</code>, <code>pixel_spacing</code>, <code>model_name</code>, <code>metadata</code>, etc.)</li>
+<li><code>QDMResult.magnetic_map</code> lazily constructs <code>MagneticMap</code> (Fourier 3D field reconstruction) on first access — zero cost for users who only need B111</li>
+<li>Optional <code>nv_axis</code> parameter on <code>QDMResult</code>; when <code>None</code>, settings default is used at <code>MagneticMap</code> construction time</li>
+<li><code>QDMResult.save(path)</code> / <code>QDMResult.load(path)</code> for NPZ round-trip including <code>nv_axis</code></li>
+<li><code>QDMResult</code> exported from <code>QDMpy</code> top-level <code>__init__.py</code></li>
+<li><code>tests/test_qdm_result.py</code> (25 tests) covering construction, delegation, lazy magnetic map, caching, and save/load round-trips</li>
+</ul>
+<h3 id="fixed_3">Fixed<a class="headerlink" href="#fixed_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-035</strong> — Critical correctness bugs:</li>
+<li><code>FitResult.get_parameter_map()</code> now properly flattens multi-dimensional parameters before reshape (e.g. shape <code>(n_pol, n_frange, n_pixel)</code> → flat → reshaped to <code>(H, W)</code>)</li>
+<li><code>FitResult._compute_b_field()</code> now guards against multi-range models; raises clear <code>ParameterError</code> directing users to use <code>b111</code> property instead</li>
+<li><code>FitResult.centers</code> property docstring corrected: frequencies are in GHz (was incorrectly documented as Hz)</li>
+<li><code>ODMR.load_xarray()</code> now uses explicit named argument <code>ODMRData(data=data)</code> instead of positional (safer against field reordering)</li>
+<li><strong>QEP-038 M4</strong> — <code>FitResult.load_results()</code> classmethod now returns <code>FitResult</code> instance (was returning dict); properly deserializes parameters and metadata from NPZ object arrays</li>
+<li>Tutorial notebook fixed: ESR14N model produces <code>contrast_0/1/2</code> (for three hyperfine dips), not single <code>contrast</code> key; updated cells to use correct parameter names</li>
+</ul>
+<h3 id="changed_2">Changed<a class="headerlink" href="#changed_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-036</strong> — Resolved cross-layer imports (fitting ↔ odmr layers are peers):</li>
+<li>Moved <code>POLARITY_LABELS</code>, <code>FRANGE_LABELS</code>, <code>validate_frequencies()</code> to <code>QDMpy.constants</code> (neutral ground)</li>
+<li>Moved <code>is_pygpufit_available()</code> to <code>QDMpy.settings</code> (from root <code>__init__.py</code>)</li>
+<li><code>fitting/manager.py</code> and <code>fitting/result.py</code> now import from constants/settings instead of <code>odmr.data</code></li>
+<li>Updated all tests to import from new locations</li>
+<li><strong>QEP-037</strong> — Enforced immutability:</li>
+<li><code>FitManager.model_name</code> no longer has a setter; model is fixed at construction (prevents silent constraint destruction)</li>
+<li><code>ODMRData</code> is now frozen (<code>ConfigDict(frozen=True)</code>) to prevent external mutation</li>
+<li><code>FitResult.parameters</code> arrays are write-protected (<code>.flags.writeable = False</code>) to prevent cache invalidation</li>
+<li><strong>QEP-038 M1</strong> — Physics analysis layer separation: moved <code>b111_from_dip_positions()</code> from <code>odmr/data.py</code> to new <code>odmr/analysis.py</code> module (single responsibility)</li>
+<li><strong>QEP-038 M2</strong> — Image I/O extraction: moved <code>has_csv()</code>, <code>get_image_file()</code>, <code>get_image()</code> from <code>measurement.py</code> to new top-level <code>QDMpy/io.py</code> module</li>
+<li><strong>QEP-038 M3</strong> — Removed duplicate auto-model detection: deleted <code>Measurement._detect_model()</code> (was identical to <code>FitManager._resolve_auto_model</code>); <code>fit_odmr()</code> now passes model directly to FitManager</li>
+</ul>
+<h3 id="removed_1">Removed<a class="headerlink" href="#removed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-035</strong> — Dead code: removed <code>FitResult._calc_delta_from_multi_centers()</code> method and associated test class (was only triggered by non-existent multi-center model parameters)</li>
+<li><strong>QEP-038 M3</strong> — Removed <code>TestDetectModel</code> test class (3 tests testing removed <code>_detect_model</code> method)</li>
+<li><strong>QEP-040</strong> — Removed hardcoded magic number <code>0.001</code> from <code>FluorescenceCorrectionProcessor</code>; now uses <code>FLUORESCENCE_DELTA_THRESHOLD</code> constant in <code>QDMpy.constants</code></li>
+</ul>
+<h3 id="added_3">Added<a class="headerlink" href="#added_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-038 M5</strong> — Module decomposition for cleaner architecture:</li>
+<li>New <code>src/QDMpy/fitting/constraints.py</code> (124 lines): <code>ConstraintManager</code> class and <code>CONSTRAINT_TYPES</code> constant</li>
+<li>New <code>src/QDMpy/fitting/guesser.py</code> (128 lines): <code>ParameterGuesser</code> class with cached parameter estimation and model-specific width thresholds</li>
+<li>Updated <code>src/QDMpy/fitting/__init__.py</code> to import and re-export classes from new modules</li>
+<li><strong>QEP-039</strong> — New <code>tests/conftest.py</code> (187 lines) with shared test fixtures: <code>rng</code>, <code>sample_numpy_data</code>, <code>sample_frequencies</code>, <code>sample_data</code>, <code>sample_parameters</code>, <code>sample_fit_result</code>, plus <code>make_xr_data()</code> helper and <code>MOCK_SETTINGS</code> configuration</li>
+</ul>
+<h3 id="added_4">Added<a class="headerlink" href="#added_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-030</strong> — <code>BaseProcessor</code> is now a Pydantic <code>BaseModel</code> with <code>frozen=True</code>; all processor
+  config is declared as validated fields (e.g. <code>BinningProcessor.bin_factor: int = Field(gt=0)</code>)</li>
+<li><strong>QEP-030</strong> — Each processor carries a <code>type: Literal[...]</code> discriminator field enabling
+  discriminated-union deserialization via <code>ProcessorSpec</code> / <code>_adapter = TypeAdapter(ProcessorSpec)</code></li>
+<li><strong>QEP-030</strong> — <code>BaseProcessor.to_config()</code> serializes any processor to a plain JSON-compatible dict</li>
+<li><strong>QEP-030</strong> — <code>ODMRProcessorManager.from_config(config)</code> reconstructs a full pipeline from a
+  serialized config list (e.g. <code>processed_data.metadata['pipeline']</code>)</li>
+<li><strong>QEP-030</strong> — <code>ODMRProcessorManager.pipeline_config</code> property returns the current pipeline as a
+  list of config dicts</li>
+<li><strong>QEP-030</strong> — <code>ODMRProcessorManager.process()</code> writes a <code>'pipeline'</code> key to output metadata
+  containing the complete ordered list of processor configs applied</li>
+</ul>
+<h3 id="changed_3">Changed<a class="headerlink" href="#changed_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-030</strong> — Processors no longer write ad-hoc keys to <code>ODMRData.metadata</code>; the manager owns
+  the single canonical pipeline snapshot (<code>metadata['pipeline']</code>)</li>
+<li><strong>QEP-030</strong> — <code>BinningProcessor</code> validation moved from manual <code>if bin_factor &lt;= 0: raise</code> to
+  Pydantic <code>Field(gt=0)</code> — raises <code>pydantic.ValidationError</code> instead of <code>DataValidationError</code></li>
+<li><strong>QEP-030</strong> — <code>ODMRProcessorManager.list_processors()</code> now returns <code>p.type</code> (the discriminator
+  string) rather than <code>p.__class__.__name__</code></li>
+</ul>
+<h3 id="changed_4">Changed<a class="headerlink" href="#changed_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-025</strong> — Semantic coordinate labels: <code>pol_0</code>/<code>pol_1</code> → <code>neg</code>/<code>pos</code>, <code>frange_0</code>/<code>frange_1</code> → <code>low</code>/<code>high</code>
+  in both <code>ODMRData.from_numpy</code> and <code>MatlabLoader</code>; labels exported as <code>POLARITY_LABELS</code>/<code>FRANGE_LABELS</code>
+  constants from <code>QDMpy.odmr.data</code></li>
+<li><strong>QEP-025</strong> — <code>delta_resonance</code> tensor shape <code>(n_pol, 2, H, W)</code> → <code>(n_pol, H, W)</code> <code>xr.DataArray</code>
+  with <code>polarity</code> coordinate; sign applied per polarity (neg=-1, pos=+1) — eliminates the ambiguous
+  ±sign axis that previously caused the B111 bug</li>
+<li><strong>QEP-025</strong> — <code>FitResult.b111</code> returns <code>xr.Dataset</code> with <code>'remanent'</code> and <code>'induced'</code> DataArrays
+  (units='µT'); <code>b111_remanent</code> and <code>b111_induced</code> properties kept as <code>.values</code> shims</li>
+</ul>
+<h3 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-022</strong> — Vectorized <code>esr14n</code>, <code>esr15n</code>, <code>esrsingle</code> model functions: replaced
+  Python <code>for p in parameter</code> loops with numpy broadcasting over <code>(N, 1)</code> × <code>(n_freq,)</code>
+  arrays. Benchmarked <strong>28–33× speedup</strong> at 9k pixels (bin=2) vs the loop implementation.</li>
+</ul>
+<h3 id="changed_5">Changed<a class="headerlink" href="#changed_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-029</strong> — <code>FitManager.__init__</code> no longer accepts <code>data</code> or <code>frequencies</code>; configuration
+  only (model, constraints, settings). Call <code>fit_manager.fit(data, frequencies)</code> to run fitting
+  and receive a <code>FitResult</code> directly. Same <code>FitManager</code> instance can be reused across calls.</li>
+<li><strong>QEP-029</strong> — Auto model detection deferred to first <code>fit()</code> call when <code>model_name='auto'</code></li>
+<li><strong>QEP-029</strong> — <code>Measurement.fit_odmr()</code> delegates entirely to <code>FitManager.fit()</code>;
+  removed <code>_extract_fit_parameters()</code> and <code>_compute_quality_metrics()</code> private helpers</li>
+<li><strong>QEP-029</strong> — <code>reshape_results</code> / <code>reshape_result</code> replaced by <code>_reshape_frange_results(raw, data_shape)</code>
+  taking explicit <code>data_shape</code> arg — no more <code>_current_data_shape</code> instance variable</li>
+</ul>
+<h3 id="removed_2">Removed<a class="headerlink" href="#removed_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-029</strong> — Removed <code>FitManager.fit_odmr()</code>, <code>data</code> property/setter, <code>_reset_fit()</code>,
+  <code>parameter</code> property, <code>get_param()</code>, <code>initial_parameter</code> property, <code>get_initial_parameter()</code>,
+  <code>fitted</code> property, <code>_flat_data</code> property, <code>_current_data_shape</code> instance variable</li>
+<li><strong>QEP-029</strong> — Removed <code>Measurement._extract_fit_parameters()</code> and
+  <code>Measurement._compute_quality_metrics()</code> static methods (quality metrics now in <code>FitManager.fit()</code>)</li>
+</ul>
+<h3 id="removed_3">Removed<a class="headerlink" href="#removed_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-032</strong> — Deleted 7 backward-compatibility shim files (<code>fit.py</code>, <code>result.py</code>, <code>models.py</code>,
+  <code>guess.py</code>, <code>io.py</code>, <code>odmr/odmr.py</code>, <code>odmr/validation.py</code>); use canonical paths in <code>fitting/</code>
+  and <code>odmr/manager.py</code> instead</li>
+<li><strong>QEP-032</strong> — Removed <code>Model.parameters_unique</code> and <code>FitManager.model_params_unique</code> property
+  aliases; use <code>parameter_names</code> on both classes</li>
+<li><strong>QEP-032</strong> — Removed deprecated exception aliases <code>CantImportError</code> and <code>WrongFileNumberError</code>;
+  use <code>DependencyError</code> and <code>DataValidationError</code> respectively</li>
+<li><strong>QEP-032</strong> — Removed <code>ModelRegistry._initialize_constraints()</code> (duplicated <code>ConstraintManager</code>)</li>
+<li><strong>QEP-032</strong> — Removed <code>process</code> and <code>info</code> CLI subcommands (were raising <code>NotImplementedError</code>)</li>
+<li><strong>QEP-032</strong> — Removed <code>__main__</code> block with hardcoded path from <code>measurement.py</code></li>
+<li><strong>QEP-032</strong> — Removed unused <code>Measurement._B111</code> attribute</li>
+<li><strong>QEP-032</strong> — Removed <code>visualize_fluorescence_correction</code> alias in <code>odmr/processors.py</code></li>
+</ul>
+<h3 id="changed_6">Changed<a class="headerlink" href="#changed_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-032</strong> — <code>ModelRegistry.register()</code> now reads <code>model_cls.name</code> (ClassVar) instead of
+  instantiating a throwaway instance; concrete model classes declare <code>name: ClassVar[str]</code></li>
+<li><strong>QEP-032</strong> — <code>OutlierProcessor</code>: renamed <code>threshold</code> → <code>z_score_threshold</code>, updated default
+  from <code>0.001</code> to <code>0.003</code>, removed hidden <code>* 3</code> internal multiplier</li>
+<li><strong>QEP-032</strong> — <code>FluorescenceCorrectionProcessor.process()</code> now matches the <code>BaseProcessor</code>
+  interface (no extra kwargs); configure <code>correction_factor</code> at construction time instead</li>
+<li><strong>QEP-032</strong> — <code>models</code> CLI command now prints model names, peak counts, and parameter lists;
+  <code>--detailed</code> flag shows per-parameter units</li>
+</ul>
+<h3 id="performance_1">Performance<a class="headerlink" href="#performance_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-024</strong> — <code>fitting/guess.py</code>: upgrade <code>cumsum_contrast</code>, <code>cumsum_center</code>, <code>cumsum_width</code>
+  from nested <code>@njit(parallel=True)</code> loops (prange only over <code>n_pixel</code>) to a single flat
+  <code>prange(n_pol * n_frange * n_pixel)</code>, exposing all pixels across all polarities and frequency
+  ranges to the thread pool simultaneously. Benchmarked <strong>2.7× speedup</strong> at 9k pixels (bin=2)
+  against the old code; gain increases with dataset size.
+  Removed dead code: <code>guess_contrast_pixel</code>, <code>guess_center_pixel</code>, <code>guess_width_pixel</code>,
+  <code>_guess_all_pixels</code>, <code>guess_initial_fit_parameters</code>.</li>
+</ul>
+<h3 id="changed_7">Changed<a class="headerlink" href="#changed_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-024</strong> — renamed <code>guess_contrast/center/width</code> → <code>cumsum_contrast/center/width</code> to make
+  the algorithm explicit; when alternative strategies are added (e.g. <code>fft_center</code>) the naming
+  convention is immediately clear.</li>
+</ul>
+<hr />
+<h2 id="2026-02-19">2026-02-19<a class="headerlink" href="#2026-02-19" title="Permanent link">&para;</a></h2>
+<h3 id="added_5">Added<a class="headerlink" href="#added_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-023</strong> — Project organisation and naming cleanup:</li>
+<li>New <code>fitting/</code> subpackage: canonical home for <code>manager.py</code> (was <code>fit.py</code>), <code>result.py</code>, <code>guess.py</code>, <code>models.py</code>; public API exposed via <code>QDMpy.fitting.__init__</code></li>
+<li><code>odmr/manager.py</code> (was <code>odmr/odmr.py</code>); merged <code>odmr/validation.py</code> into <code>odmr/data.py</code></li>
+<li><code>io.py</code> functions (<code>has_csv</code>, <code>get_image_file</code>, <code>get_image</code>) moved to <code>measurement.py</code> as module-level helpers</li>
+</ul>
+<h3 id="changed_8">Changed<a class="headerlink" href="#changed_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-023</strong> — <code>Model.parameter_names</code> replaces <code>parameters_unique</code> as the canonical attribute; <code>FitManager.parameter_names</code> replaces <code>model_params_unique</code></li>
+<li><strong>QEP-023</strong> — <code>Model.frequency_parameters</code> now returns only <code>['center']</code>; width is dimensionless (a.u.), not a frequency axis</li>
+<li>Removed orphaned GUI helper functions from <code>plotting.py</code> (~400 lines); removed dead <code>main()</code> from <code>utils.py</code></li>
+<li>Removed <code>DESKTOP</code>, <code>PROJECT_PATH</code>, <code>test_data_location()</code>, and <code>from . import io</code> from <code>QDMpy.__init__</code></li>
+</ul>
+<h3 id="fixed_4">Fixed<a class="headerlink" href="#fixed_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Backward-compatibility shims at all old module paths (<code>QDMpy.fit</code>, <code>QDMpy.guess</code>, <code>QDMpy.models</code>, <code>QDMpy.result</code>, <code>QDMpy.io</code>, <code>QDMpy.odmr.odmr</code>, <code>QDMpy.odmr.validation</code>) ensure existing code continues to work</li>
+<li>Property aliases <code>parameters_unique</code>, <code>parameter</code>, <code>model_params_unique</code>, <code>model_params</code> preserved on <code>Model</code> and <code>FitManager</code></li>
+</ul>
+<hr />
+<h2 id="2026-02-18">2026-02-18<a class="headerlink" href="#2026-02-18" title="Permanent link">&para;</a></h2>
+<h3 id="fixed_5">Fixed<a class="headerlink" href="#fixed_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>FitResult._compute_b111</code>: corrected B111 field calculation — <code>b111_remanent</code> was always 0 and <code>b111_induced</code> had wrong sign due to incorrect axis interpretation of the <code>(n_pol, 2, H, W)</code> delta_resonance tensor; now correctly extracts <code>delta_res[0, 0]</code> (pol_0, neg-signed negDiff) and <code>delta_res[-1, 1]</code> (pol_1, pos-signed posDiff) to match QDMlab/old-QDMpy conventions</li>
+</ul>
+<hr />
+<h2 id="2026-02-17">2026-02-17<a class="headerlink" href="#2026-02-17" title="Permanent link">&para;</a></h2>
+<h3 id="added_6">Added<a class="headerlink" href="#added_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-017</strong> — Improved loguru logging across <code>io.py</code> and <code>odmr/io.py</code>; all load/save operations emit structured log messages</li>
+<li><strong>QEP-007</strong> — Pydantic data validation layer: <code>ODMRData</code> is now a <code>BaseModel</code>; <code>xr.DataArray</code> validated at construction (dims, dtype, <code>freq_ghz</code> coord required)</li>
+<li><strong>QEP-009</strong> — Domain exception hierarchy (<code>QDMpyError</code> → <code>DataError</code> / <code>FittingError</code> / <code>ConfigurationError</code> / <code>DependencyError</code>) replacing bare exceptions across all modules</li>
+<li><code>/memory/</code> folder with LLM-readable module descriptions and mermaid data-flow diagrams</li>
+</ul>
+<h3 id="fixed_6">Fixed<a class="headerlink" href="#fixed_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-015</strong> — Resolved all 30 non-TRY003 ruff violations in core package</li>
+</ul>
+<hr />
+<h2 id="2026-02-16">2026-02-16<a class="headerlink" href="#2026-02-16" title="Permanent link">&para;</a></h2>
+<h3 id="added_7">Added<a class="headerlink" href="#added_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-004A</strong> — Decomposed <code>_compute_delta_resonance</code> into focused private methods (<code>_normalize_resonance_shape</code>, <code>_calc_delta_from_single_center</code>, <code>_calc_delta_from_multi_centers</code>)</li>
+<li><strong>QEP-004B</strong> — Decomposed <code>Measurement.fit_odmr</code> into <code>_detect_model</code>, <code>_validate_fit_prerequisites</code>, <code>_extract_fit_parameters</code>, <code>_compute_quality_metrics</code></li>
+<li><strong>QEP-004C</strong> — Extracted <code>ParameterGuesser</code> class from <code>FitManager</code>; caches initial params with <code>reset()</code> invalidation</li>
+<li><strong>QEP-006</strong> — Dependency injection for <code>FitManager</code>: optional <code>settings</code> and <code>gpu_available</code> arguments for testability</li>
+<li><strong>QEP-005</strong> — Self-describing models: <code>Model.parameter_types</code>, <code>Model.frequency_parameters</code>, <code>Model.units</code>; <code>ConstraintManager</code> initialised from model metadata</li>
+</ul>
+<h3 id="fixed_7">Fixed<a class="headerlink" href="#fixed_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Resolved all 41 <code>ty</code> type-checking diagnostics across 8 source files</li>
+<li>Stripped dead functions and F821 undefined-name errors in <code>plotting.py</code></li>
+</ul>
+<hr />
+<h2 id="2026-02-15">2026-02-15<a class="headerlink" href="#2026-02-15" title="Permanent link">&para;</a></h2>
+<h3 id="added_8">Added<a class="headerlink" href="#added_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>QEP-002</strong> — Eliminated global state and <code>sys.path</code> hacks; settings loaded via <code>get_settings()</code> singleton</li>
+<li><strong>QEP-003</strong> — Unified unit system: all internal frequency values in GHz; Hz↔GHz conversion only at <code>odmr/io.py</code> input boundary and <code>fit.py</code> pygpufit boundary</li>
+<li><strong>QEP-011</strong> — <code>xr.DataArray</code> as primary ODMR data container with named dims <code>(polarity, freq_range, y, x, freq_idx)</code> and <code>freq_ghz</code> coord</li>
+<li>Pydantic-settings <code>QDMpySettings</code>: TOML file + <code>QDMPY_*</code> env var support</li>
+<li>loguru migration: replaced all stdlib <code>logging</code> calls</li>
+<li><code>FitResult</code> as standalone Pydantic model (data-only, no <code>FitManager</code> reference)</li>
+<li>B111 magnetic field calculations in <code>FitResult</code> (<code>b111_remanent</code>, <code>b111_induced</code>, <code>delta_resonance</code>)</li>
+<li><code>FitResult.save_results</code> / <code>load_results</code> (NPZ)</li>
+</ul>
+<h3 id="fixed_8">Fixed<a class="headerlink" href="#fixed_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li>All ruff line-length, import-order, and style violations</li>
+<li>Pre-existing test collection errors</li>
+</ul>
+<hr />
+<h2 id="2025-06-08">2025-06-08<a class="headerlink" href="#2025-06-08" title="Permanent link">&para;</a></h2>
+<h3 id="added_9">Added<a class="headerlink" href="#added_9" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Major architecture refactor: clean separation of <code>ODMR</code>, <code>ODMRData</code>, <code>Measurement</code>, <code>FitManager</code>, <code>FitResult</code></li>
+<li><code>ODMRProcessorManager</code> with composable <code>BaseProcessor</code> pipeline (<code>NormalizationProcessor</code>, <code>BinningProcessor</code>, <code>OutlierProcessor</code>, <code>FluorescenceCorrectionProcessor</code>)</li>
+<li>Comprehensive test suite with integration tests (38+ tests)</li>
+</ul>
+<h3 id="performance_2">Performance<a class="headerlink" href="#performance_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Restored <code>numba</code> parallel processing (<code>prange</code>) in <code>guess_center</code>, <code>guess_contrast</code>, <code>guess_width</code> — up to 111× speedup on large images</li>
+</ul>
+<h3 id="fixed_9">Fixed<a class="headerlink" href="#fixed_9" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Type safety, dead code removal, ruff formatting</li>
+</ul>
+<hr />
+<h2 id="2025-06-07">2025-06-07<a class="headerlink" href="#2025-06-07" title="Permanent link">&para;</a></h2>
+<h3 id="added_10">Added<a class="headerlink" href="#added_10" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Mermaid architecture diagrams in docs</li>
+<li>15N ODMR data processing sample script</li>
+<li>Revised tutorial focused on QDMpy public API</li>
+</ul>
+<h3 id="fixed_10">Fixed<a class="headerlink" href="#fixed_10" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Duplicate logging handler in package <code>__init__.py</code></li>
+<li>Import errors in tutorial notebooks</li>
+</ul>
+<hr />
+<h2 id="2025-03-30">2025-03-30<a class="headerlink" href="#2025-03-30" title="Permanent link">&para;</a></h2>
+<h3 id="added_11">Added<a class="headerlink" href="#added_11" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>ConstraintManager</code> class extracted from <code>FitManager</code></li>
+<li>mypy integration</li>
+<li>Autogenerated documentation site</li>
+</ul>
+<h3 id="fixed_11">Fixed<a class="headerlink" href="#fixed_11" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Tests updated for new <code>ConstraintManager</code> API</li>
+<li><code>ruff.toml</code> configuration</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/mikevolk/QDMpy" target="_blank" rel="noopener" title="QDMpy on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.indexes", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

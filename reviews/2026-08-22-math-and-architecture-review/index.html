@@ -1,0 +1,1618 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Quantum Diamond Microscopy Data Analysis in Python">
+      
+      
+        <meta name="author" content="Michael Volk">
+      
+      
+      
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
+    
+    
+      
+        <title>Math and Architecture Review -- qdmpy-core - QDMpy</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.84d31ad4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#math-and-architecture-review-qdmpy-core" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="QDMpy" class="md-header__button md-logo" aria-label="QDMpy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            QDMpy
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Math and Architecture Review -- qdmpy-core
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MikeVolk/qdmpy-core" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="QDMpy" class="md-nav__button md-logo" aria-label="QDMpy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    QDMpy
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MikeVolk/qdmpy-core" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quickstart
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tutorials/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    Tutorials
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/01-quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    qdmpy Quickstart
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/02-exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    qdmpy Data Exploration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/03-extending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    qdmpy Developer Guide: Extending the Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/04-spectral-folding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Spectral Folding for ODMR Data
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/05-plotting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plotting Tutorial
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/06-source-fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    06 · Source Fitting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guides
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/processors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Processors
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ESR Models
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Fitting Quality
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/spectral-folding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Spectral Folding
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/settings_configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extending
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Migration Guide
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Changelog
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#part-1-math-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 1 -- Math review
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 1 -- Math review">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-verified-correct" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.1 Verified correct
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.2 Findings
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1.2 Findings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#f1-critical-outlierprocessor-default-annihilates-the-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      F1 -- CRITICAL -- OutlierProcessor default annihilates the data
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f2-high-refit-accepts-strictly-worse-fits-and-always-fires" class="md-nav__link">
+    <span class="md-ellipsis">
+      F2 -- HIGH -- refit accepts strictly worse fits, and always fires
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f3-high-the-refit-path-bypasses-fits-preprocessing" class="md-nav__link">
+    <span class="md-ellipsis">
+      F3 -- HIGH -- the refit path bypasses fit()'s preprocessing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f4-high-folding-silently-clamps-out-of-range-interpolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      F4 -- HIGH -- folding silently clamps out-of-range interpolation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f5-medium-centre-constraint-may-be-tighter-than-the-bias-field-with-no-diagnostic" class="md-nav__link">
+    <span class="md-ellipsis">
+      F5 -- MEDIUM -- centre constraint may be tighter than the bias field, with no diagnostic
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f6-medium-_resolve_spatial_dims-guesses-an-image-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      F6 -- MEDIUM -- _resolve_spatial_dims guesses an image shape
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f7-medium-hotpixelfilter-will-eat-real-magnetic-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      F7 -- MEDIUM -- HotPixelFilter will eat real magnetic features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f8-medium-fourier-reconstruction-has-no-padding-or-taper" class="md-nav__link">
+    <span class="md-ellipsis">
+      F8 -- MEDIUM -- Fourier reconstruction has no padding or taper
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f9-medium-d_zfs-map-is-shrunk-toward-the-nominal-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      F9 -- MEDIUM -- D_ZFS map is shrunk toward the nominal value
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f10-medium-quadraticbackgroundsubtractor-is-nan-unsafe" class="md-nav__link">
+    <span class="md-ellipsis">
+      F10 -- MEDIUM -- QuadraticBackgroundSubtractor is NaN-unsafe
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f11-low-fitmanager-mutates-itself-during-fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      F11 -- LOW -- FitManager mutates itself during fit()
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f12-low-fluorescence-correction-reduces-contrast-and-does-not-renormalize" class="md-nav__link">
+    <span class="md-ellipsis">
+      F12 -- LOW -- fluorescence correction reduces contrast and does not renormalize
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f13-low-docstringcode-drift-in-physics-facing-places" class="md-nav__link">
+    <span class="md-ellipsis">
+      F13 -- LOW -- docstring/code drift in physics-facing places
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-2-architecture-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 2 -- Architecture review
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 2 -- Architecture review">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-what-is-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.1 What is working
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.2 Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.2 Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a1-one-fit-path-not-three" class="md-nav__link">
+    <span class="md-ellipsis">
+      A1 -- One fit path, not three
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a2-layering-violation-domain-objects-import-the-presentation-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      A2 -- Layering violation: domain objects import the presentation layer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a3-import-qdmpy-costs-18-seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      A3 -- import qdmpy costs 1.8 seconds
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a4-bulk-arrays-as-pydantic-tuple-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      A4 -- Bulk arrays as Pydantic tuple fields
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a5-memory-profile-at-the-stated-target-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      A5 -- Memory profile at the stated target resolution
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a6-error-handling-consistency" class="md-nav__link">
+    <span class="md-ellipsis">
+      A6 -- Error-handling consistency
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a7-proposal-debt" class="md-nav__link">
+    <span class="md-ellipsis">
+      A7 -- Proposal debt
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-3-recommended-order-of-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 3 -- Recommended order of work
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="math-and-architecture-review-qdmpy-core">Math and Architecture Review -- qdmpy-core<a class="headerlink" href="#math-and-architecture-review-qdmpy-core" title="Permanent link">&para;</a></h1>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Date</td>
+<td>2026-08-22</td>
+</tr>
+<tr>
+<td>Branch</td>
+<td><code>develop</code> @ <code>6a5a6c6</code></td>
+</tr>
+<tr>
+<td>Scope</td>
+<td><code>src/qdmpy/</code> (~11k LOC), full read</td>
+</tr>
+<tr>
+<td>Suite state</td>
+<td>918 passed, 87.20% coverage, <code>ty</code> clean</td>
+</tr>
+<tr>
+<td>Lint state</td>
+<td><code>ruff check src/ tests/</code> clean (168 hits are notebooks only)</td>
+</tr>
+</tbody>
+</table>
+<p>Numeric claims below were verified by execution, not by reading. Reproduction
+snippets are inline where relevant.</p>
+<hr />
+<h2 id="part-1-math-review">Part 1 -- Math review<a class="headerlink" href="#part-1-math-review" title="Permanent link">&para;</a></h2>
+<h3 id="11-verified-correct">1.1 Verified correct<a class="headerlink" href="#11-verified-correct" title="Permanent link">&para;</a></h3>
+<p>The sign and unit chain was traced end-to-end rather than taken from docstrings.</p>
+<p><strong>B111 extraction</strong> -- <code>fitting/result.py:330-401</code>.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>d       = [-1, +1]                       # neg, pos
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>delta   = (f_high - f_low) / 2 / GAMMA_NV * 1e6 * d      [uT]
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>remanent = (delta_neg + delta_pos) / 2
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>induced  = (delta_neg - delta_pos) / 2
+</span></code></pre></div>
+<p>Matches <code>CLAUDE.md</code> and the QDMlab convention. GHz / (GHz/T) -&gt; T -&gt; uT is right.</p>
+<p><strong>Fourier inversion</strong> -- <code>magnetic_map.py:74-125</code>. Derived independently. Above
+the sources with <code>phi ~ exp(-k z)</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Bx~ = -i (kx/k) Bz~
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>Bu~ = Bz~ [ uz - i (ux kx + uy ky) / k ]
+</span></code></pre></div>
+<p>so <code>Bz~ = Bu~ * k / (uz*k - i*ux*kx - i*uy*ky)</code>, which is exactly
+<code>denom = uz*k - uy*1j*ky - ux*1j*kx</code>. The transfer function magnitude is bounded
+in <code>[1, 1/uz]</code>, so this inversion does <strong>not</strong> amplify high-k noise. Good.</p>
+<p><strong>Upward continuation</strong> -- <code>H = exp(-dz * k)</code> with k in rad/m. Correct sign for
+<code>dz &gt; 0</code> = upward = attenuation.</p>
+<p><strong>Folded -&gt; B111 consistency.</strong> Folding produces dips at <code>df = gamma*B</code>;
+<code>to_fit_inputs</code> shifts to <code>D_ZFS + df</code>; <code>_calc_delta_from_single_center</code>'s
+<code>n_frange &lt; 2</code> branch divides by gamma <em>without</em> the factor 2. Correct, because
+<code>(f_high - f_low)/2 == df</code>.</p>
+<p>Additionally: the fold is robust to D_ZFS estimation error to first order. If
+<code>D_est = D + eps</code>, the two folded halves place dips at <code>B*gamma + eps</code> and
+<code>B*gamma - eps</code>; the average is centred at <code>B*gamma</code> and merely broadened. The
+<code>folding.py</code> module docstring is more pessimistic than the math warrants.</p>
+<p><strong>Other checks that passed:</strong></p>
+<ul>
+<li><code>NvSettings.axis = (0, 0.8164966, 0.5773503)</code> is a unit vector, <code>sqrt(2/3)</code>
+  and <code>1/sqrt(3)</code>.</li>
+<li>Lorentzian HWHM parameterization is consistent between <code>models.py</code>
+  (<code>width^2 / ((x-c)^2 + width^2)</code>) and <code>halfpower_width</code> (returns FWHM/2).</li>
+<li><strong>float32 at the gpufit boundary.</strong> ULP at 2.87 GHz is ~0.34 kHz, giving a
+  ~12 nT B111 floor. QEP-059 already measured delta-parameterization
+  empirically: &lt;0.35 uT difference, ~1% <em>worse</em> chi2. Confirmed non-issue --
+  do not revisit.</li>
+</ul>
+<h3 id="12-findings">1.2 Findings<a class="headerlink" href="#12-findings" title="Permanent link">&para;</a></h3>
+<p>Ordered by severity.</p>
+<hr />
+<h4 id="f1-critical-outlierprocessor-default-annihilates-the-data">F1 -- CRITICAL -- <code>OutlierProcessor</code> default annihilates the data<a class="headerlink" href="#f1-critical-outlierprocessor-default-annihilates-the-data" title="Permanent link">&para;</a></h4>
+<p><code>odmr/processors.py:182</code> -- <code>z_score_threshold: float = 0.003</code>.</p>
+<p>Z-scores along <code>freq_idx</code> have RMS ~= 1 by construction, so a threshold of 0.003
+masks essentially every point. Measured:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>DEFAULT OutlierProcessor -&gt; NaN fraction: 0.9994
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  thr=0.003  NaN frac = 0.9994
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  thr=1.0    NaN frac = 0.2350
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  thr=2.0    NaN frac = 0.0013
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  thr=3.0    NaN frac = 0.0000
+</span></code></pre></div>
+<p><code>docs/tutorials/processor_tutorial.ipynb:358</code> recommends this exact value with
+"Always -- remove sensor glitches", and <code>docs/migration.md:155</code> puts it in the
+recommended pipeline. It is saved from being a live disaster only because
+<code>Measurement.from_folder</code> does not wire it in.</p>
+<p>Three separate defects:</p>
+<ol>
+<li>The default is off by roughly three orders of magnitude. It reads like a
+   leftover from an absolute-intensity threshold.</li>
+<li><strong>The axis is wrong.</strong> A z-score across the frequency sweep flags the
+   resonance dip -- that is the signal. Even at <code>thr=2</code> it removes the deepest
+   points of the deepest dips. Glitch rejection belongs in the spatial or
+   repeat domain.</li>
+<li>Downstream, <code>absorption_centroid</code> and <code>halfpower_width</code> in
+   <code>fitting/guess.py</code> have <strong>no NaN handling</strong>, so masked points propagate NaN
+   into gpufit initial guesses. (<code>top3_contrast</code> does skip NaN.)</li>
+</ol>
+<p><strong>Action:</strong> fix the default to ~4-5, add NaN guards to the numba guessers, and
+either re-scope the processor to spatial outliers or delete it and correct the
+docs.</p>
+<hr />
+<h4 id="f2-high-refit-accepts-strictly-worse-fits-and-always-fires">F2 -- HIGH -- refit accepts strictly worse fits, and always fires<a class="headerlink" href="#f2-high-refit-accepts-strictly-worse-fits-and-always-fires" title="Permanent link">&para;</a></h4>
+<p><code>fitting/refit.py:312-315</code> writes refit results back unconditionally. A refit
+that lands in a worse local minimum silently degrades the map.</p>
+<p><strong>Action:</strong> guard the write-back on <code>new_chi2 &lt; old_chi2</code>. Three lines, and the
+single highest-value change in the file.</p>
+<p>Compounding it: <code>identify_outlier_pixels</code> uses a <em>relative</em> percentile
+(<code>chi2_percentile = 90</code>), so on a perfect fit it still declares the top 10% of
+pixels outliers and refits them. With <code>max_iterations &gt; 1</code> each pass re-flags a
+fresh 10%. Because the initial guesses are neighbour medians, iterating biases
+the parameter map toward spatial smoothness -- it will quietly erase real
+small-scale structure while making the chi2 map look better.</p>
+<p><strong>Action:</strong> add an absolute floor (e.g. <code>chi2 &gt; k * median(chi2)</code>) or make the
+percentile path explicit opt-in.</p>
+<hr />
+<h4 id="f3-high-the-refit-path-bypasses-fits-preprocessing">F3 -- HIGH -- the refit path bypasses <code>fit()</code>'s preprocessing<a class="headerlink" href="#f3-high-the-refit-path-bypasses-fits-preprocessing" title="Permanent link">&para;</a></h4>
+<p><code>refit.py:304</code> calls <code>fit_manager.fit_frange(...)</code> directly, skipping both:</p>
+<ul>
+<li><code>_apply_freq_cutoff_for_range</code> -- if the user passed <code>freq_cutoff</code>, the
+  initial fit used a masked frequency axis and the refit uses the full one.
+  <code>measurement_workflows.refit_measurement_result</code> explicitly threads
+  <code>freq_cutoff</code> through to <code>build_fit_manager</code>, so the caller has every reason
+  to believe it applied. It silently does not.</li>
+<li><code>_apply_mt_center_window_for_range</code> -- mT-mode per-branch centre windows are
+  absent on refit.</li>
+</ul>
+<p>Additionally, refitting a <strong>folded</strong> result constructs a fresh <code>FitManager</code> from
+settings, losing the contrast/offset overrides that <code>fit_folded</code>
+(<code>manager.py:762-774</code>) applies.</p>
+<p>Root cause is structural -- three fit entry points with three different
+preprocessing sets. See A1 in Part 2.</p>
+<hr />
+<h4 id="f4-high-folding-silently-clamps-out-of-range-interpolation">F4 -- HIGH -- folding silently clamps out-of-range interpolation<a class="headerlink" href="#f4-high-folding-silently-clamps-out-of-range-interpolation" title="Permanent link">&para;</a></h4>
+<p><code>odmr/folding.py:253-284</code>. <code>_interp_batch</code> clips both the index and the
+fraction, so a query outside the measured axis returns the edge value with no
+NaN and no warning:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>axis spans 2.86 - 2.88 GHz
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>queries: [2.855 2.86  2.87  2.88  2.89]
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>interp : [0.    0.   0.5   1.    1.   ]
+</span></code></pre></div>
+<p>The <code>df</code> axis is built from the <strong>median</strong> D_ZFS (<code>_fold_spectra:645</code>), but the
+queries use the <strong>per-pixel</strong> D_ZFS. Pixels whose D deviates from the median
+query outside the axis and get a flat clamped tail grafted onto the spectrum --
+no error, just a distorted line shape feeding the fit. <code>_overlap_range</code> only
+guards <code>d_ref</code>.</p>
+<p><strong>Action:</strong> emit NaN outside the range and track a validity mask, or shrink the
+common <code>df</code> window to cover the whole D_ZFS distribution rather than the median.</p>
+<p>Related, smaller: <code>_find_d_zfs_coarse:564-567</code> computes <code>step</code> from <code>f_low</code> and
+applies it to <code>f_high</code> index arithmetic. Fine while both branches share
+spacing, wrong the moment they do not.</p>
+<hr />
+<h4 id="f5-medium-centre-constraint-may-be-tighter-than-the-bias-field-with-no-diagnostic">F5 -- MEDIUM -- centre constraint may be tighter than the bias field, with no diagnostic<a class="headerlink" href="#f5-medium-centre-constraint-may-be-tighter-than-the-bias-field-with-no-diagnostic" title="Permanent link">&para;</a></h4>
+<p><code>center_max_mt = 1.1</code> gives <code>+-30.8 MHz</code> about D_ZFS. QEP-059's own draft
+proposed 6.0 mT; it was tightened to 1.1 later. With a 2 mT bias (common) the
+true resonance sits ~56 MHz out and gpufit will pin the centre at the bound.</p>
+<p><strong>Nothing anywhere checks for parameters pinned at their constraint bounds.</strong> A
+constrained fit returns the boundary value with a plausible-looking chi2, and
+percentile-based outlier detection will not reliably catch a systematic clip.</p>
+<p><strong>Action:</strong> add an <code>n_at_bound</code> count per parameter to <code>quality_metrics</code>. Cheap,
+and it would already have surfaced this class of problem. QEP-066 gestures at
+this but is still Draft.</p>
+<hr />
+<h4 id="f6-medium-_resolve_spatial_dims-guesses-an-image-shape">F6 -- MEDIUM -- <code>_resolve_spatial_dims</code> guesses an image shape<a class="headerlink" href="#f6-medium-_resolve_spatial_dims-guesses-an-image-shape" title="Permanent link">&para;</a></h4>
+<p><code>fitting/result.py:234-271</code>. When the pixel count does not match
+<code>scan_dimensions</code>, it factorizes <code>n_pixels</code>, picks the factor pair closest to
+the original aspect ratio, logs at DEBUG, and carries on. A shape mismatch here
+is an upstream bug; silently inventing a 2D layout turns it into a scrambled
+B111 map.</p>
+<p><strong>Action:</strong> raise <code>DataShapeError</code>. Same treatment for
+<code>_normalize_resonance_shape</code>'s hardcoded <code>n_pol = 2</code> in the 2D branch.</p>
+<hr />
+<h4 id="f7-medium-hotpixelfilter-will-eat-real-magnetic-features">F7 -- MEDIUM -- <code>HotPixelFilter</code> will eat real magnetic features<a class="headerlink" href="#f7-medium-hotpixelfilter-will-eat-real-magnetic-features" title="Permanent link">&para;</a></h4>
+<p><code>field_processing.py:138-142</code> uses global <code>nanmedian</code> / <code>nanstd</code> over the whole
+map. Two problems:</p>
+<ul>
+<li><code>std</code> is inflated by the very outliers being detected (non-robust estimator).</li>
+<li>A genuine strong dipole is exactly a cluster of <code>|B - median| &gt; 5 sigma</code>
+  pixels. Applied to a B111 map before source fitting, this removes the thing
+  being measured.</li>
+</ul>
+<p><strong>Action:</strong> use MAD; consider a local (median-filter-residual) criterion rather
+than a global one.</p>
+<p>Secondary: the replacement loop is a Python double loop over every pixel
+(~2.3M iterations for an unbinned FOV) -- use <code>np.argwhere</code> on the mask.
+Replacements also feed into subsequent windows, so the result is order-dependent.</p>
+<hr />
+<h4 id="f8-medium-fourier-reconstruction-has-no-padding-or-taper">F8 -- MEDIUM -- Fourier reconstruction has no padding or taper<a class="headerlink" href="#f8-medium-fourier-reconstruction-has-no-padding-or-taper" title="Permanent link">&para;</a></h4>
+<p><code>_reconstruct_bxyz</code> FFTs the raw B111 map. Any DC offset or edge mismatch
+creates a wrap-around discontinuity and Gibbs ringing across the whole
+reconstructed Bz -- and Bz is what <code>fit_sources</code> fits dipoles to.</p>
+<p><code>UpwardContinuation</code> <em>does</em> pad (3x), so the pattern already exists in the
+codebase; it is just missing here. Note that <code>UpwardContinuation</code> pads with
+<strong>zeros</strong>, which for a non-zero-mean field creates the same step problem --
+subtract the mean before padding, or taper.</p>
+<hr />
+<h4 id="f9-medium-d_zfs-map-is-shrunk-toward-the-nominal-value">F9 -- MEDIUM -- D_ZFS map is shrunk toward the nominal value<a class="headerlink" href="#f9-medium-d_zfs-map-is-shrunk-toward-the-nominal-value" title="Permanent link">&para;</a></h4>
+<p><code>_estimate_d_zfs_centroid:326</code> uses <code>spectrum.max()</code> as the absorption baseline.
+The sibling <code>absorption_centroid</code> in <code>guess.py</code> correctly uses an edge-mean
+baseline.</p>
+<p>Using <code>max</code> adds a noise-dependent constant to every weight, dragging each
+branch's centroid toward its own axis midpoint. B111 is largely protected
+(errors in the two branches partly cancel), but <code>d_zfs_map</code> is advertised as a
+temperature/strain map and will systematically under-report variation.</p>
+<p><strong>Action:</strong> use the edge baseline for consistency with <code>guess.py</code>.</p>
+<hr />
+<h4 id="f10-medium-quadraticbackgroundsubtractor-is-nan-unsafe">F10 -- MEDIUM -- <code>QuadraticBackgroundSubtractor</code> is NaN-unsafe<a class="headerlink" href="#f10-medium-quadraticbackgroundsubtractor-is-nan-unsafe" title="Permanent link">&para;</a></h4>
+<p><code>field_processing.py:249</code>. <code>np.linalg.lstsq</code> on data containing a single NaN
+returns all-NaN coefficients, and the whole map becomes NaN with no error.
+Reachable, because <code>HotPixelFilter(replacement='nan')</code> is a supported upstream
+step in the same pipeline.</p>
+<p><strong>Action:</strong> mask non-finite values out of the fit.</p>
+<hr />
+<h4 id="f11-low-fitmanager-mutates-itself-during-fit">F11 -- LOW -- <code>FitManager</code> mutates itself during <code>fit()</code><a class="headerlink" href="#f11-low-fitmanager-mutates-itself-during-fit" title="Permanent link">&para;</a></h4>
+<p><code>_apply_mt_center_window_for_range</code> calls
+<code>self._constraint_manager.set_constraint(...)</code> inside the fit loop. The class
+docstring says "keeping the instance stateless between calls". After a two-range
+fit the manager is left holding the <em>high</em> branch window, so reusing the
+instance -- which the docstring invites -- gives different results on the
+second call.</p>
+<hr />
+<h4 id="f12-low-fluorescence-correction-reduces-contrast-and-does-not-renormalize">F12 -- LOW -- fluorescence correction reduces contrast and does not renormalize<a class="headerlink" href="#f12-low-fluorescence-correction-reduces-contrast-and-does-not-renormalize" title="Permanent link">&para;</a></h4>
+<p>Measured with <code>correction_factor = 0.2</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>dip depth before = 0.15225   after = 0.12238   -&gt; SHALLOWER
+</span></code></pre></div>
+<p>Subtracting <code>alpha * (mean_spectrum - baseline)</code> removes a scaled <em>dip</em>, whereas
+the standard background model <code>S = (1-alpha) S_NV + alpha B</code> with flat <code>B</code> calls
+for <code>S_NV = (S - alpha B) / (1 - alpha)</code> -- a <em>deepening</em> plus renormalization.</p>
+<p>In fairness this is a faithful port of the legacy behaviour
+(<code>old_reference/QDMpy_old/src/QDMpy/_core/odmr.py:636</code>), not a regression. But it
+is applied by default (<code>fluorescence_correction = 0.2</code> in <code>qdmpy.load</code>) and
+biases every contrast map by ~20%. Because it is spatially uniform it does not
+move centres, so <strong>B111 is unaffected</strong> -- contrast maps are not.</p>
+<p><strong>Action:</strong> confirm the intended semantics before contrast is treated as
+quantitative.</p>
+<hr />
+<h4 id="f13-low-docstringcode-drift-in-physics-facing-places">F13 -- LOW -- docstring/code drift in physics-facing places<a class="headerlink" href="#f13-low-docstringcode-drift-in-physics-facing-places" title="Permanent link">&para;</a></h4>
+<ul>
+<li><code>FitResult.linewidths</code> (<code>result.py:114</code>): "Get ODMR linewidths in Hz." They
+  are GHz.</li>
+<li><code>source_fitting._build_p0:57</code>: "Converts the qdmpy declination convention
+  (+Y = 0) to the pypole convention (-Y = 0)" -- the module header and the code
+  both say no conversion happens. One of the two is wrong, on a coordinate
+  convention that matters.</li>
+<li><code>guesser.ParameterGuesser</code> ASCII diagram says <code>cumsum_contrast</code>; the code
+  calls <code>top3_contrast</code>.</li>
+<li><code>odmr/analysis._validate_b111_coords</code> raises <code>KeyError</code>, not
+  <code>DataValidationError</code>, when the <code>polarity</code> coord is missing entirely.</li>
+<li><code>ParameterGuesser.guess()</code> caches on first call and ignores its argument
+  thereafter -- a pure-looking signature that is not. Currently safe (one
+  guesser per range) but a live trap.</li>
+</ul>
+<hr />
+<h2 id="part-2-architecture-review">Part 2 -- Architecture review<a class="headerlink" href="#part-2-architecture-review" title="Permanent link">&para;</a></h2>
+<h3 id="21-what-is-working">2.1 What is working<a class="headerlink" href="#21-what-is-working" title="Permanent link">&para;</a></h3>
+<p>Not faint praise -- the bones are solid:</p>
+<ul>
+<li>Named-dimension <code>xarray</code> throughout eliminates the axis-transposition bug
+  class endemic to QDM code.</li>
+<li><code>Model</code> / <code>ModelRegistry</code> and the <code>Processor</code> / <code>FieldSource</code> extension points
+  are honest Open/Closed. New models and processors genuinely require no edits
+  to existing classes.</li>
+<li><code>FitResult</code> freezes its parameter arrays (<code>flags.writeable = False</code>) to
+  protect its own caches.</li>
+<li>Pickle-free NPZ with a JSON <code>__meta__</code> block is the right serialization call.</li>
+<li>87% coverage on a scientific codebase is well above par.</li>
+<li>The QEP process means design intent is actually recoverable months later.</li>
+</ul>
+<h3 id="22-issues">2.2 Issues<a class="headerlink" href="#22-issues" title="Permanent link">&para;</a></h3>
+<hr />
+<h4 id="a1-one-fit-path-not-three">A1 -- One fit path, not three<a class="headerlink" href="#a1-one-fit-path-not-three" title="Permanent link">&para;</a></h4>
+<p>Structural root of F3. <code>fit()</code>, <code>fit_folded()</code>, and refit's direct
+<code>fit_frange()</code> each assemble their own preprocessing. <code>fit_folded</code> even builds a
+<em>second</em> <code>FitManager</code> internally (<code>manager.py:776</code>) to obtain different
+constraints -- a strong signal that constraints want to be a per-call argument
+rather than construction state.</p>
+<p><strong>Action:</strong> extract a single <code>_fit_pixels(data, freq, guesses, constraints)</code>
+that owns cutoff masking, the mT centre window, and the gpufit call. <code>fit</code>,
+<code>fit_folded</code>, and <code>refit</code> become thin callers. Fixes F3 and F11 structurally
+rather than by patching each site.</p>
+<hr />
+<h4 id="a2-layering-violation-domain-objects-import-the-presentation-layer">A2 -- Layering violation: domain objects import the presentation layer<a class="headerlink" href="#a2-layering-violation-domain-objects-import-the-presentation-layer" title="Permanent link">&para;</a></h4>
+<p><code>memory/architecture.md</code> states "Layers only call downward", and <code>QDMResult</code>'s
+docstring states "Pure data container. All plotting is in <code>qdmpy.plotting</code>."
+<code>QDMResult</code> honours that. Two layers below it, five modules do not:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>fitting/result.py:633   -&gt; from qdmpy.plotting import plot_fit_result_overview
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>odmr/folding.py:210     -&gt; from qdmpy.plotting import plot_folding_overview
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>odmr/manager.py:160     -&gt; from qdmpy.plotting import plot_odmr_spectra
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>fitting/guess.py:168    -&gt; from qdmpy.plotting import plot_model_detection
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>odmr/processors.py:294  -&gt; from qdmpy.plotting import plot_fluorescence_correction
+</span></code></pre></div>
+<p>The deferred imports dodge the cycle at runtime, but the dependency is real: the
+fitting layer cannot ship without the plotting layer.</p>
+<p><strong>Action:</strong> either drop the rule (the convenience API is defensible) or move
+<code>.plot()</code> / <code>.show()</code> up to <code>QDMResult</code> and use an accessor pattern below. The
+current state has the documentation saying one thing and five modules doing
+another, which is exactly the drift <code>.claude/rules/common/architecture.md</code>
+exists to prevent.</p>
+<hr />
+<h4 id="a3-import-qdmpy-costs-18-seconds">A3 -- <code>import qdmpy</code> costs 1.8 seconds<a class="headerlink" href="#a3-import-qdmpy-costs-18-seconds" title="Permanent link">&para;</a></h4>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>1713853  qdmpy
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a> 699598    qdmpy.fitting        (672892 -&gt; guess -&gt; scipy.signal 549231)
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a> 454305    qdmpy.field_processing
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a> 414287    qdmpy.source_fitting (412591 -&gt; pypole.convert, numba)
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a> 305473    xarray
+</span></code></pre></div>
+<p><code>__init__.py</code> eagerly imports every subsystem: <code>scipy.signal</code> for a single
+<code>find_peaks</code> call, <code>pypole</code> + numba only needed for dipole fitting, matplotlib
+via <code>io/images.py</code>. Meanwhile <code>qdmpy.load</code> already defers its own import.</p>
+<p>This will hurt <code>qdmpy-server</code> startup and CLI responsiveness.</p>
+<p><strong>Action:</strong> PEP 562 module <code>__getattr__</code> keeps the flat public surface with lazy
+resolution. Move <code>find_peaks</code> inside <code>guess_n_peaks</code>.</p>
+<hr />
+<h4 id="a4-bulk-arrays-as-pydantic-tuple-fields">A4 -- Bulk arrays as Pydantic tuple fields<a class="headerlink" href="#a4-bulk-arrays-as-pydantic-tuple-fields" title="Permanent link">&para;</a></h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">BlankSubtractor</span><span class="o">.</span><span class="n">blank</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">QuadraticBackgroundSubtractor</span><span class="o">.</span><span class="n">mask</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
+</span></code></pre></div>
+<p>For a 1200x1920 map that is a 2.3M-element nested tuple that Pydantic validates
+element-by-element at construction. A serialization concern (frozen models must
+be hashable) is being solved at the cost of the hot path.</p>
+<p><strong>Action:</strong> use <code>NDArray</code> with <code>arbitrary_types_allowed</code> and handle persistence
+explicitly. <code>FieldSource.field_map</code> already takes exactly that approach in the
+same codebase.</p>
+<hr />
+<h4 id="a5-memory-profile-at-the-stated-target-resolution">A5 -- Memory profile at the stated target resolution<a class="headerlink" href="#a5-memory-profile-at-the-stated-target-resolution" title="Permanent link">&para;</a></h4>
+<p>At 1200 x 1920 x 2 x 2 x 50, <code>data.values</code> alone is 3.7 GB float64. Per range,
+on top of that:</p>
+<ul>
+<li><code>np.ascontiguousarray(data, dtype=np.float32)</code> -- ~0.9 GB copy.</li>
+<li><code>ConstraintManager.to_array</code> does <code>np.tile(constraints_list, (n_pixel, 1))</code>
+  with <code>n_pixel = n_pol * n_pixels</code> ~= 4.6M rows x 12 float64 = <strong>442 MB to
+  replicate twelve identical numbers</strong>, then a further 221 MB for the float32
+  copy.</li>
+</ul>
+<p>The tile is pure waste.</p>
+<p><strong>Action:</strong> build it float32 directly, or check whether pygpufit accepts a
+broadcast / single-row constraint spec. More broadly there is no chunking
+anywhere; unbinned fitting at the documented target size needs ~8 GB peak.</p>
+<hr />
+<h4 id="a6-error-handling-consistency">A6 -- Error-handling consistency<a class="headerlink" href="#a6-error-handling-consistency" title="Permanent link">&para;</a></h4>
+<p>A well-designed <code>QDMpyError</code> hierarchy exists, but <code>magnetic_map.py:175</code>,
+<code>field_processing.py:57,236</code>, and every <code>field_source</code> validator raise bare
+<code>ValueError</code>. Callers cannot catch on the domain root. (Pydantic validators must
+raise <code>ValueError</code> -- that is the framework contract -- but the hand-written
+checks need not.)</p>
+<p>Relatedly, <code>QuadraticBackgroundSubtractor</code> validates <code>degree in {0,1,2}</code> inside
+<code>process()</code> rather than as a field validator, so a misconfigured pipeline fails
+halfway through a run instead of at construction.</p>
+<hr />
+<h4 id="a7-proposal-debt">A7 -- Proposal debt<a class="headerlink" href="#a7-proposal-debt" title="Permanent link">&para;</a></h4>
+<p>75 QEPs, of which ~15 are <code>Draft</code> and QEP-001 through QEP-017 carry <strong>no status
+field at all</strong> -- there is no way to distinguish implemented from abandoned
+without reading each one.</p>
+<p>Several open drafts (QEP-066 constraints, QEP-063 folded centre estimation,
+QEP-065 initial guesses) target exactly the areas where live issues were found
+above.</p>
+<p><strong>Action:</strong> finish the untracked <code>proposals/README.md</code> as a status table and
+backfill statuses on 001-017. Per the Gitflow rule, that file needs a
+<code>feature/*</code> branch and a PR rather than landing on <code>develop</code>.</p>
+<hr />
+<h2 id="part-3-recommended-order-of-work">Part 3 -- Recommended order of work<a class="headerlink" href="#part-3-recommended-order-of-work" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Finding</th>
+<th>Change</th>
+<th>Size</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>F2</td>
+<td>Chi2-guarded write-back in <code>refit._refit_pass</code></td>
+<td>3 lines</td>
+</tr>
+<tr>
+<td>2</td>
+<td>F4</td>
+<td>NaN instead of edge-clamp in <code>_interp_batch</code></td>
+<td>small</td>
+</tr>
+<tr>
+<td>3</td>
+<td>F1</td>
+<td><code>OutlierProcessor</code> default + NaN guards in numba guessers + tutorial fix</td>
+<td>small</td>
+</tr>
+<tr>
+<td>4</td>
+<td>F5</td>
+<td><code>n_at_bound</code> diagnostic in <code>quality_metrics</code></td>
+<td>small</td>
+</tr>
+<tr>
+<td>5</td>
+<td>F3 / A1</td>
+<td>Unify the fit path so <code>freq_cutoff</code> cannot be silently dropped</td>
+<td>QEP</td>
+</tr>
+<tr>
+<td>6</td>
+<td>F6, F10, A6</td>
+<td>Fail loudly instead of guessing / NaN-poisoning</td>
+<td>small</td>
+</tr>
+<tr>
+<td>7</td>
+<td>F7, F8, F9</td>
+<td>Field-processing and reconstruction robustness</td>
+<td>medium</td>
+</tr>
+<tr>
+<td>8</td>
+<td>A3, A4, A5</td>
+<td>Import cost, bulk-data modelling, memory</td>
+<td>medium</td>
+</tr>
+<tr>
+<td>9</td>
+<td>A2, A7</td>
+<td>Layering decision, proposal status hygiene</td>
+<td>governance</td>
+</tr>
+</tbody>
+</table>
+<p>Items 5 and 7 warrant QEPs before implementation, per the project's proposal
+policy.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/mikevolk/QDMpy" target="_blank" rel="noopener" title="QDMpy on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.indexes", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
