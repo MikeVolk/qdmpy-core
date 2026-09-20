@@ -52,6 +52,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   test files and a generator script that do not exist. `CLAUDE.md` no longer
   claims `reference_data/` is used by the test suite -- no test reads it.
 
+---
+
+## [0.1.0] - 2026-09-20
+
+First tagged release. Everything below is the accumulated history of the
+architectural overhaul; it is listed here because no prior version was ever
+tagged, not because it all landed on this date.
+
+### Packaging (2026-09-20 release prep)
+
+- **`pygpufit` moved from a required dependency to the `gpufit` extra.** It was
+  declared mandatory, but it is not published on PyPI and was resolved from
+  wheels vendored under `src/pyGpufit/` via uv-only `[tool.uv.sources]` config.
+  That config is stripped from built metadata, so any install that was not an
+  editable uv install from a checkout failed to resolve. Every `import pygpufit`
+  in the package was already guarded, so this changes packaging only, not
+  behaviour. Install with `uv sync --extra gpufit` from a clone.
+- **`__version__` now reads from installed package metadata** instead of a
+  hardcoded literal, which had drifted to `0.1.0a` while `pyproject.toml` said
+  `0.0.1`.
+- **qdmpy-core is not published to PyPI.** README and docs now document
+  cloning or `pip install git+https://...` instead of `pip install qdmpy-core`.
+
 ### Removed (2026-09-19 breaking cleanup) -- BREAKING
 
 - **`gpu_available=`** removed from `FitManager`, `Measurement.fit_odmr`,

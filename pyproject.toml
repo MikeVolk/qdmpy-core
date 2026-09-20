@@ -1,12 +1,12 @@
 [project]
 name = "qdmpy-core"
-version = "0.0.1"
+version = "0.1.0"
 description = "A python package for calculating magnetic maps from ODMR spectra measured on a quantum diamond microscope"
 requires-python = ">=3.13"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Mike Volk", email = "mike@example.com"}
+    {name = "Mike Volk", email = "volkmike@pm.me"}
 ]
 dependencies = [
     # numerical core
@@ -19,9 +19,7 @@ dependencies = [
     "h5py>=3.16",
     # visualization
     "matplotlib>=3.11",
-    # GPU fitting (local wheels via [tool.uv.sources])
-    "pygpufit",
-    # magnetic dipole fitting (local editable via [tool.uv.sources])
+    # magnetic dipole fitting
     "pypole",
     # settings & validation
     "pydantic-settings>=2.15",
@@ -36,11 +34,19 @@ dependencies = [
 gpu = [
     "torch>=2.4",
 ]
+# CUDA-only gpufit backend. pyGpufit is not published on PyPI, so it is
+# resolved from the wheels vendored in src/pyGpufit/ via [tool.uv.sources].
+# This only works from a checkout with uv; a plain `pip install` cannot see
+# those sources. Every `import pygpufit` in the package is guarded, so
+# omitting this extra leaves the scipy and torch backends fully functional.
+gpufit = [
+    "pygpufit",
+]
 
 [project.urls]
 Documentation = "https://mikevolk.github.io/qdmpy-core"
 Homepage = "https://mikevolk.github.io/qdmpy-core"
-Repository = "https://github.com/mikevolk/qdmpy-core"
+Repository = "https://github.com/MikeVolk/qdmpy-core"
 
 
 [tool.uv.sources]
@@ -113,5 +119,6 @@ qdmpy = "qdmpy.cli:main"
 package = true
 
 [tool.ty.analysis]
-# torch is the optional `gpu` extra: unresolved in a plain `uv sync`, present with it.
-allowed-unresolved-imports = ["torch", "torch.**"]
+# torch is the optional `gpu` extra and pygpufit the optional `gpufit` extra:
+# both are unresolved in a plain `uv sync` and present with their extra.
+allowed-unresolved-imports = ["torch", "torch.**", "pygpufit", "pygpufit.**"]

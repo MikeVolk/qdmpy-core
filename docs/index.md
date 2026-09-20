@@ -2,9 +2,9 @@
 
 > Python library for Quantum Diamond Microscopy (QDM) data analysis — load ODMR data, fit NV spectra, and generate quantitative magnetic field maps.
 
-[![PyPI](https://img.shields.io/pypi/v/qdmpy-core?style=flat-square)](https://pypi.org/project/qdmpy-core/)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/qdmpy-core?style=flat-square)](https://pypi.org/project/qdmpy-core/)
-[![Tests](https://img.shields.io/github/actions/workflow/status/mikevolk/QDMpy/tests.yml?branch=master&label=tests&style=flat-square)](https://github.com/mikevolk/QDMpy/actions/workflows/tests.yml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/MikeVolk/qdmpy-core/test.yml?branch=main&label=tests&style=flat-square)](https://github.com/MikeVolk/qdmpy-core/actions/workflows/test.yml)
+[![Python](https://img.shields.io/badge/python-3.13%2B-blue?style=flat-square)](https://www.python.org/)
+[![License](https://img.shields.io/badge/licence-MIT-green?style=flat-square)](https://github.com/MikeVolk/qdmpy-core/blob/main/LICENCE)
 
 ---
 
@@ -45,12 +45,13 @@ print(mm.bz.values)                 # xr.DataArray in µT
 
 ## Installation
 
-```sh
-# uv (recommended)
-uv pip install qdmpy-core
+qdmpy-core is not published to PyPI — install it from the repository:
 
-# pip
-pip install qdmpy-core
+```sh
+git clone https://github.com/MikeVolk/qdmpy-core.git
+cd qdmpy-core
+uv venv && source .venv/bin/activate
+uv pip install -e .
 ```
 
 See [Installation](installation.md) for GPU fitting setup and full details.

@@ -4,10 +4,10 @@ qdmpy includes a command-line interface (CLI) for performing common tasks withou
 
 ## Installation
 
-When you install qdmpy, the CLI is automatically installed:
+The CLI is installed automatically with the package:
 
 ```bash
-pip install qdmpy
+pip install git+https://github.com/MikeVolk/qdmpy-core.git
 ```
 
 ## Basic Commands
