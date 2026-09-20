@@ -2,14 +2,15 @@
 
 > Python library for Quantum Diamond Microscopy (QDM) data analysis — load ODMR data, fit NV spectra, and generate quantitative magnetic field maps.
 
-[![PyPI](https://img.shields.io/pypi/v/qdmpy-core?style=flat-square)](https://pypi.org/project/qdmpy-core/)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/qdmpy-core?style=flat-square)](https://pypi.org/project/qdmpy-core/)
-[![PyPI - License](https://img.shields.io/pypi/l/qdmpy-core?style=flat-square)](https://pypi.org/project/qdmpy-core/)
-[![Tests](https://img.shields.io/github/actions/workflow/status/mikevolk/QDMpy/tests.yml?branch=master&label=tests&style=flat-square)](https://github.com/mikevolk/QDMpy/actions/workflows/tests.yml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/MikeVolk/qdmpy-core/test.yml?branch=main&label=tests&style=flat-square)](https://github.com/MikeVolk/qdmpy-core/actions/workflows/test.yml)
+[![Python](https://img.shields.io/badge/python-3.13%2B-blue?style=flat-square)](https://www.python.org/)
+[![License](https://img.shields.io/badge/licence-MIT-green?style=flat-square)](LICENCE)
 
-**Docs:** [mikevolk.github.io/QDMpy](https://mikevolk.github.io/QDMpy) &nbsp;|&nbsp;
-**Source:** [github.com/mikevolk/QDMpy](https://github.com/mikevolk/QDMpy) &nbsp;|&nbsp;
+**Docs:** [mikevolk.github.io/qdmpy-core](https://mikevolk.github.io/qdmpy-core) &nbsp;|&nbsp;
+**Source:** [github.com/MikeVolk/qdmpy-core](https://github.com/MikeVolk/qdmpy-core) &nbsp;|&nbsp;
 **Changelog:** [CHANGELOG.md](CHANGELOG.md)
+
+> **Not on PyPI.** Install from source — see [Installation](#installation).
 
 ---
 
@@ -25,18 +26,21 @@
 
 ## Installation
 
-```sh
-# uv (recommended)
-uv pip install qdmpy-core
+qdmpy-core is not published to PyPI. Install it from the repository.
 
-# pip
-pip install qdmpy-core
+**From a clone (recommended — required for the gpufit backend):**
+
+```sh
+git clone https://github.com/MikeVolk/qdmpy-core.git
+cd qdmpy-core
+uv venv && source .venv/bin/activate
+uv pip install -e .
 ```
 
-**GPU fitting** (optional, requires CUDA 11.5+):
+**Directly from git** (no clone; CPU/torch fitting only):
 
 ```sh
-pip install pyGpufit
+pip install git+https://github.com/MikeVolk/qdmpy-core.git
 ```
 
 **Verify:**
@@ -44,6 +48,17 @@ pip install pyGpufit
 ```sh
 python -c "import qdmpy; print(qdmpy.__version__)"
 ```
+
+### Optional backends
+
+| Extra | Install | Provides |
+|---|---|---|
+| `gpu` | `uv sync --extra gpu` | `torch` backend — CUDA, Apple-silicon MPS, and CPU |
+| `gpufit` | `uv sync --extra gpufit` | `gpufit` backend — CUDA 11.5+ only, needs a clone |
+
+`pyGpufit` is not on PyPI; the wheels are vendored under `src/pyGpufit/` and
+resolved by uv from a checkout. Without either extra, fitting falls back to the
+`scipy` backend, which needs no extra install.
 
 See [Installation](docs/installation.md) for full details.
 
@@ -99,10 +114,11 @@ result2 = qdmpy.load_qdm('my_result.qdm')
 ### Setup
 
 ```sh
-git clone https://github.com/mikevolk/QDMpy.git
-cd QDMpy
-uv venv && source .venv/bin/activate
-uv pip install -e .
+git clone https://github.com/MikeVolk/qdmpy-core.git
+cd qdmpy-core
+uv sync                       # project + `dev` group (ruff, ty, pytest, docs)
+source .venv/bin/activate
+pre-commit install
 ```
 
 ### Testing

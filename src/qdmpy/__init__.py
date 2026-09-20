@@ -10,9 +10,14 @@ the data processing pipeline to meet their specific experimental needs.
 
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _package_version
 from os import PathLike
 
-__version__ = "0.1.0a"
+try:
+    __version__ = _package_version("qdmpy-core")
+except PackageNotFoundError:  # running from a source tree that was never installed
+    __version__ = "0.0.0.dev0"
 
 
 def load(

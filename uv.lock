@@ -2744,7 +2744,7 @@ wheels = [
 
 [[package]]
 name = "qdmpy-core"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "h5py" },
@@ -2754,8 +2754,6 @@ dependencies = [
     { name = "numba" },
     { name = "numpy" },
     { name = "pydantic-settings" },
-    { name = "pygpufit", version = "1.2.0", source = { path = "src/pyGpufit/win/pyGpufit-1.2.0-py2.py3-none-any.whl" }, marker = "sys_platform == 'win32'" },
-    { name = "pygpufit", version = "1.3.0", source = { path = "src/pyGpufit/linux/pygpufit-1.3.0-py2.py3-none-any.whl" }, marker = "sys_platform != 'win32'" },
     { name = "pypole" },
     { name = "scipy" },
     { name = "tomli" },
@@ -2765,6 +2763,10 @@ dependencies = [
 [package.optional-dependencies]
 gpu = [
     { name = "torch" },
+]
+gpufit = [
+    { name = "pygpufit", version = "1.2.0", source = { path = "src/pyGpufit/win/pyGpufit-1.2.0-py2.py3-none-any.whl" }, marker = "sys_platform == 'win32'" },
+    { name = "pygpufit", version = "1.3.0", source = { path = "src/pyGpufit/linux/pygpufit-1.3.0-py2.py3-none-any.whl" }, marker = "sys_platform != 'win32'" },
 ]
 
 [package.dev-dependencies]
@@ -2803,15 +2805,15 @@ requires-dist = [
     { name = "numba", specifier = ">=0.67" },
     { name = "numpy", specifier = ">=2.5,<3.0" },
     { name = "pydantic-settings", specifier = ">=2.15" },
-    { name = "pygpufit", marker = "sys_platform != 'win32'", path = "src/pyGpufit/linux/pygpufit-1.3.0-py2.py3-none-any.whl" },
-    { name = "pygpufit", marker = "sys_platform == 'win32'", path = "src/pyGpufit/win/pyGpufit-1.2.0-py2.py3-none-any.whl" },
+    { name = "pygpufit", marker = "sys_platform == 'win32' and extra == 'gpufit'", path = "src/pyGpufit/win/pyGpufit-1.2.0-py2.py3-none-any.whl" },
+    { name = "pygpufit", marker = "sys_platform != 'win32' and extra == 'gpufit'", path = "src/pyGpufit/linux/pygpufit-1.3.0-py2.py3-none-any.whl" },
     { name = "pypole" },
     { name = "scipy", specifier = ">=1.18" },
     { name = "tomli", specifier = ">=2.4.0" },
     { name = "torch", marker = "extra == 'gpu'", specifier = ">=2.4" },
     { name = "xarray", specifier = ">=2026.7.0" },
 ]
-provides-extras = ["gpu"]
+provides-extras = ["gpu", "gpufit"]
 
 [package.metadata.requires-dev]
 dev = [
