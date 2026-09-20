@@ -464,3 +464,47 @@ Still open, deliberately:
 - **qdmpy-gui** must drop `OutlierProcessor` from its pipeline editor
   (`_pipeline_step_editor.py`); its spinbox cannot express a non-destructive
   value.
+
+---
+
+## Part 5 -- Status after the 2026-09-19 upgrade and cleanup batch
+
+Closed since Part 4, on `chore/housekeeping`, `chore/deps-upgrade` and
+`feature/breaking-cleanup`:
+
+- **`fold_residual` clip** -- removed; the map is unbounded and qdmpy-gui
+  scales it to the 99th percentile. (Part 4 listed this as deliberately open
+  pending a coordinated GUI change; that change is done.)
+- **`OutlierProcessor`** -- removed from core, from the GUI pipeline editor,
+  and from the docs. `ProcessorRegistry.removed` records why, and saved GUI
+  pipelines naming it load with that step dropped.
+- **Deprecated `gpu_available=`** -- removed everywhere; `backend=` replaces it.
+- Dependency upgrade (numpy 2.5 / scipy 1.18 / numba 0.67 / ty 0.0.82 /
+  ruff 0.16.8), PLR0917 keyword-only arguments on the argument-swap-prone
+  signatures, single pytest config, and a TOML settings test that actually
+  loads a TOML file.
+
+Found while doing that work, not in this review:
+
+- `ty` 0.0.82 stopped honouring mypy-coded `# type: ignore[...]`, exposing
+  that `ModelRegistry.register`/`ProcessorRegistry.register` erased the
+  decorated class's type. Both are generic now.
+- The **GUI refit button raised `AttributeError` on every click**: it passed
+  `RefitSettings` as `settings=` (the fit `QDMpySettings`) instead of
+  `refit_settings=`. Fixed in qdmpy-gui.
+- `mkdocs build --strict` was already failing on `develop` (a moved
+  `ESTIMATOR_ID` reference and a `Example:`/`Examples:` docstring heading).
+
+Still open, now with proposals:
+
+- **Processor-framework unification** -- QEP-ODMR-002, refreshed 2026-09-19:
+  scope extended to `field_processing`, decision recorded (protocol contract
+  with `BaseProcessor` as an optional base).
+- **One immutability story** -- QEP-FIT-001, refreshed: `frozen=True` plus
+  read-only arrays, no-copy views for the large `ODMRData`/`FoldedODMR`
+  buffers.
+- **`Model` name/ClassVar contract** -- QEP-FIT-005, refreshed; Phase 2
+  (instance registry) rejected. Three `ty: ignore ... QEP-FIT-005` markers in
+  `models.py`/`guess.py` are the open debt.
+- **`manager.py` at 987 lines** -- new QEP-074 (module split); `result.py`
+  (809) and `models.py` (807) are also over the 800-line limit.
