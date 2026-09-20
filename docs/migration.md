@@ -27,8 +27,8 @@ distinct steps that never mutate in place.
 # Old
 pip install QDMpy
 
-# New
-pip install qdmpy-core
+# New (not on PyPI -- install from the repository)
+pip install git+https://github.com/MikeVolk/qdmpy-core.git
 ```
 
 The import name changes from `QDMpy` to `qdmpy`:
