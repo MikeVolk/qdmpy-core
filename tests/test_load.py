@@ -15,6 +15,8 @@ from qdmpy.odmr.data import ODMRData
 from qdmpy.odmr.manager import ODMR
 from tests.helpers import make_odmr_xr
 
+pytestmark = [pytest.mark.unit, pytest.mark.data_loading]
+
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
 # ---------------------------------------------------------------------------

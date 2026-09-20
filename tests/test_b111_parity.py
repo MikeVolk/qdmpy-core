@@ -35,6 +35,8 @@ from qdmpy.constants import GAMMA_NV
 from qdmpy.odmr.analysis import b111_from_dip_positions
 from qdmpy.testing import make_synthetic_fit_result, make_synthetic_odmr_data
 
+pytestmark = [pytest.mark.unit, pytest.mark.fitting, pytest.mark.magnetic_fields]
+
 SHAPE = (8, 8)
 
 # Half-width of each branch's frequency axis in make_synthetic_odmr_data.

@@ -33,7 +33,12 @@ from qdmpy.fitting.backends import FitBackendOptions
 
 _HAS_TORCH = importlib.util.find_spec("torch") is not None
 
-pytestmark = pytest.mark.skipif(not _HAS_TORCH, reason="Requires torch (gpu extra)")
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.slow,
+    pytest.mark.fitting,
+    pytest.mark.skipif(not _HAS_TORCH, reason="Requires torch (gpu extra)"),
+]
 
 N = 64
 N_FREQ = 50

@@ -14,6 +14,8 @@ from scipy.io import savemat
 from qdmpy.exceptions import DataLoadError
 from qdmpy.odmr.io import BaseLoader, MatlabLoader
 
+pytestmark = [pytest.mark.unit, pytest.mark.data_loading]
+
 # ---------------------------------------------------------------------------
 # Synthetic .mat fixtures
 #

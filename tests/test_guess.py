@@ -41,6 +41,8 @@ from qdmpy.fitting.guesser import (
 )
 from qdmpy.fitting.models import ESR14N, ESR15N, ESRSINGLE
 
+pytestmark = [pytest.mark.unit, pytest.mark.fitting]
+
 
 @pytest.fixture
 def sample_odmr_data():

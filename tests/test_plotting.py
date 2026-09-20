@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+pytestmark = [pytest.mark.unit]
+
 
 @unittest.skipIf(
     importlib.util.find_spec("qdmpy") is None,

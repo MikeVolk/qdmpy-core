@@ -33,6 +33,8 @@ from qdmpy.settings import (
 from qdmpy.testing import FakeFitBackend, RecordingFitBackend
 from tests.helpers import make_xr_data
 
+pytestmark = [pytest.mark.unit, pytest.mark.fitting]
+
 # Mock settings for tests (center/width values in GHz, matching default settings convention)
 MOCK_SETTINGS = QDMpySettings(
     fit=FitSettings(

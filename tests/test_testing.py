@@ -31,6 +31,8 @@ from qdmpy.testing import (
     make_synthetic_qdm_result,
 )
 
+pytestmark = [pytest.mark.unit, pytest.mark.fitting]
+
 MODEL_NAMES = ["ESR14N", "ESR15N", "ESRSINGLE"]
 
 # The applied bias in make_synthetic_* -- 900 uT, which is what b111_induced

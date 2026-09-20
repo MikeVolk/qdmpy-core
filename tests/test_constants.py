@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import unittest
 
+import pytest
+
 from qdmpy import constants
+
+pytestmark = [pytest.mark.unit]
 
 
 class TestConstants(unittest.TestCase):

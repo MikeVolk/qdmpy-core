@@ -11,6 +11,8 @@ import xarray as xr
 from qdmpy.magnetic_map import FieldReconstructor, MagneticMap, _reconstruct_bxyz
 from qdmpy.settings import NvSettings, QDMpySettings
 
+pytestmark = [pytest.mark.unit, pytest.mark.magnetic_fields]
+
 # ---------------------------------------------------------------------------
 # _reconstruct_bxyz (Fourier inversion)
 # ---------------------------------------------------------------------------

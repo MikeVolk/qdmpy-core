@@ -29,6 +29,8 @@ from qdmpy.fitting.models import ESRSINGLE, Model, ModelRegistry
 from qdmpy.settings import FitSettings, QDMpySettings
 from qdmpy.testing import FakeFitBackend, make_synthetic_odmr_data
 
+pytestmark = [pytest.mark.unit, pytest.mark.fitting]
+
 
 class TestResolveBackend:
     """Backend name/instance resolution matrix."""

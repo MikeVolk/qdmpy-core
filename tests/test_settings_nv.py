@@ -20,6 +20,8 @@ from pydantic import ValidationError
 
 from qdmpy.settings import QDMpySettings
 
+pytestmark = [pytest.mark.unit]
+
 # ---------------------------------------------------------------------------
 # Expected constants (from QEP-034 proposal)
 # ---------------------------------------------------------------------------

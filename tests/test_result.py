@@ -13,6 +13,8 @@ from qdmpy.constants import D_ZFS, GAMMA_NV
 from qdmpy.exceptions import DataLoadError, DataShapeError, DataValidationError, ParameterError
 from qdmpy.fitting.result import FitResult
 
+pytestmark = [pytest.mark.unit, pytest.mark.fitting]
+
 
 class TestFitResult:
     """Test suite for the FitResult class."""

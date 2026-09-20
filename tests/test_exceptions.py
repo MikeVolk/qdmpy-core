@@ -7,6 +7,8 @@ import pytest
 
 from qdmpy.exceptions import ModelGuessNotPossibleError, QDMpyError
 
+pytestmark = [pytest.mark.unit]
+
 
 class TestExceptions(unittest.TestCase):
     """Tests for custom exceptions in QDMpy."""

@@ -14,6 +14,8 @@ from qdmpy.utils import (
     rms,
 )
 
+pytestmark = [pytest.mark.unit]
+
 
 class TestUtils(unittest.TestCase):
     """Tests for utility functions in QDMpy.utils."""

@@ -13,6 +13,8 @@ from pydantic import ValidationError
 from qdmpy.fitting.result import FitResult
 from qdmpy.result import QDMResult
 
+pytestmark = [pytest.mark.unit]
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

@@ -20,6 +20,8 @@ from qdmpy.odmr.data import ODMRData
 from qdmpy.odmr.manager import ODMR
 from qdmpy.result import QDMResult
 
+pytestmark = [pytest.mark.unit]
+
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
