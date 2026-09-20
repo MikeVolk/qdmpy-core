@@ -44,6 +44,21 @@ class TestConstants(unittest.TestCase):
         assert constants.DEFAULT_VMIN > 0
         assert constants.DEFAULT_VMAX < 1
 
+    def test_coordinate_labels_are_canonical(self) -> None:
+        """Lock the QEP-025 coordinate vocabulary by literal value.
+
+        These strings are a contract, not an implementation detail. Production
+        selects on them (`.sel(polarity='neg')` in fitting/result.py,
+        odmr/analysis.py and odmr/folding.py) and they are persisted into every
+        saved .qdm file, so renaming one silently breaks reading old results.
+
+        Test helpers import these constants rather than hardcoding them, which
+        means a rename would otherwise propagate everywhere and fail nothing.
+        This is the single place it fails loudly instead.
+        """
+        assert constants.POLARITY_LABELS == ["neg", "pos"]
+        assert constants.FRANGE_LABELS == ["low", "high"]
+
 
 if __name__ == "__main__":
     unittest.main()
