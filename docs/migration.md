@@ -363,7 +363,7 @@ sources), prefer the `.qdm` format.
 
 | Old QDMpy | New qdmpy-core | Notes |
 |---|---|---|
-| `make_dummy_data(model, n_freqs, dims)` | `qdmpy.make_synthetic_odmr_data(shape, n_freq, model_name)` | Always 2-pol 2-frange |
+| `make_dummy_data(model, n_freqs, dims)` | `qdmpy.make_synthetic_odmr_data(shape, *, n_freq, model_name)` | Always 2-pol 2-frange |
 | `write_test_qdmio_file(path)` | Not ported as public API | Use `make_synthetic_odmr_data` |
 
 ### Constants
