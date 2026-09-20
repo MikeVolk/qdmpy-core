@@ -43,6 +43,7 @@ raise ValueError("Invalid data shape")  # Should be DataShapeError
 raise ValueError("No data loaded")  # Should be DataLoadError
 ```
 
+
 ## QEP-011 Impact
 
 No overlap. QEP-011 did not introduce any domain-specific exceptions. Generic

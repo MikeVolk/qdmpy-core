@@ -5,7 +5,7 @@ from typing import NoReturn
 
 import pytest
 
-from QDMpy.exceptions import ModelGuessNotPossibleError, QDMpyError
+from qdmpy.exceptions import ModelGuessNotPossibleError, QDMpyError
 
 
 class TestExceptions(unittest.TestCase):

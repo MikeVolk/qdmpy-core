@@ -1,18 +1,35 @@
 name: Release
 
+# qdmpy-core is not published to PyPI -- users install from a clone or with
+# `pip install git+https://github.com/MikeVolk/qdmpy-core.git`. A published
+# release therefore only builds the distributions, attaches them to the GitHub
+# release, and deploys the docs site.
+
 on:
   release:
     types: [ published ]
 
+permissions:
+  contents: write
+
 jobs:
-  build-and-publish:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: ./.github/actions/python-poetry-env
-      - name: Publish to pypi
-        run: |
-          poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
-          poetry publish --build --no-interaction
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Attach distributions to the release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${GITHUB_REF_NAME}" dist/* --clobber
+
       - name: Deploy docs
-        run: poetry run mkdocs gh-deploy --force
+        run: uv run mkdocs gh-deploy --force

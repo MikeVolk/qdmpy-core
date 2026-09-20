@@ -19,7 +19,7 @@ uv run python simple_reference_generator.py --data-folder tests/data/FOV18x --ou
 
 This creates:
 - `FOV18x_reference_bin1.npz` - Reference data with no binning
-- `FOV18x_reference_bin2.npz` - Reference data with 2x binning  
+- `FOV18x_reference_bin2.npz` - Reference data with 2x binning
 - `FOV18x_reference_bin8.npz` - Reference data with 8x binning
 
 ### Phase 2: Run Validation Tests (Use Forever)
@@ -103,7 +103,7 @@ Tests expect the following data structure:
 ```
 tests/data/FOV18x/
 ├── run_00000.mat
-├── run_00001.mat  
+├── run_00001.mat
 ├── LED.csv
 └── laser.csv
 

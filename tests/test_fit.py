@@ -13,22 +13,24 @@ import pytest
 import xarray as xr
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 
-from QDMpy.exceptions import (
+from qdmpy.exceptions import (
     DataValidationError,
     ModelNotFoundError,
+    ModelNotResolvedError,
     ParameterError,
 )
-from QDMpy.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
-from QDMpy.fitting.guesser import ParameterGuesser
-from QDMpy.fitting.manager import FitManager
-from QDMpy.fitting.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
-from QDMpy.fitting.result import FitResult
-from QDMpy.settings import (
+from qdmpy.fitting.constraints import CONSTRAINT_TYPES, ConstraintManager
+from qdmpy.fitting.guesser import ParameterGuesser
+from qdmpy.fitting.manager import FitManager
+from qdmpy.fitting.models import ESR14N, ESR15N, ESRSINGLE, Model, ModelRegistry
+from qdmpy.fitting.result import FitResult
+from qdmpy.settings import (
     FitSettings,
     ModelConstraintsSettings,
     ModelSettings,
     QDMpySettings,
 )
+from qdmpy.testing import FakeFitBackend, RecordingFitBackend
 
 # Mock settings for tests (center/width values in GHz, matching default settings convention)
 MOCK_SETTINGS = QDMpySettings(
@@ -39,6 +41,7 @@ MOCK_SETTINGS = QDMpySettings(
     ),
     model=ModelSettings(
         constraints=ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
             center_min=2.8,
             center_max=2.9,
             center_type="FREE",
@@ -141,14 +144,14 @@ class TestFitInitialization:
 
         fit = FitManager(model_name="ESRSINGLE", constraints=constraints, settings=MOCK_SETTINGS)
 
-        assert fit.constraints["center"][0] == 2.87
-        assert fit.constraints["center"][1] == 2.88
-        assert fit.constraints["center"][2] == "LOWER_UPPER"
+        assert fit.constraints["center"].vmin == 2.87
+        assert fit.constraints["center"].vmax == 2.88
+        assert fit.constraints["center"].constraint_type == "LOWER_UPPER"
 
     def test_auto_mode_raises_on_constraints_access(self) -> None:
-        """Test that accessing constraints in auto mode before fit() raises RuntimeError."""
+        """Test that accessing constraints in auto mode before fit() raises ModelNotResolvedError."""
         fit = FitManager(model_name="auto", settings=MOCK_SETTINGS)
-        with pytest.raises(RuntimeError, match="not yet resolved"):
+        with pytest.raises(ModelNotResolvedError, match="not yet resolved"):
             _ = fit.constraints
 
 
@@ -170,9 +173,9 @@ class TestFitProperties:
         assert isinstance(fit2.model, ESR15N)
 
     def test_parameter_names_raises_in_auto_mode(self) -> None:
-        """Test that parameter_names raises RuntimeError in unresolved auto mode."""
+        """Test that parameter_names raises ModelNotResolvedError in unresolved auto mode."""
         fit = FitManager(model_name="auto", settings=MOCK_SETTINGS)
-        with pytest.raises(RuntimeError, match="not yet resolved"):
+        with pytest.raises(ModelNotResolvedError, match="not yet resolved"):
             _ = fit.parameter_names
 
 
@@ -184,17 +187,17 @@ class TestConstraintsMethods:
         fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
         fit.set_constraints("center", vmin=2.85, vmax=2.90, constraint_type="LOWER_UPPER")
 
-        assert fit.constraints["center"][0] == 2.85
-        assert fit.constraints["center"][1] == 2.90
-        assert fit.constraints["center"][2] == "LOWER_UPPER"
+        assert fit.constraints["center"].vmin == 2.85
+        assert fit.constraints["center"].vmax == 2.90
+        assert fit.constraints["center"].constraint_type == "LOWER_UPPER"
 
     def test_set_constraints_with_numeric_type(self) -> None:
         """Test set_constraints with numeric constraint type."""
         fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
         fit.set_constraints("width", vmin=1e6, constraint_type=1)
 
-        assert fit.constraints["width"][0] == 1e6
-        assert fit.constraints["width"][2] == "LOWER"
+        assert fit.constraints["width"].vmin == 1e6
+        assert fit.constraints["width"].constraint_type == "LOWER"
 
     def test_set_constraints_invalid_type(self) -> None:
         """Test set_constraints with invalid constraint type."""
@@ -215,7 +218,7 @@ class TestConstraintsMethods:
         fit.set_free_constraints()
 
         for param in fit.parameter_names:
-            assert fit.constraints[param][2] == "FREE"
+            assert fit.constraints[param].constraint_type == "FREE"
 
     def test_get_constraints_array(self) -> None:
         """Test get_constraints_array method."""
@@ -230,14 +233,14 @@ class TestConstraintsMethods:
 
         # All values stay in GHz (no Hz conversion — QEP-018)
         expected_first_row = [
-            fit.constraints["center"][0],
-            fit.constraints["center"][1],
-            fit.constraints["width"][0],
-            fit.constraints["width"][1],
-            fit.constraints["contrast"][0],
-            fit.constraints["contrast"][1],
-            fit.constraints["offset"][0],
-            fit.constraints["offset"][1],
+            fit.constraints["center"].vmin,
+            fit.constraints["center"].vmax,
+            fit.constraints["width"].vmin,
+            fit.constraints["width"].vmax,
+            fit.constraints["contrast"].vmin,
+            fit.constraints["contrast"].vmax,
+            fit.constraints["offset"].vmin,
+            fit.constraints["offset"].vmax,
         ]
         assert_array_almost_equal(constraints_array[0], expected_first_row)
         assert_array_almost_equal(constraints_array[0], constraints_array[1])
@@ -295,6 +298,7 @@ class TestConstraintManager:
             ["center"],
         )
         settings = ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
             center_min=2.8,
             center_max=2.9,
             center_type="FREE",
@@ -313,15 +317,15 @@ class TestConstraintManager:
         constraints = constraint_manager.get_constraints()
         assert len(constraints) == 4
 
-        assert constraints["center"][0] == 2.8
-        assert constraints["center"][1] == 2.9
-        assert constraints["center"][2] == "FREE"
-        assert constraints["center"][3] == "GHz"
+        assert constraints["center"].vmin == 2.8
+        assert constraints["center"].vmax == 2.9
+        assert constraints["center"].constraint_type == "FREE"
+        assert constraints["center"].unit == "GHz"
 
-        assert constraints["width_0"][0] == 0.001
-        assert constraints["width_0"][1] == 0.01
-        assert constraints["width_0"][2] == "LOWER"
-        assert constraints["width_0"][3] == "a.u."
+        assert constraints["width_0"].vmin == 0.001
+        assert constraints["width_0"].vmax == 0.01
+        assert constraints["width_0"].constraint_type == "LOWER"
+        assert constraints["width_0"].unit == "a.u."
 
     def test_set_constraint(self) -> None:
         """Test setting constraints."""
@@ -331,6 +335,7 @@ class TestConstraintManager:
             ["center"],
         )
         settings = ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
             center_min=2.8,
             center_max=2.9,
             center_type="FREE",
@@ -351,14 +356,15 @@ class TestConstraintManager:
         )
 
         constraints = constraint_manager.get_constraints()
-        assert constraints["center"][0] == 2.85
-        assert constraints["center"][1] == 2.88
-        assert constraints["center"][2] == "LOWER_UPPER"
+        assert constraints["center"].vmin == 2.85
+        assert constraints["center"].vmax == 2.88
+        assert constraints["center"].constraint_type == "LOWER_UPPER"
 
         constraint_manager.set_constraint("width_0", vmin=0.002)
-        assert constraints["width_0"][0] == 0.002
-        assert constraints["width_0"][1] == 0.01
-        assert constraints["width_0"][2] == "FREE"
+        constraints = constraint_manager.get_constraints()
+        assert constraints["width_0"].vmin == 0.002
+        assert constraints["width_0"].vmax == 0.01
+        assert constraints["width_0"].constraint_type == "FREE"
 
         with pytest.raises(ParameterError):
             constraint_manager.set_constraint("invalid_param", vmin=1.0)
@@ -374,6 +380,7 @@ class TestConstraintManager:
             ["center"],
         )
         settings = ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
             center_min=2.8,
             center_max=2.9,
             center_type="FREE",
@@ -415,6 +422,7 @@ class TestConstraintManager:
             ["center"],
         )
         settings = ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
             center_min=2.8,
             center_max=2.9,
             center_type="LOWER",
@@ -447,18 +455,134 @@ class TestFitting:
 
     def test_fit_returns_fit_result(self, sample_data, sample_frequencies) -> None:
         """Test that fit() returns a FitResult."""
-        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
         result = fit.fit(sample_data, sample_frequencies)
         assert isinstance(result, FitResult)
 
     def test_fit_reuse(self, sample_data, sample_frequencies) -> None:
         """Test that the same FitManager can be called twice with different data."""
-        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
         result1 = fit.fit(sample_data, sample_frequencies)
         result2 = fit.fit(sample_data, sample_frequencies)
         assert isinstance(result1, FitResult)
         assert isinstance(result2, FitResult)
         assert result1 is not result2
+
+
+class TestPipelineStages:
+    """Unit tests for the extracted fit() pipeline stages (QEP-070 phase 3)."""
+
+    def test_prepare_data_shapes(self, sample_data, sample_frequencies) -> None:
+        from qdmpy.fitting.manager import _PreparedFitInputs
+
+        prepared = FitManager._prepare_data(sample_data, sample_frequencies)
+        assert isinstance(prepared, _PreparedFitInputs)
+        assert prepared.flat_data.shape == (2, 1, 4, 10)
+        assert prepared.freq_ghz.shape == (1, 10)
+        assert prepared.scan_dimensions == (2, 2)
+        assert prepared.n_pol == 2
+        assert prepared.n_frange == 1
+        assert prepared.n_pixel == 4
+        assert prepared.n_freq == 10
+
+    def test_resolve_model_already_set(self) -> None:
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        model = fit._resolve_model(np.zeros((2, 1, 4, 10)))
+        assert model is fit.model
+
+    def test_resolve_model_auto_detects(self, sample_data, sample_frequencies) -> None:
+        fit = FitManager(model_name="auto", settings=MOCK_SETTINGS)
+        resolved_model = ESRSINGLE()
+        prepared = FitManager._prepare_data(sample_data, sample_frequencies)
+        with patch("qdmpy.fitting.manager.guess_model", return_value=resolved_model):
+            model = fit._resolve_model(prepared.flat_data)
+        assert model is resolved_model
+        assert fit.model is resolved_model
+
+    def test_resolve_model_raises_if_unresolved(self) -> None:
+        fit = FitManager(model_name="auto", settings=MOCK_SETTINGS)
+        with (
+            patch.object(fit, "_resolve_auto_model", return_value=None),
+            pytest.raises(ModelNotResolvedError, match="Model must be set"),
+        ):
+            fit._resolve_model(np.zeros((2, 1, 4, 10)))
+
+    def test_guess_parameters_shape(self, sample_data, sample_frequencies) -> None:
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        prepared = FitManager._prepare_data(sample_data, sample_frequencies)
+        range_data = prepared.flat_data[:, 0]
+        range_freq = prepared.freq_ghz[0]
+        initial = fit._guess_parameters(fit.model, range_data, range_freq)
+        assert initial.shape == (prepared.n_pol, prepared.n_pixel, fit.model.n_parameters)
+
+    def test_assemble_result_quality_metrics(self) -> None:
+        from qdmpy.fitting.manager import _PreparedFitInputs, _RangeFitOutputs
+
+        model = ModelRegistry.get("ESRSINGLE")
+        n_frange, n_pol, n_pixel = 1, 2, 4
+        raw = _RangeFitOutputs(
+            params=np.ones((n_frange, n_pol, n_pixel, model.n_parameters), dtype=np.float32),
+            states=np.zeros((n_frange, n_pol, n_pixel), dtype=np.int32),
+            chi2=np.zeros((n_frange, n_pol, n_pixel), dtype=np.float32),
+            iterations=np.ones((n_frange, n_pol, n_pixel), dtype=np.int32),
+            exec_times=(0.5,),
+        )
+        prepared = _PreparedFitInputs(
+            flat_data=np.zeros((n_pol, n_frange, n_pixel, 10)),
+            freq_ghz=np.zeros((n_frange, 10)),
+            scan_dimensions=(2, 2),
+        )
+        manager = FitManager(model_name="ESRSINGLE", backend="scipy")
+        result = manager._assemble_result(raw, model, prepared, pixel_spacing=4e-6)
+        assert result.metadata["quality_metrics"]["total_fit_time"] == pytest.approx(0.5)
+        assert result.metadata["quality_metrics"]["convergence_rate"] == pytest.approx(1.0)
+        assert result.scan_dimensions == (2, 2)
+
+    def test_assemble_result_merges_extra_metadata(self) -> None:
+        from qdmpy.fitting.manager import _PreparedFitInputs, _RangeFitOutputs
+
+        model = ModelRegistry.get("ESRSINGLE")
+        n_frange, n_pol, n_pixel = 1, 2, 4
+        raw = _RangeFitOutputs(
+            params=np.ones((n_frange, n_pol, n_pixel, model.n_parameters), dtype=np.float32),
+            states=np.zeros((n_frange, n_pol, n_pixel), dtype=np.int32),
+            chi2=np.zeros((n_frange, n_pol, n_pixel), dtype=np.float32),
+            iterations=np.ones((n_frange, n_pol, n_pixel), dtype=np.int32),
+            exec_times=(0.0,),
+        )
+        prepared = _PreparedFitInputs(
+            flat_data=np.zeros((n_pol, n_frange, n_pixel, 10)),
+            freq_ghz=np.zeros((n_frange, 10)),
+            scan_dimensions=(2, 2),
+        )
+        manager = FitManager(model_name="ESRSINGLE", backend="scipy")
+        result = manager._assemble_result(
+            raw, model, prepared, pixel_spacing=4e-6, extra_metadata={"folded_fit": True}
+        )
+        assert result.metadata["folded_fit"] is True
+
+
+class TestReshapeFrangeResultsPixelCounts:
+    """_reshape_frange_results() must keep (n_pol, n_pixel) intact for any pixel count.
+
+    A bare np.squeeze() drops every singleton dimension, not just the trailing
+    per-pixel-scalar axis — with n_pixel=1 and n_pol>1 that collapses the pixel
+    axis too and crashes the buffer assignment in _fit_all_franges(). Covers
+    n_pol=1 (previously worked via broadcasting) and n_pol=2 (previously crashed).
+    """
+
+    @pytest.mark.parametrize(("n_pol", "n_pixel"), [(1, 4), (1, 1), (2, 1), (2, 4)])
+    def test_fit_handles_pixel_count(self, n_pol: int, n_pixel: int) -> None:
+        numpy_4d = np.ones((n_pol, 1, n_pixel, 10))
+        data = _make_xr_data(numpy_4d)
+        freqs = np.linspace(2.87, 2.88, 10)
+
+        mgr = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
+        result = mgr.fit(data, freqs)
+
+        side = int(np.sqrt(n_pixel))
+        for arr in result.parameters.values():
+            assert arr.shape == (n_pol, 1, side, side)
 
 
 def test_set_constraints_missing_param() -> None:
@@ -478,6 +602,7 @@ def test_constraint_manager_missing_settings() -> None:
         ["center"],
     )
     settings = ModelConstraintsSettings(
+        constraint_units="absolute_ghz",
         center_min=2.8,
         center_max=2.9,
         center_type="FREE",
@@ -504,6 +629,7 @@ def test_to_array_zero_pixels() -> None:
         ["center"],
     )
     settings = ModelConstraintsSettings(
+        constraint_units="absolute_ghz",
         center_min=2.8,
         center_max=2.9,
         center_type="FREE",
@@ -524,18 +650,43 @@ def test_to_array_zero_pixels() -> None:
     assert constraints_array.shape == (0, len(model_params) * 2)
 
 
-@patch("pygpufit.gpufit.fit_constrained")
-def test_fit_frange_mocked(mock_fit_constrained, sample_data, sample_frequencies) -> None:
-    """Test fit_frange with mocked pyGpufit."""
-    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
+def test_get_constraints_returns_defensive_copy() -> None:
+    """Mutating the dict returned by get_constraints() must not affect the manager."""
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
 
-    mock_fit_constrained.return_value = [
-        np.random.random((8, fit.n_parameter)),
-        np.zeros(8, dtype=int),
-        np.random.random(8),
-        np.ones(8, dtype=int) * 10,
-        0.5,
-    ]
+    snapshot = fit.constraints
+    del snapshot["center"]
+
+    assert "center" in fit.constraints
+
+
+def test_constraints_to_array_matches_manager_to_array() -> None:
+    """Module-level constraints_to_array() must match ConstraintManager.to_array()."""
+    from qdmpy.fitting.constraints import constraints_to_array
+
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+    params = fit.parameter_names
+
+    expected = fit.get_constraints_array(3)
+    actual = constraints_to_array(fit.constraints, 3, params)
+    assert_array_equal(actual, expected)
+
+
+def test_constraint_type_indices_matches_manager_get_constraint_types() -> None:
+    """Module-level constraint_type_indices() must match ConstraintManager.get_constraint_types()."""
+    from qdmpy.fitting.constraints import constraint_type_indices
+
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+    params = fit.parameter_names
+
+    expected = fit.get_constraint_types()
+    actual = constraint_type_indices(fit.constraints, params)
+    assert_array_equal(actual, expected)
+
+
+def test_fit_frange_mocked(sample_data, sample_frequencies) -> None:
+    """Test fit_frange via the injectable FakeFitBackend (no GPU required)."""
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
 
     # flat_data: (n_pol, n_frange, n_pixel, n_freq) -> per-range: (n_pol, n_pixel, n_freq)
     values = sample_data.values
@@ -544,7 +695,9 @@ def test_fit_frange_mocked(mock_fit_constrained, sample_data, sample_frequencies
     flat_data = values.reshape(n_pol, n_frange, -1, n_freq)
     guesser = ParameterGuesser(fit.model, np.atleast_2d(sample_frequencies))
     initial_params = guesser.guess(flat_data)
-    results = fit.fit_frange(flat_data[:, 0], sample_frequencies, initial_params[:, 0])
+    results = fit.fit_frange(
+        flat_data[:, 0], sample_frequencies, initial_params[:, 0], irange=0, n_frange=1
+    )
     assert len(results) == 5
     assert results[0].shape == (8, fit.n_parameter)
 
@@ -557,7 +710,7 @@ def test_set_free_constraints_complex_model() -> None:
     fit.set_free_constraints()
 
     for param in fit.parameter_names:
-        assert fit.constraints[param][2] == "FREE"
+        assert fit.constraints[param].constraint_type == "FREE"
 
 
 class TestParameterGuesser:
@@ -615,14 +768,14 @@ class TestFitManagerValidation:
                 "freq_ghz": (["freq_range", "freq_idx"], np.empty((1, 0))),
             },
         )
-        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
         with pytest.raises(DataValidationError, match="empty"):
             fit.fit(empty_data, np.array([]))
 
     def test_rejects_freq_count_mismatch(self, sample_data) -> None:
         """Test that frequency count mismatch raises DataValidationError."""
         wrong_freqs = np.linspace(2.87, 2.88, 20)
-        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
         with pytest.raises(DataValidationError, match="must match"):
             fit.fit(sample_data, wrong_freqs)
 
@@ -639,53 +792,125 @@ class TestFitManagerValidation:
                 "freq_ghz": (["freq_range", "freq_idx"], few_freqs.reshape(1, -1)),
             },
         )
-        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS)
+        fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
         with pytest.raises(DataValidationError, match="at least"):
             fit.fit(da, few_freqs)
 
+    def test_rejects_freq_cutoff_unknown_range_key(self) -> None:
+        """freq_cutoff rejects unknown top-level range keys."""
+        with pytest.raises(DataValidationError, match="unknown range key"):
+            FitManager(
+                model_name="ESRSINGLE",
+                settings=MOCK_SETTINGS,
+                freq_cutoff={"middle": {"min": 2.86}},
+            )
 
-@patch("pygpufit.gpufit.fit_constrained")
-def test_fit_auto_model_resolution(mock_fit_constrained, sample_data, sample_frequencies) -> None:
+    def test_rejects_freq_cutoff_invalid_bounds(self) -> None:
+        """freq_cutoff rejects min > max for a range."""
+        with pytest.raises(DataValidationError, match="must be <="):
+            FitManager(
+                model_name="ESRSINGLE",
+                settings=MOCK_SETTINGS,
+                freq_cutoff={"low": {"min": 2.88, "max": 2.87}},
+            )
+
+    def test_rejects_freq_cutoff_high_for_single_range(
+        self, sample_data, sample_frequencies
+    ) -> None:
+        """Single-range fits only accept the 'low' cutoff key."""
+        fit = FitManager(
+            model_name="ESRSINGLE",
+            settings=MOCK_SETTINGS,
+            backend=FakeFitBackend(),
+            freq_cutoff={"high": {"min": 2.875}},
+        )
+        with pytest.raises(DataValidationError, match="single-range"):
+            fit.fit(sample_data, sample_frequencies)
+
+    def test_rejects_freq_cutoff_when_too_few_points_remain(self) -> None:
+        """Applying cutoff must keep at least 10 points per frange."""
+        freqs = np.linspace(2.87, 2.88, 10)
+        data_5d = np.ones((2, 1, 2, 2, 10), dtype=np.float32)
+        da = xr.DataArray(
+            data_5d,
+            dims=("polarity", "freq_range", "y", "x", "freq_idx"),
+            coords={
+                "polarity": ["neg", "pos"],
+                "freq_range": ["low"],
+                "freq_ghz": (["freq_range", "freq_idx"], freqs.reshape(1, -1)),
+            },
+        )
+        fit = FitManager(
+            model_name="ESRSINGLE",
+            settings=MOCK_SETTINGS,
+            backend=FakeFitBackend(),
+            freq_cutoff={"low": {"max": 2.878}},
+        )
+        with pytest.raises(DataValidationError, match="at least 10"):
+            fit.fit(da, freqs)
+
+
+def test_fit_applies_freq_cutoff_per_frange() -> None:
+    """fit() applies independent low/high frequency cutoffs before fitting."""
+    n_pol, n_frange, h, w, n_freq = 2, 2, 2, 2, 20
+    data_5d = np.ones((n_pol, n_frange, h, w, n_freq), dtype=np.float32)
+    freqs = np.vstack(
+        [
+            np.linspace(2.82, 2.87, n_freq),
+            np.linspace(2.87, 2.93, n_freq),
+        ]
+    )
+    da = xr.DataArray(
+        data_5d,
+        dims=("polarity", "freq_range", "y", "x", "freq_idx"),
+        coords={
+            "polarity": ["neg", "pos"],
+            "freq_range": ["low", "high"],
+            "freq_ghz": (["freq_range", "freq_idx"], freqs),
+        },
+    )
+
+    backend = RecordingFitBackend()
+    fit = FitManager(
+        model_name="ESRSINGLE",
+        settings=MOCK_SETTINGS,
+        backend=backend,
+        freq_cutoff={
+            "low": {"max": 2.86},
+            "high": {"min": 2.89},
+        },
+    )
+
+    _ = fit.fit(da, freqs)
+
+    assert len(backend.freq_calls) == 2
+    low_user_info, high_user_info = backend.freq_calls
+
+    assert np.max(low_user_info) <= 2.86
+    assert np.min(high_user_info) >= 2.89
+    assert low_user_info.size < n_freq
+    assert high_user_info.size < n_freq
+
+
+def test_fit_auto_model_resolution(sample_data, sample_frequencies) -> None:
     """Test that auto mode resolves the model on first fit() call."""
-    fit = FitManager(model_name="auto", settings=MOCK_SETTINGS, gpu_available=True)
+    fit = FitManager(model_name="auto", settings=MOCK_SETTINGS, backend=FakeFitBackend())
     assert fit.model is None
 
     resolved_model = ESRSINGLE()
-    n_pol, _, n_y, n_x, _ = sample_data.shape
-    n_pixel = n_y * n_x
-    n_params = resolved_model.n_parameters
 
-    mock_fit_constrained.return_value = [
-        np.random.random((n_pol * n_pixel, n_params)).astype(np.float32),
-        np.zeros(n_pol * n_pixel, dtype=np.int32),
-        np.random.random(n_pol * n_pixel).astype(np.float32),
-        np.ones(n_pol * n_pixel, dtype=np.int32) * 10,
-        0.5,
-    ]
-
-    with patch("QDMpy.fitting.manager.guess_model", return_value=resolved_model):
+    with patch("qdmpy.fitting.manager.guess_model", return_value=resolved_model):
         result = fit.fit(sample_data, sample_frequencies)
         assert isinstance(result, FitResult)
         assert fit.model is not None
         assert fit.model_name == "ESRSINGLE"
 
 
-@patch("pygpufit.gpufit.fit_constrained")
-def test_fit_returns_fit_result(mock_fit_constrained, sample_data, sample_frequencies) -> None:
+def test_fit_returns_fit_result(sample_data, sample_frequencies) -> None:
     """Test that fit() returns a FitResult with the expected structure."""
-    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
 
-    n_pol, _, n_y, n_x, _ = sample_data.shape
-    n_pixel = n_y * n_x
-    n_params = fit.n_parameter
-
-    mock_fit_constrained.return_value = [
-        np.random.random((n_pol * n_pixel, n_params)).astype(np.float32),
-        np.zeros(n_pol * n_pixel, dtype=np.int32),
-        np.random.random(n_pol * n_pixel).astype(np.float32),
-        np.ones(n_pol * n_pixel, dtype=np.int32) * 10,
-        0.5,
-    ]
+    _, _, n_y, n_x, _ = sample_data.shape
 
     result = fit.fit(sample_data, sample_frequencies)
 
@@ -697,24 +922,9 @@ def test_fit_returns_fit_result(mock_fit_constrained, sample_data, sample_freque
     assert "states" in result.parameters
 
 
-@patch("pygpufit.gpufit.fit_constrained")
-def test_fit_reuse_independent_results(
-    mock_fit_constrained, sample_data, sample_frequencies
-) -> None:
+def test_fit_reuse_independent_results(sample_data, sample_frequencies) -> None:
     """Test that the same FitManager returns independent FitResult objects."""
-    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, gpu_available=True)
-
-    n_pol, _, n_y, n_x, _ = sample_data.shape
-    n_pixel = n_y * n_x
-    n_params = fit.n_parameter
-
-    mock_fit_constrained.return_value = [
-        np.random.random((n_pol * n_pixel, n_params)).astype(np.float32),
-        np.zeros(n_pol * n_pixel, dtype=np.int32),
-        np.random.random(n_pol * n_pixel).astype(np.float32),
-        np.ones(n_pol * n_pixel, dtype=np.int32) * 10,
-        0.5,
-    ]
+    fit = FitManager(model_name="ESRSINGLE", settings=MOCK_SETTINGS, backend=FakeFitBackend())
 
     result1 = fit.fit(sample_data, sample_frequencies)
     result2 = fit.fit(sample_data, sample_frequencies)
@@ -730,10 +940,20 @@ def test_param_idx() -> None:
     # ESR14N params: [center, width, contrast_0, contrast_1, contrast_2, offset]
     # center is at index 0
     assert fit._param_idx("center") == [0]
-    assert fit._param_idx("resonance") == [0]
 
     with pytest.raises(ParameterError):
         fit._param_idx("invalid_param")
+
+
+def test_param_idx_aliases_are_deprecated() -> None:
+    """resonance/mean_contrast are deprecated aliases for center/contrast."""
+    fit = FitManager(model_name="ESR14N", settings=MOCK_SETTINGS)
+
+    with pytest.deprecated_call(match="resonance"):
+        assert fit._param_idx("resonance") == [0]
+
+    with pytest.deprecated_call(match="mean_contrast"):
+        assert fit._param_idx("mean_contrast") == [2, 3, 4]
 
 
 def test_get_initial_parameter_via_guesser(sample_data, sample_frequencies) -> None:

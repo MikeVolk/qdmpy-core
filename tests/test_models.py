@@ -10,10 +10,10 @@ from typing import ClassVar
 
 import numpy as np
 import pytest
-from numpy.testing import assert_allclose, assert_array_equal
+from numpy.testing import assert_array_equal
 
-from QDMpy.constants import AHYP_14N, AHYP_15N
-from QDMpy.fitting.models import (
+from qdmpy.constants import AHYP_14N, AHYP_15N
+from qdmpy.fitting.models import (
     ESR14N,
     ESR15N,
     ESRSINGLE,
@@ -23,13 +23,6 @@ from QDMpy.fitting.models import (
     esr15n,
     esrsingle,
 )
-
-try:
-    import pygpufit.gpufit  # noqa: F401
-
-    _HAS_GPUFIT = True
-except ImportError:
-    _HAS_GPUFIT = False
 
 
 class TestModelFunctions:
@@ -576,7 +569,7 @@ def test_main_demo_function() -> None:
     import io
     from unittest.mock import patch
 
-    from QDMpy.fitting.models import _main_demo
+    from qdmpy.fitting.models import _main_demo
 
     # Capture stdout to verify the output
     captured_output = io.StringIO()
@@ -589,85 +582,155 @@ def test_main_demo_function() -> None:
     assert output == "4\n"
 
 
-@pytest.mark.skipif(not _HAS_GPUFIT, reason="Requires pyGpufit installation")
-class TestGpufitConsistency:
-    """Verify Python model functions match the corresponding gpufit GPU kernels.
+# ---------------------------------------------------------------------------
+# Analytic Jacobians (QEP-073)
+# ---------------------------------------------------------------------------
 
-    Strategy: generate noiseless synthetic spectra from known parameters using
-    the Python model, then fit them with gpufit using the matching GPU kernel
-    (starting from the true parameters). If the Python and GPU implementations
-    agree, chi2 will be ≈ 0 and recovered parameters will match the ground truth
-    within float32 precision. A mismatch produces nonzero chi2 even at the true
-    params and causes the fits to diverge.
-    """
+# Realistic linewidths matter here: a coarse derivative is only visibly wrong
+# once the HWHM is comparable to the differencing step. Real 15N HWHM is
+# ~0.0006 GHz, 14N ~0.0012 GHz; the wider pair is the old synthetic regime.
+_JACOBIAN_CASES = [
+    # (model, params, label)
+    (ESR14N(), [2.8700, 0.0012, 0.02, 0.03, 0.02, 0.005], "14n-realistic"),
+    (ESR14N(), [2.8683, 0.0040, 0.10, 0.15, 0.08, -0.01], "14n-wide"),
+    (ESR15N(), [2.8700, 0.0006, 0.02, 0.03, 0.005], "15n-realistic"),
+    (ESR15N(), [2.8712, 0.0035, 0.12, 0.09, -0.02], "15n-wide"),
+    (ESRSINGLE(), [2.8700, 0.0010, 0.03, 0.004], "single-realistic"),
+    (ESRSINGLE(), [2.8695, 0.0045, 0.11, -0.01], "single-wide"),
+]
 
-    N = 64
-    N_FREQ = 50
-    FREQ = np.linspace(2.82, 2.92, N_FREQ, dtype=np.float32)
+_JACOBIAN_IDS = [case[2] for case in _JACOBIAN_CASES]
 
-    def _run(self, model_name: str, true_params: np.ndarray) -> None:
-        from QDMpy.fitting.manager import FitManager
-        from QDMpy.fitting.models import ModelRegistry
 
-        model = ModelRegistry.get(model_name)
-        spectra = model.func(self.FREQ, true_params).astype(np.float32)  # (N, n_freq)
+def _central_difference_column(
+    model: Model,
+    x: np.ndarray,
+    parameters: np.ndarray,
+    index: int,
+    step: float,
+) -> np.ndarray:
+    """Central difference of ``model.func`` w.r.t. one parameter, in float64."""
+    lower = parameters.copy()
+    upper = parameters.copy()
+    lower[:, index] -= step
+    upper[:, index] += step
+    return (model.func(x, upper) - model.func(x, lower)) / (2 * step)
 
-        fm = FitManager(model_name=model_name)
-        # fit_frange expects (n_pol, n_pixel, n_freq) — use n_pol=1
-        data = spectra[np.newaxis]  # (1, N, n_freq)
-        init = true_params[np.newaxis]  # (1, N, n_params)
 
-        results = fm.fit_frange(data, self.FREQ, init)
-        recovered = results[0].reshape(-1, model.n_parameters)  # (N, n_params)
-        states = results[1].flatten()
-        chi2 = results[2].flatten()
+class TestAnalyticJacobians:
+    """Analytic derivatives must match float64 central differences."""
 
-        assert np.all(states == 0), (
-            f"{model_name}: some fits did not converge — states: {np.unique(states, return_counts=True)}"
+    @pytest.mark.parametrize(("model", "params", "_label"), _JACOBIAN_CASES, ids=_JACOBIAN_IDS)
+    def test_matches_central_differences(
+        self, model: Model, params: list[float], _label: str
+    ) -> None:
+        """Every Jacobian column agrees with a numerical derivative."""
+        x = np.linspace(2.86, 2.88, 201)
+        parameters = np.array([params], dtype=np.float64)
+
+        jac = model.jacobian(x, parameters)
+        assert jac is not None
+        assert len(jac) == model.n_parameters
+
+        # The differencing step for the frequency-like parameters must scale
+        # with the HWHM, not with the parameter's own magnitude -- scaling it to
+        # |center| ~ 2.87 GHz is precisely the defect QEP-073 removes, and it
+        # ruins this reference just as badly as it ruined the fits.
+        hwhm = float(parameters[0, 1])
+
+        for index, name in enumerate(model.parameter_names):
+            step = 1e-4 * hwhm if name in ("center", "width") else 1e-6
+            numeric = _central_difference_column(model, x, parameters, index, step)
+            analytic = jac[index]
+            assert analytic.shape == numeric.shape, name
+            scale = max(float(np.abs(numeric).max()), 1e-12)
+            assert np.allclose(analytic, numeric, rtol=1e-5, atol=1e-6 * scale), name
+
+    @pytest.mark.parametrize(("model", "params", "_label"), _JACOBIAN_CASES, ids=_JACOBIAN_IDS)
+    def test_broadcasts_over_fits(self, model: Model, params: list[float], _label: str) -> None:
+        """Columns are (n_fits, n_x) and independent across rows."""
+        x = np.linspace(2.86, 2.88, 51)
+        single = np.array([params], dtype=np.float64)
+        stacked = np.repeat(single, 4, axis=0)
+        stacked[1:, 0] += np.array([1e-4, 2e-4, 3e-4])
+
+        jac_single = model.jacobian(x, single)
+        jac_stacked = model.jacobian(x, stacked)
+        assert jac_single is not None
+        assert jac_stacked is not None
+
+        for col_single, col_stacked in zip(jac_single, jac_stacked, strict=True):
+            assert col_stacked.shape == (4, x.size)
+            np.testing.assert_allclose(col_stacked[0], col_single[0], rtol=0, atol=0)
+
+    def test_offset_column_is_unity(self) -> None:
+        """df/doffset is identically 1 and correctly broadcast."""
+        x = np.linspace(2.86, 2.88, 17)
+        model = ESR14N()
+        parameters = np.array([[2.87, 0.0012, 0.02, 0.03, 0.02, 0.005]])
+        jac = model.jacobian(x, parameters)
+        assert jac is not None
+        np.testing.assert_allclose(jac[-1], np.ones((1, x.size)))
+
+    def test_1d_parameters_accepted(self) -> None:
+        """A bare 1-D parameter vector is promoted like func() does."""
+        x = np.linspace(2.86, 2.88, 17)
+        model = ESR15N()
+        params = np.array([2.87, 0.0006, 0.02, 0.03, 0.005])
+        jac = model.jacobian(x, params)
+        assert jac is not None
+        assert all(col.shape == (1, x.size) for col in jac)
+
+    def test_base_model_returns_none(self) -> None:
+        """Custom models without an analytic form fall back to finite differences."""
+
+        class NoJacobianModel(Model):
+            name: ClassVar[str] = "NOJAC"
+
+            def __init__(self) -> None:
+                super().__init__("NOJAC", 1, ["center", "width", "contrast", "offset"])
+                self.model_id = -1
+
+            @property
+            def parameter_types(self) -> dict[str, str]:
+                return {
+                    "center": "center",
+                    "width": "width",
+                    "contrast": "contrast",
+                    "offset": "offset",
+                }
+
+            @property
+            def frequency_parameters(self) -> list[str]:
+                return ["center"]
+
+            def func(self, x: np.ndarray, parameters: np.ndarray) -> np.ndarray:
+                return esrsingle(x, parameters)
+
+        x = np.linspace(2.86, 2.88, 5)
+        params = np.array([[2.87, 0.001, 0.02, 0.0]])
+        assert NoJacobianModel().jacobian(x, params) is None
+
+    @pytest.mark.parametrize(("model", "params", "_label"), _JACOBIAN_CASES, ids=_JACOBIAN_IDS)
+    def test_framework_neutral_on_torch(
+        self, model: Model, params: list[float], _label: str
+    ) -> None:
+        """The same implementation evaluates torch tensors (QEP-069 contract)."""
+        torch = pytest.importorskip("torch")
+
+        x = np.linspace(2.86, 2.88, 51)
+        parameters = np.array([params], dtype=np.float64)
+
+        numpy_cols = model.jacobian(x, parameters)
+        torch_cols = model.jacobian(
+            torch.as_tensor(x, dtype=torch.float64),
+            torch.as_tensor(parameters, dtype=torch.float64),
         )
-        assert np.all(chi2 < 1e-6), (
-            f"{model_name}: nonzero chi2 suggests model mismatch — max chi2={chi2.max():.2e}"
-        )
-        assert_allclose(
-            recovered,
-            true_params,
-            rtol=1e-2,
-            atol=1e-5,
-            err_msg=f"{model_name}: recovered params differ from ground truth",
-        )
+        assert numpy_cols is not None
+        assert torch_cols is not None
 
-    def test_esr14n_matches_gpufit(self) -> None:
-        """Python esr14n must match the ESR14N gpufit kernel (model_id=13)."""
-        rng = np.random.default_rng(0)
-        params = np.empty((self.N, 6), dtype=np.float32)
-        params[:, 0] = rng.uniform(2.85, 2.89, self.N)  # center (GHz)
-        params[:, 1] = rng.uniform(0.002, 0.005, self.N)  # width (GHz)
-        params[:, 2] = rng.uniform(0.05, 0.15, self.N)  # contrast_0
-        params[:, 3] = rng.uniform(0.05, 0.20, self.N)  # contrast_1
-        params[:, 4] = rng.uniform(0.05, 0.15, self.N)  # contrast_2
-        params[:, 5] = rng.uniform(-0.01, 0.01, self.N)  # offset
-        self._run("ESR14N", params)
-
-    def test_esr15n_matches_gpufit(self) -> None:
-        """Python esr15n must match the ESR15N gpufit kernel (model_id=14)."""
-        rng = np.random.default_rng(1)
-        params = np.empty((self.N, 5), dtype=np.float32)
-        params[:, 0] = rng.uniform(2.85, 2.89, self.N)
-        params[:, 1] = rng.uniform(0.002, 0.005, self.N)
-        params[:, 2] = rng.uniform(0.05, 0.20, self.N)
-        params[:, 3] = rng.uniform(0.05, 0.20, self.N)
-        params[:, 4] = rng.uniform(-0.01, 0.01, self.N)
-        self._run("ESR15N", params)
-
-    def test_esrsingle_matches_gpufit(self) -> None:
-        """Python esrsingle must match the ESRSINGLE gpufit kernel (model_id=15)."""
-        rng = np.random.default_rng(2)
-        params = np.empty((self.N, 4), dtype=np.float32)
-        params[:, 0] = rng.uniform(2.85, 2.89, self.N)
-        params[:, 1] = rng.uniform(0.002, 0.005, self.N)
-        params[:, 2] = rng.uniform(0.05, 0.30, self.N)
-        params[:, 3] = rng.uniform(-0.01, 0.01, self.N)
-        self._run("ESRSINGLE", params)
+        for numpy_col, torch_col in zip(numpy_cols, torch_cols, strict=True):
+            np.testing.assert_allclose(torch_col.numpy(), numpy_col, rtol=1e-12, atol=1e-14)
 
 
 if __name__ == "__main__":

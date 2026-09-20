@@ -4,21 +4,20 @@ Tests the abstract base class and pipeline orchestrator defined in QEP-034 Phase
 Follows TDD RED phase — all tests should fail until the module is implemented.
 
 Import path under test:
-    from QDMpy.field_processing import BaseFieldProcessor, FieldProcessingPipeline
+    from qdmpy.field_processing import BaseFieldProcessor, FieldProcessingPipeline
 """
 
 from __future__ import annotations
 
-from abc import abstractmethod
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 import xarray as xr
-from hypothesis import given, settings as hyp_settings
+from hypothesis import given
+from hypothesis import settings as hyp_settings
 from hypothesis import strategies as st
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers / fixtures
@@ -46,9 +45,9 @@ def _make_field_map(
 
     return xr.DataArray(
         values,
-        dims=('y', 'x'),
-        coords={'y': y_coords, 'x': x_coords},
-        attrs={'pixel_spacing': pixel_spacing, 'units': 'µT'},
+        dims=("y", "x"),
+        coords={"y": y_coords, "x": x_coords},
+        attrs={"pixel_spacing": pixel_spacing, "units": "µT"},
     )
 
 
@@ -62,7 +61,7 @@ def simple_field_map() -> xr.DataArray:
 def field_map_no_pixel_spacing() -> xr.DataArray:
     """Field map DataArray missing the pixel_spacing attribute."""
     values = np.ones((5, 5))
-    return xr.DataArray(values, dims=('y', 'x'))
+    return xr.DataArray(values, dims=("y", "x"))
 
 
 # ---------------------------------------------------------------------------
@@ -72,7 +71,7 @@ def field_map_no_pixel_spacing() -> xr.DataArray:
 
 def _make_identity_processor_class() -> type:
     """Return a concrete BaseFieldProcessor subclass that returns a copy of input."""
-    from QDMpy.field_processing import BaseFieldProcessor
+    from qdmpy.field_processing import BaseFieldProcessor
 
     class IdentityProcessor(BaseFieldProcessor):
         """Concrete processor that returns an unchanged copy of the field map."""
@@ -85,7 +84,7 @@ def _make_identity_processor_class() -> type:
 
 def _make_scaling_processor_class(factor: float = 2.0) -> type:
     """Return a concrete BaseFieldProcessor subclass that scales values by factor."""
-    from QDMpy.field_processing import BaseFieldProcessor
+    from qdmpy.field_processing import BaseFieldProcessor
 
     class ScalingProcessor(BaseFieldProcessor):
         """Concrete processor that multiplies field values by a fixed factor."""
@@ -106,7 +105,8 @@ def _make_scaling_processor_class(factor: float = 2.0) -> type:
 def _make_additive_processor_class(offset: float = 1.0) -> type:
     """Return a concrete BaseFieldProcessor subclass that adds a constant offset."""
     from pydantic import Field
-    from QDMpy.field_processing import BaseFieldProcessor
+
+    from qdmpy.field_processing import BaseFieldProcessor
 
     offset_field = Field(default=offset)
 
@@ -136,14 +136,14 @@ class TestBaseFieldProcessorIsAbstract:
 
     def test_direct_instantiation_raises_type_error(self) -> None:
         """Instantiating BaseFieldProcessor without implementing process() raises TypeError."""
-        from QDMpy.field_processing import BaseFieldProcessor
+        from qdmpy.field_processing import BaseFieldProcessor
 
         with pytest.raises(TypeError):
             BaseFieldProcessor()
 
     def test_subclass_without_process_raises_type_error(self) -> None:
         """A subclass that does not implement process() cannot be instantiated."""
-        from QDMpy.field_processing import BaseFieldProcessor
+        from qdmpy.field_processing import BaseFieldProcessor
 
         class IncompleteProcessor(BaseFieldProcessor):
             pass  # no process() override
@@ -172,7 +172,7 @@ class TestBaseFieldProcessorFrozen:
             proc.model_config = {}  # type: ignore[misc]
 
     def test_scaling_processor_scale_is_immutable(self) -> None:
-        """scale field on ScalingProcessor cannot be reassigned after construction."""
+        """Scale field on ScalingProcessor cannot be reassigned after construction."""
         from pydantic import ValidationError
 
         ScalingProcessor = _make_scaling_processor_class(factor=3.0)
@@ -187,8 +187,6 @@ class TestBaseFieldProcessorPixelSpacing:
 
     def test_pixel_spacing_extracted_correctly(self, simple_field_map: xr.DataArray) -> None:
         """_pixel_spacing() returns the float stored in field_map.attrs['pixel_spacing']."""
-        from QDMpy.field_processing import BaseFieldProcessor
-
         IdentityProcessor = _make_identity_processor_class()
         proc = IdentityProcessor()
         ps = proc._pixel_spacing(simple_field_map)
@@ -196,28 +194,26 @@ class TestBaseFieldProcessorPixelSpacing:
 
     def test_pixel_spacing_returns_float(self, simple_field_map: xr.DataArray) -> None:
         """_pixel_spacing() always returns a Python float."""
-        from QDMpy.field_processing import BaseFieldProcessor
-
         IdentityProcessor = _make_identity_processor_class()
         proc = IdentityProcessor()
         ps = proc._pixel_spacing(simple_field_map)
         assert isinstance(ps, float)
 
-    def test_pixel_spacing_raises_value_error_when_missing(
+    def test_pixel_spacing_raises_when_missing(
         self, field_map_no_pixel_spacing: xr.DataArray
     ) -> None:
-        """_pixel_spacing() raises ValueError when pixel_spacing not in attrs."""
-        from QDMpy.field_processing import BaseFieldProcessor
+        """_pixel_spacing() raises DataValidationError when pixel_spacing is missing."""
+        from qdmpy.exceptions import DataValidationError
 
         IdentityProcessor = _make_identity_processor_class()
         proc = IdentityProcessor()
 
-        with pytest.raises(ValueError, match='pixel_spacing'):
+        with pytest.raises(DataValidationError, match="pixel_spacing"):
             proc._pixel_spacing(field_map_no_pixel_spacing)
 
     def test_pixel_spacing_is_static_method(self) -> None:
         """_pixel_spacing is callable on the class without an instance."""
-        from QDMpy.field_processing import BaseFieldProcessor
+        from qdmpy.field_processing import BaseFieldProcessor
 
         field_map = _make_field_map(pixel_spacing=5e-7)
         ps = BaseFieldProcessor._pixel_spacing(field_map)
@@ -225,7 +221,7 @@ class TestBaseFieldProcessorPixelSpacing:
 
     def test_pixel_spacing_custom_value(self) -> None:
         """_pixel_spacing() correctly reads various pixel_spacing values."""
-        from QDMpy.field_processing import BaseFieldProcessor
+        from qdmpy.field_processing import BaseFieldProcessor
 
         for expected_ps in [1e-9, 1e-6, 1e-3, 1.0]:
             field_map = _make_field_map(pixel_spacing=expected_ps)
@@ -286,15 +282,19 @@ class TestBaseFieldProcessorSubclassContract:
         IdentityProcessor = _make_identity_processor_class()
         proc = IdentityProcessor()
         result = proc.process(simple_field_map)
-        np.testing.assert_array_equal(result.coords['y'].values, simple_field_map.coords['y'].values)
-        np.testing.assert_array_equal(result.coords['x'].values, simple_field_map.coords['x'].values)
+        np.testing.assert_array_equal(
+            result.coords["y"].values, simple_field_map.coords["y"].values
+        )
+        np.testing.assert_array_equal(
+            result.coords["x"].values, simple_field_map.coords["x"].values
+        )
 
     def test_identity_processor_preserves_attrs(self, simple_field_map: xr.DataArray) -> None:
         """IdentityProcessor output preserves attrs (including pixel_spacing)."""
         IdentityProcessor = _make_identity_processor_class()
         proc = IdentityProcessor()
         result = proc.process(simple_field_map)
-        assert result.attrs.get('pixel_spacing') == pytest.approx(1e-6)
+        assert result.attrs.get("pixel_spacing") == pytest.approx(1e-6)
 
 
 # ---------------------------------------------------------------------------
@@ -307,14 +307,14 @@ class TestFieldProcessingPipelineConstruction:
 
     def test_pipeline_instantiates_empty(self) -> None:
         """FieldProcessingPipeline() creates an empty pipeline without error."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         pipeline = FieldProcessingPipeline()
         assert pipeline is not None
 
     def test_add_returns_self_for_method_chaining(self) -> None:
         """add() returns the pipeline instance to allow fluent chaining."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline()
@@ -323,7 +323,7 @@ class TestFieldProcessingPipelineConstruction:
 
     def test_method_chaining_multiple_add_calls(self) -> None:
         """Multiple add() calls can be chained without raising."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         ScalingProcessor = _make_scaling_processor_class(factor=2.0)
@@ -338,7 +338,7 @@ class TestFieldProcessingPipelineConstruction:
 
     def test_add_accepts_base_field_processor_subclass(self) -> None:
         """add() accepts any BaseFieldProcessor subclass without error."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline()
@@ -349,21 +349,17 @@ class TestFieldProcessingPipelineConstruction:
 class TestFieldProcessingPipelineProcess:
     """FieldProcessingPipeline.process() applies processors in order."""
 
-    def test_empty_pipeline_returns_copy_of_input(
-        self, simple_field_map: xr.DataArray
-    ) -> None:
+    def test_empty_pipeline_returns_copy_of_input(self, simple_field_map: xr.DataArray) -> None:
         """An empty pipeline returns a DataArray with same values as input."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         pipeline = FieldProcessingPipeline()
         result = pipeline.process(simple_field_map)
         np.testing.assert_array_equal(result.values, simple_field_map.values)
 
-    def test_empty_pipeline_returns_new_object(
-        self, simple_field_map: xr.DataArray
-    ) -> None:
+    def test_empty_pipeline_returns_new_object(self, simple_field_map: xr.DataArray) -> None:
         """An empty pipeline returns a new DataArray (not the same reference)."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         pipeline = FieldProcessingPipeline()
         result = pipeline.process(simple_field_map)
@@ -373,29 +369,25 @@ class TestFieldProcessingPipelineProcess:
         self, simple_field_map: xr.DataArray
     ) -> None:
         """Single IdentityProcessor pipeline returns identical values."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
         result = pipeline.process(simple_field_map)
         np.testing.assert_array_equal(result.values, simple_field_map.values)
 
-    def test_single_scaling_processor_doubles_values(
-        self, simple_field_map: xr.DataArray
-    ) -> None:
+    def test_single_scaling_processor_doubles_values(self, simple_field_map: xr.DataArray) -> None:
         """Single ScalingProcessor(scale=2.0) produces 2× the original values."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         ScalingProcessor = _make_scaling_processor_class(factor=2.0)
         pipeline = FieldProcessingPipeline().add(ScalingProcessor(scale=2.0))
         result = pipeline.process(simple_field_map)
         np.testing.assert_allclose(result.values, simple_field_map.values * 2.0)
 
-    def test_two_scaling_processors_quadruple_values(
-        self, simple_field_map: xr.DataArray
-    ) -> None:
+    def test_two_scaling_processors_quadruple_values(self, simple_field_map: xr.DataArray) -> None:
         """Two scale=2 processors applied sequentially multiply values by 4."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         ScalingProcessor = _make_scaling_processor_class(factor=2.0)
         pipeline = (
@@ -408,7 +400,7 @@ class TestFieldProcessingPipelineProcess:
 
     def test_processors_applied_in_order(self, simple_field_map: xr.DataArray) -> None:
         """Processors execute left-to-right; scale-then-offset != offset-then-scale."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         ScalingProcessor = _make_scaling_processor_class(factor=2.0)
         AdditiveProcessor = _make_additive_processor_class(offset=10.0)
@@ -434,7 +426,7 @@ class TestFieldProcessingPipelineProcess:
 
     def test_process_does_not_mutate_input(self, simple_field_map: xr.DataArray) -> None:
         """pipeline.process() does not alter the original input DataArray."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         ScalingProcessor = _make_scaling_processor_class(factor=99.0)
         pipeline = FieldProcessingPipeline().add(ScalingProcessor(scale=99.0))
@@ -444,30 +436,30 @@ class TestFieldProcessingPipelineProcess:
 
     def test_process_preserves_coords(self, simple_field_map: xr.DataArray) -> None:
         """pipeline.process() output retains the input's coordinates."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
         result = pipeline.process(simple_field_map)
         np.testing.assert_array_equal(
-            result.coords['y'].values, simple_field_map.coords['y'].values
+            result.coords["y"].values, simple_field_map.coords["y"].values
         )
         np.testing.assert_array_equal(
-            result.coords['x'].values, simple_field_map.coords['x'].values
+            result.coords["x"].values, simple_field_map.coords["x"].values
         )
 
     def test_process_preserves_attrs(self, simple_field_map: xr.DataArray) -> None:
         """pipeline.process() output retains pixel_spacing in attrs."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
         result = pipeline.process(simple_field_map)
-        assert result.attrs.get('pixel_spacing') == pytest.approx(1e-6)
+        assert result.attrs.get("pixel_spacing") == pytest.approx(1e-6)
 
     def test_process_returns_xr_dataarray(self, simple_field_map: xr.DataArray) -> None:
         """pipeline.process() always returns an xr.DataArray."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
@@ -478,88 +470,78 @@ class TestFieldProcessingPipelineProcess:
 class TestFieldProcessingPipelineLogging:
     """FieldProcessingPipeline logs processor name and shape after each step."""
 
-    def test_pipeline_logs_each_processor_name(
-        self, simple_field_map: xr.DataArray
-    ) -> None:
+    def test_pipeline_logs_each_processor_name(self, simple_field_map: xr.DataArray) -> None:
         """A debug log entry naming the processor appears for each pipeline step."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         ScalingProcessor = _make_scaling_processor_class(factor=2.0)
 
         pipeline = (
-            FieldProcessingPipeline()
-            .add(IdentityProcessor())
-            .add(ScalingProcessor(scale=2.0))
+            FieldProcessingPipeline().add(IdentityProcessor()).add(ScalingProcessor(scale=2.0))
         )
 
         log_calls: list[tuple[Any, ...]] = []
 
-        with patch('QDMpy.field_processing.logger') as mock_logger:
+        with patch("qdmpy.field_processing.logger") as mock_logger:
             mock_logger.debug = MagicMock(side_effect=lambda *a, **kw: log_calls.append((a, kw)))
             pipeline.process(simple_field_map)
 
         # At least two debug calls (one per processor)
         assert len(log_calls) >= 2
 
-    def test_pipeline_logs_processor_class_name(
-        self, simple_field_map: xr.DataArray
-    ) -> None:
+    def test_pipeline_logs_processor_class_name(self, simple_field_map: xr.DataArray) -> None:
         """The processor class name appears somewhere in the debug log call."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
 
         log_calls: list[tuple[Any, ...]] = []
 
-        with patch('QDMpy.field_processing.logger') as mock_logger:
+        with patch("qdmpy.field_processing.logger") as mock_logger:
             mock_logger.debug = MagicMock(side_effect=lambda *a, **kw: log_calls.append((a, kw)))
             pipeline.process(simple_field_map)
 
         # Flatten all args/kwargs into strings and check for the class name
-        all_text = ' '.join(
+        all_text = " ".join(
             str(item)
             for call in log_calls
             for part in call
             for item in (part.values() if isinstance(part, dict) else [part])
         )
-        assert 'IdentityProcessor' in all_text
+        assert "IdentityProcessor" in all_text
 
-    def test_pipeline_logs_shape_after_each_step(
-        self, simple_field_map: xr.DataArray
-    ) -> None:
+    def test_pipeline_logs_shape_after_each_step(self, simple_field_map: xr.DataArray) -> None:
         """Shape information appears in the debug log after each processor step."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
 
         log_calls: list[tuple[Any, ...]] = []
 
-        with patch('QDMpy.field_processing.logger') as mock_logger:
+        with patch("qdmpy.field_processing.logger") as mock_logger:
             mock_logger.debug = MagicMock(side_effect=lambda *a, **kw: log_calls.append((a, kw)))
             pipeline.process(simple_field_map)
 
         # Shape (10, 10) should appear somewhere in the logged data
-        all_text = ' '.join(
+        all_text = " ".join(
             str(item)
             for call in log_calls
             for part in call
             for item in (part.values() if isinstance(part, dict) else [part])
         )
         expected_shape = str(simple_field_map.shape)
-        assert expected_shape in all_text or '10' in all_text
+        assert expected_shape in all_text or "10" in all_text
 
 
 class TestFieldProcessingPipelineImmutability:
     """Pipeline processing never mutates the input DataArray."""
 
-    def test_process_does_not_modify_input_values(
-        self, simple_field_map: xr.DataArray
-    ) -> None:
+    def test_process_does_not_modify_input_values(self, simple_field_map: xr.DataArray) -> None:
         """Values in the input remain unchanged after pipeline.process()."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         ScalingProcessor = _make_scaling_processor_class(factor=3.0)
         pipeline = FieldProcessingPipeline().add(ScalingProcessor(scale=3.0))
@@ -568,11 +550,9 @@ class TestFieldProcessingPipelineImmutability:
         pipeline.process(simple_field_map)
         np.testing.assert_array_equal(simple_field_map.values, snapshot)
 
-    def test_process_does_not_modify_input_attrs(
-        self, simple_field_map: xr.DataArray
-    ) -> None:
+    def test_process_does_not_modify_input_attrs(self, simple_field_map: xr.DataArray) -> None:
         """Attributes dict of the input DataArray is not modified by pipeline.process()."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
@@ -585,7 +565,7 @@ class TestFieldProcessingPipelineImmutability:
         self, simple_field_map: xr.DataArray
     ) -> None:
         """Modifying the result after process() does not change the original input."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         IdentityProcessor = _make_identity_processor_class()
         pipeline = FieldProcessingPipeline().add(IdentityProcessor())
@@ -649,7 +629,7 @@ class TestFieldProcessingPropertyBased:
         self, n_steps: int, scale: float
     ) -> None:
         """Regardless of how many scaling processors are chained, shape is preserved."""
-        from QDMpy.field_processing import FieldProcessingPipeline
+        from qdmpy.field_processing import FieldProcessingPipeline
 
         ScalingProcessor = _make_scaling_processor_class(factor=scale)
         pipeline = FieldProcessingPipeline()
@@ -665,9 +645,7 @@ class TestFieldProcessingPropertyBased:
         scale=st.floats(min_value=0.1, max_value=10.0, allow_nan=False, allow_infinity=False),
     )
     @hyp_settings(max_examples=30)
-    def test_scaling_processor_values_match_formula(
-        self, fill: float, scale: float
-    ) -> None:
+    def test_scaling_processor_values_match_formula(self, fill: float, scale: float) -> None:
         """ScalingProcessor(scale=s).process(v) == v * s for any constant fill map."""
         ScalingProcessor = _make_scaling_processor_class(factor=scale)
         proc = ScalingProcessor(scale=scale)

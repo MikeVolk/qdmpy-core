@@ -10,10 +10,10 @@ import pytest
 import xarray as xr
 from numpy.typing import NDArray
 
-from QDMpy.constants import GAMMA_NV
-from QDMpy.exceptions import DataLoadError, DataValidationError
-from QDMpy.odmr.analysis import b111_from_dip_positions
-from QDMpy.odmr.data import EXPECTED_DIMS, ODMRData
+from qdmpy.constants import GAMMA_NV
+from qdmpy.exceptions import DataLoadError, DataValidationError
+from qdmpy.odmr.analysis import b111_from_dip_positions
+from qdmpy.odmr.data import EXPECTED_DIMS, ODMRData
 
 N_POL = 2
 N_FRANGE = 2
@@ -209,24 +209,23 @@ class TestFromLoader:
 
     def test_from_loader_with_real_data(self) -> None:
         """Test from_loader with MatlabLoader against real test data."""
-        from QDMpy.odmr.io import MatlabLoader
+        from qdmpy.odmr.io import MatlabLoader
 
-        test_data_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+        # Use a cropped real-data fixture for faster CI/runtime.
+        test_data_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "data",
+            "real_fov18x_fov5838_x78y24",
+        )
         if not os.path.isdir(test_data_path):
             pytest.skip("Test data directory not found")
 
-        try:
-            loader = MatlabLoader(data_folder=test_data_path)
-        except Exception:
-            pytest.skip("MatlabLoader could not be initialized with test data")
-
-        try:
-            result = ODMRData.from_loader(loader)
-        except (RuntimeError, DataLoadError):
-            pytest.skip("Loader failed to load test data")
+        loader = MatlabLoader(data_folder=test_data_path)
+        result = ODMRData.from_loader(loader)
 
         assert isinstance(result, ODMRData)
         assert isinstance(result.data, xr.DataArray)
+        assert result.data.shape == (2, 2, 128, 128, 51)
 
 
 @pytest.fixture
@@ -342,7 +341,6 @@ class TestB111FromDipPositions:
             b111_from_dip_positions(bad)
 
 
-
 class TestODMRDataValidation:
     """Tests for ODMRData Pydantic validation."""
 
@@ -390,13 +388,33 @@ class TestODMRDataValidation:
 
     def test_accepts_valid_data(self) -> None:
         """Test that valid data is accepted."""
+        freq_ghz = np.tile(np.linspace(2.7, 3.0, 50), (3, 1))
         da = xr.DataArray(
             np.ones((2, 3, 10, 10, 50)),
             dims=EXPECTED_DIMS,
-            coords={"freq_ghz": (["freq_range", "freq_idx"], np.ones((3, 50)))},
+            coords={"freq_ghz": (["freq_range", "freq_idx"], freq_ghz)},
         )
         result = ODMRData(data=da)
         assert isinstance(result, ODMRData)
+
+    def test_rejects_non_monotonic_freq_ghz_coord(self) -> None:
+        """Test that a non-finite/non-monotonic freq_ghz coord is rejected.
+
+        Regression test for review finding: ODMRData's validator only
+        checked that freq_ghz was *present*, not that its values were
+        finite/monotonic -- from_loader() (the path every real loader uses)
+        constructed ODMRData(data=...) directly, silently admitting a
+        malformed frequency axis that from_numpy() would have rejected.
+        """
+        freq_ghz = np.tile(np.linspace(2.7, 3.0, 50), (3, 1))
+        freq_ghz[0, 5] = np.nan
+        da = xr.DataArray(
+            np.ones((2, 3, 10, 10, 50)),
+            dims=EXPECTED_DIMS,
+            coords={"freq_ghz": (["freq_range", "freq_idx"], freq_ghz)},
+        )
+        with pytest.raises(DataValidationError, match="non-finite"):
+            ODMRData(data=da)
 
     def test_is_pydantic_basemodel(self, odmr_data) -> None:
         """Test that ODMRData is a Pydantic BaseModel instance."""

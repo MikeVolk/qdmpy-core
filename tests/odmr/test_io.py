@@ -9,14 +9,19 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from QDMpy.exceptions import DataLoadError
-from QDMpy.odmr.io import BaseLoader, MatlabLoader
+from qdmpy.exceptions import DataLoadError
+from qdmpy.odmr.io import BaseLoader, MatlabLoader
 
 
 @pytest.fixture
 def test_data_path() -> str:
     """Return the path to the test data directory."""
-    return os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+    # Use a cropped real-data fixture for faster loader tests.
+    return os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "data",
+        "real_fov18x_fov5838_x78y24",
+    )
 
 
 class TestBaseLoader:

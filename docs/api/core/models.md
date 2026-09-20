@@ -8,9 +8,9 @@ The models module provides spectral models for fitting ODMR data, including:
 
 ## Model (Base Class)
 
-The `Model` class is the base class for all spectral models in QDMpy.
+The `Model` class is the base class for all spectral models in qdmpy.
 
-::: QDMpy.models.Model
+::: qdmpy.fitting.models.Model
     options:
       show_root_heading: true
       show_source: true
@@ -19,7 +19,7 @@ The `Model` class is the base class for all spectral models in QDMpy.
 
 The `ModelRegistry` class manages model registration and access.
 
-::: QDMpy.models.ModelRegistry
+::: qdmpy.fitting.models.ModelRegistry
     options:
       show_root_heading: true
       show_source: true
@@ -30,7 +30,7 @@ The `ModelRegistry` class manages model registration and access.
 
 Single resonance model for ODMR spectra.
 
-::: QDMpy.models.ESRSINGLE
+::: qdmpy.fitting.models.ESRSINGLE
     options:
       show_root_heading: true
       show_source: true
@@ -39,7 +39,7 @@ Single resonance model for ODMR spectra.
 
 Model for 14N NV centers with three hyperfine-split resonances.
 
-::: QDMpy.models.ESR14N
+::: qdmpy.fitting.models.ESR14N
     options:
       show_root_heading: true
       show_source: true
@@ -48,13 +48,7 @@ Model for 14N NV centers with three hyperfine-split resonances.
 
 Model for 15N NV centers with two hyperfine-split resonances.
 
-::: QDMpy.models.ESR15N
+::: qdmpy.fitting.models.ESR15N
     options:
       show_root_heading: true
       show_source: true
-
-## Model Functions
-
-::: QDMpy.models.esr14n
-::: QDMpy.models.esr15n
-::: QDMpy.models.esrsingle

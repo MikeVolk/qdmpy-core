@@ -1,42 +1,60 @@
 [project]
-name = "QDMpy"
-version = "0.0.1"
+name = "qdmpy-core"
+version = "0.1.0"
 description = "A python package for calculating magnetic maps from ODMR spectra measured on a quantum diamond microscope"
 requires-python = ">=3.13"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Mike Volk", email = "mike@example.com"}
+    {name = "Mike Volk", email = "volkmike@pm.me"}
 ]
 dependencies = [
     # numerical core
-    "numpy>=2.0,<3.0",          # upper bound: numba 0.61 compatibility
-    "scipy>=1.15.2",
-    "xarray>=2026.2.0",
-    "numba>=0.61.0",
+    "numpy>=2.5,<3.0", # upper bound: numba pins the numpy ABI it supports
+    "scipy>=1.18",
+    "xarray>=2026.7.0",
+    "numba>=0.67",
     # data I/O
     "mat73>=0.65",
+    "h5py>=3.16",
     # visualization
-    "matplotlib>=3.10.1",
-    # GPU fitting (local wheels via [tool.uv.sources])
-    "pygpufit",
+    "matplotlib>=3.11",
+    # magnetic dipole fitting
+    "pypole",
     # settings & validation
-    "pydantic-settings>=2.4.0",
+    "pydantic-settings>=2.15",
     # logging
     "loguru>=0.7.3",
+    "tomli>=2.4.0",
+]
+
+[project.optional-dependencies]
+# Architecture-independent GPU fitting (QEP-069): TorchBackend runs on
+# CUDA, Apple-silicon MPS, and CPU. Install with `uv sync --extra gpu`.
+gpu = [
+    "torch>=2.4",
+]
+# CUDA-only gpufit backend. pyGpufit is not published on PyPI, so it is
+# resolved from the wheels vendored in src/pyGpufit/ via [tool.uv.sources].
+# This only works from a checkout with uv; a plain `pip install` cannot see
+# those sources. Every `import pygpufit` in the package is guarded, so
+# omitting this extra leaves the scipy and torch backends fully functional.
+gpufit = [
+    "pygpufit",
 ]
 
 [project.urls]
-Documentation = "https://mikevolk.github.io/QDMpy"
-Homepage = "https://mikevolk.github.io/QDMpy"
-Repository = "https://github.com/mikevolk/QDMpy"
+Documentation = "https://mikevolk.github.io/qdmpy-core"
+Homepage = "https://mikevolk.github.io/qdmpy-core"
+Repository = "https://github.com/MikeVolk/qdmpy-core"
 
 
 [tool.uv.sources]
 pygpufit = [
     { path = "src/pyGpufit/win/pyGpufit-1.2.0-py2.py3-none-any.whl", marker = "sys_platform == 'win32'" },
-    { path = "src/pyGpufit/linux/pyGpufit-1.2.0-py2.py3-none-any.whl", marker = "sys_platform != 'win32'" },
+    { path = "src/pyGpufit/linux/pygpufit-1.3.0-py2.py3-none-any.whl", marker = "sys_platform != 'win32'" },
 ]
+# pypole = { path = "../pypole", editable = true }  # uncomment for local dev
 
 [dependency-groups]
 test = [
@@ -45,46 +63,55 @@ test = [
 ]
 docs = [
     "mkdocs>=1.6.1",
-    "mkdocs-material>=9.6.10",
+    "mkdocs-material>=9.5,<9.7",
     "mkdocstrings>=0.29.0",
     "mkdocstrings-python>=1.16.8",
     "mkdocs-jupyter>=0.25.1",
 ]
 dev = [
     "jupyterlab>=4.3.1",
-    "ruff>=0.7.4",
-    "ty>=0.0.17",
+    "ruff>=0.16.8",
+    "ty>=0.0.82",
     {include-group = "test"},
     {include-group = "docs"},
     "hypothesis>=6.151.9",
+    "pre-commit>=4.5.1",
 ]
 
 [tool.pytest.ini_options]
-addopts = """\
-    --cov QDMpy \
-    --cov tests \
-    --cov-report term-missing \
-    --no-cov-on-fail \
-"""
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-ra -v --cov=qdmpy --cov-report=term-missing --no-cov-on-fail"
+# pytest's defaults are replaced, not extended, so they are restated here.
+norecursedirs = [
+    "*.egg", ".*", "_darcs", "build", "CVS", "dist", "node_modules", "venv", "{arch}",
+    "output",
+]
+markers = [
+    "slow: marks tests as slow running (integration tests, heavy computations)",
+    "validation: marks tests that validate against reference implementations",
+    "performance: marks tests that benchmark performance characteristics",
+    "integration: marks tests that test multiple components together",
+    "unit: marks tests that test individual components in isolation",
+    "data_loading: marks tests that test data loading functionality",
+    "processing: marks tests that test ODMR data processing",
+    "fitting: marks tests that test spectral fitting functionality",
+    "magnetic_fields: marks tests that test magnetic field calculations",
+    "binning: marks tests that test pixel binning operations",
+    "requires_reference_data: marks tests that require pre-generated reference data",
+]
 
 [tool.coverage.report]
 fail_under = 80
 exclude_lines = ['if TYPE_CHECKING:', 'pragma: no cover']
 
-[tool.mypy]
-#disallow_any_unimported = true
-disallow_untyped_defs = true
-no_implicit_optional = true
-strict_equality = true
-warn_unused_ignores = true
-warn_redundant_casts = true
-#warn_return_any = true
-check_untyped_defs = true
-show_error_codes = true
-ignore_missing_imports = true
-
 [project.scripts]
-qdmpy = "QDMpy.cli:main"
+qdmpy = "qdmpy.cli:main"
 
 [tool.uv]
 package = true
+
+[tool.ty.analysis]
+# torch is the optional `gpu` extra and pygpufit the optional `gpufit` extra:
+# both are unresolved in a plain `uv sync` and present with their extra.
+allowed-unresolved-imports = ["torch", "torch.**", "pygpufit", "pygpufit.**"]

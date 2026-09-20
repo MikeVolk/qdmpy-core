@@ -1,22 +1,20 @@
 # ODMR Spectral Models Tutorial
 
-This tutorial explains how to understand and use the ODMR spectral models in QDMpy for fitting nitrogen-vacancy (NV) center data.
-
-[View the full tutorial notebook](../tutorial_models.ipynb)
+This tutorial explains how to understand and use the ODMR spectral models in qdmpy for fitting nitrogen-vacancy (NV) center data.
 
 ## Overview of ODMR Models
 
-QDMpy provides three built-in spectral models for fitting ODMR data from nitrogen-vacancy centers:
+qdmpy provides three built-in spectral models for fitting ODMR data from nitrogen-vacancy centers:
 
 1. **ESR14N** - For NV centers with ¹⁴N isotope (3 dips)
-2. **ESR15N** - For NV centers with ¹⁵N isotope (2 dips)  
+2. **ESR15N** - For NV centers with ¹⁵N isotope (2 dips)
 3. **ESRSINGLE** - For single resonance systems (1 dip)
 
 These models are implemented using Lorentzian lineshapes and are optimized for GPU-accelerated fitting.
 
 ## Model Architecture
 
-The model system in QDMpy consists of:
+The model system in qdmpy consists of:
 
 - **Model Functions**: Core mathematical functions (`esr14n`, `esr15n`, `esrsingle`)
 - **Model Classes**: Object-oriented wrappers (`ESR14N`, `ESR15N`, `ESRSINGLE`)
@@ -29,7 +27,7 @@ The model system in QDMpy consists of:
 The ESR14N model represents ODMR spectra from NV centers with ¹⁴N nitrogen isotope (nuclear spin I=1):
 
 ```python
-from QDMpy.models import ModelRegistry
+from qdmpy.models import ModelRegistry
 import numpy as np
 
 # Get the 14N model
@@ -43,8 +41,8 @@ print(f"Parameters: {model_14n.parameters_unique}")
 **Physics**: The ¹⁴N nucleus has three nuclear spin states (mI = -1, 0, +1), creating three hyperfine-split resonance lines.
 
 **Parameters** (6 total):
-- `center`: Center frequency of the resonance (Hz)
-- `width_0`, `width_1`, `width_2`: Linewidth for each of the three dips (Hz)
+- `center`: Center frequency of the resonance (GHz)
+- `width_0`, `width_1`, `width_2`: Linewidth for each of the three dips (GHz)
 - `contrast`: Overall contrast level (0-1)
 - `offset`: Baseline offset (0-1)
 
@@ -63,8 +61,8 @@ print(f"Number of peaks: {model_15n.n_peaks}")
 **Physics**: The ¹⁵N nucleus has two nuclear spin states (mI = -1/2, +1/2), creating two hyperfine-split resonance lines.
 
 **Parameters** (5 total):
-- `center`: Center frequency of the resonance (Hz)
-- `width_0`, `width_1`: Linewidth for each of the two dips (Hz)
+- `center`: Center frequency of the resonance (GHz)
+- `width_0`, `width_1`: Linewidth for each of the two dips (GHz)
 - `contrast`: Overall contrast level (0-1)
 - `offset`: Baseline offset (0-1)
 
@@ -87,8 +85,8 @@ print(f"Number of peaks: {model_single.n_peaks}")
 - Initial parameter estimation
 
 **Parameters** (4 total):
-- `center`: Center frequency of the resonance (Hz)
-- `width_0`: Linewidth of the dip (Hz)
+- `center`: Center frequency of the resonance (GHz)
+- `width_0`: Linewidth of the dip (GHz)
 - `contrast`: Contrast level (0-1)
 - `offset`: Baseline offset (0-1)
 
@@ -100,12 +98,12 @@ You can evaluate any model directly with parameters:
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Create frequency array
-frequencies = np.linspace(2.87e9, 2.88e9, 1000)  # 2.87-2.88 GHz
+# Create frequency array in GHz
+frequencies = np.linspace(2.87, 2.88, 1000)
 
 # Example parameters for ESR14N
 # [center, width, contrast_-1, contrast_0, contrast_+1, offset]
-params_14n = np.array([2.875e9, 3e6, 0.1, 0.2, 0.1, 0.0])
+params_14n = np.array([2.875, 0.003, 0.1, 0.2, 0.1, 0.0])
 
 # Evaluate the model
 model_14n = ModelRegistry.get('ESR14N')
@@ -113,7 +111,7 @@ spectrum = model_14n.func(frequencies, params_14n)
 
 # Plot the result
 plt.figure(figsize=(10, 6))
-plt.plot(frequencies/1e9, spectrum[0])
+plt.plot(frequencies, spectrum[0])
 plt.xlabel('Frequency (GHz)')
 plt.ylabel('Normalized Fluorescence')
 plt.title('ESR14N Model Response')
@@ -144,7 +142,7 @@ plt.show()
 The ModelRegistry provides convenient access to all available models:
 
 ```python
-from QDMpy.models import ModelRegistry
+from qdmpy.models import ModelRegistry
 
 # List all available models
 all_models = ModelRegistry.all()
@@ -158,7 +156,7 @@ for model_name in ['ESR14N', 'ESR15N', 'ESRSINGLE']:
     print(f"\n{model_name}:")
     print(f"  Parameters: {model.n_parameters}")
     print(f"  Peaks: {model.n_peaks}")
-    print(f"  Hyperfine constant: {all_models[model_name]['hyp']} Hz")
+    print(f"  Hyperfine constant: {all_models[model_name]['hyp']} GHz")
 ```
 
 ## Advanced Usage
@@ -170,8 +168,8 @@ When using models with fitting routines, you can specify constraints:
 ```python
 # Example constraint dictionary for ESR14N
 constraints = {
-    'center': [2.8e9, 2.9e9],      # Center frequency bounds
-    'width': [1e6, 1e7],           # Linewidth bounds  
+    'center': [2.8, 2.9],          # Center frequency bounds (GHz)
+    'width': [0.001, 0.01],        # Linewidth bounds (GHz)
     'contrast': [0.0, 1.0],        # Contrast bounds
     'offset': [-0.1, 0.1],         # Offset bounds
 }
@@ -199,13 +197,13 @@ f(x) = 1 + offset - (contrast × width² / ((x - center)² + width²))
 - Start with ESRSINGLE for initial parameter estimation
 - Use vectorized parameter arrays for batch processing
 
-## Integration with QDMpy Workflow
+## Integration with qdmpy Workflow
 
-Models integrate seamlessly with the QDMpy fitting and measurement infrastructure:
+Models integrate seamlessly with the qdmpy fitting and measurement infrastructure:
 
 ```python
-from QDMpy import Measurement
-from QDMpy.models import ModelRegistry
+from qdmpy import Measurement
+from qdmpy.models import ModelRegistry
 
 # In a typical workflow:
 # 1. Load ODMR data
@@ -213,17 +211,17 @@ from QDMpy.models import ModelRegistry
 model = ModelRegistry.get('ESR14N')  # or 'ESR15N', 'ESRSINGLE'
 
 # 3. The model is automatically used by fitting routines
-# measurement.fit_odmr(model=model)
+# measurement.fit_odmr(model_name=model.name)
 ```
 
-For complete examples and detailed usage, see the [full tutorial notebook](../tutorial_models.ipynb).
+For complete examples including custom model registration, see [03 · Extending the Framework](03-extending.ipynb).
 
 ## Summary
 
-QDMpy's model system provides:
+qdmpy's model system provides:
 - **Three robust models** covering common NV center configurations
 - **Physics-based implementations** with proper hyperfine splitting
 - **Flexible parameter management** with constraint support
 - **GPU-optimized performance** for large-scale fitting
 
-Choose the model that best matches your experimental system and data quality. The models are designed to work seamlessly with QDMpy's fitting infrastructure while providing the flexibility needed for diverse ODMR applications.
+Choose the model that best matches your experimental system and data quality. The models are designed to work seamlessly with qdmpy's fitting infrastructure while providing the flexibility needed for diverse ODMR applications.

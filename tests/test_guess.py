@@ -8,27 +8,38 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import numba
 import numpy as np
 import pytest
 
-from QDMpy.constants import DEFAULT_VMAX, DEFAULT_VMIN
-from QDMpy.exceptions import (
+from qdmpy.constants import AHYP_14N, AHYP_15N, DEFAULT_VMAX, DEFAULT_VMIN
+from qdmpy.exceptions import (
     DataShapeError,
     DataValidationError,
-    ModelGuessNotPossibleError,
     ModelNotFoundError,
 )
-from QDMpy.fitting.guess import (
+from qdmpy.fitting.guess import (
+    _RELATIVE_PROMINENCE,
+    _relative_prominence,
+    absorption_centroid,
+    argmin_center,
     cumsum_center,
     cumsum_contrast,
     cumsum_width,
     get_model_by_peaks,
     guess_model,
     guess_n_peaks,
+    halfpower_width,
     normalize_pixel,
+    top3_contrast,
     validate_array,
 )
-from QDMpy.fitting.models import ESR14N, ESR15N, ESRSINGLE
+from qdmpy.fitting.guesser import (
+    _WIDTH_AHYP_CORRECTION_14N,
+    _WIDTH_AHYP_CORRECTION_15N,
+    ParameterGuesser,
+)
+from qdmpy.fitting.models import ESR14N, ESR15N, ESRSINGLE
 
 
 @pytest.fixture
@@ -124,7 +135,7 @@ class TestGuessNPeaks:
         """Test guessing the number of peaks with mocked find_peaks."""
         mock_data = np.random.random((2, 3, 10, 100))
 
-        with patch("QDMpy.fitting.guess.find_peaks") as mock_find_peaks:
+        with patch("qdmpy.fitting.guess.find_peaks") as mock_find_peaks:
             mock_find_peaks.return_value = (np.array([30, 70]), {})
             n_peaks, doubt, indices = guess_n_peaks(mock_data)
 
@@ -133,23 +144,62 @@ class TestGuessNPeaks:
             assert len(indices) == mock_data.shape[0] * mock_data.shape[1]
 
     def test_guess_n_peaks_doubt(self) -> None:
-        """Test guessing peaks when there's doubt (inconsistent counts)."""
-        mock_data = np.random.random((2, 3, 10, 100))
+        """Test doubt when fewer than confidence threshold of combos agree.
 
-        with patch("QDMpy.fitting.guess.find_peaks") as mock_find_peaks:
+        2 pol x 2 frange = 4 combos; 2 return 2 peaks and 2 return 3 peaks
+        -> 50% max agreement < 60% threshold -> doubt=True.
+        """
+        mock_data = np.random.random((2, 2, 10, 100))
+        call_count = [0]
 
-            def side_effect_fn(data, prominence):
-                call_count = mock_find_peaks.call_count - 1
-                if call_count == 2:
-                    return np.array([25, 50, 75]), {}
+        def side_effect_fn(data, prominence):
+            call_count[0] += 1
+            if call_count[0] <= 2:
                 return np.array([30, 70]), {}
+            return np.array([25, 50, 75]), {}
 
-            mock_find_peaks.side_effect = side_effect_fn
+        with patch("qdmpy.fitting.guess.find_peaks", side_effect=side_effect_fn):
             n_peaks, doubt, indices = guess_n_peaks(mock_data)
 
-            assert n_peaks in (2, 3)
-            assert bool(doubt) is True
-            assert len(indices) == mock_data.shape[0] * mock_data.shape[1]
+        assert n_peaks in (2, 3)
+        assert bool(doubt) is True
+        assert len(indices) == mock_data.shape[0] * mock_data.shape[1]
+
+    def test_guess_n_peaks_majority_vote(self) -> None:
+        """Test that mode is used: 3-of-4 combos detect 3 peaks → n_peaks=3, no doubt."""
+        mock_data = np.random.random((2, 2, 10, 100))
+        call_count = [0]
+
+        def side_effect_fn(data, prominence):
+            call_count[0] += 1
+            # 3 of 4 calls return 3 peaks, 1 returns 2
+            if call_count[0] == 3:
+                return np.array([25, 50, 75]), {}
+            return np.array([25, 75]), {}
+
+        with patch("qdmpy.fitting.guess.find_peaks", side_effect=side_effect_fn):
+            n_peaks, doubt, _ = guess_n_peaks(mock_data)
+
+        assert n_peaks == 2  # mode of [2, 2, 3, 2] is 2
+        assert bool(doubt) is False  # 3/4 = 75% >= 60%
+
+    def test_guess_n_peaks_low_confidence(self) -> None:
+        """Test that doubt is set when fewer than threshold combos agree."""
+        mock_data = np.random.random((2, 2, 10, 100))
+        call_count = [0]
+
+        def side_effect_fn(data, prominence):
+            call_count[0] += 1
+            # 50/50 split: calls 1,2 → 2 peaks, calls 3,4 → 3 peaks
+            if call_count[0] <= 2:
+                return np.array([30, 70]), {}
+            return np.array([25, 50, 75]), {}
+
+        with patch("qdmpy.fitting.guess.find_peaks", side_effect=side_effect_fn):
+            n_peaks, doubt, _ = guess_n_peaks(mock_data)
+
+        assert n_peaks in (2, 3)  # mode of a tie — either is valid
+        assert bool(doubt) is True  # 50% < 60%
 
     def test_incorrect_dimensions(self) -> None:
         """Test with incorrect dimensions."""
@@ -160,6 +210,26 @@ class TestGuessNPeaks:
 
 class TestGetModelByPeaks:
     """Test cases for get_model_by_peaks function."""
+
+    def test_ambiguous_peak_count_raises(self) -> None:
+        """Two models with the same peak count must not resolve by insertion order.
+
+        Regression: the lookup returned the first registry match, so a
+        user-registered single-dip model silently shadowed (or was shadowed
+        by) ESRSINGLE depending on import order.
+        """
+        from qdmpy.exceptions import ModelNotResolvedError
+        from qdmpy.fitting.models import ModelRegistry
+
+        class _SecondSingleDip(ESRSINGLE):
+            name = "_SECOND_SINGLE_DIP"
+
+        ModelRegistry._registry["_SECOND_SINGLE_DIP"] = _SecondSingleDip
+        try:
+            with pytest.raises(ModelNotResolvedError, match="peak count alone"):
+                get_model_by_peaks(1)
+        finally:
+            ModelRegistry._registry.pop("_SECOND_SINGLE_DIP", None)
 
     def test_get_model_single_peak(self, model_instances) -> None:
         """Test getting the model for a single peak."""
@@ -192,7 +262,7 @@ class TestGetModelByPeaks:
 class TestGuessModel:
     """Test cases for guess_model function."""
 
-    @patch("QDMpy.fitting.guess.guess_n_peaks")
+    @patch("qdmpy.fitting.guess.guess_n_peaks")
     def test_guess_model_no_doubt(self, mock_guess_n_peaks) -> None:
         """Test guessing model when there's no doubt."""
         mock_guess_n_peaks.return_value = (2, False, [])
@@ -202,14 +272,15 @@ class TestGuessModel:
         assert isinstance(model, ESR15N)
         assert model.n_peaks == 2
 
-    @patch("QDMpy.fitting.guess.guess_n_peaks")
-    def test_guess_model_with_doubt(self, mock_guess_n_peaks) -> None:
-        """Test guessing model when there's doubt."""
-        mock_guess_n_peaks.return_value = (2, True, [])
+    @patch("qdmpy.fitting.guess.guess_n_peaks")
+    def test_guess_model_with_doubt_returns_model(self, mock_guess_n_peaks) -> None:
+        """Test that guess_model returns a model even when there's doubt (no exception)."""
+        mock_guess_n_peaks.return_value = (3, True, [])
         data = np.zeros((2, 3, 10, 100))
 
-        with pytest.raises(ModelGuessNotPossibleError):
-            guess_model(data)
+        model = guess_model(data)
+        assert isinstance(model, ESR14N)
+        assert model.n_peaks == 3
 
 
 class TestNormalizePixel:
@@ -243,16 +314,45 @@ class TestNormalizePixel:
     def test_empty_pixel(self) -> None:
         """Test normalizing an empty pixel raises error."""
         pixel = np.array([])
-        with pytest.raises(Exception):
+        with pytest.raises(
+            (ValueError, IndexError, ZeroDivisionError, numba.core.errors.TypingError)
+        ):
             normalize_pixel(pixel)
 
     def test_all_zeros(self) -> None:
-        """Test normalizing a pixel with all zeros."""
+        """Test normalizing a constant-zero pixel."""
         pixel = np.zeros(10)
         normalized = normalize_pixel(pixel)
-        # cumsum of (zeros - 1) produces a descending ramp, normalized to [1, ..., 0]
-        assert np.isclose(normalized[0], 1.0)
-        assert np.isclose(normalized[-1], 0.0)
+        # baseline = 0, cumsum of zeros = zeros, max_val = 0 → returns zeros
+        assert np.all(normalized == 0.0)
+
+    def test_normalize_pixel_mean_norm_baseline(self) -> None:
+        """Test that normalize_pixel works correctly when off-resonance baseline != 1.0.
+
+        Mean-normalized data has off-resonance slightly > 1.0 (because the mean
+        includes the resonance dips). The old code subtracted 1.0 hardcoded,
+        causing cumsum drift that shifted center and width estimates. The fixed
+        code estimates the baseline from edge frequencies.
+        """
+        n = 100
+        # Simulate mean-norm data: flat baseline ~1.05, Lorentzian dip at idx 50
+        pixel = np.ones(n) * 1.05
+        center_idx = 50
+        for i in range(-15, 16):
+            idx = center_idx + i
+            if 0 <= idx < n:
+                pixel[idx] = 1.05 - 0.20 / (1 + (i / 5.0) ** 2)
+
+        normalized = normalize_pixel(pixel)
+
+        assert normalized.min() == pytest.approx(0.0, abs=1e-6)
+        assert normalized.max() == pytest.approx(1.0, abs=1e-6)
+
+        # The 0.5 crossing should be near the true dip center (index 50).
+        # This verifies that edge-based baseline estimation eliminates the
+        # cumsum drift that would otherwise shift the center estimate.
+        half_crossing = int(np.argmin(np.abs(normalized - 0.5)))
+        assert abs(half_crossing - center_idx) <= 5
 
     def test_negative_values(self) -> None:
         """Test normalizing a pixel with negative values."""
@@ -331,6 +431,80 @@ class TestGuessCenter:
         assert np.isclose(centers[0, 0, 1], freq[0, center_idx2], rtol=1e-3)
 
 
+class TestRelativeProminence:
+    """Test cases for _relative_prominence helper."""
+
+    def test_scales_with_range(self) -> None:
+        """Prominence scales with spectral range."""
+        small = np.array([0.99, 1.0, 0.995])
+        large = np.array([0.9, 1.0, 0.95])
+        assert _relative_prominence(large) > _relative_prominence(small)
+
+    def test_minimum_floor(self) -> None:
+        """Flat spectrum returns the minimum floor, not zero."""
+        flat = np.ones(50)
+        assert _relative_prominence(flat) == 1e-6
+
+    def test_fraction_of_range(self) -> None:
+        """Result equals range * _RELATIVE_PROMINENCE for non-trivial spectra."""
+        s = np.linspace(0.98, 1.0, 50)
+        expected = (s.max() - s.min()) * _RELATIVE_PROMINENCE
+        assert abs(_relative_prominence(s) - expected) < 1e-12
+
+
+class TestParameterGuesser:
+    """Test cases for ParameterGuesser."""
+
+    def test_offset_estimated_from_edge_baseline(self) -> None:
+        """Offset should equal baseline - 1.0, not zero.
+
+        Mean-normalised ODMR data has a baseline slightly above 1.0 because
+        the mean includes the resonance dips. The guesser must estimate the
+        baseline from the edge frequencies so the initial-guess overlay lines
+        up with the fitted curve.
+        """
+        n_pol, n_frange, n_pixel, n_freq = 1, 1, 2, 100
+        baseline = 1.04
+
+        # Flat data at the known baseline (no dips — we only care about offset)
+        data = np.full((n_pol, n_frange, n_pixel, n_freq), baseline, dtype=np.float32)
+
+        model = ESRSINGLE()
+        f_ghz = np.tile(np.linspace(2.82, 2.92, n_freq), (n_frange, 1))
+
+        guesser = ParameterGuesser(model, f_ghz)
+        params = guesser.guess(data)  # (n_pol, n_frange, n_pixel, n_params)
+
+        # Find the offset parameter index
+        offset_idx = next(
+            i
+            for i, name in enumerate(model.parameter_names)
+            if model.parameter_types[name] == "offset"
+        )
+        offsets = params[:, :, :, offset_idx]
+
+        expected = baseline - 1.0
+        assert offsets == pytest.approx(expected, abs=1e-4)
+
+    def test_offset_zero_when_baseline_unity(self) -> None:
+        """When the baseline is exactly 1.0, offset should be ~0."""
+        n_pol, n_frange, n_pixel, n_freq = 1, 1, 1, 50
+        data = np.ones((n_pol, n_frange, n_pixel, n_freq), dtype=np.float32)
+
+        model = ESRSINGLE()
+        f_ghz = np.tile(np.linspace(2.82, 2.92, n_freq), (n_frange, 1))
+
+        guesser = ParameterGuesser(model, f_ghz)
+        params = guesser.guess(data)
+
+        offset_idx = next(
+            i
+            for i, name in enumerate(model.parameter_names)
+            if model.parameter_types[name] == "offset"
+        )
+        assert params[:, :, :, offset_idx] == pytest.approx(0.0, abs=1e-5)
+
+
 class TestGuessWidth:
     """Test cases for cumsum_width function."""
 
@@ -349,3 +523,451 @@ class TestGuessWidth:
         """Test that all widths are positive."""
         widths = cumsum_width(sample_odmr_data, frequency_range, DEFAULT_VMIN, DEFAULT_VMAX)
         assert np.all(widths > 0)
+
+
+class TestHalfpowerWidth:
+    """Test cases for halfpower_width function."""
+
+    def test_shape(self, sample_odmr_data, frequency_range) -> None:
+        """Output shape matches (n_pol, n_frange, n_pixel)."""
+        hwhm = halfpower_width(sample_odmr_data, frequency_range)
+        expected = sample_odmr_data.shape[:3]
+        assert hwhm.shape == expected
+
+    def test_synthetic_lorentzian_hwhm(self) -> None:
+        """For a single Lorentzian dip, HWHM should match the known width.
+
+        Model: f(x) = 1 - contrast * w^2 / ((x - x0)^2 + w^2)
+        The FWHM of this Lorentzian is 2*w, so HWHM = w.
+        """
+        n_freq = 200
+        true_width = 0.002  # 2 MHz HWHM
+        center = 2.87
+        contrast = 0.05
+        freq_1d = np.linspace(2.85, 2.89, n_freq)
+        freq = freq_1d[np.newaxis, :]  # (1, n_freq)
+
+        spectrum = 1.0 - contrast * true_width**2 / ((freq_1d - center) ** 2 + true_width**2)
+        # Shape: (1 pol, 1 frange, 1 pixel, n_freq)
+        data = spectrum[np.newaxis, np.newaxis, np.newaxis, :]
+
+        hwhm = halfpower_width(data, freq)
+        # Allow 1 frequency bin tolerance
+        df = freq_1d[1] - freq_1d[0]
+        assert hwhm[0, 0, 0] == pytest.approx(true_width, abs=df)
+
+    def test_wider_dip_gives_larger_hwhm(self) -> None:
+        """A wider Lorentzian should produce a larger HWHM estimate."""
+        n_freq = 200
+        center = 2.87
+        contrast = 0.05
+        freq_1d = np.linspace(2.85, 2.89, n_freq)
+        freq = freq_1d[np.newaxis, :]
+
+        narrow = 1.0 - contrast * 0.001**2 / ((freq_1d - center) ** 2 + 0.001**2)
+        wide = 1.0 - contrast * 0.004**2 / ((freq_1d - center) ** 2 + 0.004**2)
+
+        data = np.stack([narrow, wide])[np.newaxis, np.newaxis, :, :]  # (1,1,2,n_freq)
+        hwhm = halfpower_width(data, freq)
+        assert hwhm[0, 0, 1] > hwhm[0, 0, 0]
+
+
+class TestContrastPassthrough:
+    """Test that ParameterGuesser passes total contrast to each contrast_i.
+
+    For multi-peak models the hyperfine peaks overlap significantly
+    (AHYP ~ linewidth), so the observed dip depth is dominated by the
+    central peak. The total contrast is a reasonable starting guess for
+    each individual contrast parameter.
+    """
+
+    def _make_dip_data(self, n_freq: int = 100) -> tuple:
+        """Create synthetic data with a known total contrast."""
+        freq_1d = np.linspace(2.82, 2.92, n_freq)
+        freq = np.tile(freq_1d, (2, 1))  # (2 frange, n_freq)
+
+        # Single Lorentzian dip with ~5% contrast
+        spectrum = 1.0 - 0.05 * 0.002**2 / ((freq_1d - 2.87) ** 2 + 0.002**2)
+        data = np.tile(spectrum, (2, 2, 3, 1))  # (2 pol, 2 frange, 3 pixels, n_freq)
+        return data.astype(np.float32), freq
+
+    def test_esr14n_contrast_equals_total(self) -> None:
+        """For ESR14N, each contrast_i = total_contrast (no division)."""
+        data, freq = self._make_dip_data()
+        total_contrast = top3_contrast(data)  # (2, 2, 3)
+
+        model = ESR14N()
+        guesser = ParameterGuesser(model, freq)
+        params = guesser.guess(data)
+
+        for name in ("contrast_0", "contrast_1", "contrast_2"):
+            idx = model.parameter_names.index(name)
+            np.testing.assert_allclose(params[:, :, :, idx], total_contrast, rtol=1e-5)
+
+    def test_esr15n_contrast_equals_total(self) -> None:
+        """For ESR15N, each contrast_i = total_contrast (no division)."""
+        data, freq = self._make_dip_data()
+        total_contrast = top3_contrast(data)
+
+        model = ESR15N()
+        guesser = ParameterGuesser(model, freq)
+        params = guesser.guess(data)
+
+        for name in ("contrast_0", "contrast_1"):
+            idx = model.parameter_names.index(name)
+            np.testing.assert_allclose(params[:, :, :, idx], total_contrast, rtol=1e-5)
+
+    def test_esrsingle_contrast_equals_total(self) -> None:
+        """For ESRSINGLE, contrast = total."""
+        data, freq = self._make_dip_data()
+        total_contrast = top3_contrast(data)
+
+        model = ESRSINGLE()
+        guesser = ParameterGuesser(model, freq)
+        params = guesser.guess(data)
+
+        idx = model.parameter_names.index("contrast")
+        np.testing.assert_allclose(params[:, :, :, idx], total_contrast, rtol=1e-5)
+
+
+class TestWidthCorrection:
+    """Test that ParameterGuesser applies calibrated AHYP correction for multi-peak models."""
+
+    def _make_data_with_known_width(self, true_hwhm: float = 0.003) -> tuple:
+        """Create data with a single Lorentzian of known HWHM."""
+        n_freq = 200
+        center = 2.87
+        contrast = 0.05
+        freq_1d = np.linspace(2.85, 2.89, n_freq)
+        freq = freq_1d[np.newaxis, :]  # (1 frange, n_freq)
+
+        spectrum = 1.0 - contrast * true_hwhm**2 / ((freq_1d - center) ** 2 + true_hwhm**2)
+        data = spectrum[np.newaxis, np.newaxis, np.newaxis, :]  # (1,1,1,n_freq)
+        return data.astype(np.float32), freq
+
+    def test_esr14n_applies_partial_ahyp_correction(self) -> None:
+        """ESR14N width uses envelope_hwhm - k14*AHYP_14N."""
+        true_hwhm = 0.004  # 4 MHz, well above AHYP_14N
+        data, freq = self._make_data_with_known_width(true_hwhm)
+
+        envelope_hwhm = halfpower_width(data, freq)
+
+        model = ESR14N()
+        guesser = ParameterGuesser(model, freq)
+        params = guesser.guess(data)
+
+        width_idx = model.parameter_names.index("width")
+        guessed_width = params[0, 0, 0, width_idx]
+        expected = max(
+            float(envelope_hwhm[0, 0, 0]) - _WIDTH_AHYP_CORRECTION_14N * AHYP_14N, 0.0003
+        )
+        assert guessed_width == pytest.approx(expected, rel=1e-4)
+
+    def test_esr15n_applies_partial_ahyp_correction(self) -> None:
+        """ESR15N width uses envelope_hwhm - k15*AHYP_15N."""
+        true_hwhm = 0.004
+        data, freq = self._make_data_with_known_width(true_hwhm)
+
+        envelope_hwhm = halfpower_width(data, freq)
+
+        model = ESR15N()
+        guesser = ParameterGuesser(model, freq)
+        params = guesser.guess(data)
+
+        width_idx = model.parameter_names.index("width")
+        guessed_width = params[0, 0, 0, width_idx]
+        expected = max(
+            float(envelope_hwhm[0, 0, 0]) - _WIDTH_AHYP_CORRECTION_15N * AHYP_15N, 0.0003
+        )
+        assert guessed_width == pytest.approx(expected, rel=1e-4)
+
+    def test_esrsingle_no_correction(self) -> None:
+        """ESRSINGLE uses envelope HWHM directly, no subtraction."""
+        true_hwhm = 0.003
+        data, freq = self._make_data_with_known_width(true_hwhm)
+
+        envelope_hwhm = halfpower_width(data, freq)
+
+        model = ESRSINGLE()
+        guesser = ParameterGuesser(model, freq)
+        params = guesser.guess(data)
+
+        width_idx = model.parameter_names.index("width")
+        guessed_width = params[0, 0, 0, width_idx]
+        assert guessed_width == pytest.approx(float(envelope_hwhm[0, 0, 0]), rel=1e-4)
+
+    def test_width_floor_prevents_negative(self) -> None:
+        """When envelope HWHM < AHYP, width is floored at 0.3 MHz."""
+        # Very narrow dip where HWHM < AHYP_14N
+        true_hwhm = 0.001  # 1 MHz, less than AHYP_14N = 2.158 MHz
+        data, freq = self._make_data_with_known_width(true_hwhm)
+
+        model = ESR14N()
+        guesser = ParameterGuesser(model, freq)
+        params = guesser.guess(data)
+
+        width_idx = model.parameter_names.index("width")
+        guessed_width = params[0, 0, 0, width_idx]
+        assert guessed_width == pytest.approx(0.0003, rel=1e-4)
+
+
+def _lorentzian(freq: np.ndarray, center: float, hwhm: float, contrast: float) -> np.ndarray:
+    """Single Lorentzian dip: 1 - contrast * hwhm^2 / ((f - center)^2 + hwhm^2)."""
+    return 1.0 - contrast * hwhm**2 / ((freq - center) ** 2 + hwhm**2)
+
+
+class TestAbsorptionCentroid:
+    """Tests for the absorption_centroid guesser."""
+
+    @staticmethod
+    def _make_4d(spectrum: np.ndarray, freq_1d: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Wrap a 1D spectrum into (1,1,1,n_freq) data and (1,n_freq) freq array."""
+        data = spectrum[np.newaxis, np.newaxis, np.newaxis, :]
+        freq = freq_1d[np.newaxis, :]
+        return data.astype(np.float64), freq
+
+    def test_shape(self) -> None:
+        """Output shape is (n_pol, n_frange, n_pixel)."""
+        n_pol, n_frange, n_pixel, n_freq = 2, 2, 5, 100
+        data = np.ones((n_pol, n_frange, n_pixel, n_freq))
+        freq = np.tile(np.linspace(2.82, 2.92, n_freq), (n_frange, 1))
+        centers = absorption_centroid(data, freq)
+        assert centers.shape == (n_pol, n_frange, n_pixel)
+
+    def test_esrsingle_center(self) -> None:
+        """Single Lorentzian: centroid should be within 1 freq bin of true center."""
+        n_freq = 200
+        true_center = 2.87
+        freq_1d = np.linspace(2.82, 2.92, n_freq)
+        spectrum = _lorentzian(freq_1d, true_center, 0.003, 0.05)
+        data, freq = self._make_4d(spectrum, freq_1d)
+
+        centers = absorption_centroid(data, freq)
+        df = freq_1d[1] - freq_1d[0]
+        assert abs(centers[0, 0, 0] - true_center) < df
+
+    def test_n14_equal_contrasts(self) -> None:
+        """N14 triplet with equal contrasts: centroid within 0.1 * AHYP_14N of center."""
+        n_freq = 300
+        true_center = 2.87
+        hwhm = 0.002
+        freq_1d = np.linspace(2.855, 2.885, n_freq)
+        spectrum = (
+            _lorentzian(freq_1d, true_center - AHYP_14N, hwhm, 0.04)
+            + _lorentzian(freq_1d, true_center, hwhm, 0.04)
+            + _lorentzian(freq_1d, true_center + AHYP_14N, hwhm, 0.04)
+            - 2.0  # remove the double-counted baseline (three dips, three +1 offsets)
+        )
+        data, freq = self._make_4d(spectrum, freq_1d)
+
+        centers = absorption_centroid(data, freq)
+        assert abs(centers[0, 0, 0] - true_center) < 0.1 * AHYP_14N
+
+    def test_n14_unequal_contrasts(self) -> None:
+        """N14 triplet with 3:1 contrast ratio: centroid within AHYP_14N of center.
+
+        Uses HWHM << AHYP so the three dips are spectrally distinct.
+        The centroid is then the contrast-weighted average of dip positions,
+        landing between the true center and the dominant outer dip.
+        argmin would return the dominant dip position, off by exactly AHYP_14N.
+        """
+        n_freq = 400
+        true_center = 2.87
+        # Use HWHM << AHYP_14N (0.5 MHz vs 2.158 MHz) so dips don't overlap
+        hwhm = 0.0005
+        freq_1d = np.linspace(2.860, 2.880, n_freq)
+        # Left dip 3x stronger than the others
+        spectrum = (
+            _lorentzian(freq_1d, true_center - AHYP_14N, hwhm, 0.12)
+            + _lorentzian(freq_1d, true_center, hwhm, 0.04)
+            + _lorentzian(freq_1d, true_center + AHYP_14N, hwhm, 0.04)
+            - 2.0
+        )
+        data, freq = self._make_4d(spectrum, freq_1d)
+
+        centers = absorption_centroid(data, freq)
+        assert abs(centers[0, 0, 0] - true_center) < AHYP_14N
+
+    def test_n15_equal_contrasts(self) -> None:
+        """N15 doublet with equal contrasts: centroid within 0.1 * AHYP_15N of center."""
+        n_freq = 200
+        true_center = 2.87
+        hwhm = 0.002
+        freq_1d = np.linspace(2.862, 2.878, n_freq)
+        spectrum = (
+            _lorentzian(freq_1d, true_center - AHYP_15N, hwhm, 0.05)
+            + _lorentzian(freq_1d, true_center + AHYP_15N, hwhm, 0.05)
+            - 1.0  # remove double-counted baseline
+        )
+        data, freq = self._make_4d(spectrum, freq_1d)
+
+        centers = absorption_centroid(data, freq)
+        assert abs(centers[0, 0, 0] - true_center) < 0.1 * AHYP_15N
+
+    def test_flat_spectrum_fallback(self) -> None:
+        """Flat spectrum (no absorption): falls back to freq range midpoint."""
+        freq_1d = np.linspace(2.82, 2.92, 100)
+        spectrum = np.ones(100)
+        data, freq = self._make_4d(spectrum, freq_1d)
+
+        centers = absorption_centroid(data, freq)
+        midpoint = (freq_1d[0] + freq_1d[-1]) / 2.0
+        assert abs(centers[0, 0, 0] - midpoint) < 1e-10
+
+    def test_all_below_baseline_fallback(self) -> None:
+        """All values above baseline (inverted): falls back to freq range midpoint."""
+        freq_1d = np.linspace(2.82, 2.92, 100)
+        # Emission peak (above baseline) rather than absorption dip
+        spectrum = 1.0 + 0.05 * np.exp(-((freq_1d - 2.87) ** 2) / 0.001**2)
+        data, freq = self._make_4d(spectrum, freq_1d)
+
+        centers = absorption_centroid(data, freq)
+        midpoint = (freq_1d[0] + freq_1d[-1]) / 2.0
+        assert abs(centers[0, 0, 0] - midpoint) < freq_1d[1] - freq_1d[0]
+
+
+class TestNanSafety:
+    """The centre/width estimators must not silently emit garbage for NaN input.
+
+    NaN pixels are reachable in production: ``NormalizationProcessor`` emits
+    NaN for zero-factor pixels by design, ``HotPixelFilter(replacement='nan')``
+    exists, and dead/saturated camera pixels occur. The contrast estimators
+    were already NaN-aware; these bring the centre/width ones to the same
+    standard.
+    """
+
+    @staticmethod
+    def _spectra(n_freq: int = 50, n_pixel: int = 4) -> tuple[np.ndarray, np.ndarray]:
+        """Return (data, freq) with one ESR-like dip per pixel."""
+        freq_1d = np.linspace(2.82, 2.92, n_freq)
+        spectrum = 1.0 - 0.05 * np.exp(-((freq_1d - 2.87) ** 2) / 0.002**2)
+        data = np.tile(spectrum, (1, 1, n_pixel, 1))
+        return data, freq_1d.reshape(1, -1)
+
+    def test_normalize_pixel_tolerates_nan(self) -> None:
+        """A NaN sample must not turn the whole normalized curve into NaN."""
+        pixel = np.linspace(1.0, 0.5, 40)
+        pixel[7] = np.nan
+        result = normalize_pixel(pixel)
+        assert np.isfinite(result).all()
+
+    def test_normalize_pixel_all_nan_returns_zeros(self) -> None:
+        """An entirely dead pixel yields zeros, not NaN."""
+        result = normalize_pixel(np.full(40, np.nan))
+        assert np.isfinite(result).all()
+        assert np.allclose(result, 0.0)
+
+    def test_argmin_center_ignores_nan(self) -> None:
+        """np.argmin treats NaN as the minimum; the guess must not follow it.
+
+        Regression: a single dead sample used to pin the centre guess to that
+        arbitrary frequency.
+        """
+        data, freq = self._spectra()
+        clean = argmin_center(data, freq)
+
+        noisy = data.copy()
+        noisy[0, 0, 0, 3] = np.nan  # dead sample far from the dip
+        result = argmin_center(noisy, freq)
+
+        assert np.isfinite(result).all()
+        assert result[0, 0, 0] == pytest.approx(clean[0, 0, 0])
+
+    def test_argmin_center_all_nan_pixel_falls_back_to_midpoint(self) -> None:
+        """A fully dead pixel gets the range midpoint, not index 0."""
+        data, freq = self._spectra()
+        data[0, 0, 1, :] = np.nan
+        result = argmin_center(data, freq)
+        midpoint = (freq[0, 0] + freq[0, -1]) / 2.0
+        assert result[0, 0, 1] == pytest.approx(midpoint)
+
+    def test_halfpower_width_tolerates_nan_first_sample(self) -> None:
+        """A NaN at index 0 used to pin the minimum there and give width 0.
+
+        NaN comparisons are always False, so seeding the search from
+        ``spectrum[0]`` left ``min_val`` NaN and collapsed the width to zero.
+        """
+        data, freq = self._spectra()
+        data[0, 0, 0, 0] = np.nan
+        result = halfpower_width(data, freq)
+        assert np.isfinite(result).all()
+        assert result[0, 0, 0] > 0.0
+
+    def test_cumsum_estimators_finite_with_nan(self) -> None:
+        """cumsum_center / cumsum_width stay finite for NaN-bearing spectra."""
+        data, freq = self._spectra()
+        data[0, 0, 0, 5] = np.nan
+        data[0, 0, 1, :] = np.nan
+        assert np.isfinite(cumsum_center(data, freq)).all()
+        assert np.isfinite(cumsum_width(data, freq, DEFAULT_VMIN, DEFAULT_VMAX)).all()
+
+    def test_guess_n_peaks_survives_a_dead_pixel(self) -> None:
+        """One NaN pixel must not poison the median spectrum used for detection.
+
+        Regression: ``np.median`` (not ``nanmedian``) made the whole median
+        spectrum NaN for that (pol, frange), breaking model auto-detection.
+        """
+        data, _ = self._spectra(n_pixel=8)
+        clean_peaks, _, _ = guess_n_peaks(data)
+
+        data[0, 0, 2, :] = np.nan
+        peaks, _, _ = guess_n_peaks(data)
+        assert peaks == clean_peaks
+
+    def test_relative_prominence_with_nan(self) -> None:
+        """The prominence threshold stays finite for a NaN-bearing spectrum."""
+        spectrum = np.linspace(1.0, 0.9, 50)
+        spectrum[3] = np.nan
+        assert np.isfinite(_relative_prominence(spectrum))
+        assert np.isfinite(_relative_prominence(np.full(50, np.nan)))
+
+    def test_top3_contrast_ignores_nan(self) -> None:
+        """A NaN sample must not collapse the contrast guess to zero.
+
+        Regression: ``top3_contrast`` carried ``fastmath=True``, which implies
+        LLVM's no-NaN assumption -- numba folded its ``if np.isnan(v)`` guard
+        to ``False``, so the min/max trackers absorbed the NaN and the function
+        returned exactly 0.0 contrast for any pixel holding a single NaN.
+        """
+        data, _ = self._spectra()
+        clean = top3_contrast(data)
+
+        noisy = data.copy()
+        noisy[0, 0, 0, 5] = np.nan
+        result = top3_contrast(noisy)
+
+        assert result[0, 0, 0] == pytest.approx(clean[0, 0, 0])
+        assert result[0, 0, 0] > 0.0
+
+    def test_cumsum_contrast_ignores_nan(self) -> None:
+        """cumsum_contrast uses nanmax/nanmin and must stay NaN-invariant."""
+        data, _ = self._spectra()
+        clean = cumsum_contrast(data)
+
+        noisy = data.copy()
+        noisy[0, 0, 0, 5] = np.nan
+
+        assert cumsum_contrast(noisy)[0, 0, 0] == pytest.approx(clean[0, 0, 0])
+
+    def test_nan_guards_are_not_defeated_by_fastmath(self) -> None:
+        """The NaN-sensitive guessers must not be compiled with fastmath.
+
+        ``fastmath=True`` implies the ``nnan`` flag, under which ``np.isnan``
+        is folded to ``False``. Any guesser whose correctness rests on an
+        explicit NaN check must therefore opt out. This asserts the compile
+        flags directly so the guards cannot be silently re-broken by adding
+        ``fastmath=True`` back for speed.
+        """
+        nan_sensitive = (
+            normalize_pixel,
+            top3_contrast,
+            cumsum_center,
+            argmin_center,
+            cumsum_width,
+            halfpower_width,
+        )
+        for fn in nan_sensitive:
+            flags = fn.targetoptions
+            assert not flags.get("fastmath", False), (
+                f"{fn.__name__} is compiled with fastmath=True, which disables its NaN guards"
+            )

@@ -9,9 +9,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from QDMpy.constants import D_ZFS, GAMMA_NV
-from QDMpy.exceptions import DataLoadError, DataShapeError, DataValidationError, ParameterError
-from QDMpy.fitting.result import FitResult
+from qdmpy.constants import D_ZFS, GAMMA_NV
+from qdmpy.exceptions import DataLoadError, DataShapeError, DataValidationError, ParameterError
+from qdmpy.fitting.result import FitResult
 
 
 class TestFitResult:
@@ -50,7 +50,12 @@ class TestFitResult:
             model_name="ESR15N",
         )
 
-        assert result.parameters == sample_parameters
+        # FitResult copies its parameter arrays (it freezes them, and freezing
+        # the caller's arrays in place would be a side effect on data it does
+        # not own), so compare values rather than dict identity.
+        assert result.parameters.keys() == sample_parameters.keys()
+        for name, expected in sample_parameters.items():
+            np.testing.assert_array_equal(result.parameters[name], expected)
         assert result.scan_dimensions == (10, 10)
         assert result.pixel_spacing == 4e-6
         assert result.model_name == "ESR15N"
@@ -129,14 +134,19 @@ class TestFitResult:
         params["contrast_0"] = np.random.uniform(0.01, 0.1, 100)
         params["contrast_1"] = np.random.uniform(0.01, 0.1, 100)
         params["contrast_2"] = np.random.uniform(0.01, 0.1, 100)
-        result = FitResult(parameters=params, scan_dimensions=(10, 10), pixel_spacing=4e-6, model_name="ESR14N")
+        result = FitResult(
+            parameters=params, scan_dimensions=(10, 10), pixel_spacing=4e-6, model_name="ESR14N"
+        )
         np.testing.assert_array_equal(result.contrasts, params["contrast_0"])
 
     def test_contrasts_property_raises_when_missing(self, sample_parameters) -> None:
         """Test contrasts raises ParameterError when no contrast key exists."""
-        from QDMpy.exceptions import ParameterError
+        from qdmpy.exceptions import ParameterError
+
         params = {k: v for k, v in sample_parameters.items() if not k.startswith("contrast")}
-        result = FitResult(parameters=params, scan_dimensions=(10, 10), pixel_spacing=4e-6, model_name="ESR14N")
+        result = FitResult(
+            parameters=params, scan_dimensions=(10, 10), pixel_spacing=4e-6, model_name="ESR14N"
+        )
         with pytest.raises(ParameterError):
             _ = result.contrasts
 
@@ -378,24 +388,23 @@ class TestResolveSpatialDims:
         result = self._make_result((10, 10))
         assert result._resolve_spatial_dims(100) == (10, 10)
 
-    def test_mismatched_square(self) -> None:
-        result = self._make_result((10, 10))
-        h, w = result._resolve_spatial_dims(36)
-        assert h * w == 36
-        assert h == 6
-        assert w == 6
+    def test_mismatched_pixel_count_raises(self) -> None:
+        """A pixel-count mismatch must fail, not guess a plausible geometry.
 
-    def test_rectangular_aspect_ratio(self) -> None:
-        result = self._make_result((10, 20))
-        h, w = result._resolve_spatial_dims(50)
-        assert h * w == 50
-        assert w / h >= 1.0
-
-    def test_prime_pixel_count(self) -> None:
+        This used to search factor pairs of the pixel count for the one closest
+        to the recorded aspect ratio and continue with a debug log -- silently
+        reshaping field maps into a wrong geometry whenever the parameters and
+        scan_dimensions disagreed.
+        """
         result = self._make_result((10, 10))
-        h, w = result._resolve_spatial_dims(17)
-        assert h * w == 17
-        assert (h, w) == (1, 17) or (h, w) == (17, 1)
+        with pytest.raises(DataShapeError, match="scan_dimensions"):
+            result._resolve_spatial_dims(36)
+
+    def test_prime_pixel_count_raises(self) -> None:
+        """A count with no sensible factorisation raises rather than degrading."""
+        result = self._make_result((10, 10))
+        with pytest.raises(DataShapeError):
+            result._resolve_spatial_dims(17)
 
 
 class TestNormalizeResonanceShape:
@@ -509,7 +518,6 @@ class TestComputeDeltaResonanceOrchestrator:
         assert list(delta.coords["polarity"].values) == ["neg", "pos"]
 
 
-
 class TestFitResultValidation:
     """Tests for FitResult Pydantic validation."""
 
@@ -595,7 +603,7 @@ class TestSafeSerializationFormat:
         )
 
     def test_rejects_missing_meta_key(self, tmp_path: Path) -> None:
-        """NPZ without __meta__ key is rejected."""
+        """NPZ without __meta__ and without legacy keys is rejected."""
         filepath = tmp_path / "old_format.npz"
         np.savez_compressed(
             filepath,
@@ -604,6 +612,29 @@ class TestSafeSerializationFormat:
         )
         with pytest.raises(DataLoadError, match="missing the __meta__ key"):
             FitResult.load_results(filepath)
+
+    def test_loads_legacy_pickle_format_with_warning(
+        self, sample_fit_result, tmp_path: Path
+    ) -> None:
+        """Legacy pickle-based NPZ format is loaded with deprecation warning."""
+        filepath = tmp_path / "legacy.npz"
+        np.savez_compressed(
+            filepath,
+            parameters=np.array([sample_fit_result.parameters], dtype=object),
+            model_name=np.array([sample_fit_result.model_name], dtype=object),
+            scan_dimensions=np.array([sample_fit_result.scan_dimensions], dtype=object),
+            pixel_spacing=np.array([sample_fit_result.pixel_spacing], dtype=object),
+            metadata=np.array([sample_fit_result.metadata], dtype=object),
+        )
+
+        with pytest.warns(DeprecationWarning, match="legacy pickle-format results file"):
+            loaded = FitResult.load_results(filepath)
+
+        assert loaded.model_name == sample_fit_result.model_name
+        assert loaded.scan_dimensions == sample_fit_result.scan_dimensions
+        assert loaded.pixel_spacing == sample_fit_result.pixel_spacing
+        assert loaded.metadata == sample_fit_result.metadata
+        assert set(loaded.parameters.keys()) == set(sample_fit_result.parameters.keys())
 
     def test_no_allow_pickle_in_save_output(self, sample_fit_result, tmp_path: Path) -> None:
         """Saved file loads cleanly with allow_pickle=False."""
@@ -621,9 +652,7 @@ class TestSafeSerializationFormat:
 
         assert set(loaded.parameters.keys()) == set(sample_fit_result.parameters.keys())
         for key in sample_fit_result.parameters:
-            np.testing.assert_array_equal(
-                loaded.parameters[key], sample_fit_result.parameters[key]
-            )
+            np.testing.assert_array_equal(loaded.parameters[key], sample_fit_result.parameters[key])
 
     def test_roundtrip_preserves_metadata(self, sample_fit_result, tmp_path: Path) -> None:
         """Metadata dict survives a save/load roundtrip."""
@@ -646,8 +675,9 @@ class TestSafeSerializationFormat:
     def test_rejects_no_param_keys(self, tmp_path: Path) -> None:
         """File with __meta__ but no param_* keys raises DataLoadError."""
         filepath = tmp_path / "no_params.npz"
-        meta_bytes = json.dumps({"model_name": "ESR15N", "scan_dimensions": [10, 10],
-                                  "pixel_spacing": 4e-6}).encode()
+        meta_bytes = json.dumps(
+            {"model_name": "ESR15N", "scan_dimensions": [10, 10], "pixel_spacing": 4e-6}
+        ).encode()
         np.savez_compressed(filepath, __meta__=np.void(meta_bytes))
         with pytest.raises(DataLoadError, match="no param_\\* keys"):
             FitResult.load_results(filepath)

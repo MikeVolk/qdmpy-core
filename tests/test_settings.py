@@ -6,58 +6,17 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
-import pytest
-
-from QDMpy.settings import (
-    DefaultPathsSettings,
+from qdmpy.settings import (
     FitSettings,
-    LocalOutlierFactorSettings,
     LoggingSettings,
     ModelConstraintsSettings,
-    ModelFindPeaksSettings,
     ModelSettings,
-    OdmrSettings,
-    OutlierDetectionSettings,
     QDMpySettings,
-    StatisticsPercentileSettings,
     get_settings,
     reset_settings,
 )
-
-
-class TestDefaultPathsSettings:
-    """Tests for DefaultPathsSettings."""
-
-    def test_default_values(self) -> None:
-        """Test default values."""
-        settings = DefaultPathsSettings()
-        assert settings.data_path == ""
-
-    def test_custom_values(self) -> None:
-        """Test custom values."""
-        settings = DefaultPathsSettings(data_path="/home/data")
-        assert settings.data_path == "/home/data"
-
-
-class TestOdmrSettings:
-    """Tests for OdmrSettings."""
-
-    def test_default_norm_method(self) -> None:
-        """Test default normalization method."""
-        settings = OdmrSettings()
-        assert settings.norm_method == "max"
-
-    def test_custom_norm_method(self) -> None:
-        """Test custom normalization method."""
-        for method in ["max", "min", "mean"]:
-            settings = OdmrSettings(norm_method=method)
-            assert settings.norm_method == method
-
-    def test_invalid_norm_method(self) -> None:
-        """Test invalid normalization method raises error."""
-        with pytest.raises(ValueError):
-            OdmrSettings(norm_method="invalid")
 
 
 class TestModelConstraintsSettings:
@@ -66,11 +25,12 @@ class TestModelConstraintsSettings:
     def test_default_constraints(self) -> None:
         """Test default constraint values."""
         settings = ModelConstraintsSettings()
-        assert settings.center_min == 2
-        assert settings.center_max == 3.1
+        assert settings.constraint_units == "mt"
+        assert settings.center_max_mt == 1.1
+        assert settings.center_min_mt == 0.0
+        assert settings.width_max_mt == 0.08
+        assert settings.width_min_mt == 0.017
         assert settings.center_type == "LOWER_UPPER"
-        assert settings.width_min == 0.0001
-        assert settings.width_max == 0.005
         assert settings.width_type == "LOWER_UPPER"
         assert settings.contrast_min == 0.003
         assert settings.contrast_max == 0
@@ -79,16 +39,28 @@ class TestModelConstraintsSettings:
         assert settings.offset_max == 0
         assert settings.offset_type == "FREE"
 
-    def test_custom_constraints(self) -> None:
-        """Test custom constraint values."""
+    def test_custom_constraints_absolute_ghz(self) -> None:
+        """Test custom constraint values in absolute GHz mode."""
         settings = ModelConstraintsSettings(
+            constraint_units="absolute_ghz",
             center_min=1.0,
             center_max=4.0,
             center_type="FREE",
         )
+        assert settings.constraint_units == "absolute_ghz"
         assert settings.center_min == 1.0
         assert settings.center_max == 4.0
         assert settings.center_type == "FREE"
+
+    def test_custom_constraints_mt(self) -> None:
+        """Test custom mT constraint values."""
+        settings = ModelConstraintsSettings(
+            constraint_units="mt",
+            center_max_mt=10.0,
+            width_max_mt=1.5,
+        )
+        assert settings.center_max_mt == 10.0
+        assert settings.width_max_mt == 1.5
 
     def test_valid_constraint_types(self) -> None:
         """Test all valid constraint types."""
@@ -108,9 +80,7 @@ class TestModelSettings:
     def test_default_model_settings(self) -> None:
         """Test default model settings."""
         settings = ModelSettings()
-        assert isinstance(settings.find_peaks, ModelFindPeaksSettings)
         assert isinstance(settings.constraints, ModelConstraintsSettings)
-        assert settings.find_peaks.prominence == 0.0004
 
     def test_custom_model_settings(self) -> None:
         """Test custom model settings."""
@@ -152,32 +122,6 @@ class TestFitSettings:
             FitSettings(estimator="INVALID")
 
 
-class TestOutlierDetectionSettings:
-    """Tests for OutlierDetectionSettings."""
-
-    def test_default_outlier_settings(self) -> None:
-        """Test default outlier detection settings."""
-        settings = OutlierDetectionSettings()
-        assert settings.method == "LocalOutlierFactor"
-        assert isinstance(settings.local_outlier_factor, LocalOutlierFactorSettings)
-        assert isinstance(settings.statistics_percentile, StatisticsPercentileSettings)
-
-    def test_statistics_percentile_method(self) -> None:
-        """Test StatisticsPercentile method settings."""
-        settings = OutlierDetectionSettings(method="StatisticsPercentile")
-        assert settings.method == "StatisticsPercentile"
-
-    def test_local_outlier_factor_defaults(self) -> None:
-        """Test LocalOutlierFactor default settings."""
-        settings = OutlierDetectionSettings()
-        assert settings.local_outlier_factor.n_neighbors == 20
-        assert settings.local_outlier_factor.algorithm == "auto"
-        assert settings.local_outlier_factor.leaf_size == 30
-        assert settings.local_outlier_factor.metric == "minkowski"
-        assert settings.local_outlier_factor.p == 2
-        assert settings.local_outlier_factor.contamination == "auto"
-
-
 class TestLoggingSettings:
     """Tests for LoggingSettings."""
 
@@ -197,15 +141,19 @@ class TestLoggingSettings:
         with pytest.raises(ValueError):
             LoggingSettings(log_level="INVALID")
 
-    def test_structured_logging_enabled_by_default(self) -> None:
-        """Test that structured logging is enabled by default."""
-        settings = LoggingSettings()
-        assert settings.enable_structured_logging is True
+    def test_structured_logging_disabled_by_default(self) -> None:
+        """Structured JSON logging is opt-in.
 
-    def test_structured_logging_can_be_disabled(self) -> None:
-        """Test that structured logging can be disabled."""
-        settings = LoggingSettings(enable_structured_logging=False)
+        Importing a library must not start writing files to the user's home
+        directory; only an explicit configure_logging() call installs sinks.
+        """
+        settings = LoggingSettings()
         assert settings.enable_structured_logging is False
+
+    def test_structured_logging_can_be_enabled(self) -> None:
+        """Test that structured logging can be turned on."""
+        settings = LoggingSettings(enable_structured_logging=True)
+        assert settings.enable_structured_logging is True
 
     def test_structured_log_dir_defaults_to_none(self) -> None:
         """Test that structured log dir defaults to None."""
@@ -231,11 +179,8 @@ class TestQDMpySettings:
     def test_default_settings(self) -> None:
         """Test that default settings are created correctly."""
         settings = QDMpySettings()
-        assert isinstance(settings.default_paths, DefaultPathsSettings)
-        assert isinstance(settings.odmr, OdmrSettings)
         assert isinstance(settings.model, ModelSettings)
         assert isinstance(settings.fit, FitSettings)
-        assert isinstance(settings.outlier_detection, OutlierDetectionSettings)
         assert isinstance(settings.logging, LoggingSettings)
 
     def test_custom_fit_settings(self) -> None:
@@ -268,30 +213,40 @@ class TestQDMpySettings:
             assert settings.fit.estimator == "LSE"
             assert settings.fit.max_number_iterations == 200
 
-    def test_toml_file_loading(self) -> None:
-        """Test loading settings from a TOML file."""
-        # Create a temporary TOML file
-        import tempfile
+    @staticmethod
+    def _write_config(tmp_path: Path, content: str) -> Path:
+        config_path = tmp_path / "settings.toml"
+        config_path.write_text(content)
+        return config_path
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            config_path = Path(tmpdir) / "settings.toml"
-            config_path.write_text('[fit]\nestimator = "LSE"\nmax_number_iterations = 100\n')
+    def test_toml_file_loading(self, tmp_path: Path) -> None:
+        """Values in settings.toml are actually loaded."""
+        config_path = self._write_config(
+            tmp_path, '[fit]\nestimator = "LSE"\nmax_number_iterations = 100\n'
+        )
+        with patch("qdmpy.settings.CONFIG_FILE", config_path):
+            settings = QDMpySettings()
+        assert settings.fit.estimator == "LSE"
+        assert settings.fit.max_number_iterations == 100
 
-            # Mock the config file path
-            with (
-                patch(
-                    "QDMpy.settings.Path.home",
-                    return_value=Path(tmpdir),
-                ),
-                patch(
-                    "QDMpy.settings.QDMpySettings.model_config",
-                    {"toml_file": config_path},
-                    create=True,
-                ),
-            ):
-                settings = QDMpySettings()
-                # Since we're mocking, just verify the settings work
-                assert isinstance(settings, QDMpySettings)
+    def test_toml_unknown_key_rejected(self, tmp_path: Path) -> None:
+        """A typo in settings.toml raises at load time instead of being dropped."""
+        config_path = self._write_config(tmp_path, "[fit]\nestimater = 'LSE'\n")
+        with (
+            patch("qdmpy.settings.CONFIG_FILE", config_path),
+            pytest.raises(ValidationError),
+        ):
+            QDMpySettings()
+
+    def test_env_overrides_toml(self, tmp_path: Path) -> None:
+        """Environment variables take priority over settings.toml."""
+        config_path = self._write_config(tmp_path, "[fit]\nmax_number_iterations = 100\n")
+        with (
+            patch("qdmpy.settings.CONFIG_FILE", config_path),
+            patch.dict("os.environ", {"QDMPY_FIT__MAX_NUMBER_ITERATIONS": "300"}),
+        ):
+            settings = QDMpySettings()
+        assert settings.fit.max_number_iterations == 300
 
     def test_init_settings_priority(self) -> None:
         """Test that init settings have highest priority."""
@@ -302,11 +257,30 @@ class TestQDMpySettings:
         assert settings.fit.estimator == "LSE"
         assert settings.logging.log_level == "DEBUG"
 
-    def test_extra_fields_ignored(self) -> None:
-        """Test that extra fields are ignored (extra='ignore')."""
-        # This should not raise an error
-        settings = QDMpySettings(extra_field="should_be_ignored")
-        assert isinstance(settings, QDMpySettings)
+    def test_unknown_top_level_field_rejected(self) -> None:
+        """An unknown top-level key is a typo, not something to swallow."""
+        with pytest.raises(ValidationError):
+            QDMpySettings(extra_field="should_not_be_ignored")
+
+    def test_unknown_nested_field_rejected(self) -> None:
+        """A typo in a nested section must raise, not silently use the default.
+
+        Regression: `center_min_ml` (a typo for `center_min_mt`) used to be
+        dropped in silence, so the fit ran under a constraint the user never
+        chose and had no way to notice.
+        """
+        with pytest.raises(ValidationError):
+            QDMpySettings(model={"constraints": {"center_min_ml": 0.5}})
+
+    def test_unknown_prefixed_env_var_is_not_rejected(self, monkeypatch) -> None:
+        """A stray QDMPY_* env var must not break settings construction.
+
+        pydantic-settings only maps env vars onto declared fields, so
+        `extra='forbid'` catches config typos without making unrelated
+        environment variables fatal.
+        """
+        monkeypatch.setenv("QDMPY_TOTALLY_UNRELATED", "x")
+        assert isinstance(QDMpySettings(), QDMpySettings)
 
 
 class TestGetSettings:
@@ -337,6 +311,44 @@ class TestGetSettings:
 
     def test_get_settings_re_exported_from_package(self) -> None:
         """get_settings is importable from the top-level QDMpy package."""
-        from QDMpy import get_settings as pkg_get_settings
+        from qdmpy import get_settings as pkg_get_settings
 
         assert pkg_get_settings is get_settings
+
+
+class TestLoggingIsolation:
+    """get_settings() must not touch the host application's logging."""
+
+    def test_get_settings_does_not_remove_host_sinks(self) -> None:
+        """Reading settings must leave an embedding app's loguru sinks alone.
+
+        Regression: ``get_settings()`` called ``_configure_logging()``, which
+        calls ``logger.remove()`` -- dropping every handler in the process.
+        Since ``FitManager.__init__`` calls ``get_settings()``, the first fit in
+        a GUI/server session silently re-routed that application's logging.
+        """
+        from loguru import logger
+
+        reset_settings()
+        received: list[str] = []
+        sink_id = logger.add(received.append, level="INFO")
+        try:
+            get_settings()
+            logger.info("host sink must still be attached")
+        finally:
+            logger.remove(sink_id)
+
+        assert any("host sink must still be attached" in line for line in received)
+
+    def test_get_settings_creates_no_directories(self, monkeypatch, tmp_path) -> None:
+        """Reading settings must not create the config directory as a side effect."""
+        import qdmpy.settings as settings_module
+
+        config_path = tmp_path / "config" / "QDMpy"
+        monkeypatch.setattr(settings_module, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(settings_module, "CONFIG_FILE", config_path / "settings.toml")
+
+        reset_settings()
+        get_settings()
+
+        assert not config_path.exists()

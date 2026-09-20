@@ -1,5 +1,5 @@
 ---
-title: QDMpy Architecture - Class and Function Interactions
+title: qdmpy Architecture - Class and Function Interactions
 ---
 classDiagram
     %% Core Data Classes
@@ -43,12 +43,6 @@ classDiagram
         +process(data, **kwargs) ODMRData
         -_get_norm_factors(data, method) NDArray
         +__init__(method)
-    }
-
-    class OutlierProcessor {
-        +float threshold
-        +process(data, **kwargs) ODMRData
-        +__init__(threshold)
     }
 
     class FluorescenceCorrectionProcessor {
@@ -228,7 +222,6 @@ classDiagram
     BaseLoader <|-- MatlabLoader
     BaseProcessor <|-- BinningProcessor
     BaseProcessor <|-- NormalizationProcessor
-    BaseProcessor <|-- OutlierProcessor
     BaseProcessor <|-- FluorescenceCorrectionProcessor
     Model <|-- ESR14N
     Model <|-- ESR15N

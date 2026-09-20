@@ -1,8 +1,8 @@
 # Exceptions Module
 
-The exceptions module provides custom exception classes for QDMpy.
+The exceptions module provides custom exception classes for qdmpy.
 
-::: QDMpy.exceptions
+::: qdmpy.exceptions
     options:
       show_root_heading: true
       show_source: true

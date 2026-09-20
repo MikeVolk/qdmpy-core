@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from QDMpy import constants
+from qdmpy import constants
 
 
 class TestConstants(unittest.TestCase):
@@ -34,17 +34,12 @@ class TestConstants(unittest.TestCase):
 
     def test_default_values(self) -> None:
         """Test default values for algorithms."""
-        # Verify that the default values are defined
         assert constants.DEFAULT_VMIN is not None
         assert constants.DEFAULT_VMAX is not None
-        assert constants.PROMINENCE is not None
 
-        # Verify their values
         assert constants.DEFAULT_VMIN == 0.3
         assert constants.DEFAULT_VMAX == 0.7
-        assert constants.PROMINENCE == 0.0004
 
-        # Verify expected relationships
         assert constants.DEFAULT_VMIN < constants.DEFAULT_VMAX
         assert constants.DEFAULT_VMIN > 0
         assert constants.DEFAULT_VMAX < 1

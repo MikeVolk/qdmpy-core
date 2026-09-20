@@ -49,7 +49,6 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-/notebooks/*
 
 # pyenv
 .python-version
@@ -92,11 +91,22 @@ src/tst.py
 # Large test data
 tests/data/MIL2_FOV1/
 
-# Claude proposals
-/proposals/
-
 # Claude configuration
 CLAUDE.md
+AGENTS.md
+OPENCODE.md
 
 # Claude memory files
 /memory/
+questions.md
+research/
+
+# Local assistant rules
+.claude/
+.opencode/
+.mike/
+
+# Developer scripts (one-off tools, not library code)
+/scripts/
+scripts/output/
+tests/data/

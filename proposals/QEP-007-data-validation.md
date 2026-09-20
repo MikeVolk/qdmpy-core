@@ -53,6 +53,7 @@ overhead on multi-GB arrays. Revisiting this decision:
 5. **Typed metadata models** — replace loose `dict[str, Any]` metadata with typed
    Pydantic models that are validated at construction.
 
+
 ## Specification
 
 ### Design Approach

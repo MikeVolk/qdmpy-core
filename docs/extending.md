@@ -1,7 +1,7 @@
-# Extending QDMpy
+# Extending qdmpy
 
 This guide covers the three main extension points for developers who want to
-plug in custom algorithms without modifying the QDMpy source.
+plug in custom algorithms without modifying the qdmpy source.
 
 ---
 
@@ -20,7 +20,7 @@ and register with `@ModelRegistry.register`:
 from typing import ClassVar
 import numpy as np
 from numpy.typing import NDArray
-from QDMpy import Model, ModelRegistry
+from qdmpy import Model, ModelRegistry
 
 @ModelRegistry.register
 class MyModel(Model):
@@ -69,16 +69,16 @@ class MyModel(Model):
 ### Using the model
 
 ```python
-import QDMpy
+import qdmpy
 
-m = QDMpy.load('/data/FOV18x')
-result = m.fit_odmr(model='MYMODEL')
+m = qdmpy.load('/data/FOV18x')
+result = m.fit_odmr(model_name='MYMODEL')
 ```
 
 ### Discovering registered models
 
 ```python
-from QDMpy import ModelRegistry
+from qdmpy import ModelRegistry
 ModelRegistry.available_models()
 # ['ESR14N', 'ESR15N', 'ESRSINGLE', 'MYMODEL']
 ```
@@ -96,7 +96,7 @@ experiment-specific artefact removal step.
 Implement the `Processor` protocol — two methods, no base class required:
 
 ```python
-from QDMpy.odmr.data import ODMRData
+from qdmpy.odmr.data import ODMRData
 
 class MyProcessor:
     def process(self, data: ODMRData) -> ODMRData:
@@ -111,15 +111,48 @@ class MyProcessor:
 ### Inserting into the pipeline
 
 ```python
-import QDMpy
+import qdmpy
 
-m = QDMpy.load('/data/FOV18x')
+m = qdmpy.load('/data/FOV18x')
 m.odmr.processor_manager.add_processor(MyProcessor())
 m.odmr.process_data()   # re-run pipeline with the new step
 ```
 
 > **Immutability rule**: `process` receives an `ODMRData` and must return a
 > *new* `ODMRData`. Mutating the input in place will corrupt the pipeline cache.
+
+### Config round-tripping (optional)
+
+The plain `MyProcessor` above works for direct pipeline use, but a
+pipeline's `pipeline_config` (used to save and reload the pipeline, and
+recorded automatically in `ODMRData.metadata['pipeline']` after every
+`process_data()` call) only reconstructs processors that are registered.
+Subclass `BaseProcessor` (a Pydantic model), add a `type: Literal[...]`
+field, and register with `@ProcessorRegistry.register`:
+
+```python
+from typing import Literal
+from qdmpy import BaseProcessor, ProcessorRegistry
+from qdmpy.odmr.data import ODMRData
+
+@ProcessorRegistry.register
+class ScaleProcessor(BaseProcessor):
+    type: Literal['ScaleProcessor'] = 'ScaleProcessor'
+    scale: float = 1.05
+
+    def process(self, data: ODMRData) -> ODMRData:
+        return ODMRData(data=data.data * self.scale, metadata=data.metadata.copy())
+```
+
+```python
+from qdmpy.odmr.processors import ODMRProcessorManager
+
+manager = m.odmr.processor_manager
+manager.add_processor(ScaleProcessor(scale=1.1))
+
+config = manager.pipeline_config              # JSON-serializable list of dicts
+restored = ODMRProcessorManager.from_config(config)  # e.g. after loading config from disk
+```
 
 ---
 
@@ -167,17 +200,17 @@ class MyReconstructor:
 Pass it to `QDMResult` or directly to `MagneticMap.from_b111()`:
 
 ```python
-import QDMpy
+import qdmpy
 
-result = QDMpy.load('/data/FOV18x').fit_odmr()
+result = qdmpy.load('/data/FOV18x').fit_odmr()
 
 # Option A: via QDMResult (most common)
-from QDMpy import QDMResult
+from qdmpy import QDMResult
 qdm = QDMResult(fit_result=result.fit_result, reconstructor=MyReconstructor())
 mm  = qdm.magnetic_map   # uses MyReconstructor
 
 # Option B: directly
-from QDMpy.magnetic_map import MagneticMap
+from qdmpy.magnetic_map import MagneticMap
 import xarray as xr
 b111_da = xr.DataArray(
     result.b111_remanent,
@@ -185,7 +218,18 @@ b111_da = xr.DataArray(
     attrs={'pixel_spacing': result.pixel_spacing},
 )
 mm = MagneticMap.from_b111(b111_da, reconstructor=MyReconstructor())
+
+# Option C: keep reconstruction settings explicit instead of relying on globals
+mm = MagneticMap.from_b111(
+    b111_da,
+    reconstructor=MyReconstructor(),
+    settings=my_settings,
+)
 ```
+
+The extra `settings=` hook matters mainly for tests, libraries embedding
+qdmpy, or batch workflows that want reconstruction behavior independent of the
+process-global settings singleton.
 
 ---
 
@@ -195,8 +239,8 @@ All three protocols use `@runtime_checkable`, so you can verify compliance at
 runtime:
 
 ```python
-from QDMpy import Processor, FieldReconstructor
-from QDMpy.fitting.models import Model
+from qdmpy import Processor, FieldReconstructor
+from qdmpy.fitting.models import Model
 
 isinstance(MyProcessor(), Processor)               # True
 isinstance(MyReconstructor(), FieldReconstructor)  # True

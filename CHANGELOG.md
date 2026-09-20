@@ -7,7 +7,1043 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.1.0] - 2026-09-20
+
+First tagged release. Everything below is the accumulated history of the
+architectural overhaul; it is listed here because no prior version was ever
+tagged, not because it all landed on this date.
+
+### Packaging (2026-09-20 release prep)
+
+- **`pygpufit` moved from a required dependency to the `gpufit` extra.** It was
+  declared mandatory, but it is not published on PyPI and was resolved from
+  wheels vendored under `src/pyGpufit/` via uv-only `[tool.uv.sources]` config.
+  That config is stripped from built metadata, so any install that was not an
+  editable uv install from a checkout failed to resolve. Every `import pygpufit`
+  in the package was already guarded, so this changes packaging only, not
+  behaviour. Install with `uv sync --extra gpufit` from a clone.
+- **`__version__` now reads from installed package metadata** instead of a
+  hardcoded literal, which had drifted to `0.1.0a` while `pyproject.toml` said
+  `0.0.1`.
+- **qdmpy-core is not published to PyPI.** README and docs now document
+  cloning or `pip install git+https://...` instead of `pip install qdmpy-core`.
+
+### Removed (2026-09-19 breaking cleanup) -- BREAKING
+
+- **`gpu_available=`** removed from `FitManager`, `Measurement.fit_odmr`,
+  `fit_folded_odmr`, `refit_outliers` and the workflow helpers (deprecated
+  since QEP-068). Use `backend='gpufit' | 'scipy' | 'torch' | 'auto'` or a
+  `FitBackend` instance. Passing it now raises `TypeError`.
+- **`OutlierProcessor`** removed (deprecated 2026-08-30). It z-scored along
+  the frequency axis, where the resonance dip is the largest deviation, so it
+  masked either nothing or the signal. Use
+  `qdmpy.field_processing.HotPixelFilter` post-fit. A saved pipeline config
+  naming it now raises `ConfigurationError` with that explanation;
+  `ProcessorRegistry.removed` lists removed types so front ends can strip
+  them before loading.
+
+### Changed (2026-09-19 breaking cleanup) -- BREAKING
+
+- **`FoldedODMR.fold_residual` is no longer clipped to [0, 1].** The clip
+  saturated every pixel whose antisymmetric power exceeded its folded
+  variance at exactly 1.0, erasing the ranking among the pixels that most
+  need inspection. Values are now `>= 0` and unbounded; `plot_folding_overview`
+  scales the map to its 99th percentile. Anything thresholding the map on the
+  old [0, 1] scale must be revisited (qdmpy-gui updated alongside).
+
+### Changed (2026-09-19 dependency upgrade) -- BREAKING
+
+- **Dependencies upgraded** and floors raised: numpy 2.5, scipy 1.18,
+  xarray 2026.7, numba 0.67, matplotlib 3.11, h5py 3.16, pydantic-settings
+  2.15; torch (gpu extra) 2.14; dev tools ruff 0.16.8 and ty 0.0.82. Full
+  suite, including the NPZ regression fixtures, passes unchanged.
+- **Keyword-only arguments** (ruff PLR0917 adopted). Arguments that were
+  easy to swap silently are now keyword-only:
+  - `FitBackend.fit(data, freq_ghz, *, initial_parameters, constraints,
+    constraint_types, model, options)` on every backend, including custom
+    ones implementing the protocol. `constraints` and `constraint_types` are
+    adjacent `NDArray`s; swapping them fitted with nonsense bounds and no error.
+  - `Measurement(odmr, light_image, laser_image, output_directory, *,
+    pixel_spacing, fit_model, metadata)`.
+  - `polyfit2d(x, y, z, *, kx, ky, order)`,
+    `make_synthetic_odmr_data(shape, *, ...)`, and internal plotting helpers.
+- `ModelRegistry.register` and `ProcessorRegistry.register` are generic and
+  return the decorated class's own type, so type checkers no longer see every
+  registered model/processor as the base class.
+- torch is declared an allowed-unresolved import for ty instead of inline
+  ignores, so `ty check` passes with and without the `gpu` extra.
+
+### Fixed (2026-09-19 dependency upgrade)
+
+- `mkdocs build --strict` failed on develop: the API page referenced
+  `qdmpy.fitting.manager.ESTIMATOR_ID` (moved to `fitting.backends`), and a
+  `Measurement.from_folder` docstring used `Example:` instead of `Examples:`.
+
+### Changed (2026-09-19 housekeeping)
+
+- **One pytest config.** `pytest.ini` silently overrode
+  `[tool.pytest.ini_options]` in `pyproject.toml`; the two are merged into
+  `pyproject.toml` and `pytest.ini` is deleted. `norecursedirs` now restates
+  pytest's defaults (it replaced them, which made hypothesis warn about
+  `.hypothesis/`). Coverage is measured on `qdmpy` only, no longer on `tests/`.
+- Removed dead config: `[tool.mypy]` (ty is the type checker), `setup.cfg`
+  (flake8 only), `package-lock.json`, and the unused Linux
+  `pyGpufit-1.2.0` wheel (the lock resolves 1.3.0).
+- Tutorial and experiment notebooks are now lint- and format-clean under
+  `ruff check .` / `ruff format --check .`, with notebook-appropriate
+  per-file ignores. `docs/tutorials/.archive/` is excluded.
+
+### Fixed (2026-09-19 housekeeping)
+
+- `test_toml_file_loading` tested nothing: it patched `Path.home` after
+  `CONFIG_FILE` was already computed, and asserted only `isinstance`. It now
+  loads a real TOML file; new tests cover unknown TOML keys raising and env
+  vars overriding TOML.
+
+### Fixed (2026-08-30 bugs & tech-debt review, P2 -- technical debt)
+
+Numerical changes below were validated against an analytic point dipole
+before being made; the figures are from those runs.
+
+- **`UpwardContinuation` rang at map edges whenever the map had an offset.**
+  The mean was left in before zero-padding, so the pad boundary was a step of
+  size `mean(data)`. It is now removed before padding and restored afterwards
+  -- exact, since continuation leaves the k=0 term unchanged. With a 5 uT
+  uniform offset: RMS error 0.71 -> 0.0013 uT, edge error 3.4 -> 0.006 uT
+  (20 uT peak). Trade-off: with *no* background the error is marginally
+  higher (<= 0.0015 uT); real B111 maps routinely carry uT-scale offsets.
+  `padding_factor` is now validated `>= 1` (smaller values crashed).
+- **Bxyz reconstruction wrapped around at map edges** (F8, open since
+  2026-08-22): `_reconstruct_bxyz` FFT'd the raw map with no padding. It now
+  removes the mean and zero-pads 0.25x per side. For a dipole truncated by
+  the map edge: RMS Bz error 0.24 -> 0.06 uT (160 uT peak); centred sources
+  are unchanged, and larger pads gave no further gain. **Cost** at 1200x1920:
+  0.26 s / 461 MB -> 0.61 s / 1037 MB peak; `pad_fraction=0` opts out.
+- **`HotPixelFilter` caught none of the hot pixels it exists to catch.** It
+  thresholded on the *global* std, which real magnetic features inflate. On a
+  synthetic map with noise, a dipole and 20 injected 2 uT spikes it caught
+  0/20 while still flagging 49 of 337 real-signal pixels. It now thresholds
+  the residual against a local 3x3 median (robust sigma from MAD): 20/20
+  spikes caught, 30 signal pixels flagged (all at the ~4 px dipole core).
+  Note: the review recommended a global MAD instead -- that was wrong; it
+  catches every spike but flags all 337 signal pixels. Replacement is also no
+  longer order-dependent (windows read the original map and exclude other
+  flagged pixels). **Behaviour change**: results differ from previous
+  releases for any map with real features.
+- **`FitResult` guessed an image shape on a pixel-count mismatch** (F6, open
+  since 2026-08-22), reshaping maps into a plausible-but-wrong geometry. It
+  now raises `DataShapeError`.
+- **Model auto-detection depended on registry insertion order.**
+  `get_model_by_peaks` returned the first registered model with the detected
+  peak count; it now raises `ModelNotResolvedError` when several match. This
+  surfaced real test pollution (three test modules leaked custom single-dip
+  models into the global registry); tests now scope their registrations.
+- `ScipyBackend` reports `njev` (accepted iterations) as `iterations`.
+
+### Changed (2026-08-30 bugs & tech-debt review, P2)
+
+- Typed exceptions (`DataValidationError`, `ConfigurationError`,
+  `ParameterError`, `DataShapeError`) replace bare `ValueError` in
+  `field_processing`, `magnetic_map` and `plotting`. Raises inside pydantic
+  field validators intentionally stay `ValueError` -- pydantic only wraps
+  `ValueError`/`AssertionError` into `ValidationError`.
+- `ODMRProcessorManager.add_processor` is typed with the `Processor`
+  protocol, matching its documented duck-typed contract.
+
+### Fixed (2026-08-30 bugs & tech-debt review, P1 -- correctness)
+
+- **`fastmath=True` was silently disabling every NaN guard in the guessers.**
+  Found while fixing the reported NaN-unsafety: `fastmath` implies LLVM's
+  no-NaN assumption, under which numba folds `np.isnan(...)` to `False`. The
+  worst consequence was `top3_contrast` returning exactly **0.0 contrast** for
+  any pixel holding a single NaN, despite carrying an explicit
+  `if np.isnan(v): continue`. `normalize_pixel`, `top3_contrast`,
+  `cumsum_center`, `argmin_center`, `cumsum_width` and `halfpower_width` no
+  longer use `fastmath`; a test asserts the compile flags so the guards cannot
+  be silently re-broken. Measured cost at 1200x1920: under 1 s per guesser.
+- **NaN-unsafe centre and width estimators.** `normalize_pixel` produced an
+  all-NaN curve from one NaN sample (collapsing `argmin` lookups to index 0),
+  `argmin_center` followed `np.argmin` onto the NaN itself, `halfpower_width`
+  pinned its minimum at index 0 when the first sample was NaN, and
+  `guess_n_peaks` used `np.median` rather than `nanmedian`, letting one dead
+  pixel poison model auto-detection. Centre guesses are now NaN-invariant;
+  width guesses stay finite and physically sensible (they can still shift when
+  a NaN lands on a half-power crossing, which is acceptable for an initial
+  guess). NaN pixels are reachable in production: `NormalizationProcessor`
+  emits them by design for zero-factor pixels.
+- **`halfpower_width` no longer reports zero width** when no half-power
+  crossing is found; it falls back to the window edge, as its docstring
+  always claimed.
+- **`QuadraticBackgroundSubtractor` was NaN-poisoned by a single pixel**
+  (F10, open since 2026-08-22): `lstsq` propagates one NaN into every
+  coefficient, NaN-ing the entire output map. Non-finite samples are now
+  excluded from the fit, and a map with too few usable pixels raises
+  `DataShapeError` instead of returning a NaN surface. `mask` is validated as
+  a `(row_indices, col_indices)` pair at construction.
+- **`get_settings()` no longer destroys the host application's logging.**
+  It called `logger.remove()`, dropping every loguru sink in the process --
+  including an embedding app's. Since `FitManager.__init__` calls
+  `get_settings()`, the first fit in a GUI/server session silently re-routed
+  that app's logging. Reading settings now has no side effects at all (it also
+  no longer creates the config directory).
+- **`FitManager.set_constraints` logged `%s` placeholders to loguru**, which
+  formats with `str.format` -- the message rendered literally and every
+  argument was discarded.
+- **`FitResult` no longer freezes the caller's arrays in place.** It set
+  `flags.writeable = False` on the arrays it was handed, so a caller that kept
+  a reference hit a read-only failure far from the cause. Arrays are copied on
+  ingest; arrays already frozen by a previous `FitResult` are shared, not
+  re-copied.
+- **Spectral folding used the low branch's frequency step for the high
+  branch's index arithmetic**, mis-sampling whenever the two ranges are swept
+  at different resolutions. Each branch now uses its own step, and the
+  duplicated overlap calculation calls `_overlap_range` instead.
+- **`FitResult.linewidths` docstring said Hz**; all frequencies are GHz.
+
+### Added (2026-08-30 bugs & tech-debt review, P1)
+
+- **chi2 provenance.** `FitResult.metadata` records `fit_backend` and
+  `fit_estimator`. chi2 is only comparable within one such pair -- gpufit's
+  MLE estimator returns a Poisson deviance while the scipy and torch backends
+  always return a sum of squared residuals. Since the P0 refit guard compares
+  chi2 *absolutely*, `refit_outliers` now warns when asked to refit a result
+  that was fitted with a different backend or estimator.
+- **Refits inherit the original fit's configuration.**
+  `FitResult.metadata` records `fit_constraints` and `fit_freq_cutoff`, and
+  `refit_outliers` falls back to them. `Measurement.refit_outliers` documented
+  this behaviour but passed `None` straight through to a `FitManager` built on
+  library defaults, so a standalone refit after a constrained fit silently
+  refitted those pixels under different constraints. An explicit argument
+  still wins.
+- `configure_logging()` is now public and exported from `qdmpy`.
+
+### Changed (2026-08-30 bugs & tech-debt review, P1)
+
+- **BREAKING -- `logging.enable_structured_logging` now defaults to `False`.**
+  Importing and using the library no longer creates `~/logs/` or writes
+  rotating JSON logs there unasked. Applications that want qdmpy's sinks call
+  `configure_logging()` explicitly; the CLI does this at entry. Library code
+  never does.
+- `Measurement` no longer allocates `_outliers`, a boolean array the size of
+  the raw 5D data that nothing in the package read -- 460 MB per `Measurement`
+  at the documented target resolution.
+
+### Fixed (2026-08-30 bugs & tech-debt review, P0 -- silent wrong results)
+
+The four findings from `docs/reviews/2026-08-30-bugs-and-tech-debt-review.md`
+where the library returned plausible-looking wrong data rather than failing.
+
+- **`.qdm` round-trip silently lost every fit state.** `states` was written
+  to disk as `fit_states` and then skipped on read, so every loaded result
+  reported 100% convergence, `get_fit_quality_metrics()` dropped
+  `convergence_rate`/`n_converged`, and
+  `refit_outliers(include_non_converged=True)` became a no-op on loaded
+  results. Measured before the fix: 45 non-converged pixels -> 0.
+- **`.qdm` files now carry the frequency axis they were fitted against.**
+  The format's documented `fit/frequencies` dataset was never actually
+  written, so a saved result could not be refit or replotted against its own
+  x-axis. `FitManager` now records `metadata["frequencies_ghz"]` and
+  `save_qdm` persists it as a float64 dataset.
+- **Refit no longer reports work it discarded, and converges when it should.**
+  `refit_info["n_refitted"]` counted *attempted* refits, so `_refit_pass`
+  always returned a new `FitResult` and `refit_outliers`' early-stop never
+  fired -- measured at 4 passes / 112 pixel-fits / 0 parameters changed on a
+  clean fit. `refit_info` now reports `n_accepted` alongside `n_refitted`,
+  per-frange as well, and a pass where nothing improved ends the loop. The
+  per-frange log line no longer mixes per-pixel and per-(polarity, pixel)
+  counts.
+
+### Changed (2026-08-30 bugs & tech-debt review, P0)
+
+- **BREAKING -- unknown fields are rejected everywhere.** `BaseProcessor`,
+  `BaseFieldProcessor`, their concrete subclasses, and the whole settings
+  tree now use `extra="forbid"`. Previously a typo was silently dropped and
+  the object ran on a default the caller never chose: `settings.toml` with
+  `center_min_ml` (for `center_min_mt`) fitted under the wrong constraint
+  with no diagnostic, and the published tutorial's
+  `OutlierProcessor(threshold=3.0)` constructed with the destructive default.
+  Stray `QDMPY_*` environment variables are unaffected -- pydantic-settings
+  only maps env vars onto declared fields.
+- **BREAKING -- dead settings sections removed.** `default_paths`, `odmr`,
+  `model.find_peaks` and the entire `outlier_detection` tree
+  (`OutlierDetectionSettings`, `LocalOutlierFactorSettings`,
+  `StatisticsPercentileSettings`) are gone. Nothing in the library ever read
+  them, but they were documented and user-settable. Combined with
+  `extra="forbid"` above, an existing `settings.toml` containing them will
+  now fail to load -- delete those sections. `model.find_peaks.prominence` in
+  particular advertised a tunable peak-detection threshold on the
+  model-detection path while `guess.py` used its own adaptive
+  `_relative_prominence`; the adaptive version is kept.
+
+### Deprecated (2026-08-30 bugs & tech-debt review, P0)
+
+- **`OutlierProcessor` is deprecated and will be removed in the next minor
+  release.** It cannot work at any setting: it z-scores along `freq_idx`,
+  where the ODMR resonance dip is by definition the largest deviation.
+  Measured on a clean ESR14N spectrum the dip's z-score (~1.9) is the maximum
+  anywhere, so `>= 2.0` masks nothing, `< 2.0` masks the resonance first, and
+  the shipped default `0.003` masks ~99.9% of the data. Construction now
+  warns, and `process()` warns again if it masked more than half the data.
+  Use `qdmpy.field_processing.HotPixelFilter` for spatial outlier rejection.
+  (Open as F1 since the 2026-08-22 review.)
+
+### Documentation (2026-08-30 bugs & tech-debt review, P0)
+
+- `docs/tutorials/processors.md` no longer instructs users to call
+  `OutlierProcessor(threshold=3.0)` (no such field -- it silently produced
+  the 99.9%-masking default), `FluorescenceCorrectionProcessor(factor=0.2)`
+  (the field is `correction_factor`), or `NormalizationProcessor(method='max')`
+  ahead of fluorescence correction, which the code itself warns against.
+- `docs/migration.md` no longer recommends `OutlierProcessor` as the port
+  target for the old `LocalOutlierFactor`/`IsolationForest` detectors; it
+  points at `HotPixelFilter`.
+- `docs/tutorials/settings_configuration.md` updated for the removed
+  sections and the new `extra="forbid"` behaviour.
+
+### Changed (2026-08-30 correctness review, SOLID findings)
+
+The 5 `develop`-scope SOLID findings from
+`docs/reviews/2026-08-30-correctness-and-solid-review.md` (the alignment-branch
+findings are separate, tracked on `feature/qep-067-alignment-stitching`):
+
+- **LSP** -- `FitBackend` Protocol now documents its non-finite-input
+  contract explicitly: implementations must not raise on NaN/Inf rows in
+  `data`, only mark the affected fit(s) invalid and continue fitting the
+  rest of the batch. Verified `GpufitBackend` already complies (returns a
+  non-zero `states` entry, no exception) before writing the contract down.
+- **DRY** -- the duplicated "probe `Model.jacobian`, validate column
+  count/shape, warn and fall back to finite differences" skeleton in
+  `fitting/backends.py` and `fitting/torch_backend.py` is now one shared
+  `resolve_analytic_jacobian_columns()` helper in `fitting/models.py`,
+  parameterized by each backend's probe call and shape convention.
+- `fitting/manager.py`'s deprecated `gpu_available` path now resolves
+  `GpufitBackend` through `resolve_backend("gpufit")`/`_BACKENDS_BY_NAME`
+  like every other backend-resolution path, instead of constructing it
+  directly.
+- **OCP** -- `odmr/processors.py` gains a `ProcessorRegistry` (mirroring
+  `ModelRegistry`), replacing the hardcoded 4-type discriminated union
+  `ProcessorSpec`/`_adapter`. A custom processor can now round-trip through
+  `ODMRProcessorManager.to_config()`/`from_config()` by registering itself
+  via `@ProcessorRegistry.register`, without editing this module -- closing
+  the gap where the `Processor` protocol's own "needs no base class"
+  contract didn't hold for config serialization. `ProcessorRegistry` and
+  `BaseProcessor` are now exported from the top-level `qdmpy` package
+  (matching `ModelRegistry`'s existing precedent), and
+  `docs/extending.md`'s "Custom ODMR Processor" section gains a "Config
+  round-tripping" subsection showing the pattern.
+- **SRP** -- `odmr/io.py`'s `MatlabLoader.load()` is decomposed into
+  `_discover_files`, `_load_single_file`, `_parse_frequencies`, and
+  `_assemble_data_array`; `load()` is now a ~15-line orchestrator and no
+  longer needs `# noqa: C901, PLR0912, PLR0915`. Pure refactor, no behavior
+  change.
+
+### Fixed (2026-08-30 correctness review)
+
+Findings from `docs/reviews/2026-08-30-correctness-and-solid-review.md`.
+
+- **`refit._refit_pass` wrote refit results back unconditionally**, even when
+  the refit landed in a strictly worse local minimum than the pixel's
+  existing fit. Now only accepted when the new chi2 improves on the old one
+  (or the old chi2 was non-finite).
+- **`ScipyBackend` raised and aborted the entire fit batch on a single
+  NaN-containing pixel**, unlike `TorchBackend`, which degrades gracefully
+  per-pixel. `ScipyBackend` now marks that one pixel invalid (`states=2`)
+  and continues fitting the rest, matching `TorchBackend`'s contract.
+- **`utils.double_norm` crashed on its own documented default** (`axis=None`)
+  and on any axis but the last, due to `np.expand_dims` always restoring the
+  reduced dimension at `data.ndim - 1`. Now uses `keepdims=True`.
+- **`utils.millify` raised `IndexError` for `|n| >= 1e15`** and silently
+  collapsed sub-milli values (e.g. `0.0005`) to `"0.0"`, because the unit
+  index was clamped to the wrong bounds before an offset was applied.
+- **`plot_fluorescence_correction` had inverted polarity sign labels** --
+  polarity index 0 (`neg`) was labeled `"+"` and index 1 (`pos`) labeled
+  `"-"`. Now reads the actual `polarity` coordinate.
+- **`ODMRData`'s frequency-axis validation was skipped on the real data path.**
+  `from_loader()` (used by `MatlabLoader` and every real ingestion path)
+  constructed `ODMRData` without checking `freq_ghz` for finiteness/
+  monotonicity, unlike `from_numpy()`. Both paths now share one check.
+- **`BinningProcessor` silently produced a zero-sized array** when
+  `bin_factor` exceeded the scan dimensions (`coarsen(..., boundary="trim")`
+  trims to empty with no error). Now raises `DataShapeError`.
+- **`NormalizationProcessor` divided by an unguarded zero factor**, producing
+  silent NaN (equal values) or `+-inf` (values that cancel to a zero mean)
+  for a dead-pixel spectrum. Now forces NaN explicitly and warns.
+- **`io.qdm._check_version` was one-directional**, rejecting `.qdm` files
+  newer than the code understands but silently loading files declaring an
+  older major schema version. Now rejects both directions.
+- **CLI `--version` always reported `"unknown"`** on a real install --
+  `get_version("QDMpy")` was called against a distribution named
+  `qdmpy-core`, only masked locally by a stale pre-rename `egg-info`.
+- **`MagneticMap.display`'s documented `**imshow_kwargs` passthrough raised
+  `TypeError`** -- it forwarded to `plot_magnetic_component`, which had no
+  `**kwargs` in its signature. Now threaded through to the underlying
+  `ax.imshow` call.
+
+### Fixed (CI)
+
+- `.github/workflows/test.yml`'s `pre-commit` and `test` jobs still installed
+  via Poetry on Python 3.7-3.10, from before this repo switched to `uv` and
+  raised its Python floor to 3.13 -- `poetry install` failed immediately with
+  no `poetry.lock` present, so every push/PR had a permanently red `Test`
+  workflow regardless of code changes. Both jobs now use `uv sync` on Python
+  3.13, matching the pattern already established in `notebooks.yml` and
+  `qdmpy-gui/.github/workflows/ci.yml`.
+- Bumped `actions/checkout@v2` -> `@v4` (deprecated runner) across every
+  workflow file, `actions/setup-python@v2` -> `@v5` in `cookiecutter.yml`,
+  and `peter-evans/create-pull-request@v3` -> `@v7` in `cookiecutter.yml` /
+  `dependencies.yml`, so `actionlint` passes.
+- Replaced a deprecated `::set-output` command in `cookiecutter.yml` with
+  `$GITHUB_OUTPUT`.
+- `dependencies.yml`, `draft_release.yml`, and `release.yml` also still ran
+  Poetry end to end (dependency auto-updates, version bumping, PyPI
+  publish) and would have failed the same way if actually triggered. All
+  three now run on `uv`: `uv lock --dry-run --upgrade` replaces
+  `poetry show -o`, `uv version --bump {major,minor,patch}` (or an explicit
+  version) replaces `poetry version`, and `uv build` / `uv publish` replace
+  `poetry publish`. `kacl-cli` now runs via `uvx --from python-kacl` rather
+  than being a project dependency. The archived `actions/create-release@v1`
+  is replaced with `gh release create`. Removed the now-unused
+  `.github/actions/python-poetry-env` composite action.
+- With `test.yml` finally installing via `uv` instead of failing at
+  `poetry install`, `uv run pytest` ran to completion on a CI runner for the
+  first time and surfaced two test modules that were never actually
+  CI-worthy: `tests/integration/test_folded_real_data_regression.py` hits
+  real data fixtures not present in the repo (now skips cleanly, matching
+  the existing `test_io.py`/`test_data.py` "Test data directory not found"
+  convention), and `tests/integration/test_gpufit_consistency.py` only
+  checked that `pygpufit` *imports*, not that a CUDA-capable GPU is actually
+  present -- it imports fine on any machine with the wheel installed and
+  fails at fit time with "CUDA driver version is insufficient" otherwise.
+  Both now gate on `pygpufit.gpufit.cuda_available()`.
+
+### Added (QEP-073: analytic Jacobians)
+
+- **`Model.jacobian(x, parameters)`** — optional hook returning per-parameter
+  analytic derivatives as a tuple of `(n_fits, n_freq)` columns, or `None`.
+  Columns rather than a stacked array so the implementation stays
+  framework-neutral (numpy and torch) and each backend stacks with its own
+  framework. Defaults to `None`, so custom models keep working unchanged on
+  finite differences.
+- **`qdmpy.fitting.models._lorentzian_dips_jacobian`** plus `esr14n_jacobian`,
+  `esr15n_jacobian`, `esrsingle_jacobian` — one shared derivation for all
+  three ESR models, which differ only in their dip offsets. Cross-checked
+  term by term against gpufit's kernels.
+- `TorchBackend` and `ScipyBackend` use the analytic Jacobian when a model
+  supplies a valid one, resolved once per `fit()` and falling back to finite
+  differences otherwise.
+- `scripts/benchmark_fit_backends.py --width-range {synthetic,realistic}` —
+  the consistency-test width range (0.002-0.005 GHz HWHM) is 3-8x wider than
+  real data (~0.0006 GHz for 15N), which understated the finite-difference
+  error; both regimes are now measurable.
+
+### Fixed (QEP-073: analytic Jacobians)
+
+- **`TorchBackend` fitted `center` significantly less accurately than gpufit.**
+  Its finite-difference step scaled with each parameter's own magnitude, so
+  `center` (~2.87 GHz) was differenced over ~0.99 MHz -- comparable to, and on
+  real 15N data 1.6x larger than, the linewidth that actually sets its
+  sensitivity. ESR15N was worst hit, having no dip at `center` to observe
+  directly. On 100k perturbed synthetic fits, torch now matches gpufit:
+  ESR15N chi2 max 1.31e-3 -> 2.48e-4 and max center error 2.45e-3 -> 1.23e-3
+  GHz; ESR14N 1.43e-4 -> 1.06e-4 and 1.56e-3 -> 1.18e-3. On real data,
+  gpufit-vs-torch B111 correlation on FOV18x (15N) rises from r = 0.52 / 0.80
+  to 0.974 / 0.991, with the map spread now matching gpufit (0.1034 vs 0.1057
+  uT) instead of being 2x too wide; MIL2_FOV1 (14N) improves from 0.993 /
+  0.997 to 0.9997 / 0.9999.
+
+### Changed (QEP-073: analytic Jacobians)
+
+- `TorchBackend` fitting is ~1.8x faster on ESR14N/ESR15N (100k synthetic
+  fits, RTX 3050 Ti) from the analytic Jacobian plus fewer LM iterations
+  (ESR14N mean 8.5 -> 6.5, max 245 -> 63).
+- On real data at the same estimator, `TorchBackend` is now **faster than
+  `GpufitBackend`**: MIL2_FOV1 at bin_factor=4 (576k spectra, LSE pinned on
+  both) fits in 2.91 s against gpufit's 4.28 s, at equal chi2 (median
+  9.9921e-7 vs 9.9930e-7) and 100% convergence on both, with B111 agreement
+  r = 0.99998 / 0.99999 and matching map spread (3.8124 vs 3.8125 uT).
+  Fitting is a small share of that pipeline either way -- loading the same
+  measurement takes 16 s.
+- `tests/integration/test_torch_consistency.py` tolerances tightened by 2-4
+  orders of magnitude (chi2 1e-6 -> 1e-10, center 5e-6 -> 1e-6, width 2e-2 ->
+  1e-4, contrasts 2e-2 -> 1e-3, offset 1e-4 -> 1e-5) to lock the gain in.
+- `TorchBackend._analytic_jacobian` deliberately stacks on dim 0 and permutes
+  rather than stacking on dim -1. Both produce shape `(a, f, p)`, but the
+  downstream `jac.mT @ jac` inherits the memory layout, and the wrong one
+  makes `aten::bmm` ~5x slower (79 ms -> 394 ms of device time) -- enough to
+  make analytic Jacobians slower overall than finite differences. Preserve
+  this layout in both Jacobian paths.
+
+### Known limitations (QEP-073: analytic Jacobians)
+
+- `TorchBackend` still implements only least squares.
+  `QDMpySettings.fit.estimator` defaults to `"MLE"`, so a default-configured
+  torch fit logs a
+  warning and silently runs LSE while `GpufitBackend` runs MLE -- the two
+  backends are therefore not interchangeable on the default configuration.
+  MLE is the correct estimator for photon-shot-noise-limited data. Unrelated
+  to this change (it predates it), but measured and confirmed here; a
+  follow-up QEP should close it.
+- The analytic Jacobian is verified on CUDA and CPU only. The MPS path runs
+  the same code and passes the test suite, but the bmm-layout finding above
+  is a cuBLAS behaviour and has not been re-measured on Apple silicon.
+- At realistic linewidths a small number of fits (order 100 in 100k) still
+  land in local minima on a barely-sampled line -- 50 points across 40 MHz is
+  0.8 MHz spacing against a ~0.6 MHz HWHM. gpufit's float64 Hessian
+  accumulators handle those few better. This is a sampling limit, not a
+  derivative one; the analytic path still beats finite differences there
+  (ESRSINGLE max center error 6.85e-2 -> 2.48e-2 GHz).
+
+### Added (QEP-070: fit pipeline unification)
+
+- **`qdmpy.fitting.freq_cutoff.FreqCutoff`** — frozen value object replacing
+  ~110 lines of inline `freq_cutoff` dict parsing in `FitManager`, with its
+  own independently-tested schema/range validation.
+- **`qdmpy.fitting.constraints.constraints_to_array` /
+  `constraint_type_indices`** — pure module-level projections extracted from
+  `ConstraintManager.to_array`/`.get_constraint_types`.
+- **`qdmpy.fitting.constraints.ConstraintOverride`** — frozen value object for
+  per-parameter-type constraint overrides, used by `fit_folded()`'s
+  contrast/offset bounds instead of constructing a second `FitManager`.
+- `FitManager.fit()` decomposed into independently unit-tested stages
+  (`_prepare_data`, `_resolve_model`, `_guess_parameters`, `_fit_all_franges`,
+  `_assemble_result`) composed through a shared `_fit_prepared()` internal
+  execution path also used by `fit_folded()`.
+- `tests/test_fit_pipeline_parity.py`, `tests/test_freq_cutoff.py` — parity,
+  characterization, and unit test coverage for the above.
+
+### Fixed (QEP-070: fit pipeline unification)
+
+- `FitManager.fit()` no longer mutates the shared `ConstraintManager` mid-fit
+  when applying per-frange mT center-window bounds — the last frange's window
+  used to leak into the manager's stored constraints, contradicting the
+  documented "stateless between calls" contract. Per-range constraints are
+  now computed fresh and layered via `Constraint.with_updates()` without
+  writing back to shared state.
+- `fit_folded()` no longer hand-rebuilds the folded-to-fit-inputs conversion
+  or constructs a second `FitManager`; it now calls
+  `FoldedODMR.to_fit_inputs()` (the same conversion the refit path already
+  used) and delegates to the shared `_fit_prepared()` path.
+
+### Changed (QEP-070: fit pipeline unification)
+
+- `FitManager._param_idx()`'s undocumented `"resonance"`/`"mean_contrast"`
+  parameter aliases now raise `DeprecationWarning` before remapping to
+  `"center"`/`"contrast"`.
+
+Supersedes QEP-FIT-003 and QEP-060 — see
+`proposals/QEP-070-fit-pipeline-unification.md`.
+
+### Fixed (QEP-071: refit pipeline consistency)
+
+- `FitManager.fit_frange()` now applies `freq_cutoff` trimming and per-range
+  constraint overrides (mT center window, folded-fit contrast/offset bounds)
+  before delegating to the backend, matching the preprocessing `fit()`/
+  `fit_folded()` already apply. Previously `fitting.refit`'s outlier-refit
+  path called `fit_frange()` with the manager's plain, unmodified
+  constraints and the full uncut frequency axis, so refit pixels were fit
+  inconsistently with the rest of the map whenever `freq_cutoff` was
+  configured or the original fit was folded. `fit_frange()`'s signature
+  changed to require `irange`/`n_frange` (no default) and accept an optional
+  `constraint_overrides` — this reverses a scope boundary QEP-070 explicitly
+  left in place; see `proposals/QEP-071-refit-pipeline-consistency.md`.
+
+### Fixed (examples)
+
+- `examples/example_data.py` and `examples/fit_15n_sample.py` no longer
+  import from `qdmpy.models`/`qdmpy.odmr.odmr`, modules removed by the
+  pre-QEP-070 `fitting/`/`odmr/` subpackage restructure — both were broken
+  (`ModuleNotFoundError`) and unrelated to QEP-070/071. Rewritten against the
+  current top-level `qdmpy` API (`qdmpy.load()` and the manual
+  `MatlabLoader`/`ODMR`/`FitManager` pipeline, matching
+  `docs/tutorials/02-exploration.ipynb`); both now actually run a real fit
+  (`fit_15n_sample.py` previously skipped fitting entirely) and were verified
+  end-to-end against `tests/data/FOV18x`.
+
+### Fixed
+
+- `FitManager.fit()`/`fit_folded()` no longer crash on a single-pixel scan
+  (`ny=nx=1`) with more than one polarity. `_reshape_frange_results()` used a
+  bare `np.squeeze()`, which dropped the pixel axis along with the intended
+  trailing singleton, breaking the per-frange buffer assignment; it now drops
+  only the trailing axis.
+- `tests/integration/test_torch_consistency.py` seeded synthetic parameters
+  with `hash(model_name)`, which is randomized per-process
+  (`PYTHONHASHSEED`) — made `test_recovers_truth_from_perturbed_start`
+  intermittently fail depending on run. Seeds now derive from `zlib.crc32`,
+  which is stable across processes.
+
+### Added (QEP-069: torch fit backend)
+
+- **`qdmpy.fitting.torch_backend.TorchBackend`** — architecture-independent
+  GPU fitting via a batched Levenberg-Marquardt engine in PyTorch, one code
+  path for CUDA, Apple-silicon MPS, and CPU. All fits in a chunk advance in
+  parallel (stacked finite-difference Jacobians, batched Cholesky
+  normal-equation solves, active-set handling of box constraints, working-set
+  compaction). On an Apple-silicon MPS device: ~31,000 fits/s on synthetic
+  ESR14N frames (~5 min for a full 1200x1920 x 2-pol x 2-range frame) with
+  100% convergence — versus hours for the per-pixel ScipyBackend.
+- **`gpu` optional extra** — `uv sync --extra gpu` / `pip install
+  'qdmpy[gpu]'` installs torch (>=2.4). torch is imported lazily inside the
+  backend only; `import qdmpy` never pays the torch import cost (guarded by a
+  subprocess test).
+- **Framework-neutral models** — the built-in model functions now use
+  `_ensure_2d` instead of `np.atleast_2d`, so the *same* physics code
+  evaluates numpy arrays and torch tensors (no duplicated kernels). Custom
+  models written with pure arithmetic/broadcasting are GPU-fittable
+  automatically; numpy-only models get a clear error naming
+  `backend='scipy'`.
+- **`fit.backend` gains `'torch'`**; `TorchBackend(device=..., chunk_size=...)`
+  exposes device override (cuda/mps/cpu/auto) and GPU-memory chunking.
+- **`tests/test_fitting_torch_backend.py`** and
+  **`tests/integration/test_torch_consistency.py`** — LM unit tests (bounds,
+  clamping, chunk-invariance, NaN handling, device resolution, custom
+  models) plus the same recovery contract as the gpufit consistency suite,
+  from true and perturbed starts, parametrized over every locally available
+  device (cpu always; mps/cuda when present).
+
+### Changed (QEP-069: torch fit backend)
+
+- **`backend='auto'` resolution** — now gpufit if available, **else torch
+  when a real GPU device (cuda/mps) exists**, else a DependencyError listing
+  all remedies. Machines where fitting previously failed outright (e.g.
+  Apple silicon) now work with zero configuration once the `gpu` extra is
+  installed; CUDA/gpufit machines are unaffected. CPU fitting (torch-CPU,
+  scipy) remains an explicit opt-in — never a silent fallback.
+- The workflow-level pygpufit preflight now applies only to an explicit
+  `backend='gpufit'` request; `'auto'` defers to
+  `FitManager._require_backend_available()`, whose error now includes the
+  backend's install hint.
+
+### Added (QEP-068: fit backend seam)
+
+- **`qdmpy.fitting.backends`** — new module defining the `FitBackend`
+  protocol and its adapters: `GpufitBackend` (GPU, extracted from
+  `FitManager.fit_frange`), `ScipyBackend` (CPU fitting via
+  `scipy.optimize.least_squares`, supports any model including pure-Python
+  custom models with `model_id=-1`), and `resolve_backend()` /
+  `with_forced_availability()` for name/instance resolution. This module is
+  now the *only* place `pygpufit` is imported in the codebase.
+- **`FitManager(backend=...)`** — `FitManager`, `Measurement.fit_odmr()`,
+  `Measurement.fit_folded_odmr()`, and `Measurement.refit_outliers()` accept
+  an explicit `backend` (a name — `'auto'`/`'gpufit'`/`'scipy'` — or a
+  `FitBackend` instance). `'auto'` never silently falls back to a slower CPU
+  fit: a missing gpufit install raises `DependencyError` naming the explicit
+  `backend='scipy'` opt-in.
+- **`FitSettings.backend`** — new settings field (default `'auto'`) selecting
+  the default backend when no explicit `backend=` is passed.
+- **`qdmpy.testing.FakeFitBackend`** — deterministic, dependency-free fit
+  backend (echoes back initial parameters, always converged) for tests that
+  exercise the real `FitManager`/`Measurement` fit pipeline without a GPU.
+- **`tests/test_fitting_backends.py`** — new test suite covering backend
+  resolution, `GpufitBackend.supports()`/`ScipyBackend` behavior, the
+  `gpu_available` deprecation path, and an end-to-end pure-Python custom
+  model fit via `backend='scipy'` (previously impossible — the documented
+  `model_id=-1` contract had no CPU path to fulfil it).
+
+### Changed (QEP-068: fit backend seam)
+
+- **`FitManager(gpu_available=...)` deprecated** — still works (emits
+  `DeprecationWarning`) but is superseded by `backend=`. Passing both raises
+  `ParameterError`.
+- **`tests/test_fit.py`, `tests/test_folded_fit.py`** — migrated off
+  `@patch("pygpufit.gpufit.fit_constrained")` to the injectable
+  `FakeFitBackend`/recording-backend pattern; no longer require a real
+  (or even importable) pyGpufit install to run.
+
+### Fixed (QEP-068: fit backend seam)
+
+- **`is_pygpufit_available()` crashed instead of returning `False`** when
+  pyGpufit was installed but its native library failed to load (e.g. a Linux
+  wheel's `.so` on macOS) — it only caught `ImportError`, not the `OSError`
+  `ctypes.cdll.LoadLibrary` actually raises. Now caught in
+  `qdmpy.settings.is_pygpufit_available()` and the equivalent guard in
+  `tests/integration/test_gpufit_consistency.py`.
+- **`fitting/models.py` imported `pygpufit.gpufit` at module level** purely
+  to read three integer `ModelID` constants — meaning `import qdmpy` (and the
+  entire test suite) crashed on any machine where pyGpufit's native library
+  can't load, before any dependency check ever ran. Replaced with local
+  integer constants; `pygpufit` is no longer imported anywhere outside
+  `fitting/backends.py`.
+- **`FitManager.fit_folded()` duplicated folded fit-input construction**
+  instead of reusing `FoldedODMR.to_fit_inputs()`; the internally-constructed
+  `FitManager` now forwards the already-resolved `backend` instance instead
+  of re-deriving GPU availability from a boolean.
+
+### Changed (QEP-067: architecture boundaries)
+
+- **`.qdm` field-source round-tripping** — `qdmpy.io.load_qdm()` now restores
+  concrete `FieldSource` subtypes (`MagneticSource`,
+  `UpwardContinuedSource`) instead of collapsing them back to the generic base
+  model on load.
+- **`MagneticMap.save()` boundary cleanup** — NetCDF persistence now delegates
+  through `qdmpy.io.save_magnetic_map()`, keeping `MagneticMap` as a thin
+  convenience wrapper rather than owning I/O details directly.
+- **Explicit fitting/reconstruction seams** — `Measurement.fit_odmr()`,
+  `Measurement.fit_folded_odmr()`, `Measurement.refit_outliers()`, and
+  `MagneticMap.from_b111()` now accept explicit settings/dependency overrides
+  for deterministic tests and embedded/batch use, while preserving the existing
+  default user workflow.
+- **`Measurement` workflow extraction** — folder loading, fit/refit, and folded
+  fit orchestration now live in concrete helpers under
+  `qdmpy.measurement_workflows`, reducing cross-layer logic inside the public
+  `Measurement` wrapper.
+
+### Changed (docs)
+
+- Updated quickstart/tutorial/extending docs to mention the new explicit
+  `settings=` / `gpu_available=` advanced hooks and the
+  `MagneticMap.from_b111(..., settings=...)` seam.
+
+### Changed (architecture cleanup)
+
+- **`ModelNotResolvedError` exception** — replaced 12 bare `RuntimeError` raises
+  in `FitManager` with a new domain exception `ModelNotResolvedError` for
+  auto-mode guards, so callers can catch them specifically.
+- **`Constraint` dataclass** — replaced `dict[str, list[Any]]` in
+  `ConstraintManager` with a frozen `Constraint` dataclass with named fields
+  (`vmin`, `vmax`, `constraint_type`, `unit`), eliminating error-prone
+  positional indexing.
+- **`FitResult.inject_b111_cache()`** — added public method to inject
+  pre-computed B111 arrays; `io/qdm.py` no longer writes to a `PrivateAttr`.
+- **`FoldedODMR.to_fit_inputs()`** — added helper to build the 5D DataArray
+  and absolute-GHz frequency array from folded spectra; removes
+  folding-internal logic from `Measurement.refit_outliers()`.
+- **Deferred `get_settings()` at import** — `import qdmpy` no longer triggers
+  filesystem side effects (logging config, `~/logs/` creation).
+
+### Removed (architecture cleanup)
+
+- Deleted stale `.ipynb_checkpoints` directories from `src/qdmpy/` and
+  `src/qdmpy/odmr/`.
+
+### Added (architecture cleanup)
+
+- Test files for previously untested modules: `test_constraints.py`,
+  `test_magnetic_map.py`, `test_analysis.py`.
+
+### Added (QEP-052: fit frequency cutoff)
+
+- **Per-frange frequency masking for fitting** — added optional `freq_cutoff`
+  pass-through on `Measurement.fit_odmr()` and `Measurement.fit_folded_odmr()`
+  to restrict the GHz window used for fitting without changing raw data.
+- **FitManager cutoff validation + enforcement** — `FitManager` now validates
+  `freq_cutoff` schema (`low/high` + `min/max`), rejects invalid bounds, and
+  enforces the minimum retained frequency count after masking.
+- **Refit consistency** — `Measurement.refit_outliers()` now accepts
+  `freq_cutoff` so bad-pixel refits use the same frequency window as the
+  initial fit when requested.
+
+### Changed (QEP-066: diamond-specific constraints groundwork)
+
+- **Tighter global mT defaults for `*N` fits** — updated `ModelConstraintsSettings`
+  defaults to `center_max_mt=1.1`, `width_min_mt=0.017`, and `width_max_mt=0.08`
+  to reduce over-broad search space and avoid systematically too-narrow width
+  solutions under the prior global bounds.
+
+### Changed (QEP-012: plotting layout cleanup)
+
+- **Colorbar/axes alignment hardening** — added a shared final layout pass in
+  `qdmpy.plotting._common` to synchronize appended colorbar heights with their
+  parent image axes after layout.
+- **Consistent figure layout strategy** — map and overview plots now use a
+  shared layout finalizer with reserved suptitle margin to reduce clipping and
+  overlap across `fit`, `display`, `fields`, and folding/ODMR diagnostics.
+- **Label consistency fixes** — fit parameter map labels now use GHz for
+  center/linewidth quantities and standardized `x [µm]` / `y [µm]` axis text.
+- **Regression tests** — expanded plotting tests to assert colorbar-height
+  alignment and suptitle/top-row separation in representative layouts.
+
+### Changed (QEP-CORE-001: safe serialization)
+
+- **Legacy NPZ migration window** — `FitResult.load_results()` and `qdmpy.io.load_npz()` now
+  detect legacy pickle-format result files by key layout, emit `DeprecationWarning` + log warning,
+  and load them to support one-release migration.
+- **Legacy parsing hardening** — legacy readers now validate required keys and scalar payload shape
+  and raise `DataLoadError` with actionable messages for malformed files.
+- **Regression coverage** — added tests for legacy `FitResult`/`QDMResult` NPZ loading paths and
+  warning behavior, while preserving pickle-free save/load roundtrips.
+
+### Changed (QEP-059: Unified Constraint Interface)
+
+- **`ModelConstraintsSettings`** — new `constraint_units` field (`'mt'` default, `'absolute_ghz'`
+  for power users). Users specify center/width bounds in millitesla; converted to absolute GHz
+  internally. New fields: `center_max_mt`, `center_min_mt`, `width_max_mt`, `width_min_mt`.
+- **`ConstraintManager`** — resolves `constraint_units` mode on init, converting mT bounds to
+  absolute-GHz bounds via D_ZFS and GAMMA_NV. Both folded and non-folded paths use the same
+  constraint conversion.
+- **`FitManager.fit_folded()`** — shifts folded delta_f frequency axis to absolute GHz
+  (`D_ZFS + delta_f`) before fitting. Returns standard `FitResult` (not `FoldedFitResult`).
+  Fitted centers are absolute GHz (~2.87 + shift), same as non-folded fits.
+- **`Measurement.refit_outliers()`** — detects folded fits via `metadata['folded_fit']` instead
+  of `isinstance(result, FoldedFitResult)`.
+
+### Removed (QEP-059)
+
+- **`FoldedFitResult`** class — deleted. All fitting paths now return standard `FitResult`.
+  **Breaking change:** code importing `FoldedFitResult` or using `isinstance` checks must
+  migrate to `FitResult` with `metadata.get('folded_fit')` for detection.
+- **`_FOLDED_*` constants** — hardcoded folded-domain constraint bounds removed from
+  `fitting/manager.py`. Constraints are now settings-driven.
+- **`FitManager.for_folded()`** classmethod — removed. `fit_folded()` handles everything
+  internally with settings-driven constraints.
+
+### Changed (docs full rewrite)
+
+- **`README.md`** — full rewrite: three-persona "Choose your path" table (Fry / Lila / Professor),
+  corrected import name (`qdmpy` not `QDMpy`), updated API examples (`save_qdm`/`load_qdm`,
+  `is_pygpufit_available`), correct notebook paths, development instructions updated to `ty`.
+- **`docs/index.md`** — mirrors README with docs-site relative links.
+- **`docs/installation.md`** — rewritten: uv as primary install, pip as secondary, removed
+  hardcoded wheel paths (`src/pyGpufit/win/`), GPU fitting via PyPI `pyGpufit`, fixed verification
+  command, added development install section.
+- **`docs/quickstart.md`** — full rewrite for Fry persona with universal tutorial structure
+  (Audience / Time / Prerequisites / What you'll learn / Key takeaways / What's next).
+- **`docs/tutorials/index.md`** — full rewrite with persona-based navigation cards (Fry / Lila /
+  Professor), ordered tutorial paths with time estimates, removed all references to archived
+  notebooks.
+- **`docs/tutorials/fitting.md`** — full rewrite as "Fitting Quality & Optimization" guide for
+  Lila: model selection table, constraint types and syntax, chi2 / fit_states interpretation
+  tables, GPU vs CPU section.
+- **`docs/tutorials/processors.md`** — full rewrite: added CRITICAL processor order callout,
+  diagnostics section, updated code examples to current API.
+- **`docs/tutorials/spectral-folding.md`** — expanded: added universal tutorial header,
+  quick-path code (`fold_odmr()` / `fit_folded_odmr()`), when-to-use decision table,
+  `FoldingSettings` parameters reference table.
+- **`mkdocs.yml`** — nav restructured: removed `basic.md` and `processor_tutorial.ipynb`,
+  added `06-source-fitting.ipynb`, separated Tutorials from Guides sections.
+
 ### Added
+
+- **`docs/tutorials/06-source-fitting.ipynb`** — new notebook for source fitting (QEP-050 follow-up):
+  covers `MagneticSource` definition, `fit_sources()`, `compute_field()`, residual visualisation,
+  and multi-source fitting; all synthetic data, CI-compatible.
+
+### Removed
+
+- **`docs/tutorials/basic.md`** — content superseded by `02-exploration.ipynb` and
+  the rewritten `fitting.md`.
+
+### Added (QEP-047 — measurement metadata file)
+
+- **`[measurement]` schema** — `metadata.toml` now has a defined `[measurement]`
+  section with standard fields: `date`, `sample`, `subsample`, `fov`, `operator`,
+  `notes`. Values are stored verbatim in `measurement.metadata["measurement"]`.
+- **`[acquisition]` fallback in `from_folder()`** — `pixel_spacing`, `bin_factor`,
+  `model`, `normalize`, and `fluorescence_correction` now fall back to values
+  from `[acquisition]` in `metadata.toml` when not supplied as keyword arguments.
+  Priority: explicit kwarg > `[acquisition]` > code default.
+- **`examples/metadata.toml`** — annotated reference file documenting all
+  recognised fields with their defaults.
+- **8 new tests** in `TestAcquisitionFallbacks` covering pixel_spacing/model
+  overrides, explicit-kwarg priority, fluorescence_correction sentinel,
+  and metadata persistence.
+
+### Added (source fitting)
+
+- **`FitSourceResult`** — frozen dataclass wrapping an updated `MagneticSource`
+  and the raw `scipy.optimize.OptimizeResult` for convergence diagnostics.
+- **`fit_source(bz_map_T, source, standoff_m)`** — fits a single `MagneticSource`
+  ROI to a magnetic dipole using `pypole.fit.fit_dipole` (TRF, Huber loss).
+- **`fit_sources(result, standoff_m)`** — convenience wrapper that extracts
+  `result.magnetic_map.bz` (µT -> T) and calls `fit_source` for every
+  `MagneticSource` in `result.field_sources`.
+- **`compute_field(source, standoff_m)`** — evaluates the analytical dipole
+  forward model over the source ROI using `pypole.fit.dipole_field`. Returns
+  predicted Bz in Tesla; subtract from the measured ROI to obtain a residual.
+- `FitSourceResult`, `compute_field`, and `fit_sources` exported from `qdmpy`
+  top-level `__init__`.
+- `pypole 0.2.0` added as a PyPI runtime dependency.
+- `tests/test_source_fitting.py` — 11 tests covering round-trip moment recovery
+  (within 10%), return-type invariants, field_sources filtering, zero-field
+  robustness, forward model shape/values, and post-fit residual quality.
+
+### Added (QEP-050)
+
+- **`MagneticModel`** — Pydantic model for a three-parameter magnetic dipole
+  source (inclination, declination, magnetic_moment) with range validators.
+  Declination uses the pypole convention (dec=0 -> -Y, counterclockwise).
+- **`MagneticSource`** — concrete `FieldSource` subclass for spatially
+  localised grains/inclusions. Carries `center`, `half_extent`,
+  `pixel_spacing`, and a `MagneticModel`. Convenience properties:
+  `center_um`, `half_extent_um`, `roi_pixels`.
+- **`UpwardContinuedSource`** — `FieldSource` subclass representing the same
+  source as seen at a different sensor height. Holds its own `MagneticModel`
+  (effective parameters at the continued height) and delegates all spatial
+  properties to `parent: MagneticSource`.
+- **`FieldSourceType`** discriminated union — `Annotated[MagneticSource |
+  UpwardContinuedSource | FieldSource, Field(discriminator="kind")]`.
+  `QDMResult.field_sources` now uses this type for automatic Pydantic
+  subclass selection on deserialisation.
+- `MagneticSource`, `UpwardContinuedSource`, `MagneticModel` exported from
+  `qdmpy` top-level `__init__.py`.
+- `tests/test_field_source.py` — 21 tests covering construction, unit
+  conversions, ROI slices, validation errors, JSON round-trips, and
+  discriminated-union dispatch.
+
+### Added (QEP-008)
+
+- **`FieldSource`** base class (`src/qdmpy/field_source.py`) — Pydantic model
+  with `kind`, `name`, and optional `field_map` NDArray. Extended by QEP-050.
+- **`io/` package** — `src/qdmpy/io.py` promoted to a package:
+  - `io/images.py` — moved image/metadata loading (unchanged logic).
+  - `io/npz.py` — `save_npz()` / `load_npz()` free functions (NPZ checkpoint,
+    fit data only; logic moved from `QDMResult.save()` / `.load()`).
+  - `io/qdm.py` — `save_qdm()` / `load_qdm()` for the new HDF5 `.qdm` archive
+    format (v1.0): images, fit parameters, B111, optional Bxyz, field sources,
+    scan metadata, version negotiation, overwrite protection.
+  - `io/__init__.py` — re-exports all public symbols so `from qdmpy.io import
+    get_image` and `from qdmpy.io import save_qdm` both work.
+- `h5py>=3.10` runtime dependency (required for `.qdm` I/O).
+- `tests/test_io_qdm.py` — 24 new tests covering round-trip, images, field
+  sources, version negotiation, overwrite protection, and public API contract.
+
+### Changed (QEP-008)
+
+- **`QDMResult`** is now a **pure data container**:
+  - Added `light_image`, `laser_image`, `field_sources`, `has_cached_magnetic_map`.
+  - Removed `plot()`, `show()`, `display()`, `save()`, `load()` methods.
+    Use `qdmpy.plotting.plot_qdm_display(result)` and `qdmpy.io.save_qdm(result, path)`.
+- **`Measurement.fit_odmr()`** and **`fit_folded_odmr()`** now pass
+  `light_image` and `laser_image` to `QDMResult` automatically.
+- **`plot_qdm_display()`** uses `result.light_image` / `result.laser_image`
+  first, falling back to `measurement.light_image` / `measurement.laser_image`.
+- `qdmpy.__init__` exports `FieldSource`, `save_qdm`, `load_qdm`, `save_npz`,
+  `load_npz` at the top-level package.
+
+### Changed
+
+- Converted all `logger` calls from eager f-string formatting to loguru's lazy
+  `{}` placeholder syntax across 14 source files (~55 call sites). Lazy
+  formatting avoids string interpolation when the log level is suppressed,
+  improving performance in production (INFO+) log levels.
+- Added ~25 missing log calls per the logging rule: INFO logs for
+  field-processing pipeline steps, magnetic-map reconstruction, and
+  `plot_qdm_display`; WARNING logs for 6 silent exception handlers in
+  `plotting.py`; DEBUG logs for 13 plotting entry points; INFO for the
+  brute-force D_ZFS search in `odmr/folding.py`.
+
+### Added
+
+- `argmin_center(data, freq)` in `fitting/guess.py` — new `@njit(parallel=True)`
+  center estimator that uses the frequency of the deepest dip per pixel. Replaces
+  `cumsum_center` which produced catastrophically wrong guesses (~10 MHz error)
+  for pixels with strong B111 shifts where the resonance sits near the frequency
+  range edge.
+- `halfpower_width(data, freq)` in `fitting/guess.py` — new `@njit(parallel=True)`
+  estimator that measures envelope HWHM directly from half-power points of each
+  pixel spectrum, with one-sided baseline selection to handle edge-shifted dips.
+  Replaces `cumsum_width` for initial width guesses.
+- `scripts/benchmark_guesses.py` — benchmark script that evaluates guess quality
+  via model residuals on real ODMR data, with baseline save/compare workflow.
+- `scripts/plot_guess_comparison.py` — visual comparison of old vs new parameter
+  guesses overlaid on raw ODMR spectra for sample pixels.
+
+- `plot_b111_map(result, component)` in `plotting.py` — dedicated B111 component
+  map with symmetric `RdBu_r` colormap and 99th-percentile color limits.
+- `plot_measurement_images(measurement)` in `plotting.py` — side-by-side display
+  of light and laser optical images.
+- `plot_qdm_display(result, measurement=None, n_sample_pixels=3)` in `plotting.py`
+  — comprehensive overview: B111 remanent/induced, chi-squared, centre/contrast/
+  linewidth maps; optionally optical images and representative pixel ODMR spectra
+  with fitted model curves overlaid.
+- `Measurement.plot()` — shorthand for `plot_measurement_images(self)`.
+- `Measurement.display(result)` — shorthand for `plot_qdm_display(result, self)`.
+- `QDMResult.display(measurement=None)` — shorthand for
+  `plot_qdm_display(self, measurement)`.
+- `FitResult.plot('b111_remanent')` and `FitResult.plot('b111_induced')` now
+  delegate to `plot_b111_map` rather than raising `ParameterError`.
+
+- `plot_fit_result_field_map` and `plot_fit_result_overview` in `plotting.py` now
+  use `result.b111_remanent` (µT, diverging colormap) for multi-range models
+  (ESR14N, ESR15N) instead of `calculate_b_field()`, which raised `ParameterError`
+  for those models. Single-range fits fall back to the legacy T-unit display.
+
+### Fixed
+
+- `FitResult.get_parameter_map()` now correctly handles multi-dimensional
+  parameters (e.g. shape `(n_pol, n_frange, n_pixel)`) by averaging over
+  leading dimensions instead of flat-reshaping, which raised `ValueError`.
+- `QDMResult` now delegates `parameters` and `calculate_b_field()` so that
+  plotting functions accepting `FitResult | QDMResult` work with both types.
+
+### Added (docs)
+
+- `docs/tutorials/05-plotting.ipynb` — comprehensive plotting tutorial
+  demonstrating every public function in `qdmpy.plotting` with real data.
+
+### Fixed
+
+- **Center guess catastrophically wrong for shifted pixels** — `cumsum_center`
+  produced ~10 MHz errors for pixels with strong B111 fields where the resonance
+  shifts to the edge of the frequency range. The cumsum normalization S-curve
+  saturates and the 0.5 crossing lands on the wrong side. Replaced with
+  `argmin_center` (simple `freq[argmin(spectrum)]`) which is robust to shifts
+  and 4x faster.
+- **Width measured envelope span, not Lorentzian HWHM** — replaced `cumsum_width`
+  with `halfpower_width` (direct half-power point measurement) and added model-aware
+  AHYP correction: `individual_HWHM = envelope_HWHM - AHYP`, floored at 0.3 MHz.
+  This produces width guesses ~2-5x closer to true values for multi-peak models.
+
+- **QEP-048 (root-cause H1)** — `normalize_pixel` in `fitting/guess.py` previously
+  subtracted the hardcoded value `1.0` before computing the cumulative sum used for
+  center and width initial guesses. This implicitly assumed max-normalization (which
+  guarantees off-resonance = 1.0) and produced systematically drifted cumsum profiles
+  for mean-normalized data (off-resonance ≈ 1.03–1.10), degrading fit quality. The
+  function now estimates the actual baseline from the mean of the first and last 10%
+  of frequency points, making the initial guesses correct and normalization-independent.
+
+### Changed
+
+- **QEP-048 (investigation)** — `NormalizationProcessor` reinstates `method='max'` as a
+  **deprecated** option (raises `DeprecationWarning` at construction, not `ValueError`)
+  to allow direct A/B comparison between max-norm and mean-norm pipelines. Max-norm
+  remains physically incorrect for fluorescence correction and will be removed in a
+  future release. Use `method='mean'`.
+
+- **QEP-048 (partial)** — `NormalizationProcessor` now uses mean-normalization exclusively:
+  - Default `method` changed from `'max'` to `'mean'`
+  - `method='max'` raises `ValueError` at construction with a migration message explaining why max-normalization is physically invalid (it destroys per-pixel baseline variation needed for fluorescence correction)
+  - `OdmrSettings.norm_method` Literal narrowed to `"mean"` only
+  - Updated all examples, scripts, and integration tests to use `method='mean'`
+
+### Added
+
+- **Metadata TOML support** in `Measurement.from_folder()`:
+  - New `load_metadata_toml()` function in `io.py` for loading TOML configuration files
+  - `Measurement.__init__` now accepts optional `metadata` parameter for initialization
+  - `from_folder()` automatically loads `metadata.toml` from measurement folder if present
+  - Graceful error handling: missing files return empty dict, malformed TOML is skipped with warning
+  - Enables users to annotate experiments (sample name, temperature, operator, notes, etc.) without programmatic configuration
+
+- Consolidated all plotting into `plotting.py`:
+  - `plot_odmr_spectra()` -- plot all ODMR spectra for a pixel (moved from `odmr/manager.py`)
+  - `plot_fluorescence_correction()` -- preview fluorescence correction (moved from `odmr/processors.py`)
+  - `plot_model_detection()` -- visualize auto-model detection (moved from `fitting/guess.py`)
+  - `plot_magnetic_component()` -- display MagneticMap component (moved from `magnetic_map.py`)
+  - Original call sites now delegate to `plotting.py`; no API changes
+  - Removed all direct matplotlib imports from non-plotting modules (except `io.py` for `mpimg.imread`)
+
+- **QEP-011** -- Spectral folding diagnostic plots:
+  - `FoldedODMR.d_candidates` and `search_residual` fields store brute-force D_ZFS search landscape
+  - `FoldedODMR.plot()` convenience method for quick diagnostic overview
+  - `plot_folding_search_landscape()` -- D candidate vs mean residual per polarity
+  - `plot_folding_mean_spectrum()` -- spatially-averaged folded and antisymmetric spectra
+  - `plot_folding_overview()` -- 2x2 panel combining search landscape, D_ZFS map, and fold residual map
+  - 5 new tests for search diagnostics, 5 smoke tests for plot functions
+
+- **QEP-011** -- Spectral folding orchestration in Measurement:
+  - `Measurement.fold_odmr(settings=None)` -- creates `SpectralFolder`, runs fold, caches result
+  - `Measurement.folded_odmr` property -- returns cached `FoldedODMR` or raises `DataNotLoadedError`
+  - `Measurement.fit_folded_odmr()` now uses cached folded data when called without arguments; explicit `folded=` arg still works for backward compat
+  - `fit_folded_odmr()` now calls `_validate_fit_prerequisites()` (GPU check was missing)
+  - Both `fit_odmr()` and `fit_folded_odmr()` now use `_fit_model` as the default model name
+  - `FoldedODMR`, `FoldingSettings`, `SpectralFolder` imported at module level in `measurement.py`
+  - Updated `notebooks/04-spectral-folding.ipynb` to use `m.fold_odmr()` / `m.fit_folded_odmr()` API
+  - Fixed broken mock paths in `tests/test_measurement.py` (`QDMpy.*` -> `qdmpy_core.*`)
+  - Added 12 new tests covering fold_odmr, folded_odmr property, fit_folded_odmr cached/explicit, GPU validation, and _fit_model wiring
+
 - **QEP-046** — Notebook tutorials for three user types:
   - `src/QDMpy/testing.py` — three public helpers for tutorials and tests: `make_synthetic_odmr_data()`, `make_synthetic_fit_result()`, `make_synthetic_qdm_result()`; all exported from top-level `QDMpy`
   - `notebooks/01-quickstart.ipynb` — User 1 ("fit and be done"): `QDMpy.load()` → `fit_odmr()` → B111 maps → `magnetic_map` → save/load

@@ -1,6 +1,47 @@
-# QDMpy Development Guide
+# qdmpy-core Development Guide
 
-The `claude` branch acts as main/master. NEVER commit directly to `claude` or `main`/`master`. Always create a feature branch from `claude`, do all work there, then merge back into `claude` when finished.
+## Git Workflow (Gitflow)
+
+This repo uses **Gitflow** for branch management:
+
+- **`main`**: Production/release code. Merge only via PR from `release/*` or `hotfix/*` branches
+- **`develop`**: Integration branch for features. Merge completed features here via PR
+- **Feature branches**: `feature/<name>` branched from `develop`. Merge back to `develop` when ready
+- **Bug fixes**: `bugfix/<name>` branched from `develop` for non-production bugs
+- **Release prep**: `release/<version>` branched from `develop` for final release testing
+- **Hotfixes**: `hotfix/<name>` branched from `main` for critical production fixes
+
+**NEVER commit directly to `main` or `develop`**. Always work on a feature/bugfix/release/hotfix branch and submit a PR.
+
+## QEP Workflow
+
+Before implementing a QEP, read the full proposal under `proposals/`.  Work
+phase by phase, verifying with `uv run pytest` between phases.
+
+```
+# One QEP, full scope
+Implement QEP-052. Read proposals/QEP-052-fit-frequency-cutoff.md for the spec.
+Work phase by phase, running `uv run pytest` after each phase.
+
+# Narrow scope
+Implement Phase 1 and Phase 2 of QEP-052 only.
+
+# Reference old codebase when relevant
+Implement QEP-008. Use ~/git/QDMpy_old as reference for the MATLAB export
+and field conversion logic.
+```
+
+- Each QEP gets its own branch: `feature/qep-052-fit-frequency-cutoff`
+- After each phase, run the test suite and note the failure count delta
+- Update the QEP status from Draft to Accepted/Implemented when done
+- Update `CHANGELOG.md` under `## [Unreleased]` as work progresses
+- Every new or amended QEP must include a `## GUI Integration Requirements`
+  section describing:
+  - core API/data contracts the GUI depends on,
+  - required GUI-side settings/controls/migration updates,
+  - state/metadata needed for rendering and interaction,
+  - expected error/progress behavior surfaced to users,
+  - acceptance checks that confirm the GUI works without hidden follow-up work.
 
 ## Principles
 - Follow **clean code** principles: meaningful names, small focused functions, single responsibility, DRY, no dead code, minimal comments (code should be self-documenting)
@@ -24,7 +65,7 @@ The `claude` branch acts as main/master. NEVER commit directly to `claude` or `m
 - **`frange_0`** = low-frequency branch (below ZFS, ~2.72–2.87 GHz)
 - **`frange_1`** = high-frequency branch (above ZFS, ~2.87–3.02 GHz)
 - **All internal frequencies are in GHz.** Hz↔GHz conversion only at pygpufit boundary in `fit.py`
-- Diamond type: 14N is standard (3 hyperfine dips, model `ESR14N`, gpufit model_id=13)
+- Diamond type: 14N is standard (3 hyperfine dips, model `ESR14N`, gpufit model_id=15)
 
 ## B111 Physics
 The field along the NV [111] axis is extracted from the splitting between the two frequency branches:
@@ -58,15 +99,15 @@ dimension: `[:, 0]` = negatively-signed dB, `[:, 1]` = positively-signed dB. Ext
 ## Testing
 - Run all tests: `uv run pytest`
 - Run single test: `uv run pytest tests/test_file.py::test_function -v`
-- Run with coverage: `uv run pytest --cov=QDMpy --cov-report=term-missing`
+- Run with coverage: `uv run pytest --cov=qdmpy --cov-report=term-missing`
 
 ## Linting
 - Run all checks: `pre-commit run --all-files`
 - Run ruff: `uv run ruff check .`
-- Run ty: `uv run ty src/QDMpy`
+- Run ty: `uv run ty src/qdmpy`
 
 ## Code Style
-- Python >=3.12
+- Python >=3.13
 - 100 char line length (strict PEP8)
 - Google style docstrings
 - Type annotations required for all functions
@@ -77,6 +118,42 @@ dimension: `[:, 0]` = negatively-signed dB, `[:, 1]` = positively-signed dB. Ext
 - Max complexity: 10 (cyclomatic), 8 (cognitive)
 - use logging extensively (logruru not stdlib logging)
 - do not include a "authored by claude *" in commits
+
+## Directory Structure
+
+Each top-level directory has a single, unambiguous purpose.
+
+- `src/qdmpy/` — Package source code only.
+- `tests/` — Pytest tests only. Mirrors the `src/` module structure.
+- `docs/` — MkDocs source: markdown files, API reference stubs, Mermaid diagrams,
+  and tutorial notebooks rendered into the docs site. If it appears in `mkdocs.yml`
+  nav, it lives here. `docs/tutorials/` holds both `.md` and `.ipynb` tutorial files.
+- `notebooks/` — Jupyter notebooks for interactive user workflows and demos.
+  Research/exploratory notebooks go in `notebooks/experiments/`.
+- `examples/` — Runnable `.py` scripts that demonstrate library usage to a user.
+  Think "copy-paste starting point". No notebooks here.
+- `scripts/` — Developer-only tooling: benchmarks, profilers, reference data
+  generators. Not for library users.
+- `reference_data/` — NPZ regression fixtures used by the test suite.
+- `proposals/` — QEP design documents. One file per feature/change.
+- `memory/` — Claude AI session memory files. See Memory Files section.
+- `site/` — Build artifact from `mkdocs build`. Never commit. Delete with
+  `rm -rf site/` if it appears on disk.
+
+**Decision rule when unsure:**
+
+| Content type | Goes in | Example |
+|---|---|---|
+| **Narrative how-to** (MD) | `docs/` root or `docs/tutorials/` | `docs/quickstart.md`, `docs/extending.md` |
+| **Interactive hands-on notebook** (published) | `docs/tutorials/` | `docs/tutorials/01-quickstart.ipynb`, `docs/tutorials/02-exploration.ipynb` |
+| **Experimental/scratch notebook** | `notebooks/experiments/` | `notebooks/experiments/fluorescence-correction-auto-alpha.ipynb` |
+| **User-facing copy-paste script** | `examples/` | `examples/fit_15n_sample.py` |
+| **Developer/maintenance script** | `scripts/` | `scripts/generate_reference_data.py` |
+
+**Notebook naming convention** (for published tutorials):
+- Numbered sequentially: `01-quickstart.ipynb`, `02-exploration.ipynb`, etc.
+- Short, descriptive slugs that match mkdocs.yml nav entry
+- List in `mkdocs.yml` `nav:` section to publish
 
 ## Session Workflow
 - **No summary files** — do not create session summaries or recap documents after work

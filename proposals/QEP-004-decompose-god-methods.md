@@ -33,6 +33,7 @@ These methods are difficult to test in isolation, hard to understand, and resist
 modification. Adding a new model or output format requires understanding the entire
 method.
 
+
 ## Specification
 
 ### 4A: Decompose `_compute_delta_resonance()` (~190 lines -> 4 methods)

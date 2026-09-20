@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from QDMpy.odmr._validators import NV_FREQ_MAX_GHZ, NV_FREQ_MIN_GHZ, validate_frequencies
-from QDMpy.exceptions import DataValidationError
+from qdmpy.exceptions import DataValidationError
+from qdmpy.odmr._validators import NV_FREQ_MAX_GHZ, NV_FREQ_MIN_GHZ, validate_frequencies
 
 
 class TestValidateFrequencies:

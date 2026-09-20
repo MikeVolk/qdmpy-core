@@ -1,69 +1,127 @@
-# Quick Start Guide
+# Quickstart
 
-This guide will help you get started with QDMpy quickly for analyzing ODMR data from NV centers in diamond.
+**Audience:** Fry &nbsp;|&nbsp; **Time:** ~5 min &nbsp;|&nbsp; **Prerequisites:** [Installation](installation.md)
 
-## Installation
+---
 
-Install QDMpy using pip:
+## What you'll learn
 
-```bash
-pip install QDMpy
-```
+- Load QDM data and fit ODMR spectra in three lines
+- Access the B111 remanent and induced field maps
+- Save and reload a result for later use
+- Where to go next for each persona
 
-Or with UV (recommended):
+---
 
-```bash
-uv pip install QDMpy
-```
-
-## Basic Usage
-
-Here's a minimal example to get you started with QDMpy:
+## Setup
 
 ```python
-import numpy as np
-import matplotlib.pyplot as plt
-import QDMpy
-
-# Load ODMR data
-odmr = QDMpy.ODMR.from_files(['path/to/your/data.mat'])
-
-# Process the data
-odmr.process_data()
-
-# Fit the data
-fit = QDMpy.FitManager(odmr.processed_data, odmr.frequencies)
-fit.fit_odmr()
-
-# Visualize results
-plt.figure(figsize=(10, 6))
-plt.plot(odmr.f_ghz, odmr.mean_odmr, 'o-', alpha=0.5, label='Data')
-
-# Get fitted parameters
-center = fit.get_param('center')
-print(f"Resonance frequency: {np.mean(center)/1e9:.6f} GHz")
-
-# Plot the center frequency map
-plt.figure(figsize=(8, 8))
-plt.imshow(center.reshape(odmr.img_shape), cmap='viridis')
-plt.colorbar(label='Resonance Frequency (Hz)')
-plt.title('Center Frequency Map')
-plt.show()
+import qdmpy
 ```
 
-## Next Steps
+No additional imports needed for the common workflow.
 
-- Check out the [full tutorial](tutorials/basic.md) for more details
-- Learn about [ODMR processors](tutorials/processors.md) for advanced data processing
-- Explore [model fitting](tutorials/fitting.md) with the ConstraintManager
-- Learn how to create [custom models](tutorials/models.md) for your specific needs
+---
 
-## Command Line Interface
+## Load, fit, and inspect
 
-QDMpy also provides a command-line interface for quick data analysis:
+### With real data
 
-```bash
-qdmpy process data.mat --output results.mat
+Point `qdmpy.load()` at the folder containing your `.mat` files from the QDM
+microscope. Spatial binning and normalization are applied automatically.
+
+```python
+result = qdmpy.load('/data/FOV18x').fit_odmr()
 ```
 
-For more details on the CLI, see the [CLI documentation](cli.md).
+That's it. `result` is a `QDMResult` containing all fitted parameters and
+lazy access to field maps.
+
+!!! note "Advanced control"
+    The one-line path is still the recommended default. When you need explicit
+    test or batch control over fitting behavior, keep the `Measurement` object
+    and pass overrides directly to `fit_odmr()`, for example
+    `settings=custom_settings` or `backend='scipy'`.
+
+### Without data files
+
+Use synthetic data for exploration or CI:
+
+```python
+result = qdmpy.make_synthetic_qdm_result(shape=(64, 64))
+```
+
+---
+
+## B111 field maps
+
+```python
+b111_rem = result.b111_remanent   # (H, W) numpy array in µT
+b111_ind = result.b111_induced    # (H, W) numpy array in µT
+```
+
+!!! note "Units"
+    All B111 values are in **µT**. Frequencies (inside the fitting pipeline)
+    are in **GHz**. These conventions are enforced throughout the library.
+
+The remanent field isolates permanent magnetisation (ferro component); the
+induced field tracks the applied bias (paramagnetic component).
+
+### 3D field reconstruction
+
+```python
+mm = result.magnetic_map          # triggers Fourier-domain reconstruction
+bz = mm.bz.values                 # xr.DataArray in µT
+```
+
+`magnetic_map` is computed lazily on first access and cached.
+
+If you already have a `b111` map and want explicit reconstruction settings,
+you can also call `MagneticMap.from_b111(..., settings=custom_settings)`.
+
+---
+
+## Save and reload
+
+```python
+qdmpy.save_qdm(result, 'my_result.qdm')   # HDF5 format
+result2 = qdmpy.load_qdm('my_result.qdm')
+```
+
+If you need a lightweight fit-only checkpoint, use NPZ:
+
+```python
+qdmpy.save_npz(result, 'my_result.npz')
+result3 = qdmpy.load_npz('my_result.npz')
+```
+
+!!! note "Safe NPZ format"
+    New NPZ files are pickle-free and loaded with `allow_pickle=False`.
+    Legacy pickle-based NPZ files still load for one migration release, but emit
+    a deprecation warning. Re-save legacy files after loading to migrate:
+
+    ```python
+    old = qdmpy.load_npz('legacy_result.npz')
+    qdmpy.save_npz(old, 'legacy_result_migrated.npz')
+    ```
+
+---
+
+## Key takeaways
+
+- `qdmpy.load(path).fit_odmr()` is the one-line entry point
+- `result.b111_remanent` and `result.b111_induced` give 2D arrays in µT
+- `result.magnetic_map` gives the full Bx/By/Bz reconstruction
+- `save_qdm` / `load_qdm` for full persistence, `save_npz` / `load_npz` for fit-only checkpoints
+- advanced callers can inject explicit fitting/reconstruction settings without changing the quick path
+
+---
+
+## What's next
+
+- **Fry** — See [Notebook 01](tutorials/01-quickstart.ipynb) for a runnable
+  version with plots and save/reload examples. Done.
+- **Lila** — Continue to [Notebook 02: Exploring Data](tutorials/02-exploration.ipynb)
+  to understand the processing pipeline and tune fit quality.
+- **Professor** — Jump to [Notebook 03: Extending](tutorials/03-extending.ipynb)
+  to build custom models, processors, and field reconstructors.
