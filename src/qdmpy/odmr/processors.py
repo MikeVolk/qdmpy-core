@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 
 # Masking more than this fraction of the data means the processor ate the
 # resonance rather than any outlier; worth a loud runtime warning.
-_OUTLIER_MASK_ALARM_FRACTION = 0.5
 
 
 @runtime_checkable
@@ -130,6 +129,17 @@ class ProcessorRegistry:
 
     _registry: ClassVar[dict[str, type[BaseProcessor]]] = {}
 
+    # Processor types that used to exist, with why they were removed. Saved
+    # pipeline configs may still name them; loading one must say why it fails.
+    removed: ClassVar[dict[str, str]] = {
+        "OutlierProcessor": (
+            "it z-scored along the frequency axis, where the ODMR resonance dip is "
+            "the largest deviation, so every threshold either masked nothing or "
+            "masked the signal. Use qdmpy.field_processing.HotPixelFilter for "
+            "spatial outlier rejection on the fitted field map instead."
+        ),
+    }
+
     @classmethod
     def register[P: type[BaseProcessor]](cls: type[ProcessorRegistry], processor_cls: P) -> P:
         """Register a processor class (usable as a decorator).
@@ -151,8 +161,14 @@ class ProcessorRegistry:
         """Get a registered processor class by its ``type`` tag.
 
         Raises:
+            ConfigurationError: If the type was removed from qdmpy.
             KeyError: If the type name is not found in the registry.
         """
+        if type_name in cls.removed:
+            from qdmpy.exceptions import ConfigurationError
+
+            msg = f"Processor type {type_name!r} was removed: {cls.removed[type_name]}"
+            raise ConfigurationError(msg)
         if type_name not in cls._registry:
             available = sorted(cls._registry)
             msg = f"Unknown processor type: {type_name!r}. Choose from: {available}"
@@ -269,73 +285,6 @@ class BinningProcessor(BaseProcessor):
         logger.debug("Binning data with factor: {}", self.bin_factor)
         binned = data.data.coarsen(y=self.bin_factor, x=self.bin_factor, boundary="trim").mean()  # ty: ignore[unresolved-attribute]
         return ODMRData(data=binned, metadata=data.metadata.copy())
-
-
-@ProcessorRegistry.register
-class OutlierProcessor(BaseProcessor):
-    """DEPRECATED -- masks ODMR values by z-score along the frequency dimension.
-
-    This processor cannot do what its name says, at any setting. It scores
-    each point against its own pixel's spectral mean and standard deviation
-    along ``freq_idx`` -- but the ODMR resonance dip *is* the largest
-    deviation in that distribution, so it is always the first thing masked.
-    Measured on a clean ESR14N spectrum, the dip's z-score is the maximum
-    anywhere in the spectrum (~1.9), which leaves no usable threshold:
-
-    - ``>= 2.0`` masks nothing at all (a no-op),
-    - ``< 2.0`` starts by masking the resonance, i.e. the signal,
-    - ``0.003`` (the default this class shipped with) masks ~99.9% of the data.
-
-    Use :class:`qdmpy.field_processing.HotPixelFilter` for the spatial
-    outlier-rejection job this was presumably meant to do -- it scores pixels
-    against their spatial neighbourhood, where an outlier really is anomalous.
-
-    Deprecated since 2026-08-30; scheduled for removal in the next minor
-    release. Still registered and functional so existing saved pipeline
-    configs continue to load.
-
-    Attributes:
-        z_score_threshold: The z-score threshold above which a value is considered an outlier.
-    """
-
-    type: Literal["OutlierProcessor"] = "OutlierProcessor"
-    z_score_threshold: float = Field(default=0.003, gt=0)
-
-    def model_post_init(self, __context: object) -> None:
-        """Warn that this processor masks the resonance rather than outliers."""
-        import warnings
-
-        warnings.warn(
-            "OutlierProcessor is deprecated and will be removed in the next "
-            "minor release. It z-scores along the frequency axis, where the "
-            "ODMR resonance dip is the largest deviation, so every threshold "
-            "either masks nothing (>= ~2.0) or masks the signal first "
-            "(< ~2.0); the default 0.003 masks ~99.9% of the data. Use "
-            "qdmpy.field_processing.HotPixelFilter for spatial outlier "
-            "rejection instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-    def process(self, data: ODMRData) -> ODMRData:
-        """Apply an outlier mask based on the z-score threshold."""
-        from qdmpy.odmr.data import ODMRData
-
-        logger.debug("Masking outliers with z_score_threshold: {}", self.z_score_threshold)
-        data_mean = data.data.mean(dim="freq_idx")
-        data_std = data.data.std(dim="freq_idx")
-        z_scores = np.abs((data.data - data_mean) / (data_std + 1e-10))
-        mask = z_scores > self.z_score_threshold
-        masked_fraction = float(mask.mean())
-        if masked_fraction > _OUTLIER_MASK_ALARM_FRACTION:
-            logger.warning(
-                "OutlierProcessor masked {:.1%} of the data at z_score_threshold={} "
-                "-- this destroys the resonance, not outliers. See the class docstring.",
-                masked_fraction,
-                self.z_score_threshold,
-            )
-        processed = data.data.where(~mask)
-        return ODMRData(data=processed, metadata=data.metadata.copy())
 
 
 @ProcessorRegistry.register

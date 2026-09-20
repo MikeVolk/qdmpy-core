@@ -134,7 +134,7 @@ result2 = QDMResult.load("result.qdm")       # equivalent convenience method
 | `odmr.normalize_data()` | `NormalizationProcessor()` | Default method="mean" |
 | `odmr.normalize_data(method="max")` | `NormalizationProcessor(method="max")` | Deprecated; loses baseline info |
 | `qdm.correct_glob_fluorescence(f)` | `FluorescenceCorrectionProcessor(f)` | Must run after normalization |
-| `odmr.apply_outlier_mask()` | `HotPixelFilter` (post-fit) | `OutlierProcessor` is deprecated; see note below |
+| `odmr.apply_outlier_mask()` | `HotPixelFilter` (post-fit) | `OutlierProcessor` was removed; see note below |
 | `odmr.reset_data()` | `odmr.reset()` | |
 | `odmr.remove_overexposed()` | `HotPixelFilter(threshold_std=5)` in `FieldProcessingPipeline` | Applied post-fit |
 
@@ -154,12 +154,12 @@ pm.add_processor(FluorescenceCorrectionProcessor(correction_factor=0.2))  # 2. t
 meas.odmr.process_data()
 ```
 
-!!! warning "OutlierProcessor is deprecated -- do not port to it"
+!!! warning "OutlierProcessor was removed -- do not port to it"
     `OutlierProcessor` z-scores along the *frequency* axis, where the ODMR
     resonance dip is by definition the largest deviation. There is no working
     threshold: `>= 2.0` masks nothing, `< 2.0` masks the resonance itself, and
-    the default `0.003` masks ~99.9% of the data. It is deprecated and will be
-    removed in the next minor release.
+    the default `0.003` masks ~99.9% of the data. It was deprecated on
+    2026-08-30 and removed on 2026-09-19.
 
     Port outlier rejection to `qdmpy.field_processing.HotPixelFilter` instead,
     which runs post-fit and scores each pixel against its spatial neighbourhood
@@ -236,7 +236,7 @@ c2 = result.get_parameter("contrast_2")
 The scikit-learn detectors were not ported. Use `HotPixelFilter` in a
 post-fit `FieldProcessingPipeline`; it rejects pixels that are anomalous
 relative to their spatial neighbours, which is the comparison the old
-detectors made. `OutlierProcessor` is deprecated and is not a valid target
+detectors made. `OutlierProcessor` was removed and is not a valid target
 (see the warning above).
 
 | Old QDMpy | New qdmpy-core | Notes |
@@ -363,7 +363,7 @@ sources), prefer the `.qdm` format.
 
 | Old QDMpy | New qdmpy-core | Notes |
 |---|---|---|
-| `make_dummy_data(model, n_freqs, dims)` | `qdmpy.make_synthetic_odmr_data(shape, n_freq, model_name)` | Always 2-pol 2-frange |
+| `make_dummy_data(model, n_freqs, dims)` | `qdmpy.make_synthetic_odmr_data(shape, *, n_freq, model_name)` | Always 2-pol 2-frange |
 | `write_test_qdmio_file(path)` | Not ported as public API | Use `make_synthetic_odmr_data` |
 
 ### Constants

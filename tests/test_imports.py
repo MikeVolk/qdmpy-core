@@ -38,7 +38,6 @@ ALL_NAMES = [
     ("BinningProcessor", "class"),
     ("FluorescenceCorrectionProcessor", "class"),
     ("NormalizationProcessor", "class"),
-    ("OutlierProcessor", "class"),
     ("Processor", "class"),
     ("ProcessorRegistry", "class"),
     # Fitting

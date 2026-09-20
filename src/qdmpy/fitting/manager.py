@@ -34,7 +34,6 @@ from qdmpy.fitting.backends import (
     FitBackend,
     FitBackendOptions,
     resolve_backend,
-    with_forced_availability,
 )
 from qdmpy.fitting.constraints import (
     CONSTRAINT_TYPES,
@@ -132,7 +131,6 @@ class FitManager:
         freq_cutoff: dict[str, dict[str, float | None]] | None = None,
         settings: QDMpySettings | None = None,
         backend: FitBackend | str | None = None,
-        gpu_available: bool | None = None,
     ) -> None:
         """Initialize a FitManager with model configuration.
 
@@ -149,14 +147,11 @@ class FitManager:
                 ('auto', 'gpufit', 'scipy', 'torch'). Defaults to
                 ``settings.fit.backend``. See :mod:`qdmpy.fitting.backends`
                 (QEP-068) and :mod:`qdmpy.fitting.torch_backend` (QEP-069).
-            gpu_available: Deprecated; use ``backend`` instead. Optional GPU
-                availability override.
-
-        Raises:
-            ParameterError: If both ``backend`` and ``gpu_available`` are given.
         """
         self._settings = settings or get_settings()
-        self._backend = self._resolve_backend(backend, gpu_available)
+        self._backend = resolve_backend(
+            backend if backend is not None else self._settings.fit.backend
+        )
         self._backend_options = FitBackendOptions(
             estimator=self._settings.fit.estimator,
             max_number_iterations=self._settings.fit.max_number_iterations,
@@ -184,32 +179,6 @@ class FitManager:
                 for param, constraint in constraints.items():
                     self.set_constraints(param, **constraint)
             logger.info("FitManager initialized with model: {}", self._model.name)
-
-    def _resolve_backend(
-        self: Self,
-        backend: FitBackend | str | None,
-        gpu_available: bool | None,
-    ) -> FitBackend:
-        """Resolve the constructor's ``backend``/``gpu_available`` arguments.
-
-        Raises:
-            ParameterError: If both ``backend`` and ``gpu_available`` are given.
-        """
-        if gpu_available is not None:
-            warnings.warn(
-                "FitManager(gpu_available=...) is deprecated and will be removed "
-                "in a future release. Pass backend='gpufit'/'scipy' or a "
-                "FitBackend instance instead.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            if backend is not None:
-                msg = "Pass either 'backend' or the deprecated 'gpu_available', not both"
-                raise ParameterError(msg)
-
-            return with_forced_availability(resolve_backend("gpufit"), available=gpu_available)
-
-        return resolve_backend(backend if backend is not None else self._settings.fit.backend)
 
     def _require_backend_available(self: Self) -> None:
         """Raise DependencyError if the resolved backend cannot run here."""

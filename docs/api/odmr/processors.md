@@ -29,15 +29,6 @@ The `BinningProcessor` performs spatial binning on ODMR data.
       show_root_heading: true
       show_source: true
 
-## OutlierProcessor
-
-The `OutlierProcessor` identifies and removes outlier pixels.
-
-::: qdmpy.odmr.processors.OutlierProcessor
-    options:
-      show_root_heading: true
-      show_source: true
-
 ## FluorescenceCorrectionProcessor
 
 The `FluorescenceCorrectionProcessor` corrects for global fluorescence variations.

@@ -45,12 +45,6 @@ classDiagram
         +__init__(method)
     }
 
-    class OutlierProcessor {
-        +float threshold
-        +process(data, **kwargs) ODMRData
-        +__init__(threshold)
-    }
-
     class FluorescenceCorrectionProcessor {
         +float correction_factor
         +process(data, **kwargs) ODMRData
@@ -228,7 +222,6 @@ classDiagram
     BaseLoader <|-- MatlabLoader
     BaseProcessor <|-- BinningProcessor
     BaseProcessor <|-- NormalizationProcessor
-    BaseProcessor <|-- OutlierProcessor
     BaseProcessor <|-- FluorescenceCorrectionProcessor
     Model <|-- ESR14N
     Model <|-- ESR15N

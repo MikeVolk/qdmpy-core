@@ -96,7 +96,6 @@ from qdmpy.odmr.processors import (
     BinningProcessor,
     FluorescenceCorrectionProcessor,
     NormalizationProcessor,
-    OutlierProcessor,
     Processor,
     ProcessorRegistry,
 )
@@ -148,7 +147,6 @@ __all__ = [
     "BinningProcessor",
     "FluorescenceCorrectionProcessor",
     "NormalizationProcessor",
-    "OutlierProcessor",
     "Processor",
     "ProcessorRegistry",
     # Fitting

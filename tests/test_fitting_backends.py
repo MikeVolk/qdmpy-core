@@ -146,7 +146,7 @@ class TestGpufitBackendSupports:
 
 
 class TestWithForcedAvailability:
-    """Deprecated gpu_available override, implemented via backend wrapping."""
+    """Test helper that pins a backend's availability."""
 
     def test_forces_unavailable(self) -> None:
         backend = with_forced_availability(GpufitBackend(), available=False)
@@ -159,16 +159,12 @@ class TestWithForcedAvailability:
             assert backend.is_available() is True
 
 
-class TestFitManagerDeprecatedGpuAvailable:
-    """FitManager(gpu_available=...) still works but warns."""
+class TestFitManagerGpuAvailableRemoved:
+    """The deprecated gpu_available argument is gone; backend= replaces it."""
 
-    def test_emits_deprecation_warning(self) -> None:
-        with pytest.warns(DeprecationWarning, match="gpu_available"):
-            FitManager(model_name="ESRSINGLE", gpu_available=True)
-
-    def test_rejects_both_backend_and_gpu_available(self) -> None:
-        with pytest.raises(ParameterError, match="either 'backend' or"):
-            FitManager(model_name="ESRSINGLE", backend="scipy", gpu_available=True)
+    def test_gpu_available_is_rejected(self) -> None:
+        with pytest.raises(TypeError, match="gpu_available"):
+            FitManager(model_name="ESRSINGLE", gpu_available=True)  # ty: ignore[unknown-argument]
 
 
 class TestScipyBackend:

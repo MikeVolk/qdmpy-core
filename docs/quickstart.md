@@ -41,7 +41,7 @@ lazy access to field maps.
     The one-line path is still the recommended default. When you need explicit
     test or batch control over fitting behavior, keep the `Measurement` object
     and pass overrides directly to `fit_odmr()`, for example
-    `settings=custom_settings` or `gpu_available=False`.
+    `settings=custom_settings` or `backend='scipy'`.
 
 ### Without data files
 
