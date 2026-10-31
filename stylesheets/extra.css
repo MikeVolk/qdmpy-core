@@ -1,0 +1,11 @@
+/* Widen the content area */
+.md-grid {
+  max-width: 1440px;
+}
+
+/* Prevent long lines in executed notebook outputs from being clipped */
+.jp-OutputArea-output pre,
+.jp-RenderedText pre {
+  white-space: pre;
+  overflow-x: auto;
+}
