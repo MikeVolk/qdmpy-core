@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-31
+
 ### Security (2026-10-31 dependency audit)
 
 - **Upgraded locked dependencies with known vulnerabilities**: pillow 13.0.0
