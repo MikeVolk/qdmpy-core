@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Security (2026-10-31 dependency audit)
+
+- **Upgraded locked dependencies with known vulnerabilities**: pillow 13.0.0
+  (runtime, via matplotlib), certifi, filelock, jupyterlab, mkdocs-material,
+  nbconvert, pymdown-extensions, setuptools, tornado and virtualenv.
+  `pip-audit` now reports none against OSV or PyPI.
+- **Lifted the `mkdocs-material<9.7` pin** to `>=9.7.7` for the search-suggestion
+  DOM XSS fix. Set `NO_MKDOCS_2_WARNING=1` to silence the warning the old pin hid.
+- Upgraded mkdocstrings and mkdocstrings-python, which pymdown-extensions 12 requires.
+
 ### Fixed (2026-09-20 test foundation, QEP-TEST-001)
 
 - **Test fixtures used pre-QEP-025 coordinate labels.** `tests/test_fit.py`
