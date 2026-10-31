@@ -17,6 +17,8 @@ from qdmpy.field_source import (
     UpwardContinuedSource,
 )
 
+pytestmark = [pytest.mark.unit, pytest.mark.magnetic_fields]
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

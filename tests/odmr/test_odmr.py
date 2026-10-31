@@ -13,6 +13,8 @@ from qdmpy.odmr.data import ODMRData
 from qdmpy.odmr.manager import ODMR
 from qdmpy.odmr.processors import NormalizationProcessor, ODMRProcessorManager
 
+pytestmark = [pytest.mark.unit, pytest.mark.processing]
+
 
 @pytest.fixture
 def sample_data():

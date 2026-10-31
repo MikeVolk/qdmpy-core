@@ -1,150 +1,51 @@
-# Integration Validation Tests
+# Integration tests
 
-This directory contains integration tests that validate the new QDMpy codebase produces identical results to reference data generated from the old codebase.
+Three modules live here. "Integration" in this directory means **needs a real
+GPU or a real dataset** — that is the distinction that decides whether a test
+can run at all, not whether it spans several components. Tests that exercise
+the full pipeline against synthetic data are plain unit tests and live in
+`tests/`.
 
-## Overview
+| Module | What it checks | Gate |
+|---|---|---|
+| `test_gpufit_consistency.py` | The Python ESR models and the pyGpufit CUDA kernels agree: noiseless spectra generated from known parameters, fitted from the truth, must give chi2 ~ 0. Model IDs are resolved from `pygpufit.gpufit.ModelID` so a version mismatch is caught rather than assumed. | CUDA |
+| `test_torch_consistency.py` | The same contract for `TorchBackend` (QEP-069). Tolerances were tightened by 2-4 orders of magnitude when the models gained analytic Jacobians (QEP-073) and sit ~10-50x above what the backend achieves, so a regression to finite differences fails. | torch |
+| `test_folded_real_data_regression.py` | Folded fitting against cropped real FOVs: folded and normal paths must agree on B111. | CUDA + real data |
 
-The integration tests validate:
-- Data loading equivalence against reference data
-- Processing pipeline consistency (normalization, binning)
-- End-to-end pipeline validation across multiple binning factors
+## The two gates
 
-## Two-Phase Validation Approach
+**CUDA.** `_HAS_GPUFIT = _gf.cuda_available()` — an actual runtime probe, not an
+import check. pyGpufit imports fine anywhere the wheel is installed, since it is
+a thin wrapper around a compiled CUDA library; it only fails at fit time without
+a working driver. Note that since v0.1.0 pyGpufit is an optional extra, so it is
+absent unless you `uv sync --extra gpufit`.
 
-### Phase 1: Generate Reference Data (Run Once)
-Generate reference data using the old codebase:
-```bash
-uv run python simple_reference_generator.py --data-folder tests/data/FOV18x --output-dir reference_data
+**Real data.** `tests/data/` is **gitignored** — the smallest FOV is 61 MB and
+pre-commit caps files at 1500 kB, so it cannot be committed. These tests
+therefore **skip on CI by design**, and that is not a failure to fix. Modules
+needing it carry `@pytest.mark.requires_real_data`.
+
+Because of those gates, a green run on CI says nothing about the GPU backends.
+`MatlabLoader.load()` is covered on CI by the synthetic `.mat` files in
+`tests/odmr/test_io.py`, which build real MATLAB v5 files in `tmp_path`.
+
+## Running them
+
+```sh
+uv run pytest                              # integration modules skip if gated
+uv run pytest -m integration               # just this directory
+uv run pytest -m "not requires_real_data"  # everything that needs no local dataset
+uv run pytest -m "not integration"         # the CI-equivalent selection
 ```
 
-This creates:
-- `FOV18x_reference_bin1.npz` - Reference data with no binning
-- `FOV18x_reference_bin2.npz` - Reference data with 2x binning
-- `FOV18x_reference_bin8.npz` - Reference data with 8x binning
+Markers are registered in `pyproject.toml` and every one of them selects a
+non-zero number of tests; `tests/test_markers.py` enforces that, and
+`--strict-markers` rejects a typo at collection time.
 
-### Phase 2: Run Validation Tests (Use Forever)
-Tests load reference `.npz` files and compare new codebase results:
-```bash
-uv run pytest tests/integration/ -m validation --no-cov
-```
+## Reference NPZ files
 
-**No old codebase needed after reference data generation!**
-
-## Test Structure
-
-### Fixtures (`conftest.py`)
-- `test_data_folder`: Provides path to test data (FOV18x)
-- `reference_data_folder`: Provides path to reference data
-- `new_qdmpy_modules`: Imports new QDMpy modules
-- `bin_factor`: Parametrizes tests across binning factors [1, 2, 8]
-- `reference_data`: Loads reference data for specific dataset and binning factor
-- `test_parameters`: Standard test parameters and tolerances
-
-### Test Categories
-
-#### Data Loading Tests (`test_data_loading_validation.py`)
-- Raw ODMR data loading validation against reference
-- Reference image loading validation
-- Frequency and scan dimension validation
-
-#### Processing Tests (`test_processing_validation.py`)
-- Normalization consistency with reference
-- Binning accuracy validation
-- Performance benchmarking (if reference timing available)
-
-## Test Markers
-
-Tests are organized using pytest markers:
-
-- `@pytest.mark.validation`: All validation tests
-- `@pytest.mark.slow`: Tests that take >10 seconds
-- `@pytest.mark.performance`: Performance benchmarking tests
-- `@pytest.mark.data_loading`: Data loading specific tests
-- `@pytest.mark.processing`: Processing pipeline tests
-- `@pytest.mark.binning`: Binning specific tests
-
-## Usage
-
-### Run All Validation Tests
-```bash
-uv run pytest tests/integration/ -m validation --no-cov
-```
-
-### Run Specific Test Categories
-```bash
-# Data loading only
-uv run pytest tests/integration/ -m data_loading --no-cov
-
-# Processing pipeline only
-uv run pytest tests/integration/ -m processing --no-cov
-
-# Fast tests only (exclude slow tests)
-uv run pytest tests/integration/ -m "validation and not slow" --no-cov
-```
-
-### Run Tests for Specific Binning Factor
-```bash
-# Test only binning factor 2
-uv run pytest tests/integration/ -k "bin_2" --no-cov
-
-# Test binning-specific functionality
-uv run pytest tests/integration/ -m binning --no-cov
-```
-
-## Requirements
-
-- New QDMpy codebase properly installed
-- Reference data files (`.npz`) in `reference_data/` folder
-- Test data in `tests/data/FOV18x/` folder
-
-## Test Data
-
-Tests expect the following data structure:
-```
-tests/data/FOV18x/
-├── run_00000.mat
-├── run_00001.mat
-├── LED.csv
-└── laser.csv
-
-reference_data/
-├── FOV18x_reference_bin1.npz
-├── FOV18x_reference_bin2.npz
-└── FOV18x_reference_bin8.npz
-```
-
-## Reference Data Contents
-
-Each `.npz` file contains:
-- `raw_data`: Raw ODMR data after loading
-- `frequencies`: Frequency arrays
-- `scan_dimensions`: Scan dimensions
-- `normalized_data`: Data after normalization
-- `binned_data`: Data after binning (if applicable)
-- `binned_scan_dimensions`: Scan dimensions after binning
-- Various metadata and shape information
-
-## Validation Tolerances
-
-Different validation stages use appropriate tolerances:
-- Data loading: exact match for raw data, 1e-6 relative tolerance for frequencies
-- Processing: 1e-12 relative tolerance for processed data
-- Shape validation: exact match required
-
-## Adding New Datasets
-
-To add validation for a new dataset (e.g., FOV1):
-
-1. Generate reference data:
-   ```bash
-   uv run python simple_reference_generator.py --data-folder tests/data/FOV1 --output-dir reference_data
-   ```
-
-2. Update `conftest.py` to include the new dataset:
-   ```python
-   @pytest.fixture(params=["FOV18x", "FOV1"])
-   def dataset_name(request):
-       return request.param
-   ```
-
-3. Tests will automatically run against all datasets
+`reference_data/FOV18x_reference_bin{2,6}.npz` are **not read by any test**. They
+are leftovers from the old-vs-new comparison harness that was removed once
+QEP-031 identified its root cause (AHYP is hardcoded in GHz in the gpufit
+kernels). They are kept because QEP-073 cites them for real fitted widths.
+Rebuilding a regression test on them would be new work, not a restoration.

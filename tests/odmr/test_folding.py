@@ -27,6 +27,8 @@ from qdmpy.odmr.folding import (
     _resolve_centroid_power,
 )
 
+pytestmark = [pytest.mark.unit, pytest.mark.processing]
+
 # ---------------------------------------------------------------------------
 # Synthetic data helpers
 # ---------------------------------------------------------------------------

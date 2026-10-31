@@ -1,9 +1,99 @@
 # QEP-TEST-001 — Test Foundation Fixes
 
-**Status:** Draft
+**Status:** Implemented (2026-09-20)
 **Created:** 2026-02-22
+**Revised:** 2026-09-20 -- drift update; H-11 premise superseded, H-12 premise
+confirmed on CI but masked locally; Proposed Changes Phase 2 obsolete
 **Severity:** HIGH (H-10, H-11, H-12)
 **Module:** `tests/`
+
+---
+
+## Status (2026-09-20)
+
+Implemented, but two of the three problems had drifted since 2026-02-22 and the
+work done differs from the Proposed Changes below. The original text is kept
+intact -- the drift record is the point -- with the corrections here.
+
+### H-10 -- unchanged, fixed as written
+
+`tests/test_fit.py` still carried `pol_0`/`frange_0`. Worth recording *why* it
+never failed: `FitManager` indexes positionally, so the wrong labels were
+invisible. Data built by that helper could not reach `odmr/analysis.py`,
+`odmr/folding.py` or `fitting/result.py:402` at all -- `b111_from_dip_positions`
+raises `DataValidationError` on it. The fixture was structurally incapable of
+catching a label bug, and one of the two duplicated B111 paths was therefore
+untestable.
+
+Fixed by `tests/helpers.py`, which sources labels from `qdmpy.constants` and
+replaces **three** duplicate builders (the QEP knew of two; a third lived at
+`tests/test_load.py:24`). Because helpers now import the constants, a rename
+would propagate silently, so `test_constants.py` locks the literal values.
+
+### H-11 -- premise superseded
+
+Commit `f48e0c5` fixed this before the QEP was actioned. `validation_tests.utils`,
+`new_qdmpy_modules`, `test_data_folder` and `QDMPY_TEST_DATA` do not exist, and
+no test skips for missing data. **Proposed Changes Phase 2 below is obsolete and
+was not implemented** -- do not resurrect it.
+
+The real problem in its place: all 11 markers were registered and **zero were
+applied**, so every `-m` command in `tests/integration/README.md` selected
+nothing, and that README documented six fixtures, five test files and a
+generator script that do not exist. Markers are now applied module-wide;
+`validation` and `performance` were dropped as unapplicable and
+`requires_reference_data` renamed `requires_real_data`; `--strict-markers` and
+`tests/test_markers.py` prevent recurrence.
+
+### H-12 -- true on CI, masked locally
+
+The premise looks fixed locally and is not. `tests/data/` is **gitignored**
+(`.gitignore:112`, zero tracked files; the smallest FOV is 61 MB against a
+1500 kB pre-commit cap), so `MatlabLoader.load()` had **no CI coverage at all**
+-- a local "1051 passed" was flattered by machine-local data. Record this: it
+will otherwise be re-discovered and wrongly re-closed.
+
+Also found: `test_keys_missing_exception` was a tautology. It re-implemented
+`io.py`'s try/except inside its own body and asserted its own raise, never
+calling `MatlabLoader`; coverage showed `io.py:134-136` and `154-156` uncovered
+for its entire life. Replaced with synthetic-`.mat` tests that drive `load()`
+end to end, verified by mutation rather than coverage alone.
+
+`testing.py`'s 13% figure is long stale (it was 93%), but the substance held:
+zero of its seven public symbols had a direct test, and `make_synthetic_fit_result`
+had none at all despite two tutorial notebooks depending on it.
+
+### Outcome
+
+| | Before | After |
+|---|---|---|
+| Tests | 1061 passed, 26 skipped | 1106 passed, 26 skipped |
+| `odmr/io.py` | 88% | 97% |
+| `qdmpy/testing.py` | 93% | 100% |
+| Markers applied | 0 of 11 | 9 of 9 |
+
+The 26 skips are correct optional-dependency gating (CUDA and torch) and must
+stay -- the Test Plan's "0 skipped" criterion below was wrong.
+
+Beyond the QEP's scope but enabled by it: `tests/test_b111_parity.py` pins
+agreement between the two duplicated B111 implementations as a characterisation
+test for QEP-FIT-004.
+
+## GUI Integration Requirements
+
+**Impact: none.** This QEP touches `tests/`, `pyproject.toml`
+`[tool.pytest.ini_options]`, `CHANGELOG.md` and two READMEs. No file under
+`src/qdmpy/` changed, so there is no core API, data contract, settings key,
+map/result field or persisted format for `qdmpy-gui` to track, and no migration.
+
+1. **Core API touchpoints:** none. `qdmpy.testing` is imported by the GUI and is
+   unchanged -- this QEP adds tests *for* it without altering it.
+2. **State/settings migration:** none; no defaults, keys or persisted data changed.
+3. **Progress/warning/error behavior:** unchanged; no new user-facing conditions.
+4. **Acceptance check:** `uv run pytest tests/ -q` in `qdmpy-gui` passes
+   unchanged against this branch of `qdmpy-core`.
+5. **Rationale for no impact:** verified by `git diff --stat develop..HEAD`
+   showing no `src/qdmpy/` path.
 
 ---
 
@@ -36,14 +126,6 @@ Three issues undermine the reliability of the test suite:
 
    Similarly, `testing.py` (public testing helpers) has only 13% coverage.
 
-## GUI Integration Requirements
-
-1. List the exact core API/data contract touchpoints used by `qdmpy-gui` (view-model calls, settings keys, map/result fields).
-2. Define GUI state/settings migration behavior for any changed defaults, renamed keys, or persisted session/config data.
-3. Specify expected user-facing behavior in the GUI for progress, warnings, and errors introduced by this QEP.
-4. Include explicit GUI acceptance checks for this QEP scope: `load -> run action -> inspect outputs -> save/reload`, and verify no GUI-only workaround is required.
-5. If impact is expected to be none, state the rationale and include a smoke check confirming no `qdmpy-gui` regression.
-
 ## Proposed Changes
 
 ### Phase 1: Fix polarity labels (H-10)
@@ -62,7 +144,10 @@ from tests.conftest import make_xr_data   # shared, correct labels
 
 Also fix `freq_range` labels from `frange_0`/`frange_1` to `low`/`high`.
 
-### Phase 2: Integration test activation (H-11)
+### Phase 2: Integration test activation (H-11) -- OBSOLETE, NOT IMPLEMENTED
+
+> Superseded by commit `f48e0c5`. None of the symbols below exist any more.
+> Kept as a record of what was believed in 2026-02. See Status (2026-09-20).
 
 1. Add a `pytest.mark.integration` marker:
 
@@ -172,8 +257,11 @@ def test_make_synthetic_odmr_data():
 
 ## Test Plan
 
-- [ ] Phase 1: All fitting tests pass with canonical polarity labels
-- [ ] Phase 2: `pytest` shows `0 skipped` for unit tests (integration excluded by default)
-- [ ] Phase 2: `pytest -m integration` runs integration tests when data present
-- [ ] Phase 3: `MatlabLoader.load()` unit test covers happy path
-- [ ] Phase 3: `testing.py` helpers have >80% coverage
+- [x] Phase 1: All fitting tests pass with canonical polarity labels
+- [~] Phase 2: ~~`pytest` shows `0 skipped`~~ -- **wrong criterion.** The 26
+      skips are correct optional-dependency gating (CUDA, torch) and must stay.
+      Replaced by: every registered marker selects a non-zero number of tests.
+- [x] Phase 2: `pytest -m integration` selects the integration modules (16 items)
+- [x] Phase 3: `MatlabLoader.load()` covered end to end, and on CI, via
+      synthetic `.mat` files; verified by mutation, not coverage alone
+- [x] Phase 3: `testing.py` at 100% with a direct test per public symbol

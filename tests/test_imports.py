@@ -11,6 +11,8 @@ import pytest
 
 import qdmpy
 
+pytestmark = [pytest.mark.unit]
+
 ALL_NAMES = [
     # Entry points
     ("load", "callable"),

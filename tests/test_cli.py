@@ -15,6 +15,8 @@ from qdmpy.cli.qdmpy_cli import (
     process_command,
 )
 
+pytestmark = [pytest.mark.unit]
+
 
 class TestCreateParser:
     """Test argument parser creation."""

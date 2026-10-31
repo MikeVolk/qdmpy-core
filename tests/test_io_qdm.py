@@ -23,6 +23,8 @@ from qdmpy.field_source import FieldSource, MagneticModel, MagneticSource, Upwar
 from qdmpy.io import load_npz, load_qdm, save_npz, save_qdm
 from qdmpy.testing import make_synthetic_qdm_result
 
+pytestmark = [pytest.mark.unit, pytest.mark.data_loading]
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

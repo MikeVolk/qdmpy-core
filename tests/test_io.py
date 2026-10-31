@@ -14,6 +14,8 @@ import pytest
 from qdmpy.exceptions import DataLoadError
 from qdmpy.io import get_image, get_image_file, has_csv
 
+pytestmark = [pytest.mark.unit, pytest.mark.data_loading]
+
 
 class TestIO:
     """Test the io module functions."""

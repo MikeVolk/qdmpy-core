@@ -24,6 +24,8 @@ from qdmpy.fitting.models import (
     esrsingle,
 )
 
+pytestmark = [pytest.mark.unit, pytest.mark.fitting]
+
 
 class TestModelFunctions:
     """Tests for the individual model functions."""

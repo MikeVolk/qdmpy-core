@@ -28,6 +28,8 @@ from qdmpy.settings import (
 )
 from qdmpy.testing import FakeFitBackend
 
+pytestmark = [pytest.mark.unit, pytest.mark.fitting]
+
 # ── Settings ────────────────────────────────────────────────────────────────
 
 MOCK_SETTINGS = QDMpySettings(

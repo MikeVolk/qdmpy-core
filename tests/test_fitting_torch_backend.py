@@ -25,6 +25,8 @@ from qdmpy.fitting.torch_backend import TorchBackend, torch_gpu_device_available
 from qdmpy.settings import FitSettings, ModelConstraintsSettings, ModelSettings, QDMpySettings
 from qdmpy.testing import make_synthetic_odmr_data
 
+pytestmark = [pytest.mark.unit, pytest.mark.fitting]
+
 _HAS_TORCH = importlib.util.find_spec("torch") is not None
 
 MOCK_SETTINGS = QDMpySettings(

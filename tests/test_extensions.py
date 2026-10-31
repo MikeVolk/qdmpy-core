@@ -22,6 +22,8 @@ from qdmpy.magnetic_map import MagneticMap
 from qdmpy.odmr.data import ODMRData
 from qdmpy.result import QDMResult
 
+pytestmark = [pytest.mark.unit]
+
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------

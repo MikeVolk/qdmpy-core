@@ -19,6 +19,8 @@ from hypothesis import given
 from hypothesis import settings as hyp_settings
 from hypothesis import strategies as st
 
+pytestmark = [pytest.mark.unit, pytest.mark.magnetic_fields]
+
 # ---------------------------------------------------------------------------
 # Shared helpers / fixtures
 # ---------------------------------------------------------------------------

@@ -15,6 +15,8 @@ from qdmpy.fitting.constraints import (
 from qdmpy.fitting.models import ModelRegistry
 from qdmpy.settings import ModelConstraintsSettings
 
+pytestmark = [pytest.mark.unit, pytest.mark.fitting]
+
 # ---------------------------------------------------------------------------
 # Constraint dataclass
 # ---------------------------------------------------------------------------

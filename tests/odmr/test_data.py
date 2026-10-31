@@ -15,6 +15,8 @@ from qdmpy.exceptions import DataLoadError, DataValidationError
 from qdmpy.odmr.analysis import b111_from_dip_positions
 from qdmpy.odmr.data import EXPECTED_DIMS, ODMRData
 
+pytestmark = [pytest.mark.unit, pytest.mark.data_loading]
+
 N_POL = 2
 N_FRANGE = 2
 ROWS = 10

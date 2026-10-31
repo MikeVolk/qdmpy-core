@@ -20,6 +20,8 @@ from qdmpy.fitting.result import FitResult
 from qdmpy.settings import FitSettings, ModelConstraintsSettings, ModelSettings, QDMpySettings
 from qdmpy.testing import RecordingFitBackend
 
+pytestmark = [pytest.mark.unit, pytest.mark.fitting]
+
 # Mock settings for FitManager-backed refit tests (mirrors tests/test_fit.py's MOCK_SETTINGS).
 _REFIT_SETTINGS = QDMpySettings(
     fit=FitSettings(estimator="LSE", max_number_iterations=100, tolerance=1e-6),

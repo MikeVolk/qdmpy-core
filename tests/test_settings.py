@@ -18,6 +18,8 @@ from qdmpy.settings import (
     reset_settings,
 )
 
+pytestmark = [pytest.mark.unit]
+
 
 class TestModelConstraintsSettings:
     """Tests for ModelConstraintsSettings."""
